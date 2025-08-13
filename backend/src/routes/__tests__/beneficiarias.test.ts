@@ -1,33 +1,48 @@
 import request from 'supertest';
-import app from '../../app';
-import { db } from '../../config/database';
+import express from 'express';
 
-// Mock do banco de dados
-jest.mock('../../config/database');
-const mockDb = db as jest.Mocked<typeof db>;
+const mockUser = {
+  id: '123',
+  email: 'bruno@move.com',
+  role: 'admin'
+};
+
+jest.mock('../../middleware/auth', () => ({
+  authenticateToken: (req: any, res: any, next: any) => {
+    req.user = mockUser;
+    next();
+  },
+  requireProfissional: (req: any, res: any, next: any) => next(),
+  AuthService: {
+    verifyToken: jest.fn().mockReturnValue(mockUser)
+  }
+}));
+
+jest.mock('../../config/database', () => ({
+  db: {
+    query: jest.fn(),
+    getBeneficiarias: jest.fn(),
+    findById: jest.fn(),
+    insert: jest.fn(),
+    update: jest.fn()
+  }
+}));
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { db } = require('../../config/database');
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const beneficiariasRouter = require('../beneficiarias').default;
+
+const app = express();
+app.use(express.json());
+app.use('/beneficiarias', beneficiariasRouter);
+
+const mockDb = db as any;
 
 describe('Beneficiarias Routes', () => {
-  // Mock user para autenticação
-  const mockUser = {
-    id: '123',
-    email: 'bruno@move.com',
-    role: 'admin'
-  };
-
   const mockToken = 'valid-jwt-token';
 
   beforeEach(() => {
-    // Mock do middleware de autenticação
-    jest.doMock('../../middleware/auth', () => ({
-      authenticateToken: (req: any, res: any, next: any) => {
-        req.user = mockUser;
-        next();
-      },
-      requireProfissional: (req: any, res: any, next: any) => next(),
-      AuthService: {
-        verifyToken: jest.fn().mockReturnValue(mockUser)
-      }
-    }));
+    jest.clearAllMocks();
   });
 
   describe('GET /beneficiarias', () => {
@@ -113,7 +128,7 @@ describe('Beneficiarias Routes', () => {
         nome_completo: 'Maria Silva',
         cpf: '123.456.789-01',
         status: 'ativa',
-        created_at: new Date()
+        created_at: new Date().toISOString()
       };
 
       mockDb.findById.mockResolvedValue(mockBeneficiaria);
@@ -156,7 +171,7 @@ describe('Beneficiarias Routes', () => {
         ...novaBeneficiaria,
         status: 'ativa',
         created_by: mockUser.id,
-        created_at: new Date()
+        created_at: new Date().toISOString()
       };
 
       mockDb.query.mockResolvedValue([]); // CPF não existe
@@ -283,9 +298,11 @@ describe('Beneficiarias Routes', () => {
 
       expect(response.status).toBe(200);
       expect(response.body.message).toBe('Beneficiária removida com sucesso');
-      expect(mockDb.update).toHaveBeenCalledWith('1', expect.objectContaining({
-        status: 'inativa'
-      }));
+      expect(mockDb.update).toHaveBeenCalledWith(
+        'beneficiarias',
+        '1',
+        expect.objectContaining({ status: 'inativa' })
+      );
     });
 
     it('deve rejeitar remoção de beneficiária inexistente', async () => {
