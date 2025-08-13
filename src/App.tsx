@@ -12,13 +12,6 @@ import NotFound from "./pages/NotFound";
 import MainLayout from "./components/layout/main-layout";
 import { PostgreSQLAuthProvider } from "./hooks/usePostgreSQLAuth";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
-import Analytics from "./pages/Analytics";
-import Oficinas from "./pages/Oficinas";
-import ParticipantesProjeto from "./pages/ParticipantesProjeto";
-import Configuracoes from "./pages/ConfiguracoesNew";
-import EditarPerfil from "./components/EditarPerfil";
-import Mensagens from "./pages/Mensagens";
-import Atividades from "./pages/Atividades";
 
 const queryClient = new QueryClient();
 
@@ -50,55 +43,6 @@ const App = () => (
               <ProtectedRoute>
                 <MainLayout>
                   <CadastroBeneficiaria />
-                </MainLayout>
-              </ProtectedRoute>
-            } />
-            <Route path="/analytics" element={
-              <ProtectedRoute>
-                <MainLayout>
-                  <Analytics />
-                </MainLayout>
-              </ProtectedRoute>
-            } />
-            <Route path="/oficinas" element={
-              <ProtectedRoute>
-                <MainLayout>
-                  <Oficinas />
-                </MainLayout>
-              </ProtectedRoute>
-            } />
-            <Route path="/participantes" element={
-              <ProtectedRoute>
-                <MainLayout>
-                  <ParticipantesProjeto />
-                </MainLayout>
-              </ProtectedRoute>
-            } />
-            <Route path="/configuracoes" element={
-              <ProtectedRoute>
-                <MainLayout>
-                  <Configuracoes />
-                </MainLayout>
-              </ProtectedRoute>
-            } />
-            <Route path="/configuracoes/perfil" element={
-              <ProtectedRoute>
-                <MainLayout>
-                  <EditarPerfil />
-                </MainLayout>
-              </ProtectedRoute>
-            } />
-            <Route path="/mensagens" element={
-              <ProtectedRoute>
-                <MainLayout>
-                  <Mensagens />
-                </MainLayout>
-              </ProtectedRoute>
-            } />
-            <Route path="/atividades" element={
-              <ProtectedRoute>
-                <MainLayout>
-                  <Atividades />
                 </MainLayout>
               </ProtectedRoute>
             } />

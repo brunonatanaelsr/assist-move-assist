@@ -24,9 +24,9 @@ import { cn } from "@/lib/utils";
 
 const menuItems = [
   {
-    title: "Dashboard", 
+    title: "Dashboard",
     icon: Home,
-    href: "/"
+    href: "/",
   },
   {
     title: "Beneficiárias",
@@ -37,57 +37,12 @@ const menuItems = [
     title: "Novo Cadastro",
     icon: UserPlus,
     href: "/beneficiarias/nova"
-  },
-  {
-    title: "Oficinas",
-    icon: GraduationCap,
-    href: "/oficinas"
-  },
-  {
-    title: "Projetos",
-    icon: FolderKanban,
-    href: "/projetos"
-  },
-  {
-    title: "Feed",
-    icon: Heart,
-    href: "/feed"
-  },
-  {
-    title: "Mensagens",
-    icon: MessageCircle,
-    href: "/mensagens"
-  },
-  {
-    title: "Formulários",
-    icon: FileText,
-    children: [
-      { title: "Declaração de Comparecimento", href: "/formularios/declaracao" },
-      { title: "Recibo de Benefício", href: "/formularios/recibo" },
-      { title: "Anamnese Social", href: "/formularios/anamnese" },
-      { title: "Ficha de Evolução", href: "/formularios/evolucao" },
-      { title: "Termo de Consentimento", href: "/formularios/termo" },
-      { title: "Visão Holística", href: "/formularios/visao" },
-      { title: "Roda da Vida", href: "/formularios/roda-vida" },
-      { title: "Plano de Ação", href: "/formularios/plano" },
-      { title: "Matrícula de Projetos", href: "/formularios/matricula" }
-    ]
-  },
-  {
-    title: "Relatórios",
-    icon: BarChart3,
-    href: "/relatorios"
-  },
-  {
-    title: "Analytics",
-    icon: TrendingUp,
-    href: "/analytics"
   }
 ];
 
 export default function Sidebar() {
   const [isOpen, setIsOpen] = useState(false);
-  const [expandedItems, setExpandedItems] = useState<string[]>(["Formulários"]);
+  const [expandedItems, setExpandedItems] = useState<string[]>([]);
   const location = useLocation();
 
   const toggleExpanded = (title: string) => {

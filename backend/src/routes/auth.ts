@@ -32,13 +32,13 @@ router.post('/login', async (req: express.Request, res: express.Response) => {
 
     res.cookie('auth_token', result.token, COOKIE_OPTIONS);
 
-    res.json({
+    return res.json({
       message: 'Login realizado com sucesso',
       user: result.user
     });
   } catch (error) {
     loggerService.error('Erro no endpoint de login:', error);
-    res.status(500).json({
+    return res.status(500).json({
       error: 'Erro interno do servidor'
     });
   }
@@ -79,7 +79,7 @@ router.post('/register', async (req: express.Request, res: express.Response) => 
 
     res.cookie('auth_token', result.token, COOKIE_OPTIONS);
 
-    res.status(201).json({
+    return res.status(201).json({
       message: 'Usuário registrado com sucesso',
       user: result.user
     });
@@ -92,7 +92,7 @@ router.post('/register', async (req: express.Request, res: express.Response) => 
       });
     }
 
-    res.status(500).json({
+    return res.status(500).json({
       error: 'Erro interno do servidor'
     });
   }
@@ -109,12 +109,12 @@ router.get('/profile', authenticateToken, async (req: AuthenticatedRequest, res:
       });
     }
 
-    res.json({
+    return res.json({
       user: profile
     });
   } catch (error) {
     loggerService.error('Erro ao buscar perfil:', error);
-    res.status(500).json({
+    return res.status(500).json({
       error: 'Erro interno do servidor'
     });
   }
@@ -130,13 +130,13 @@ router.put('/profile', authenticateToken, async (req: AuthenticatedRequest, res:
       avatar_url
     });
 
-    res.json({
+    return res.json({
       message: 'Perfil atualizado com sucesso',
       user: updatedUser
     });
   } catch (error: any) {
     loggerService.error('Erro ao atualizar perfil:', error);
-    res.status(400).json({
+    return res.status(400).json({
       error: error.message || 'Erro ao atualizar perfil'
     });
   }
@@ -161,7 +161,7 @@ router.post('/change-password', authenticateToken, async (req: AuthenticatedRequ
 
     await AuthService.changePassword(req.user!.id, currentPassword, newPassword);
 
-    res.json({
+    return res.json({
       message: 'Senha alterada com sucesso'
     });
   } catch (error: any) {
@@ -173,7 +173,7 @@ router.post('/change-password', authenticateToken, async (req: AuthenticatedRequ
       });
     }
 
-    res.status(500).json({
+    return res.status(500).json({
       error: 'Erro interno do servidor'
     });
   }
@@ -191,12 +191,12 @@ router.post('/refresh-token', authenticateToken, async (req: AuthenticatedReques
 
     res.cookie('auth_token', newToken, COOKIE_OPTIONS);
 
-    res.json({
+    return res.json({
       message: 'Token renovado com sucesso'
     });
   } catch (error) {
     loggerService.error('Erro ao renovar token:', error);
-    res.status(500).json({
+    return res.status(500).json({
       error: 'Erro interno do servidor'
     });
   }
@@ -207,12 +207,12 @@ router.post('/logout', async (req: express.Request, res: express.Response) => {
   try {
     res.clearCookie('auth_token', COOKIE_OPTIONS);
 
-    res.json({
+    return res.json({
       message: 'Logout realizado com sucesso'
     });
   } catch (error) {
     loggerService.error('Erro no logout:', error);
-    res.status(500).json({
+    return res.status(500).json({
       error: 'Erro interno do servidor'
     });
   }

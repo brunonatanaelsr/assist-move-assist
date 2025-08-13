@@ -122,6 +122,11 @@ CORS_ORIGIN=http://localhost:5173
 - `POST /dashboard/notifications/mark-all-read` - Marcar todas como lidas
 - `GET /dashboard/quick-access` - Links de acesso rápido
 
+### Health
+- `GET /health` - Status geral do sistema
+- `GET /health/db` - Verifica conexão com o banco de dados
+- `GET /health/resources` - Utilização de recursos do servidor
+
 ## WebSocket
 
 ### Conexão

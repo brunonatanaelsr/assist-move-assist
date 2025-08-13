@@ -122,7 +122,9 @@ export const db = {
   pool
 };
 
-// Inicializar ao importar o módulo
-initializeDatabase();
+// Inicializar ao importar o módulo (ignorar em testes)
+if (process.env.NODE_ENV !== 'test') {
+  initializeDatabase();
+}
 
 export default pool;
