@@ -3,6 +3,7 @@ import { validateCPF, validateEmail, validatePhone, validateCEP, validateDate, v
 describe('validators', () => {
   it('validates CPF correctly', () => {
     expect(validateCPF('39053344705')).toBe(true);
+    expect(validateCPF('390.533.447-05')).toBe(true);
     expect(validateCPF('12345678900')).toBe(false);
   });
 
