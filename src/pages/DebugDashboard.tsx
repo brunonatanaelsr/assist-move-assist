@@ -4,28 +4,33 @@ import { api } from '@/lib/api';
 export default function DebugDashboard() {
   const [debug, setDebug] = useState<any>({});
   const [loading, setLoading] = useState(true);
+  const isDev = process.env.NODE_ENV === 'development';
 
   useEffect(() => {
     const debugLoad = async () => {
       try {
-        console.log('=== DEBUG DASHBOARD ===');
-        
+        if (isDev) {
+          console.log('=== DEBUG DASHBOARD ===');
+        }
+
         // Verificar se tem token
         const token = localStorage.getItem('auth_token');
-        console.log('Token encontrado:', token ? 'SIM' : 'NÃO');
-        
-        if (token) {
-          console.log('Token preview:', token.substring(0, 50) + '...');
+        if (isDev) {
+          console.log('Token encontrado:', token ? 'SIM' : 'NÃO');
         }
 
         // Testar API
-        console.log('Testando API...');
+        if (isDev) {
+          console.log('Testando API...');
+        }
         const response = await api.getBeneficiarias();
-        console.log('Resposta da API:', response);
-        
+        if (isDev) {
+          console.log('Resposta da API:', response);
+        }
+
         setDebug({
           hasToken: !!token,
-          tokenPreview: token ? token.substring(0, 50) + '...' : 'N/A',
+          tokenPreview: token ? '***' : 'N/A',
           apiResponse: response,
           dataType: typeof response.data,
           dataIsArray: Array.isArray(response.data),
@@ -33,12 +38,14 @@ export default function DebugDashboard() {
           responseKeys: Object.keys(response || {}),
           error: null
         });
-        
+
       } catch (error) {
-        console.error('Erro no debug:', error);
+        if (isDev) {
+          console.error('Erro no debug:', error);
+        }
         setDebug({
-          error: error.message,
-          stack: error.stack
+          error: (error as Error).message,
+          stack: (error as Error).stack
         });
       } finally {
         setLoading(false);
@@ -46,7 +53,7 @@ export default function DebugDashboard() {
     };
 
     debugLoad();
-  }, []);
+  }, [isDev]);
 
   if (loading) {
     return <div className="p-4">Carregando debug...</div>;

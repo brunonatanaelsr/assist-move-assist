@@ -67,9 +67,10 @@ export default function Mensagens() {
   const [newConversationName, setNewConversationName] = useState("");
   const [showNewConversationDialog, setShowNewConversationDialog] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  
+
   const { profile } = useAuth();
   const { toast } = useToast();
+  const isDev = process.env.NODE_ENV === 'development';
 
   const handleToggleNotifications = () => {
     setNotificationsEnabled(!notificationsEnabled);
@@ -142,7 +143,9 @@ export default function Mensagens() {
 
       setConversations(mockConversations);
     } catch (error) {
-      console.error('Erro ao carregar conversas:', error);
+      if (isDev) {
+        console.error('Erro ao carregar conversas:', error);
+      }
       toast({
         title: "Erro",
         description: "Não foi possível carregar as conversas.",
@@ -231,7 +234,9 @@ export default function Mensagens() {
 
       setMessages(mockMessages[conversationId] || []);
     } catch (error) {
-      console.error('Erro ao carregar mensagens:', error);
+      if (isDev) {
+        console.error('Erro ao carregar mensagens:', error);
+      }
     }
   };
 
@@ -250,7 +255,9 @@ export default function Mensagens() {
 
   const subscribeToMessages = (conversationId: string) => {
     // Em produção, implementar subscription real do Supabase
-    console.log(`Subscribed to messages for conversation: ${conversationId}`);
+    if (isDev) {
+      console.log(`Subscribed to messages for conversation: ${conversationId}`);
+    }
   };
 
   const sendMessage = async () => {
@@ -274,7 +281,9 @@ export default function Mensagens() {
         description: "Sua mensagem foi enviada com sucesso."
       });
     } catch (error) {
-      console.error('Erro ao enviar mensagem:', error);
+      if (isDev) {
+        console.error('Erro ao enviar mensagem:', error);
+      }
       toast({
         title: "Erro",
         description: "Não foi possível enviar a mensagem.",
@@ -319,7 +328,9 @@ export default function Mensagens() {
         description: "Nova conversa criada com sucesso."
       });
     } catch (error) {
-      console.error('Erro ao criar conversa:', error);
+      if (isDev) {
+        console.error('Erro ao criar conversa:', error);
+      }
       toast({
         title: "Erro",
         description: "Não foi possível criar a conversa.",

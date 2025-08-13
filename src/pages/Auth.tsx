@@ -21,6 +21,7 @@ export default function Auth() {
   const location = useLocation();
 
   const from = location.state?.from?.pathname || '/';
+  const isDev = process.env.NODE_ENV === 'development';
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -35,20 +36,28 @@ export default function Auth() {
     setError(null);
 
     try {
-      console.log('Tentando login com:', { email: loginEmail, password: '***' });
+      if (isDev) {
+        console.log('Tentando login com:', { email: loginEmail, password: '***' });
+      }
       
       // Usar API PostgreSQL
       const { error } = await signIn(loginEmail.trim().toLowerCase(), loginPassword);
 
       if (error) {
-        console.error('Erro de login:', error);
+        if (isDev) {
+          console.error('Erro de login:', error);
+        }
         setError(`Erro de autenticação: ${error.message}`);
       } else {
-        console.log('Login bem-sucedido');
+        if (isDev) {
+          console.log('Login bem-sucedido');
+        }
         navigate(from, { replace: true });
       }
     } catch (err) {
-      console.error('Erro inesperado:', err);
+      if (isDev) {
+        console.error('Erro inesperado:', err);
+      }
       setError('Erro inesperado. Verifique suas credenciais.');
     } finally {
       setIsLoading(false);
@@ -60,10 +69,14 @@ export default function Auth() {
     setError(null);
     
     try {
-      console.log('Funcionalidade removida - usuário de teste já existe');
+      if (isDev) {
+        console.log('Funcionalidade removida - usuário de teste já existe');
+      }
       setError('Usuário bruno@move.com já existe. Use a senha 15002031.');
     } catch (err) {
-      console.error('Erro:', err);
+      if (isDev) {
+        console.error('Erro:', err);
+      }
       setError('Erro inesperado.');
     } finally {
       setIsLoading(false);

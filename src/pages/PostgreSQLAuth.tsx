@@ -19,8 +19,9 @@ export default function PostgreSQLAuth() {
   const { signIn, user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-
+  
   const from = location.state?.from?.pathname || '/';
+  const isDev = process.env.NODE_ENV === 'development';
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -35,19 +36,27 @@ export default function PostgreSQLAuth() {
     setError(null);
 
     try {
-      console.log('Tentando login com:', { email: loginEmail, password: '***' });
-      
+      if (isDev) {
+        console.log('Tentando login com:', { email: loginEmail, password: '***' });
+      }
+
       const { error: loginError } = await signIn(loginEmail.trim(), loginPassword);
 
       if (loginError) {
-        console.error('Erro de login:', loginError);
+        if (isDev) {
+          console.error('Erro de login:', loginError);
+        }
         setError(loginError.message || 'Erro ao fazer login');
       } else {
-        console.log('Login bem-sucedido! Redirecionando...');
+        if (isDev) {
+          console.log('Login bem-sucedido! Redirecionando...');
+        }
         navigate(from, { replace: true });
       }
     } catch (err: any) {
-      console.error('Erro inesperado:', err);
+      if (isDev) {
+        console.error('Erro inesperado:', err);
+      }
       setError('Erro de conexão. Tente novamente.');
     } finally {
       setIsLoading(false);

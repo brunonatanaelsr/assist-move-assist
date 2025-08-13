@@ -236,7 +236,7 @@ export const authenticateToken = (req: AuthenticatedRequest, res: Response, next
     req.user = decoded;
     next();
   } catch (error) {
-    loggerService.audit('INVALID_TOKEN', undefined, { token: token.substring(0, 20) + '...' });
+    loggerService.audit('INVALID_TOKEN', undefined, { token: '[MASKED]' });
     return res.status(403).json({ error: 'Token inválido' });
   }
 };

@@ -45,7 +45,9 @@ class Logger {
         };
 
         // Aqui seria integração com Sentry ou outro serviço
-        console.log('📊 Log enviado para monitoramento:', logData);
+        if (this.isDevelopment) {
+          console.log('📊 Log enviado para monitoramento:', logData);
+        }
         
         // Alternativa: enviar para endpoint próprio de logs
         // await fetch('/api/logs', {
@@ -54,7 +56,9 @@ class Logger {
         //   body: JSON.stringify(logData)
         // });
       } catch (err) {
-        console.error('Erro ao enviar log para monitoramento:', err);
+        if (this.isDevelopment) {
+          console.error('Erro ao enviar log para monitoramento:', err);
+        }
       }
     }
   }

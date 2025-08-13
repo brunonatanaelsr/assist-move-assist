@@ -3,6 +3,8 @@ import 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
 
+const isDev = process.env.NODE_ENV === 'development';
+
 // Estender o tipo jsPDF para incluir autoTable
 declare module 'jspdf' {
   interface jsPDF {
@@ -126,9 +128,13 @@ export const exportarBeneficiarias = async (options: ExportOptions) => {
         break;
     }
     
-    console.log(`Exportação de beneficiárias em ${formato} concluída!`);
+    if (isDev) {
+      console.log(`Exportação de beneficiárias em ${formato} concluída!`);
+    }
   } catch (error) {
-    console.error('Erro na exportação:', error);
+    if (isDev) {
+      console.error('Erro na exportação:', error);
+    }
     alert('Erro ao exportar dados. Tente novamente.');
   }
 };
@@ -203,9 +209,13 @@ export const exportarProjetos = async (options: ExportOptions) => {
         break;
     }
     
-    console.log(`Exportação de projetos em ${formato} concluída!`);
+    if (isDev) {
+      console.log(`Exportação de projetos em ${formato} concluída!`);
+    }
   } catch (error) {
-    console.error('Erro na exportação:', error);
+    if (isDev) {
+      console.error('Erro na exportação:', error);
+    }
     alert('Erro ao exportar dados. Tente novamente.');
   }
 };
@@ -280,9 +290,13 @@ export const exportarOficinas = async (options: ExportOptions) => {
         break;
     }
     
-    console.log(`Exportação de oficinas em ${formato} concluída!`);
+    if (isDev) {
+      console.log(`Exportação de oficinas em ${formato} concluída!`);
+    }
   } catch (error) {
-    console.error('Erro na exportação:', error);
+    if (isDev) {
+      console.error('Erro na exportação:', error);
+    }
     alert('Erro ao exportar dados. Tente novamente.');
   }
 };
@@ -356,9 +370,13 @@ export const exportarPAEDI = async (options: ExportOptions) => {
         break;
     }
     
-    console.log(`Exportação de PAEDI em ${formato} concluída!`);
+    if (isDev) {
+      console.log(`Exportação de PAEDI em ${formato} concluída!`);
+    }
   } catch (error) {
-    console.error('Erro na exportação:', error);
+    if (isDev) {
+      console.error('Erro na exportação:', error);
+    }
     alert('Erro ao exportar dados. Tente novamente.');
   }
 };
@@ -423,9 +441,13 @@ export const exportarDados = async (options: ExportOptions) => {
         break;
     }
     
-    console.log(`Exportação em ${formato} concluída!`);
+    if (isDev) {
+      console.log(`Exportação em ${formato} concluída!`);
+    }
   } catch (error) {
-    console.error('Erro na exportação:', error);
+    if (isDev) {
+      console.error('Erro na exportação:', error);
+    }
     alert('Erro ao exportar dados. Tente novamente.');
   }
 };
