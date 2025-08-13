@@ -1,4 +1,4 @@
-import { validateCPF, validateEmail, validatePhone, validateCEP, validatePassword } from '../validators';
+import { validateCPF, validateEmail, validatePhone, validateCEP, validateDate, validatePassword } from '../validators';
 
 describe('validators', () => {
   it('validates CPF correctly', () => {
@@ -21,6 +21,12 @@ describe('validators', () => {
     expect(validateCEP('123')).toBe(false);
   });
 
+  it('validates date format', () => {
+    expect(validateDate('31/12/2023')).toBe(true);
+    expect(validateDate('31-12-2023')).toBe(false);
+    expect(validateDate('32/01/2023')).toBe(false);
+  });
+
   it('validates strong passwords', () => {
     const result = validatePassword('Str0ng!Pass');
     expect(result.isValid).toBe(true);
@@ -31,3 +37,4 @@ describe('validators', () => {
     expect(weak.errors.length).toBeGreaterThan(0);
   });
 });
+
