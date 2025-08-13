@@ -13,7 +13,7 @@ jest.mock('pg', () => ({
 }));
 
 // Mock do Winston logger
-jest.mock('../services/logger', () => ({
+jest.mock('./services/logger', () => ({
   logger: {
     info: jest.fn(),
     error: jest.fn(),

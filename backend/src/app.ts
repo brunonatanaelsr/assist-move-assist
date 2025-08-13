@@ -56,7 +56,9 @@ app.get('/health', (req, res) => {
 app.use('/api', apiRoutes);
 
 // WebSocket setup
-initializeWebSocket(server);
+if (process.env.NODE_ENV !== 'test') {
+  initializeWebSocket(server);
+}
 
 // Error handling
 app.use(errorHandler);
@@ -68,19 +70,21 @@ app.use('*', (req, res) => {
 
 const PORT = process.env.PORT || 3001;
 
-server.listen(PORT, () => {
-  logger.info(`🚀 Servidor rodando na porta ${PORT}`);
-  logger.info(`📊 Health check: http://localhost:${PORT}/health`);
-  logger.info(`🌐 API base: http://localhost:${PORT}/api`);
-});
-
-// Graceful shutdown
-process.on('SIGTERM', () => {
-  logger.info('Recebido SIGTERM, fechando servidor...');
-  server.close(() => {
-    logger.info('Servidor fechado.');
-    process.exit(0);
+if (process.env.NODE_ENV !== 'test') {
+  server.listen(PORT, () => {
+    logger.info(`🚀 Servidor rodando na porta ${PORT}`);
+    logger.info(`📊 Health check: http://localhost:${PORT}/health`);
+    logger.info(`🌐 API base: http://localhost:${PORT}/api`);
   });
-});
+
+  // Graceful shutdown
+  process.on('SIGTERM', () => {
+    logger.info('Recebido SIGTERM, fechando servidor...');
+    server.close(() => {
+      logger.info('Servidor fechado.');
+      process.exit(0);
+    });
+  });
+}
 
 export default app;

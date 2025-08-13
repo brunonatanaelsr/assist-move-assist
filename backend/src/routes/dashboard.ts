@@ -121,7 +121,7 @@ router.get('/notifications', authenticateToken, async (req: AuthenticatedRequest
       SELECT * FROM notifications 
       WHERE user_id = $1
     `;
-    const params = [req.user!.id];
+    const params: (string | number)[] = [req.user!.id];
 
     if (unread_only === 'true') {
       query += ' AND read_at IS NULL';

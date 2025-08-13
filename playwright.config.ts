@@ -13,7 +13,7 @@ export default defineConfig({
   ],
   
   use: {
-    baseURL: 'https://movemarias.squadsolucoes.com.br',
+    baseURL: 'http://127.0.0.1:8080',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
@@ -51,8 +51,8 @@ export default defineConfig({
   ],
 
   webServer: process.env.CI ? undefined : {
-    command: 'npm run dev',
-    url: 'http://127.0.0.1:5173',
+    command: 'npm run preview',
+    url: 'http://127.0.0.1:8080',
     reuseExistingServer: !process.env.CI,
     timeout: 120000,
   },

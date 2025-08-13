@@ -55,7 +55,9 @@ const initializeDatabase = async () => {
     logger.info('🗄️ Versão PostgreSQL:', result.rows[0].version.split(' ')[0]);
   } catch (err) {
     logger.error('❌ Erro ao conectar ao PostgreSQL:', err);
-    process.exit(1);
+    if (process.env.NODE_ENV !== 'test') {
+      process.exit(1);
+    }
   }
 };
 
@@ -124,6 +126,8 @@ export const db = {
 };
 
 // Inicializar ao importar o módulo
-initializeDatabase();
+if (process.env.NODE_ENV !== 'test') {
+  initializeDatabase();
+}
 
 export default pool;
