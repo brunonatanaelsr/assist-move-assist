@@ -5,6 +5,7 @@ describe('validators', () => {
     expect(validateCPF('39053344705')).toBe(true);
     expect(validateCPF('390.533.447-05')).toBe(true);
     expect(validateCPF('12345678900')).toBe(false);
+    expect(validateCPF('123.456.789-00')).toBe(false);
   });
 
   it('validates email format', () => {
