@@ -253,7 +253,7 @@ SMTP_PASSWORD=sua_senha_app
 # App
 NODE_ENV=production
 PORT=3001
-CORS_ORIGIN=http://localhost:3000
+CORS_ORIGIN=http://localhost:3001
 ```
 
 ## 📊 VANTAGENS DA MIGRAÇÃO

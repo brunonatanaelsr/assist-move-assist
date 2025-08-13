@@ -119,7 +119,7 @@ npm run dev
 bun dev
 ```
 
-Acesse: [http://localhost:3000](http://localhost:3000)
+Acesse: [http://localhost:3001](http://localhost:3001)
 
 ---
 

@@ -166,11 +166,11 @@ BACKEND_PID=$!
 sleep 5
 
 # Testar health check
-if curl -sf http://localhost:3000/health > /dev/null 2>&1; then
+if curl -sf http://localhost:3001/health > /dev/null 2>&1; then
     log_check "PASS" "Backend iniciou e responde ao health check"
     
     # Testar API básica
-    if curl -sf http://localhost:3000/api/beneficiarias > /dev/null 2>&1; then
+    if curl -sf http://localhost:3001/api/beneficiarias > /dev/null 2>&1; then
         log_check "PASS" "API de beneficiárias respondendo"
     else
         log_check "FAIL" "API de beneficiárias não respondendo"

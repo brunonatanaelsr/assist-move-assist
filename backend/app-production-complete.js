@@ -10,7 +10,7 @@ const { Pool } = require("pg");
 require("dotenv").config();
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3001;
 
 // Configurar trust proxy para rate limiting
 app.set("trust proxy", 1);
@@ -62,7 +62,7 @@ const corsOptions = {
       "http://movemarias.squadsolucoes.com.br",
       "https://movemarias.squadsolucoes.com.br",
       "http://localhost:5173",
-      "http://localhost:3000"
+      "http://localhost:3001"
     ];
     
     if (!origin || allowedOrigins.includes(origin)) {

@@ -5,7 +5,7 @@ const allowedOrigins = [
   'https://movemarias.squadsolucoes.com.br',
   // Ambientes de desenvolvimento
   'http://localhost:8080',
-  'http://localhost:3000',
+  'http://localhost:3001',
   'http://127.0.0.1:8080',
   'http://10.0.5.206:8080'
 ];

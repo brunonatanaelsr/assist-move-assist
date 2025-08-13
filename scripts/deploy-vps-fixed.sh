@@ -169,7 +169,7 @@ server {
     
     # Proxy para backend
     location /api {
-        proxy_pass http://127.0.0.1:3000;
+        proxy_pass http://127.0.0.1:3001;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
@@ -185,7 +185,7 @@ server {
     
     # Health check
     location /health {
-        proxy_pass http://127.0.0.1:3000;
+        proxy_pass http://127.0.0.1:3001;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -237,8 +237,8 @@ log_info "Executando testes finais..."
 sleep 5
 
 # Teste backend local
-if sshpass -p "$VPS_PASSWORD" ssh -o StrictHostKeyChecking=no "$VPS_USER@$VPS_IP" "curl -sf http://localhost:3000/health > /dev/null"; then
-    log_success "✅ Backend funcionando na porta 3000"
+if sshpass -p "$VPS_PASSWORD" ssh -o StrictHostKeyChecking=no "$VPS_USER@$VPS_IP" "curl -sf http://localhost:3001/health > /dev/null"; then
+    log_success "✅ Backend funcionando na porta 3001"
 else
     log_error "❌ Backend não está respondendo"
 fi

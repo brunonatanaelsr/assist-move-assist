@@ -1,6 +1,6 @@
 // Frontend API client para comunicação com o backend PostgreSQL
 const getApiBaseUrl = () => {
-  return import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
+  return import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
 };
 
 const API_BASE_URL = getApiBaseUrl();

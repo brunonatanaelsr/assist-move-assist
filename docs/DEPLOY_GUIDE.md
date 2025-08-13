@@ -208,7 +208,7 @@ ALTER TABLE oficinas ENABLE ROW LEVEL SECURITY;
   "site_url": "https://seudominio.com",
   "redirect_urls": [
     "https://seudominio.com/auth/callback",
-    "http://localhost:3000/auth/callback"
+    "http://localhost:3001/auth/callback"
   ],
   "jwt_expiry": 3600,
   "refresh_token_rotation": true,
@@ -366,7 +366,7 @@ export default defineConfig({
     }
   },
   server: {
-    port: 3000,
+    port: 3001,
     host: true
   }
 })

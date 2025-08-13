@@ -146,7 +146,7 @@ server {
     # API routes
     location /api/ {
         limit_req zone=api burst=10 nodelay;
-        proxy_pass http://localhost:3000;
+        proxy_pass http://localhost:3001;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
@@ -159,14 +159,14 @@ server {
     
     # Health check
     location /health {
-        proxy_pass http://localhost:3000;
+        proxy_pass http://localhost:3001;
         access_log off;
     }
     
     # Login rate limiting
     location /api/auth/login {
         limit_req zone=login burst=5 nodelay;
-        proxy_pass http://localhost:3000;
+        proxy_pass http://localhost:3001;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     }
@@ -182,7 +182,7 @@ log "INFO" "Configurando firewall..."
 ufw --force enable
 ufw allow ssh
 ufw allow 'Nginx Full'
-ufw allow 3000  # Backend temporário
+ufw allow 3001  # Backend temporário
 
 # 12. Instalar Let's Encrypt (Certbot)
 log "INFO" "Instalando Certbot para SSL..."
@@ -270,7 +270,7 @@ if [ $DISK_USAGE -gt 90 ]; then
 fi
 
 # Health check da API
-if ! curl -f http://localhost:3000/health &> /dev/null; then
+if ! curl -f http://localhost:3001/health &> /dev/null; then
     echo "[$TIMESTAMP] ERROR: API health check falhou" >> $LOG_FILE
 fi
 EOF
