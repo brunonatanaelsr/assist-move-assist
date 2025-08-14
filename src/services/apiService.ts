@@ -213,6 +213,19 @@ class ApiService {
     return this.delete(`/beneficiarias/${id}`);
   }
 
+  // Dashboard methods
+  async getDashboardStats(): Promise<ApiResponse<any>> {
+    return this.get('/dashboard/stats');
+  }
+
+  async getDashboardActivities(): Promise<ApiResponse<any[]>> {
+    return this.get('/dashboard/activities');
+  }
+
+  async getDashboardTasks(): Promise<ApiResponse<any[]>> {
+    return this.get('/dashboard/tasks');
+  }
+
   // Método para testar conectividade
   async healthCheck(): Promise<ApiResponse<any>> {
     try {

@@ -23,14 +23,30 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { api } from "@/lib/api";
 
 interface Beneficiaria {
-  id: string;
+  id: number;
   nome_completo: string;
-  cpf: string;
-  idade: number | null;
-  programa_servico: string | null;
-  data_inicio_instituto: string | null;
-  contato1: string;
-  data_criacao: string;
+  cpf: string | null;
+  rg: string | null;
+  data_nascimento: string | null;
+  email: string;
+  telefone: string;
+  telefone_alternativo: string | null;
+  endereco: string | null;
+  bairro: string | null;
+  cep: string | null;
+  cidade: string;
+  estado: string;
+  escolaridade: string | null;
+  profissao: string | null;
+  renda_familiar: number | null;
+  situacao_trabalho: string | null;
+  tem_filhos: boolean;
+  quantidade_filhos: number;
+  observacoes: string | null;
+  status: string;
+  ativo: boolean;
+  data_cadastro: string;
+  data_atualizacao: string;
 }
 
 export default function Beneficiarias() {
@@ -49,6 +65,27 @@ export default function Beneficiarias() {
     aguardando: 0,
     inativas: 0
   });
+
+  // Função para calcular status da beneficiária
+  const getBeneficiariaStatus = (beneficiaria: Beneficiaria) => {
+    // Verifica se data_cadastro existe e é válida
+    if (!beneficiaria.data_cadastro) return "Aguardando";
+    
+    try {
+      // Simula status baseado no tempo desde o cadastro
+      const dataCadastro = new Date(beneficiaria.data_cadastro);
+      if (isNaN(dataCadastro.getTime())) return "Aguardando";
+      
+      const daysSinceCreation = Math.floor((new Date().getTime() - dataCadastro.getTime()) / (1000 * 60 * 60 * 24));
+      
+      if (daysSinceCreation < 7) return "Aguardando";
+      if (daysSinceCreation > 365) return "Inativa";
+      return "Ativa";
+    } catch (error) {
+      console.warn('Erro ao calcular status da beneficiária:', error);
+      return "Aguardando";
+    }
+  };
 
   useEffect(() => {
     loadBeneficiarias();
@@ -77,51 +114,13 @@ export default function Beneficiarias() {
       });
     } catch (error) {
       console.error('Erro ao carregar beneficiárias:', error);
-      // Em caso de erro, usar dados mock
-      const mockBeneficiarias: Beneficiaria[] = [
-        {
-          id: '15b2ce99-7a8c-4111-ab5b-7556e4f545ba',
-          nome_completo: 'Maria Silva Santos',
-          cpf: '123.456.789-00',
-          idade: 35,
-          programa_servico: 'Assistência Social',
-          data_inicio_instituto: '2024-01-15',
-          contato1: '(11) 98765-4321',
-          data_criacao: new Date().toISOString()
-        },
-        {
-          id: '25c3de89-8b9d-5222-bc6c-8667f5f646cb',
-          nome_completo: 'Ana Paula Oliveira',
-          cpf: '987.654.321-00',
-          idade: 28,
-          programa_servico: 'Educação Profissional',
-          data_inicio_instituto: '2024-02-10',
-          contato1: '(11) 97654-3210',
-          data_criacao: new Date().toISOString()
-        },
-        {
-          id: '36d4ef90-9c0e-6333-cd7d-9778g6g757dc',
-          nome_completo: 'Carla Fernandes Lima',
-          cpf: '456.789.123-00',
-          idade: 42,
-          programa_servico: 'Capacitação Técnica',
-          data_inicio_instituto: '2024-01-20',
-          contato1: '(11) 96543-2109',
-          data_criacao: new Date().toISOString()
-        }
-      ];
-      
-      setBeneficiarias(mockBeneficiarias);
-      const total = mockBeneficiarias.length;
-      const ativas = mockBeneficiarias.filter(b => getBeneficiariaStatus(b) === "Ativa").length;
-      const aguardando = mockBeneficiarias.filter(b => getBeneficiariaStatus(b) === "Aguardando").length;
-      const inativas = mockBeneficiarias.filter(b => getBeneficiariaStatus(b) === "Inativa").length;
-      
+      // Em caso de erro, definir valores padrão
+      setBeneficiarias([]);
       setStats({
-        total,
-        ativas,
-        aguardando,
-        inativas
+        total: 0,
+        ativas: 0,
+        aguardando: 0,
+        inativas: 0
       });
     } finally {
       setLoading(false);
@@ -130,14 +129,13 @@ export default function Beneficiarias() {
 
   const filteredBeneficiarias = beneficiarias.filter(beneficiaria => {
     const matchesSearch = beneficiaria.nome_completo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         beneficiaria.cpf.includes(searchTerm);
+                         (beneficiaria.cpf && beneficiaria.cpf.includes(searchTerm));
     
     const beneficiariaStatus = getBeneficiariaStatus(beneficiaria);
     const matchesStatus = selectedStatus === "Todas" || selectedStatus === beneficiariaStatus;
     
-    const matchesPrograma = programaFilter === "Todos" || 
-                           beneficiaria.programa_servico === programaFilter ||
-                           !beneficiaria.programa_servico;
+    // Como não temos campo programa_servico, vamos usar sempre true para programaFilter
+    const matchesPrograma = programaFilter === "Todos";
     
     return matchesSearch && matchesStatus && matchesPrograma;
   });
@@ -166,26 +164,6 @@ export default function Beneficiarias() {
     return nome.split(" ").map(n => n[0]).join("").substring(0, 2).toUpperCase();
   };
 
-  const getBeneficiariaStatus = (beneficiaria: Beneficiaria) => {
-    // Verifica se data_criacao existe e é válida
-    if (!beneficiaria.data_criacao) return "Aguardando";
-    
-    try {
-      // Simula status baseado no tempo desde o cadastro
-      const dataCriacao = new Date(beneficiaria.data_criacao);
-      if (isNaN(dataCriacao.getTime())) return "Aguardando";
-      
-      const daysSinceCreation = Math.floor((new Date().getTime() - dataCriacao.getTime()) / (1000 * 60 * 60 * 24));
-      
-      if (daysSinceCreation < 7) return "Aguardando";
-      if (daysSinceCreation > 365) return "Inativa";
-      return "Ativa";
-    } catch (error) {
-      console.warn('Erro ao calcular status da beneficiária:', error);
-      return "Aguardando";
-    }
-  };
-
   const formatCpf = (cpf: string) => {
     return cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
   };
@@ -197,13 +175,13 @@ export default function Beneficiarias() {
 
   const generatePaedi = (beneficiaria: Beneficiaria) => {
     try {
-      const dataCriacao = beneficiaria.data_criacao ? new Date(beneficiaria.data_criacao) : new Date();
-      const year = isNaN(dataCriacao.getTime()) ? new Date().getFullYear() : dataCriacao.getFullYear();
-      const sequence = beneficiaria.id.slice(-3).toUpperCase();
+      const dataCadastro = beneficiaria.data_cadastro ? new Date(beneficiaria.data_cadastro) : new Date();
+      const year = isNaN(dataCadastro.getTime()) ? new Date().getFullYear() : dataCadastro.getFullYear();
+      const sequence = beneficiaria.id.toString().padStart(3, '0').slice(-3);
       return `MM-${year}-${sequence}`;
     } catch (error) {
       console.warn('Erro ao gerar PAEDI:', error);
-      const sequence = beneficiaria.id.slice(-3).toUpperCase();
+      const sequence = beneficiaria.id.toString().padStart(3, '0').slice(-3);
       return `MM-${new Date().getFullYear()}-${sequence}`;
     }
   };
@@ -377,21 +355,21 @@ export default function Beneficiarias() {
                           </Avatar>
                           <div>
                             <div className="font-medium text-foreground">{beneficiaria.nome_completo}</div>
-                            <div className="text-sm text-muted-foreground">{beneficiaria.contato1}</div>
+                            <div className="text-sm text-muted-foreground">{beneficiaria.telefone}</div>
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell className="font-mono text-sm">{formatCpf(beneficiaria.cpf)}</TableCell>
+                      <TableCell className="font-mono text-sm">{formatCpf(beneficiaria.cpf || '')}</TableCell>
                       <TableCell className="font-mono text-sm font-medium text-primary">
                         {generatePaedi(beneficiaria)}
                       </TableCell>
-                      <TableCell>{beneficiaria.programa_servico || 'Não definido'}</TableCell>
+                      <TableCell>{beneficiaria.status || 'Não definido'}</TableCell>
                       <TableCell>
                         <Badge variant={getStatusVariant(getBeneficiariaStatus(beneficiaria))}>
                           {getBeneficiariaStatus(beneficiaria)}
                         </Badge>
                       </TableCell>
-                      <TableCell>{formatDate(beneficiaria.data_inicio_instituto)}</TableCell>
+                      <TableCell>{formatDate(beneficiaria.data_cadastro)}</TableCell>
                       <TableCell>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>

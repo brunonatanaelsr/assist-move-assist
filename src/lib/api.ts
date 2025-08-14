@@ -7,7 +7,20 @@ const API_BASE_URL = getApiBaseUrl();
 
 const apiFetch = async <T = any>(url: string, options: RequestInit = {}): Promise<T> => {
   try {
-    const response = await fetch(url, { credentials: 'include', ...options });
+    // Adicionar token de autenticação do localStorage
+    const token = localStorage.getItem('token');
+    const headers = {
+      'Content-Type': 'application/json',
+      ...(token && { Authorization: `Bearer ${token}` }),
+      ...(options.headers || {})
+    };
+
+    const response = await fetch(url, { 
+      credentials: 'include', 
+      ...options,
+      headers 
+    });
+    
     let data: any = null;
     try {
       data = await response.json();
@@ -62,9 +75,6 @@ export const api = {
     try {
       return await apiFetch<ApiResponse>(`${API_BASE_URL}/beneficiarias`, {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
       });
     } catch (error: any) {
       return { success: false, message: error.message };
@@ -75,9 +85,6 @@ export const api = {
     try {
       return await apiFetch<ApiResponse>(`${API_BASE_URL}/beneficiarias`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify(data),
       });
     } catch (error: any) {
