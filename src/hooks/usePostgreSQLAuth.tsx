@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { api } from '@/lib/api';
+import { apiService } from '@/services/apiService';
 
 interface User {
   id: number;
@@ -60,24 +60,47 @@ export const PostgreSQLAuthProvider: React.FC<AuthProviderProps> = ({ children }
   useEffect(() => {
     const load = async () => {
       try {
-        const response = await api.auth.getProfile();
-        if (response.success && response.data) {
+        // Verificar se há token antes de fazer a requisição
+        const token = localStorage.getItem('token');
+        if (!token) {
+          console.log('Nenhum token encontrado, usuário não autenticado');
+          setUser(null);
+          setProfile(null);
+          setLoading(false);
+          return;
+        }
+
+        console.log('Token encontrado, carregando usuário...');
+        const response = await apiService.getCurrentUser();
+        console.log('Response getCurrentUser:', response);
+        
+        if (response && response.success && response.data) {
           const user = response.data as any;
           setUser(user);
 
           const mockProfile: Profile = {
             id: user.id.toString(),
             user_id: user.id.toString(),
-            nome_completo: user.nome_completo || user.email,
+            nome_completo: user.name || user.email,
             email: user.email,
             tipo_usuario: user.role as any,
             ativo: true,
             data_criacao: new Date().toISOString()
           };
           setProfile(mockProfile);
+        } else {
+          console.log('Response inválido ou usuário não encontrado');
+          // Token pode estar expirado ou inválido
+          localStorage.removeItem('token');
+          setUser(null);
+          setProfile(null);
         }
       } catch (error) {
         console.error('Error loading user:', error);
+        // Se houver erro na autenticação, limpar o token inválido
+        localStorage.removeItem('token');
+        setUser(null);
+        setProfile(null);
       } finally {
         setLoading(false);
       }
@@ -89,17 +112,25 @@ export const PostgreSQLAuthProvider: React.FC<AuthProviderProps> = ({ children }
   const signIn = async (email: string, password: string) => {
     try {
       setLoading(true);
-      const response = await api.login(email, password);
+      console.log('Hook signIn chamado:', { email, password: '***' });
+      
+      const response = await apiService.login(email, password);
+      console.log('Response do apiService:', response);
 
-      if (response.success && response.user) {
-        setUser(response.user);
+      if (response && response.data && response.data.user) {
+        setUser(response.data.user);
+
+        // Salvar token no localStorage
+        if (response.data.token) {
+          localStorage.setItem('token', response.data.token);
+        }
 
         const mockProfile: Profile = {
-          id: response.user.id.toString(),
-          user_id: response.user.id.toString(),
-          nome_completo: response.user.name,
-          email: response.user.email,
-          tipo_usuario: response.user.role as any,
+          id: response.data.user.id.toString(),
+          user_id: response.data.user.id.toString(),
+          nome_completo: response.data.user.name,
+          email: response.data.user.email,
+          tipo_usuario: response.data.user.role as any,
           ativo: true,
           data_criacao: new Date().toISOString()
         };
@@ -109,9 +140,9 @@ export const PostgreSQLAuthProvider: React.FC<AuthProviderProps> = ({ children }
       } else {
         return { error: { message: response.message || 'Erro ao fazer login' } };
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Login error:', error);
-      return { error: { message: 'Erro de conexão' } };
+      return { error: { message: error.message || 'Erro de conexão' } };
     } finally {
       setLoading(false);
     }
@@ -119,11 +150,12 @@ export const PostgreSQLAuthProvider: React.FC<AuthProviderProps> = ({ children }
 
   const signOut = async () => {
     try {
-      await api.auth.logout();
+      // Remover token do localStorage
+      localStorage.removeItem('token');
       setUser(null);
       setProfile(null);
       return { error: null };
-    } catch (error) {
+    } catch (error: any) {
       console.error('Logout error:', error);
       return { error: { message: 'Erro ao fazer logout' } };
     }

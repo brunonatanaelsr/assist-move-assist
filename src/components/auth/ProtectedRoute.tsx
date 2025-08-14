@@ -15,45 +15,40 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Em desenvolvimento ou com backend local, permita acesso sem autenticação
-  const isDevelopmentMode =
-    import.meta.env.DEV ||
-    import.meta.env.VITE_API_BASE_URL?.includes('localhost');
-
   useEffect(() => {
-    if (!loading && !isDevelopmentMode) {
+    if (!loading) {
       if (!user) {
-        // Redirect to auth page, preserving the intended destination
-        navigate('/auth', { 
-          state: { from: location },
-          replace: true 
-        });
+        console.log('ProtectedRoute: Usuário não autenticado, redirecionando para /auth');
+        // Evitar loop - só redireciona se não estiver já na página de auth
+        if (location.pathname !== '/auth') {
+          navigate('/auth', { 
+            state: { from: location },
+            replace: true 
+          });
+        }
       } else if (adminOnly && profile && profile.tipo_usuario !== 'admin') {
+        console.log('ProtectedRoute: Usuário sem privilégios de admin');
         // User is authenticated but doesn't have admin privileges
         navigate('/', { replace: true });
       }
     }
-  }, [user, profile, loading, navigate, location, adminOnly, isDevelopmentMode]);
+  }, [loading, user, adminOnly, profile, navigate, location]);
 
-  // Show loading while checking authentication (exceto em modo desenvolvimento)
-  if (loading && !isDevelopmentMode) {
+  // Show loading state while checking authentication
+  if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5">
         <div className="text-center">
-          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Carregando...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <h3 className="text-lg font-semibold text-primary mb-2">Instituto Move Marias</h3>
+          <p className="text-muted-foreground">Carregando sistema...</p>
         </div>
       </div>
     );
   }
 
-  // Em modo desenvolvimento, permita acesso direto
-  if (isDevelopmentMode) {
-    return <>{children}</>;
-  }
-
-  // Don't render children if user is not authenticated or doesn't have required permissions
-  if (!user || (adminOnly && profile && profile.tipo_usuario !== 'admin')) {
+  // Don't render children if user is not authenticated
+  if (!user) {
     return null;
   }
 
