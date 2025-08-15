@@ -8,9 +8,10 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, Users, Calendar, Clock, Edit, Trash2 } from 'lucide-react';
-import { api } from '@/lib/api';
 import { useAuth } from '@/hooks/usePostgreSQLAuth';
 import { useToast } from '@/components/ui/use-toast';
+import { apiService } from '@/services/apiService';
+import { formatDisplayDate, formatInputDate } from '@/utils/dateFormatter';
 
 interface Oficina {
   id: string;
@@ -53,8 +54,8 @@ const Oficinas = () => {
   const loadOficinas = async () => {
     try {
       setLoading(true);
-      const response = await api.getOficinas();
-      setOficinas(response.data || response || []);
+      const response = await apiService.getOficinas();
+      setOficinas(response?.data || []);
     } catch (error) {
       console.error('Erro ao carregar oficinas:', error);
       toast({
@@ -62,6 +63,7 @@ const Oficinas = () => {
         description: "Não foi possível carregar as oficinas.",
         variant: "destructive",
       });
+      setOficinas([]); // Garantir que seja um array vazio em caso de erro
     } finally {
       setLoading(false);
     }
@@ -76,10 +78,10 @@ const Oficinas = () => {
     
     try {
       if (selectedOficina) {
-        await api.updateOficina(selectedOficina.id, formData);
+        await apiService.updateOficina(selectedOficina.id, formData);
         toast({ title: "Sucesso", description: "Oficina atualizada com sucesso!" });
       } else {
-        await api.createOficina(formData);
+        await apiService.createOficina(formData);
         toast({ title: "Sucesso", description: "Oficina criada com sucesso!" });
       }
       
@@ -101,7 +103,7 @@ const Oficinas = () => {
     if (!confirm('Tem certeza que deseja excluir esta oficina?')) return;
     
     try {
-      await api.deleteOficina(id);
+      await apiService.deleteOficina(id);
       toast({ title: "Sucesso", description: "Oficina excluída com sucesso!" });
       loadOficinas();
     } catch (error) {
@@ -135,8 +137,8 @@ const Oficinas = () => {
       nome: oficina.nome,
       descricao: oficina.descricao,
       instrutor: oficina.instrutor,
-      data_inicio: oficina.data_inicio,
-      data_fim: oficina.data_fim || '',
+      data_inicio: formatInputDate(oficina.data_inicio),
+      data_fim: formatInputDate(oficina.data_fim) || '',
       horario_inicio: oficina.horario_inicio,
       horario_fim: oficina.horario_fim,
       local: oficina.local || '',
@@ -152,7 +154,7 @@ const Oficinas = () => {
     setShowForm(true);
   };
 
-  const filteredOficinas = oficinas.filter(oficina => {
+  const filteredOficinas = Array.isArray(oficinas) ? oficinas.filter(oficina => {
     const matchesSearch = oficina.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          oficina.instrutor.toLowerCase().includes(searchTerm.toLowerCase());
     
@@ -161,7 +163,7 @@ const Oficinas = () => {
                          (filtroStatus === 'inativas' && !oficina.ativa);
     
     return matchesSearch && matchesStatus;
-  });
+  }) : [];
 
   if (loading) {
     return (
@@ -228,8 +230,8 @@ const Oficinas = () => {
                 <div className="flex items-center text-sm">
                   <Calendar className="w-4 h-4 mr-2" />
                   <span>
-                    {new Date(oficina.data_inicio).toLocaleDateString()}
-                    {oficina.data_fim && ` - ${new Date(oficina.data_fim).toLocaleDateString()}`}
+                    {formatDisplayDate(oficina.data_inicio)}
+                    {oficina.data_fim && ` - ${formatDisplayDate(oficina.data_fim)}`}
                   </span>
                 </div>
                 

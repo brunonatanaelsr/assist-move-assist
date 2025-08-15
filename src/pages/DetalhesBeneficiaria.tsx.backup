@@ -1,0 +1,907 @@
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Separator } from '@/components/ui/separator';
+import { AlertCircle, ArrowLeft, Edit, Save, X, Plus, FileText, Calendar, User, Phone, Mail, MapPin, GraduationCap, Heart, Users, Activity, Target, TrendingUp, Award, Shield, Eye, CheckCircle } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { apiFetch } from '@/lib/api';
+
+interface Beneficiaria {
+  id: number;
+  nome_completo: string;
+  cpf: string;
+  data_nascimento: string;
+  telefone: string;
+  email: string;
+  endereco_completo: string;
+  cep: string;
+  cidade: string;
+  estado: string;
+  escolaridade: string;
+  profissao: string;
+  estado_civil: string;
+  tem_filhos: boolean;
+  quantidade_filhos?: number;
+  renda_familiar: number;
+  situacao_vulnerabilidade: string;
+  como_conheceu: string;
+  objetivos: string;
+  experiencia_anterior: string;
+  disponibilidade_horario: string;
+  status: string;
+  observacoes: string;
+  data_cadastro: string;
+  ativo: boolean;
+}
+
+interface Participacao {
+  id: number;
+  oficina_nome: string;
+  data_inicio: string;
+  data_fim?: string;
+  status: string;
+  progresso: number;
+  observacoes?: string;
+}
+
+interface Documento {
+  id: number;
+  tipo: string;
+  nome: string;
+  data_upload: string;
+  url: string;
+}
+
+export default function DetalhesBeneficiaria() {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const [beneficiaria, setBeneficiaria] = useState<Beneficiaria | null>(null);
+  const [participacoes, setParticipacoes] = useState<Participacao[]>([]);
+  const [documentos, setDocumentos] = useState<Documento[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [editMode, setEditMode] = useState(false);
+  const [activeTab, setActiveTab] = useState('dados');
+
+  useEffect(() => {
+    if (id) {
+      carregarDados();
+    }
+  }, [id]);
+
+  const carregarDados = async () => {
+    try {
+      setLoading(true);
+      
+      // Buscar dados da beneficiária
+      const beneficiariaResponse = await apiFetch(`/api/beneficiarias/${id}`);
+      if (beneficiariaResponse.success) {
+        setBeneficiaria(beneficiariaResponse.data);
+      }
+
+      // Buscar participações
+      const participacoesResponse = await apiFetch(`/api/participacoes?beneficiaria_id=${id}`);
+      if (participacoesResponse.success) {
+        setParticipacoes(participacoesResponse.data);
+      }
+
+      // Buscar documentos
+      const documentosResponse = await apiFetch(`/api/documentos?beneficiaria_id=${id}`);
+      if (documentosResponse.success) {
+        setDocumentos(documentosResponse.data);
+      }
+
+    } catch (err) {
+      setError('Erro ao carregar dados da beneficiária');
+      console.error('Erro ao carregar:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const salvarAlteracoes = async () => {
+    if (!beneficiaria) return;
+
+    try {
+      const response = await apiFetch(`/api/beneficiarias/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(beneficiaria)
+      });
+
+      if (response.success) {
+        setEditMode(false);
+        // Recarregar dados
+        carregarDados();
+      } else {
+        setError('Erro ao salvar alterações');
+      }
+    } catch (err) {
+      setError('Erro ao salvar alterações');
+      console.error('Erro ao salvar:', err);
+    }
+  };
+
+  const getStatusBadgeColor = (status: string) => {
+    switch (status.toLowerCase()) {
+      case 'ativo': return 'bg-green-100 text-green-800';
+      case 'inativo': return 'bg-red-100 text-red-800';
+      case 'pendente': return 'bg-yellow-100 text-yellow-800';
+      case 'concluido': return 'bg-blue-100 text-blue-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const generatePAEDI = (beneficiaria: Beneficiaria) => {
+    if (!beneficiaria) return 'N/A';
+    const dataCriacao = new Date(beneficiaria.data_cadastro || beneficiaria.data_criacao);
+    const ano = dataCriacao.getFullYear().toString().slice(-2);
+    const mes = (dataCriacao.getMonth() + 1).toString().padStart(2, '0');
+    const sequence = beneficiaria.id.toString().padStart(3, '0').slice(-3);
+    return `${ano}${mes}${sequence}`;
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background p-6">
+        <div className="max-w-6xl mx-auto">
+          <div className="animate-pulse">
+            <div className="h-8 bg-gray-200 rounded w-1/4 mb-6"></div>
+            <div className="h-64 bg-gray-200 rounded mb-6"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !beneficiaria) {
+    return (
+      <div className="min-h-screen bg-background p-6">
+        <div className="max-w-6xl mx-auto">
+          <Alert className="mb-6">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              {error || 'Beneficiária não encontrada'}
+            </AlertDescription>
+          </Alert>
+          <Button onClick={() => navigate('/beneficiarias')}>
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Voltar à Lista
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-background p-6">
+      <div className="max-w-6xl mx-auto space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Button variant="outline" onClick={() => navigate('/beneficiarias')}>
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Voltar
+            </Button>
+            <div>
+              <h1 className="text-2xl font-bold">{beneficiaria.nome_completo}</h1>
+              <div className="flex items-center gap-4 mt-1">
+                <Badge className={getStatusBadgeColor(beneficiaria.status)}>
+                  {beneficiaria.status}
+                </Badge>
+                <span className="text-sm text-muted-foreground">
+                  CPF: {beneficiaria.cpf}
+                </span>
+                <span className="text-sm font-medium text-primary">
+                  PAEDI: {generatePAEDI(beneficiaria)}
+                </span>
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={() => navigate(`/beneficiarias/${id}/formularios/visao-holistica`)}>
+              <Eye className="h-4 w-4 mr-2" />
+              Ver PAEDI
+            </Button>
+            {editMode ? (
+              <>
+                <Button variant="outline" onClick={() => setEditMode(false)}>
+                  <X className="h-4 w-4 mr-2" />
+                  Cancelar
+                </Button>
+                <Button onClick={salvarAlteracoes}>
+                  <Save className="h-4 w-4 mr-2" />
+                  Salvar
+                </Button>
+              </>
+            ) : (
+              <Button onClick={() => setEditMode(true)}>
+                <Edit className="h-4 w-4 mr-2" />
+                Editar
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <TabsList className="grid w-full grid-cols-5">
+            <TabsTrigger value="dados" className="flex items-center gap-2">
+              <User className="h-4 w-4" />
+              Dados Pessoais
+            </TabsTrigger>
+            <TabsTrigger value="participacoes" className="flex items-center gap-2">
+              <GraduationCap className="h-4 w-4" />
+              Participações
+            </TabsTrigger>
+            <TabsTrigger value="documentos" className="flex items-center gap-2">
+              <FileText className="h-4 w-4" />
+              Documentos
+            </TabsTrigger>
+            <TabsTrigger value="historico" className="flex items-center gap-2">
+              <Activity className="h-4 w-4" />
+              Histórico
+            </TabsTrigger>
+            <TabsTrigger value="formularios" className="flex items-center gap-2">
+              <Plus className="h-4 w-4" />
+              Formulários
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Dados Pessoais */}
+          <TabsContent value="dados" className="space-y-6">
+            <div className="grid gap-6">
+              {/* Informações Básicas */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <User className="h-5 w-5" />
+                    Informações Básicas
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="nome_completo">Nome Completo</Label>
+                      {editMode ? (
+                        <Input
+                          id="nome_completo"
+                          value={beneficiaria.nome_completo}
+                          onChange={(e) => setBeneficiaria({...beneficiaria, nome_completo: e.target.value})}
+                        />
+                      ) : (
+                        <p className="text-sm">{beneficiaria.nome_completo}</p>
+                      )}
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="cpf">CPF</Label>
+                      {editMode ? (
+                        <Input
+                          id="cpf"
+                          value={beneficiaria.cpf}
+                          onChange={(e) => setBeneficiaria({...beneficiaria, cpf: e.target.value})}
+                        />
+                      ) : (
+                        <p className="text-sm">{beneficiaria.cpf}</p>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="data_nascimento">Data de Nascimento</Label>
+                      {editMode ? (
+                        <Input
+                          id="data_nascimento"
+                          type="date"
+                          value={beneficiaria.data_nascimento?.split('T')[0]}
+                          onChange={(e) => setBeneficiaria({...beneficiaria, data_nascimento: e.target.value})}
+                        />
+                      ) : (
+                        <p className="text-sm">
+                          {beneficiaria.data_nascimento ? format(new Date(beneficiaria.data_nascimento), 'dd/MM/yyyy', { locale: ptBR }) : 'Não informado'}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Contato */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Phone className="h-5 w-5" />
+                    Contato
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="telefone">Telefone</Label>
+                      {editMode ? (
+                        <Input
+                          id="telefone"
+                          value={beneficiaria.telefone || ''}
+                          onChange={(e) => setBeneficiaria({...beneficiaria, telefone: e.target.value})}
+                        />
+                      ) : (
+                        <p className="text-sm">{beneficiaria.telefone || 'Não informado'}</p>
+                      )}
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="email">Email</Label>
+                      {editMode ? (
+                        <Input
+                          id="email"
+                          type="email"
+                          value={beneficiaria.email || ''}
+                          onChange={(e) => setBeneficiaria({...beneficiaria, email: e.target.value})}
+                        />
+                      ) : (
+                        <p className="text-sm">{beneficiaria.email || 'Não informado'}</p>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Endereço */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <MapPin className="h-5 w-5" />
+                    Endereço
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div className="space-y-2 md:col-span-2">
+                      <Label htmlFor="endereco_completo">Endereço Completo</Label>
+                      {editMode ? (
+                        <Input
+                          id="endereco_completo"
+                          value={beneficiaria.endereco_completo || ''}
+                          onChange={(e) => setBeneficiaria({...beneficiaria, endereco_completo: e.target.value})}
+                        />
+                      ) : (
+                        <p className="text-sm">{beneficiaria.endereco_completo || 'Não informado'}</p>
+                      )}
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="cep">CEP</Label>
+                      {editMode ? (
+                        <Input
+                          id="cep"
+                          value={beneficiaria.cep || ''}
+                          onChange={(e) => setBeneficiaria({...beneficiaria, cep: e.target.value})}
+                        />
+                      ) : (
+                        <p className="text-sm">{beneficiaria.cep || 'Não informado'}</p>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="cidade">Cidade</Label>
+                      {editMode ? (
+                        <Input
+                          id="cidade"
+                          value={beneficiaria.cidade || ''}
+                          onChange={(e) => setBeneficiaria({...beneficiaria, cidade: e.target.value})}
+                        />
+                      ) : (
+                        <p className="text-sm">{beneficiaria.cidade || 'Não informado'}</p>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="estado">Estado</Label>
+                      {editMode ? (
+                        <Input
+                          id="estado"
+                          value={beneficiaria.estado || ''}
+                          onChange={(e) => setBeneficiaria({...beneficiaria, estado: e.target.value})}
+                        />
+                      ) : (
+                        <p className="text-sm">{beneficiaria.estado || 'Não informado'}</p>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Informações Socioeconômicas */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Heart className="h-5 w-5" />
+                    Informações Socioeconômicas
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="escolaridade">Escolaridade</Label>
+                      {editMode ? (
+                        <Select
+                          value={beneficiaria.escolaridade || ''}
+                          onValueChange={(value) => setBeneficiaria({...beneficiaria, escolaridade: value})}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="fundamental_incompleto">Fundamental Incompleto</SelectItem>
+                            <SelectItem value="fundamental_completo">Fundamental Completo</SelectItem>
+                            <SelectItem value="medio_incompleto">Médio Incompleto</SelectItem>
+                            <SelectItem value="medio_completo">Médio Completo</SelectItem>
+                            <SelectItem value="superior_incompleto">Superior Incompleto</SelectItem>
+                            <SelectItem value="superior_completo">Superior Completo</SelectItem>
+                            <SelectItem value="pos_graduacao">Pós-graduação</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <p className="text-sm">{beneficiaria.escolaridade || 'Não informado'}</p>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="profissao">Profissão</Label>
+                      {editMode ? (
+                        <Input
+                          id="profissao"
+                          value={beneficiaria.profissao || ''}
+                          onChange={(e) => setBeneficiaria({...beneficiaria, profissao: e.target.value})}
+                        />
+                      ) : (
+                        <p className="text-sm">{beneficiaria.profissao || 'Não informado'}</p>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="estado_civil">Estado Civil</Label>
+                      {editMode ? (
+                        <Select
+                          value={beneficiaria.estado_civil || ''}
+                          onValueChange={(value) => setBeneficiaria({...beneficiaria, estado_civil: value})}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="solteira">Solteira</SelectItem>
+                            <SelectItem value="casada">Casada</SelectItem>
+                            <SelectItem value="divorciada">Divorciada</SelectItem>
+                            <SelectItem value="viuva">Viúva</SelectItem>
+                            <SelectItem value="uniao_estavel">União Estável</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <p className="text-sm">{beneficiaria.estado_civil || 'Não informado'}</p>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="tem_filhos">Tem Filhos</Label>
+                      {editMode ? (
+                        <Select
+                          value={beneficiaria.tem_filhos ? 'sim' : 'nao'}
+                          onValueChange={(value) => setBeneficiaria({...beneficiaria, tem_filhos: value === 'sim'})}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="sim">Sim</SelectItem>
+                            <SelectItem value="nao">Não</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <p className="text-sm">{beneficiaria.tem_filhos ? 'Sim' : 'Não'}</p>
+                      )}
+                    </div>
+
+                    {beneficiaria.tem_filhos && (
+                      <div className="space-y-2">
+                        <Label htmlFor="quantidade_filhos">Quantidade de Filhos</Label>
+                        {editMode ? (
+                          <Input
+                            id="quantidade_filhos"
+                            type="number"
+                            value={beneficiaria.quantidade_filhos || ''}
+                            onChange={(e) => setBeneficiaria({...beneficiaria, quantidade_filhos: parseInt(e.target.value) || 0})}
+                          />
+                        ) : (
+                          <p className="text-sm">{beneficiaria.quantidade_filhos || 'Não informado'}</p>
+                        )}
+                      </div>
+                    )}
+
+                    <div className="space-y-2">
+                      <Label htmlFor="renda_familiar">Renda Familiar</Label>
+                      {editMode ? (
+                        <Input
+                          id="renda_familiar"
+                          type="number"
+                          step="0.01"
+                          value={beneficiaria.renda_familiar || ''}
+                          onChange={(e) => setBeneficiaria({...beneficiaria, renda_familiar: parseFloat(e.target.value) || 0})}
+                        />
+                      ) : (
+                        <p className="text-sm">
+                          {beneficiaria.renda_familiar ? 
+                            new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(beneficiaria.renda_familiar) : 
+                            'Não informado'
+                          }
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="situacao_vulnerabilidade">Situação de Vulnerabilidade</Label>
+                    {editMode ? (
+                      <Textarea
+                        id="situacao_vulnerabilidade"
+                        value={beneficiaria.situacao_vulnerabilidade || ''}
+                        onChange={(e) => setBeneficiaria({...beneficiaria, situacao_vulnerabilidade: e.target.value})}
+                        rows={3}
+                      />
+                    ) : (
+                      <p className="text-sm">{beneficiaria.situacao_vulnerabilidade || 'Não informado'}</p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Observações */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Observações</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {editMode ? (
+                    <Textarea
+                      value={beneficiaria.observacoes || ''}
+                      onChange={(e) => setBeneficiaria({...beneficiaria, observacoes: e.target.value})}
+                      rows={4}
+                      placeholder="Observações gerais..."
+                    />
+                  ) : (
+                    <p className="text-sm">{beneficiaria.observacoes || 'Nenhuma observação registrada'}</p>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* Participações */}
+          <TabsContent value="participacoes" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <GraduationCap className="h-5 w-5" />
+                    Participações em Oficinas
+                  </CardTitle>
+                  <Button onClick={() => navigate(`/beneficiarias/${id}/formularios/matricula-projetos`)}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Nova Participação
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {participacoes.length > 0 ? (
+                  <div className="space-y-4">
+                    {participacoes.map((participacao) => (
+                      <div key={participacao.id} className="border rounded-lg p-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <h4 className="font-medium">{participacao.oficina_nome}</h4>
+                          <Badge className={getStatusBadgeColor(participacao.status)}>
+                            {participacao.status}
+                          </Badge>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
+                          <p>Início: {format(new Date(participacao.data_inicio), 'dd/MM/yyyy', { locale: ptBR })}</p>
+                          {participacao.data_fim && (
+                            <p>Fim: {format(new Date(participacao.data_fim), 'dd/MM/yyyy', { locale: ptBR })}</p>
+                          )}
+                        </div>
+                        <div className="mt-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm">Progresso:</span>
+                            <div className="flex-1 bg-gray-200 rounded-full h-2">
+                              <div 
+                                className="bg-primary h-2 rounded-full" 
+                                style={{ width: `${participacao.progresso}%` }}
+                              ></div>
+                            </div>
+                            <span className="text-sm">{participacao.progresso}%</span>
+                          </div>
+                        </div>
+                        {participacao.observacoes && (
+                          <p className="text-sm text-muted-foreground mt-2">{participacao.observacoes}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-center text-muted-foreground py-8">
+                    Nenhuma participação registrada
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Documentos */}
+          <TabsContent value="documentos" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <FileText className="h-5 w-5" />
+                    Documentos
+                  </CardTitle>
+                  <Button onClick={() => navigate(`/beneficiarias/${id}/formularios/declaracoes-recibos`)}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Adicionar Documento
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {documentos.length > 0 ? (
+                  <div className="grid gap-4">
+                    {documentos.map((documento) => (
+                      <div key={documento.id} className="flex items-center justify-between p-4 border rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <FileText className="h-8 w-8 text-blue-500" />
+                          <div>
+                            <h4 className="font-medium">{documento.nome}</h4>
+                            <p className="text-sm text-muted-foreground">
+                              {documento.tipo} • {format(new Date(documento.data_upload), 'dd/MM/yyyy', { locale: ptBR })}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button variant="outline" size="sm">
+                            Visualizar
+                          </Button>
+                          <Button variant="outline" size="sm">
+                            Download
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-center text-muted-foreground py-8">
+                    Nenhum documento anexado
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Histórico */}
+          <TabsContent value="historico" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Activity className="h-5 w-5" />
+                  Histórico de Atividades
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-center text-muted-foreground py-8">
+                  Histórico será implementado em breve
+                </p>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Formulários */}
+          <TabsContent value="formularios" className="space-y-6">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              <Card 
+                className="cursor-pointer hover:shadow-md transition-shadow"
+                onClick={() => navigate(`/beneficiarias/${id}/formularios/anamnese-social`)}
+              >
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <FileText className="h-5 w-5 text-blue-500" />
+                    Anamnese Social
+                  </CardTitle>
+                  <CardDescription>
+                    Questionário inicial de análise social e familiar
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button className="w-full">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Preencher Anamnese
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card 
+                className="cursor-pointer hover:shadow-md transition-shadow"
+                onClick={() => navigate(`/beneficiarias/${id}/formularios/roda-vida`)}
+              >
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Target className="h-5 w-5 text-green-500" />
+                    Roda da Vida
+                  </CardTitle>
+                  <CardDescription>
+                    Avaliação holística das dimensões da vida
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button className="w-full">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Aplicar Roda da Vida
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card 
+                className="cursor-pointer hover:shadow-md transition-shadow"
+                onClick={() => navigate(`/beneficiarias/${id}/formularios/ficha-evolucao`)}
+              >
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <TrendingUp className="h-5 w-5 text-purple-500" />
+                    Ficha de Evolução
+                  </CardTitle>
+                  <CardDescription>
+                    Acompanhamento de progresso e desenvolvimento
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button className="w-full">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Nova Ficha
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card 
+                className="cursor-pointer hover:shadow-md transition-shadow"
+                onClick={() => navigate(`/beneficiarias/${id}/formularios/declaracoes-recibos`)}
+              >
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Award className="h-5 w-5 text-orange-500" />
+                    Declarações e Recibos
+                  </CardTitle>
+                  <CardDescription>
+                    Emissão de declarações e recibos de benefícios
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button className="w-full">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Gerar Documento
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card 
+                className="cursor-pointer hover:shadow-md transition-shadow"
+                onClick={() => navigate(`/beneficiarias/${id}/formularios/termos-consentimento`)}
+              >
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Shield className="h-5 w-5 text-red-500" />
+                    Termos de Consentimento
+                  </CardTitle>
+                  <CardDescription>
+                    LGPD, uso de imagem e consentimentos
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button className="w-full">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Novo Termo
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card 
+                className="cursor-pointer hover:shadow-md transition-shadow"
+                onClick={() => navigate(`/beneficiarias/${id}/formularios/visao-holistica`)}
+              >
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Eye className="h-5 w-5 text-indigo-500" />
+                    Visão Holística
+                  </CardTitle>
+                  <CardDescription>
+                    Avaliação integrada de todas as dimensões
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button className="w-full">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Avaliar Situação
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card 
+                className="cursor-pointer hover:shadow-md transition-shadow"
+                onClick={() => navigate(`/beneficiarias/${id}/formularios/plano-acao`)}
+              >
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <CheckCircle className="h-5 w-5 text-green-600" />
+                    Plano de Ação
+                  </CardTitle>
+                  <CardDescription>
+                    Planejamento individual de objetivos e ações
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button className="w-full">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Criar Plano
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card 
+                className="cursor-pointer hover:shadow-md transition-shadow"
+                onClick={() => navigate(`/beneficiarias/${id}/formularios/matricula-projetos`)}
+              >
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <GraduationCap className="h-5 w-5 text-cyan-500" />
+                    Matrícula de Projetos
+                  </CardTitle>
+                  <CardDescription>
+                    Inscrição em projetos e oficinas disponíveis
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button className="w-full">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Nova Matrícula
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card className="cursor-pointer hover:shadow-md transition-shadow">
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Calendar className="h-5 w-5 text-yellow-500" />
+                    Disponibilidade
+                  </CardTitle>
+                  <CardDescription>
+                    Horários e dias disponíveis para participação
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button className="w-full">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Definir Horários
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+        </Tabs>
+      </div>
+    </div>
+  );
+}

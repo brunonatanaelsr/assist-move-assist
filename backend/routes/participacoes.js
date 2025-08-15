@@ -13,6 +13,48 @@ const pool = new Pool({
   password: process.env.POSTGRES_PASSWORD || 'movemarias_password_2025',
 });
 
+// Listar participações
+router.get('/', authenticateToken, async (req, res) => {
+  try {
+    const { beneficiaria_id, oficina_id } = req.query;
+    
+    let query = `
+      SELECT p.*, 
+             o.nome as oficina_nome, o.data_inicio, o.data_fim,
+             b.nome_completo as beneficiaria_nome
+      FROM participacoes p
+      LEFT JOIN oficinas o ON p.oficina_id = o.id
+      LEFT JOIN beneficiarias b ON p.beneficiaria_id = b.id
+      WHERE p.ativo = true
+    `;
+    
+    const params = [];
+    let paramCount = 0;
+    
+    if (beneficiaria_id) {
+      paramCount++;
+      query += ` AND p.beneficiaria_id = $${paramCount}`;
+      params.push(beneficiaria_id);
+    }
+    
+    if (oficina_id) {
+      paramCount++;
+      query += ` AND p.oficina_id = $${paramCount}`;
+      params.push(oficina_id);
+    }
+    
+    query += ` ORDER BY p.data_inscricao DESC`;
+    
+    const result = await pool.query(query, params);
+
+    res.json(successResponse(result.rows, "Participações carregadas com sucesso"));
+
+  } catch (error) {
+    console.error("Get participacoes error:", error);
+    res.status(500).json(errorResponse("Erro ao buscar participações"));
+  }
+});
+
 // Inscrever beneficiária em oficina
 router.post('/', authenticateToken, requireGestor, async (req, res) => {
   try {

@@ -8,17 +8,30 @@ import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Beneficiarias from "./pages/Beneficiarias";
 import CadastroBeneficiaria from "./pages/CadastroBeneficiaria";
+import DetalhesBeneficiaria from "./pages/DetalhesBeneficiaria";
 import NotFound from "./pages/NotFound";
 import MainLayout from "./components/layout/main-layout";
 import { PostgreSQLAuthProvider } from "./hooks/usePostgreSQLAuth";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 import Analytics from "./pages/Analytics";
-import Oficinas from "./pages/Oficinas";
+import OficinasNew from "./pages/OficinasNew";
 import ParticipantesProjeto from "./pages/ParticipantesProjeto";
-import Configuracoes from "./pages/ConfiguracoesNew";
+import Configuracoes from "./pages/Configuracoes";
 import EditarPerfil from "./components/EditarPerfil";
 import Mensagens from "./pages/Mensagens";
 import Atividades from "./pages/Atividades";
+import FeedNew from "./pages/FeedNew";
+import ProjetosNew from "./pages/ProjetosNew";
+import Relatorios from "./pages/Relatorios";
+import FormularioGenerico from "./pages/FormularioGenerico";
+import AnamneseSocial from "./pages/formularios/AnamneseSocial";
+import RodaVida from "./pages/formularios/RodaVida";
+import FichaEvolucao from "./pages/formularios/FichaEvolucao";
+import DeclaracoesRecibos from "./pages/formularios/DeclaracoesRecibos";
+import TermosConsentimento from "./pages/formularios/TermosConsentimento";
+import VisaoHolistica from "./pages/formularios/VisaoHolistica";
+import PlanoAcao from "./pages/formularios/PlanoAcao";
+import MatriculaProjetos from "./pages/formularios/MatriculaProjetos";
 
 const queryClient = new QueryClient();
 
@@ -53,6 +66,69 @@ const App = () => (
                 </MainLayout>
               </ProtectedRoute>
             } />
+            <Route path="/beneficiarias/:id" element={
+              <ProtectedRoute>
+                <MainLayout>
+                  <DetalhesBeneficiaria />
+                </MainLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/beneficiarias/:id/formularios/anamnese-social" element={
+              <ProtectedRoute>
+                <MainLayout>
+                  <AnamneseSocial />
+                </MainLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/beneficiarias/:id/formularios/roda-vida" element={
+              <ProtectedRoute>
+                <MainLayout>
+                  <RodaVida />
+                </MainLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/beneficiarias/:id/formularios/ficha-evolucao" element={
+              <ProtectedRoute>
+                <MainLayout>
+                  <FichaEvolucao />
+                </MainLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/beneficiarias/:id/formularios/declaracoes-recibos" element={
+              <ProtectedRoute>
+                <MainLayout>
+                  <DeclaracoesRecibos />
+                </MainLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/beneficiarias/:id/formularios/termos-consentimento" element={
+              <ProtectedRoute>
+                <MainLayout>
+                  <TermosConsentimento />
+                </MainLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/beneficiarias/:id/formularios/visao-holistica" element={
+              <ProtectedRoute>
+                <MainLayout>
+                  <VisaoHolistica />
+                </MainLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/beneficiarias/:id/formularios/plano-acao" element={
+              <ProtectedRoute>
+                <MainLayout>
+                  <PlanoAcao />
+                </MainLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/beneficiarias/:id/formularios/matricula-projetos" element={
+              <ProtectedRoute>
+                <MainLayout>
+                  <MatriculaProjetos />
+                </MainLayout>
+              </ProtectedRoute>
+            } />
             <Route path="/analytics" element={
               <ProtectedRoute>
                 <MainLayout>
@@ -63,7 +139,7 @@ const App = () => (
             <Route path="/oficinas" element={
               <ProtectedRoute>
                 <MainLayout>
-                  <Oficinas />
+                  <OficinasNew />
                 </MainLayout>
               </ProtectedRoute>
             } />
@@ -99,6 +175,41 @@ const App = () => (
               <ProtectedRoute>
                 <MainLayout>
                   <Atividades />
+                </MainLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/feed" element={
+              <ProtectedRoute>
+                <MainLayout>
+                  <FeedNew />
+                </MainLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/projetos" element={
+              <ProtectedRoute>
+                <MainLayout>
+                  <ProjetosNew />
+                </MainLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/relatorios" element={
+              <ProtectedRoute>
+                <MainLayout>
+                  <Relatorios />
+                </MainLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/formularios/:tipo" element={
+              <ProtectedRoute>
+                <MainLayout>
+                  <FormularioGenerico />
+                </MainLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/formularios/*" element={
+              <ProtectedRoute>
+                <MainLayout>
+                  <FormularioGenerico />
                 </MainLayout>
               </ProtectedRoute>
             } />

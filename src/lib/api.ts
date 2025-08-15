@@ -351,3 +351,5 @@ export const api = {
     }
   }
 };
+
+export { apiFetch };

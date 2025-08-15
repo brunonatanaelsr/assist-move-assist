@@ -44,7 +44,7 @@ const StatCard = ({ title, value, description, icon, variant = "default" }: Stat
   );
 };
 
-export default function Dashboard() {
+export default function DashboardNew() {
   const navigate = useNavigate();
   const [stats, setStats] = useState({
     totalBeneficiarias: 0,
@@ -52,54 +52,27 @@ export default function Dashboard() {
     atendimentosMes: 0,
     engajamento: "0%"
   });
-  const [recentActivities, setRecentActivities] = useState<any[]>([]);
-  const [upcomingTasks, setUpcomingTasks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadDashboardData();
-  }, []);
-
-  const loadDashboardData = async () => {
-    try {
-      setLoading(true);
-      
-      // Carregar estatísticas reais do PostgreSQL
-      const statsResponse = await apiService.getDashboardStats();
-      if (statsResponse.success) {
-        setStats(statsResponse.data);
-      }
-
-      // Carregar atividades recentes reais
-      const activitiesResponse = await apiService.getDashboardActivities();
-      if (activitiesResponse.success) {
-        setRecentActivities(activitiesResponse.data);
-      }
-
-      // Carregar tarefas pendentes reais
-      const tasksResponse = await apiService.getDashboardTasks();
-      if (tasksResponse.success) {
-        setUpcomingTasks(tasksResponse.data);
-      }
-      
-    } catch (error) {
-      console.error('Erro ao carregar dados do dashboard:', error);
-      
-      // Fallback para dados básicos em caso de erro
-      const fallbackResponse = await apiService.getBeneficiarias();
-      if (fallbackResponse.success) {
-        const beneficiarias = fallbackResponse.data || [];
+    const loadData = async () => {
+      try {
+        const response = await apiService.getBeneficiarias();
+        const beneficiarias = response.data || [];
         setStats({
           totalBeneficiarias: beneficiarias.length,
-          formularios: 0,
-          atendimentosMes: 0,
-          engajamento: "0%"
+          formularios: beneficiarias.length * 2, // Mock
+          atendimentosMes: Math.floor(beneficiarias.length / 2), // Mock
+          engajamento: "85%" // Mock
         });
+      } catch (error) {
+        console.error('Erro ao carregar dados:', error);
+      } finally {
+        setLoading(false);
       }
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
+    loadData();
+  }, []);
 
   return (
     <div className="space-y-6 p-6">
@@ -158,26 +131,20 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {loading ? (
-                <div className="text-sm text-muted-foreground">Carregando atividades...</div>
-              ) : recentActivities.length > 0 ? (
-                recentActivities.map((activity) => (
-                  <div key={activity.id} className="flex items-center gap-3 p-2 rounded border">
-                    {activity.icon === 'Users' && <Users className="h-4 w-4 text-primary" />}
-                    {activity.icon === 'FileText' && <FileText className="h-4 w-4 text-green-500" />}
-                    {activity.icon === 'Calendar' && <Calendar className="h-4 w-4 text-blue-500" />}
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">{activity.type}</p>
-                      <p className="text-xs text-muted-foreground">{activity.description}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {new Date(activity.time).toLocaleDateString('pt-BR')}
-                      </p>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="text-sm text-muted-foreground">Nenhuma atividade recente</div>
-              )}
+              <div className="flex items-center gap-3 p-2 rounded border">
+                <Users className="h-4 w-4 text-primary" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium">Nova beneficiária cadastrada</p>
+                  <p className="text-xs text-muted-foreground">2h atrás</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 p-2 rounded border">
+                <FileText className="h-4 w-4 text-green-500" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium">Formulário preenchido</p>
+                  <p className="text-xs text-muted-foreground">4h atrás</p>
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -195,29 +162,20 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {loading ? (
-                <div className="text-sm text-muted-foreground">Carregando tarefas...</div>
-              ) : upcomingTasks.length > 0 ? (
-                upcomingTasks.map((task) => (
-                  <div key={task.id} className="flex items-start justify-between p-2 rounded border">
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">{task.title}</p>
-                      <p className="text-xs text-muted-foreground">Prazo: {task.due}</p>
-                    </div>
-                    <Badge 
-                      variant={
-                        task.priority === "Alta" ? "destructive" : 
-                        task.priority === "Média" ? "default" : 
-                        "secondary"
-                      }
-                    >
-                      {task.priority}
-                    </Badge>
-                  </div>
-                ))
-              ) : (
-                <div className="text-sm text-muted-foreground">Nenhuma tarefa pendente</div>
-              )}
+              <div className="flex items-start justify-between p-2 rounded border">
+                <div className="flex-1">
+                  <p className="text-sm font-medium">Revisar cadastros</p>
+                  <p className="text-xs text-muted-foreground">Prazo: Hoje</p>
+                </div>
+                <Badge variant="destructive">Alta</Badge>
+              </div>
+              <div className="flex items-start justify-between p-2 rounded border">
+                <div className="flex-1">
+                  <p className="text-sm font-medium">Atualizar relatórios</p>
+                  <p className="text-xs text-muted-foreground">Prazo: Amanhã</p>
+                </div>
+                <Badge>Média</Badge>
+              </div>
             </div>
           </CardContent>
         </Card>
