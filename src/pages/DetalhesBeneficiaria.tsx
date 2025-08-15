@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -13,7 +13,7 @@ import { AlertCircle, ArrowLeft, Edit, Save, X, Plus, FileText, Calendar, User, 
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { apiFetch } from '@/lib/api';
+import { apiService } from '@/services/apiService';
 
 interface Beneficiaria {
   id: number;
@@ -37,7 +37,7 @@ interface Beneficiaria {
   objetivos: string;
   experiencia_anterior: string;
   disponibilidade_horario: string;
-  status: string;
+  status: string | null;
   observacoes: string;
   data_cadastro: string;
   ativo: boolean;
@@ -48,7 +48,7 @@ interface Participacao {
   oficina_nome: string;
   data_inicio: string;
   data_fim?: string;
-  status: string;
+  status: string | null;
   progresso: number;
   observacoes?: string;
 }
@@ -64,6 +64,7 @@ interface Documento {
 export default function DetalhesBeneficiaria() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [beneficiaria, setBeneficiaria] = useState<Beneficiaria | null>(null);
   const [participacoes, setParticipacoes] = useState<Participacao[]>([]);
   const [documentos, setDocumentos] = useState<Documento[]>([]);
@@ -76,32 +77,61 @@ export default function DetalhesBeneficiaria() {
     if (id) {
       carregarDados();
     }
-  }, [id]);
+    
+    // Verificar se deve ativar o modo de edição
+    if (searchParams.get('edit') === 'true') {
+      setEditMode(true);
+    }
+  }, [id, searchParams]);
 
   const carregarDados = async () => {
     try {
       setLoading(true);
+      setError(null);
+      
+      if (!id) {
+        setError('ID da beneficiária não encontrado');
+        return;
+      }
+
+      console.log('Carregando dados da beneficiária ID:', id);
       
       // Buscar dados da beneficiária
-      const beneficiariaResponse = await apiFetch(`/api/beneficiarias/${id}`);
-      if (beneficiariaResponse.success) {
+      const beneficiariaResponse = await apiService.getBeneficiaria(id);
+      console.log('Resposta beneficiária:', beneficiariaResponse);
+      
+      if (beneficiariaResponse.success && beneficiariaResponse.data) {
         setBeneficiaria(beneficiariaResponse.data);
+      } else {
+        setError(beneficiariaResponse.message || 'Erro ao carregar dados da beneficiária');
+        return;
       }
 
       // Buscar participações
-      const participacoesResponse = await apiFetch(`/api/participacoes?beneficiaria_id=${id}`);
-      if (participacoesResponse.success) {
-        setParticipacoes(participacoesResponse.data);
+      try {
+        const participacoesResponse = await apiService.getParticipacoes({ beneficiaria_id: id });
+        if (participacoesResponse.success && participacoesResponse.data) {
+          setParticipacoes(participacoesResponse.data);
+        }
+      } catch (err) {
+        console.log('Erro ao carregar participações:', err);
+        // Não bloqueia o carregamento se participações falharem
       }
 
       // Buscar documentos
-      const documentosResponse = await apiFetch(`/api/documentos?beneficiaria_id=${id}`);
-      if (documentosResponse.success) {
-        setDocumentos(documentosResponse.data);
+      try {
+        const documentosResponse = await apiService.getDocumentos({ beneficiaria_id: id });
+        if (documentosResponse.success && documentosResponse.data) {
+          setDocumentos(documentosResponse.data);
+        }
+      } catch (err) {
+        console.log('Erro ao carregar documentos (tabela pode não existir):', err);
+        // Não bloqueia o carregamento se documentos falharem
+        setDocumentos([]); // Define array vazio por padrão
       }
 
     } catch (err) {
-      setError('Erro ao carregar dados da beneficiária');
+      setError('Erro de conexão ao carregar dados da beneficiária');
       console.error('Erro ao carregar:', err);
     } finally {
       setLoading(false);
@@ -109,28 +139,27 @@ export default function DetalhesBeneficiaria() {
   };
 
   const salvarAlteracoes = async () => {
-    if (!beneficiaria) return;
+    if (!beneficiaria || !id) return;
 
     try {
-      const response = await apiFetch(`/api/beneficiarias/${id}`, {
-        method: 'PUT',
-        body: JSON.stringify(beneficiaria)
-      });
+      const response = await apiService.updateBeneficiaria(id, beneficiaria);
 
       if (response.success) {
         setEditMode(false);
         // Recarregar dados
         carregarDados();
       } else {
-        setError('Erro ao salvar alterações');
+        setError(response.message || 'Erro ao salvar alterações');
       }
     } catch (err) {
-      setError('Erro ao salvar alterações');
+      setError('Erro de conexão ao salvar alterações');
       console.error('Erro ao salvar:', err);
     }
   };
 
-  const getStatusBadgeColor = (status: string) => {
+  const getStatusBadgeColor = (status: string | null) => {
+    if (!status) return 'bg-gray-100 text-gray-800';
+    
     switch (status.toLowerCase()) {
       case 'ativo': return 'bg-green-100 text-green-800';
       case 'inativo': return 'bg-red-100 text-red-800';
@@ -194,8 +223,8 @@ export default function DetalhesBeneficiaria() {
             <div>
               <h1 className="text-2xl font-bold">{beneficiaria.nome_completo}</h1>
               <div className="flex items-center gap-4 mt-1">
-                <Badge className={getStatusBadgeColor(beneficiaria.status)}>
-                  {beneficiaria.status}
+                <Badge className={getStatusBadgeColor(beneficiaria.status || 'pendente')}>
+                  {beneficiaria.status || 'Pendente'}
                 </Badge>
                 <span className="text-sm text-muted-foreground">
                   CPF: {beneficiaria.cpf}
@@ -607,8 +636,8 @@ export default function DetalhesBeneficiaria() {
                       <div key={participacao.id} className="border rounded-lg p-4">
                         <div className="flex items-center justify-between mb-2">
                           <h4 className="font-medium">{participacao.oficina_nome}</h4>
-                          <Badge className={getStatusBadgeColor(participacao.status)}>
-                            {participacao.status}
+                          <Badge className={getStatusBadgeColor(participacao.status || 'pendente')}>
+                            {participacao.status || 'Pendente'}
                           </Badge>
                         </div>
                         <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">

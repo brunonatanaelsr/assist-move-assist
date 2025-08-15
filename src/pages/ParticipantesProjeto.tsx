@@ -196,12 +196,24 @@ export default function ParticipantesProjeto() {
     try {
       setLoading(true);
       
-      // Para desenvolvimento, usar dados mock
-      setProjeto(mockProjeto);
-      setParticipantes(mockParticipantes);
+      // Carregar projeto real do backend
+      const projetoResponse = await apiService.getProjetoById(parseInt(params.id || '1'));
+      if (projetoResponse.success) {
+        setProjeto(projetoResponse.data);
+      }
+      
+      // Carregar participações reais do projeto
+      const participacoesResponse = await apiService.getParticipacoesPorProjeto(parseInt(params.id || '1'));
+      if (participacoesResponse.success) {
+        setParticipantes(participacoesResponse.data || []);
+      }
       
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
+      // Fallback para dados mock apenas em caso de erro
+      console.warn('Usando dados mock como fallback');
+      setProjeto(mockProjeto);
+      setParticipantes(mockParticipantes);
     } finally {
       setLoading(false);
     }

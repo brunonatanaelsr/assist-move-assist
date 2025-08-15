@@ -5,7 +5,10 @@
 
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 
-const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
+// Em desenvolvimento, usar o proxy do Vite. Em produção, usar URL completa
+const API_URL = import.meta.env.DEV 
+  ? '/api' 
+  : (import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api');
 
 interface ApiResponse<T = any> {
   success: boolean;
@@ -137,34 +140,19 @@ class ApiService {
     }
   }
 
-  async put<T>(url: string, data: any, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
-    try {
-      const response = await this.api.put<ApiResponse<T>>(url, data, config);
-      return response.data;
-    } catch (error: any) {
-      if (error.response && error.response.data) {
-        return error.response.data;
-      }
-      return {
-        success: false,
-        message: error.message || 'Erro na requisição'
-      };
-    }
+  private async put<T>(endpoint: string, data?: any): Promise<ApiResponse<T>> {
+    const response = await this.api.put(endpoint, data);
+    return response.data;
   }
 
-  async delete<T>(url: string, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
-    try {
-      const response = await this.api.delete<ApiResponse<T>>(url, config);
-      return response.data;
-    } catch (error: any) {
-      if (error.response && error.response.data) {
-        return error.response.data;
-      }
-      return {
-        success: false,
-        message: error.message || 'Erro na requisição'
-      };
-    }
+  private async patch<T>(endpoint: string, data?: any): Promise<ApiResponse<T>> {
+    const response = await this.api.patch(endpoint, data);
+    return response.data;
+  }
+
+  private async delete<T>(endpoint: string): Promise<ApiResponse<T>> {
+    const response = await this.api.delete(endpoint);
+    return response.data;
   }
 
   // Métodos específicos para autenticação
@@ -201,6 +189,10 @@ class ApiService {
     return this.get('/beneficiarias', { params });
   }
 
+  async getBeneficiaria(id: string | number): Promise<ApiResponse<any>> {
+    return this.get(`/beneficiarias/${id}`);
+  }
+
   async createBeneficiaria(data: any): Promise<ApiResponse<any>> {
     return this.post('/beneficiarias', data);
   }
@@ -224,6 +216,128 @@ class ApiService {
 
   async getDashboardTasks(): Promise<ApiResponse<any[]>> {
     return this.get('/dashboard/tasks');
+  }
+
+  // Métodos específicos para projetos
+  async getProjetos(): Promise<ApiResponse<any[]>> {
+    return this.get('/projetos');
+  }
+
+  async getProjetoById(id: number): Promise<ApiResponse<any>> {
+    return this.get(`/projetos/${id}`);
+  }
+
+  async getParticipacoesPorProjeto(projetoId: number): Promise<ApiResponse<any[]>> {
+    return this.get(`/participacoes/projeto/${projetoId}`);
+  }
+
+  async createProjeto(data: any): Promise<ApiResponse<any>> {
+    return this.post('/projetos', data);
+  }
+
+  async updateProjeto(id: string, data: any): Promise<ApiResponse<any>> {
+    return this.put(`/projetos/${id}`, data);
+  }
+
+  async deleteProjeto(id: string): Promise<ApiResponse<any>> {
+    return this.delete(`/projetos/${id}`);
+  }
+
+  // Métodos específicos para participações
+  async getParticipacoes(params?: any): Promise<ApiResponse<any[]>> {
+    return this.get('/participacoes', { params });
+  }
+
+  async createParticipacao(data: any): Promise<ApiResponse<any>> {
+    return this.post('/participacoes', data);
+  }
+
+  async updateParticipacao(id: string, data: any): Promise<ApiResponse<any>> {
+    return this.put(`/participacoes/${id}`, data);
+  }
+
+  async deleteParticipacao(id: string): Promise<ApiResponse<any>> {
+    return this.delete(`/participacoes/${id}`);
+  }
+
+  // Mensagens
+  async getMensagens(): Promise<ApiResponse<any[]>> {
+    return this.get('/mensagens');
+  }
+
+  async getMensagemById(id: number): Promise<ApiResponse<any>> {
+    return this.get(`/mensagens/${id}`);
+  }
+
+  async enviarMensagem(data: any): Promise<ApiResponse<any>> {
+    return this.post('/mensagens', data);
+  }
+
+  async marcarMensagemLida(id: number, lida: boolean): Promise<ApiResponse<any>> {
+    return this.patch(`/mensagens/${id}/lida`, { lida });
+  }
+
+  async getConversasBeneficiarias(): Promise<ApiResponse<any[]>> {
+    return this.get('/mensagens/conversas/beneficiarias');
+  }
+
+  async getMensagensConversa(beneficiariaId: number): Promise<ApiResponse<any[]>> {
+    return this.get(`/mensagens/conversas/beneficiaria/${beneficiariaId}`);
+  }
+
+  async deleteMensagem(id: number): Promise<ApiResponse<any>> {
+    return this.delete(`/mensagens/${id}`);
+  }
+
+  async sendMensagem(data: any): Promise<ApiResponse<any>> {
+    return this.post('/mensagens', data);
+  }
+
+  // Métodos específicos para relatórios
+  async getRelatorios(params?: any): Promise<ApiResponse<any[]>> {
+    return this.get('/relatorios', { params });
+  }
+
+  async generateRelatorio(data: any): Promise<ApiResponse<any>> {
+    return this.post('/relatorios', data);
+  }
+
+  // Métodos específicos para documentos
+  async getDocumentos(params?: any): Promise<ApiResponse<any[]>> {
+    return this.get('/documentos', { params });
+  }
+
+  async uploadDocumento(data: FormData): Promise<ApiResponse<any>> {
+    return this.post('/documentos', data, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  }
+
+  async deleteDocumento(id: string): Promise<ApiResponse<any>> {
+    return this.delete(`/documentos/${id}`);
+  }
+
+  // Métodos específicos para auditoria
+  async getAuditoria(params?: any): Promise<ApiResponse<any[]>> {
+    return this.get('/auditoria', { params });
+  }
+
+  // Métodos específicos para configurações
+  async getConfiguracoes(): Promise<ApiResponse<any>> {
+    return this.get('/configuracoes');
+  }
+
+  async updateConfiguracoes(data: any): Promise<ApiResponse<any>> {
+    return this.put('/configuracoes', data);
+  }
+
+  // Métodos específicos para declarações
+  async getDeclaracoes(params?: any): Promise<ApiResponse<any[]>> {
+    return this.get('/declaracoes', { params });
+  }
+
+  async generateDeclaracao(data: any): Promise<ApiResponse<any>> {
+    return this.post('/declaracoes', data);
   }
 
   // Método para testar conectividade

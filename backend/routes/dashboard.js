@@ -15,40 +15,98 @@ const pool = new Pool({
 
 // Dashboard geral
 router.get('/', authenticateToken, async (req, res) => {
+  console.log('=== DASHBOARD ENDPOINT INICIADO ===');
+  
   try {
-    // Estatísticas gerais
-    const beneficiariasCount = await pool.query('SELECT COUNT(*) FROM beneficiarias WHERE ativo = true');
-    const oficinasCount = await pool.query('SELECT COUNT(*) FROM oficinas WHERE ativo = true');
-    const projetosCount = await pool.query('SELECT COUNT(*) FROM projetos WHERE ativo = true');
-    const participacoesCount = await pool.query('SELECT COUNT(*) FROM participacoes WHERE ativo = true');
-
-    // Oficinas por status
-    const oficinasStatus = await pool.query(`
-      SELECT ativa, COUNT(*) as total 
-      FROM oficinas 
-      WHERE ativo = true 
-      GROUP BY ativa
-    `);
+    console.log('Iniciando consultas completas...');
+    
+    // Totais gerais
+    const [beneficiariasTotal, oficinasTotalResult, projetosTotalResult, participacoesTotalResult] = await Promise.all([
+      pool.query('SELECT COUNT(*) FROM beneficiarias'),
+      pool.query('SELECT COUNT(*) FROM oficinas'),
+      pool.query('SELECT COUNT(*) FROM projetos'),
+      pool.query('SELECT COUNT(*) FROM participacoes')
+    ]);
 
     // Beneficiárias por status
     const beneficiariasStatus = await pool.query(`
-      SELECT status, COUNT(*) as total 
+      SELECT 
+        CASE WHEN ativo = true THEN 'Ativa' ELSE 'Inativa' END as status,
+        COUNT(*) as total
       FROM beneficiarias 
-      WHERE ativo = true 
-      GROUP BY status
+      GROUP BY ativo
+      ORDER BY ativo DESC
     `);
+
+    // Oficinas por status (se existirem)
+    let oficinasStatus = [];
+    try {
+      const oficinasStatusResult = await pool.query(`
+        SELECT 
+          CASE WHEN ativo = true THEN 'Ativa' ELSE 'Inativa' END as status,
+          COUNT(*) as total
+        FROM oficinas 
+        GROUP BY ativo
+        ORDER BY ativo DESC
+      `);
+      oficinasStatus = oficinasStatusResult.rows;
+    } catch (err) {
+      console.log('Tabela oficinas sem dados ou erro:', err.message);
+    }
+
+    // Projetos por status
+    let projetosStatus = [];
+    try {
+      const projetosStatusResult = await pool.query(`
+        SELECT 
+          CASE WHEN ativo = true THEN 'Ativo' ELSE 'Inativo' END as status,
+          COUNT(*) as total
+        FROM projetos 
+        GROUP BY ativo
+        ORDER BY ativo DESC
+      `);
+      projetosStatus = projetosStatusResult.rows;
+    } catch (err) {
+      console.log('Erro ao buscar projetos por status:', err.message);
+    }
+
+    // Estatísticas de participação
+    let estatisticasParticipacao = {
+      totalParticipacoes: 0,
+      participacoesAtivas: 0,
+      beneficiariasComParticipacao: 0
+    };
+
+    try {
+      const [participacoesAtivasResult, beneficiariasComParticipacaoResult] = await Promise.all([
+        pool.query('SELECT COUNT(*) FROM participacoes WHERE ativo = true'),
+        pool.query('SELECT COUNT(DISTINCT beneficiaria_id) FROM participacoes WHERE ativo = true')
+      ]);
+
+      estatisticasParticipacao = {
+        totalParticipacoes: parseInt(participacoesTotalResult.rows[0].count),
+        participacoesAtivas: parseInt(participacoesAtivasResult.rows[0].count),
+        beneficiariasComParticipacao: parseInt(beneficiariasComParticipacaoResult.rows[0].count)
+      };
+    } catch (err) {
+      console.log('Erro ao buscar estatísticas de participação:', err.message);
+    }
 
     const dashboardData = {
       totais: {
-        beneficiarias: parseInt(beneficiariasCount.rows[0].count),
-        oficinas: parseInt(oficinasCount.rows[0].count),
-        projetos: parseInt(projetosCount.rows[0].count),
-        participacoes: parseInt(participacoesCount.rows[0].count)
+        beneficiarias: parseInt(beneficiariasTotal.rows[0].count),
+        oficinas: parseInt(oficinasTotalResult.rows[0].count),
+        projetos: parseInt(projetosTotalResult.rows[0].count),
+        participacoes: parseInt(participacoesTotalResult.rows[0].count)
       },
-      oficinas_status: oficinasStatus.rows,
-      beneficiarias_status: beneficiariasStatus.rows
+      beneficiarias_status: beneficiariasStatus.rows,
+      oficinas_status: oficinasStatus,
+      projetos_status: projetosStatus,
+      estatisticas_participacao: estatisticasParticipacao,
+      timestamp: new Date().toISOString()
     };
 
+    console.log('Dashboard data completo:', JSON.stringify(dashboardData, null, 2));
     res.json(successResponse(dashboardData, "Dashboard carregado com sucesso"));
 
   } catch (error) {
@@ -70,7 +128,7 @@ router.get('/stats', authenticateToken, async (req, res) => {
     const atendimentosMes = await pool.query(`
       SELECT COUNT(*) as count 
       FROM declaracoes_comparecimento 
-      WHERE DATE_TRUNC('month', data_emissao) = DATE_TRUNC('month', CURRENT_DATE)
+      WHERE DATE_TRUNC('month', data_criacao) = DATE_TRUNC('month', CURRENT_DATE)
     `);
     
     // Participações em oficinas para calcular engajamento
@@ -110,10 +168,10 @@ router.get('/activities', authenticateToken, async (req, res) => {
 
     // Beneficiárias cadastradas recentemente
     const recentBeneficiarias = await pool.query(`
-      SELECT nome_completo, data_cadastro 
+      SELECT nome_completo, data_criacao 
       FROM beneficiarias 
       WHERE ativo = true
-      ORDER BY data_cadastro DESC 
+      ORDER BY data_criacao DESC 
       LIMIT 3
     `);
 
@@ -122,7 +180,7 @@ router.get('/activities', authenticateToken, async (req, res) => {
         id: `beneficiaria-${beneficiaria.nome_completo}`,
         type: "Nova beneficiária",
         description: `${beneficiaria.nome_completo} foi cadastrada no sistema`,
-        time: beneficiaria.data_cadastro || new Date().toISOString(),
+        time: beneficiaria.data_criacao || new Date().toISOString(),
         icon: "Users"
       });
     });
@@ -134,7 +192,7 @@ router.get('/activities', authenticateToken, async (req, res) => {
         FROM declaracoes_comparecimento d
         JOIN beneficiarias b ON d.beneficiaria_id = b.id
         WHERE b.ativo = true
-        ORDER BY d.data_emissao DESC 
+        ORDER BY d.data_criacao DESC 
         LIMIT 3
       `);
 
@@ -143,7 +201,7 @@ router.get('/activities', authenticateToken, async (req, res) => {
           id: `declaracao-${declaracao.id}`,
           type: "Declaração emitida",
           description: `Declaração de comparecimento - ${declaracao.nome_completo}`,
-          time: declaracao.data_emissao,
+          time: declaracao.data_criacao,
           icon: "FileText"
         });
       });
@@ -154,26 +212,26 @@ router.get('/activities', authenticateToken, async (req, res) => {
     // Participações recentes em oficinas
     try {
       const recentParticipacoes = await pool.query(`
-        SELECT p.*, b.nome_completo, o.nome as oficina_nome, p.data_participacao
+        SELECT p.*, b.nome_completo, pr.nome as projeto_nome
         FROM participacoes p
         JOIN beneficiarias b ON p.beneficiaria_id = b.id
-        JOIN oficinas o ON p.oficina_id = o.id
-        WHERE p.ativo = true AND b.ativo = true AND o.ativo = true
-        ORDER BY p.data_participacao DESC 
+        JOIN projetos pr ON p.projeto_id = pr.id
+        WHERE p.ativo = true AND b.ativo = true AND pr.ativo = true
+        ORDER BY p.data_criacao DESC 
         LIMIT 3
       `);
 
       recentParticipacoes.rows.forEach(participacao => {
         activities.push({
           id: `participacao-${participacao.id}`,
-          type: "Participação em oficina",
-          description: `${participacao.nome_completo} - ${participacao.oficina_nome}`,
-          time: participacao.data_participacao || new Date().toISOString(),
+          type: "Participação em projeto",
+          description: `${participacao.nome_completo} - ${participacao.projeto_nome}`,
+          time: participacao.data_criacao || new Date().toISOString(),
           icon: "Calendar"
         });
       });
     } catch (err) {
-      console.log('Sem participações recentes');
+      console.log('Sem participações recentes:', err.message);
     }
 
     // Ordenar por data mais recente e limitar
@@ -194,17 +252,15 @@ router.get('/tasks', authenticateToken, async (req, res) => {
 
     // Verificar beneficiárias sem declarações recentes
     try {
-      const beneficiariasSemDeclaracoes = await pool.query(`
-        SELECT COUNT(*) as count 
-        FROM beneficiarias b
-        WHERE b.ativo = true AND NOT EXISTS (
-          SELECT 1 FROM declaracoes_comparecimento d 
-          WHERE d.beneficiaria_id = b.id 
-          AND d.data_emissao >= CURRENT_DATE - INTERVAL '30 days'
-        )
-      `);
-
-      if (parseInt(beneficiariasSemDeclaracoes.rows[0].count) > 0) {
+        const beneficiariasSemDeclaracoes = await pool.query(`
+          SELECT COUNT(*) as count 
+          FROM beneficiarias b
+          WHERE b.ativo = true AND NOT EXISTS (
+            SELECT 1 FROM declaracoes_comparecimento d 
+            WHERE d.beneficiaria_id = b.id 
+            AND d.data_criacao >= CURRENT_DATE - INTERVAL '30 days'
+          )
+        `);      if (parseInt(beneficiariasSemDeclaracoes.rows[0].count) > 0) {
         tasks.push({
           id: 'review-beneficiarias',
           title: 'Revisar cadastros sem atividade recente',

@@ -9,6 +9,7 @@ import Auth from "./pages/Auth";
 import Beneficiarias from "./pages/Beneficiarias";
 import CadastroBeneficiaria from "./pages/CadastroBeneficiaria";
 import DetalhesBeneficiaria from "./pages/DetalhesBeneficiaria";
+import EditarBeneficiaria from "./pages/EditarBeneficiaria";
 import NotFound from "./pages/NotFound";
 import MainLayout from "./components/layout/main-layout";
 import { PostgreSQLAuthProvider } from "./hooks/usePostgreSQLAuth";
@@ -70,6 +71,13 @@ const App = () => (
               <ProtectedRoute>
                 <MainLayout>
                   <DetalhesBeneficiaria />
+                </MainLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/beneficiarias/:id/editar" element={
+              <ProtectedRoute>
+                <MainLayout>
+                  <EditarBeneficiaria />
                 </MainLayout>
               </ProtectedRoute>
             } />

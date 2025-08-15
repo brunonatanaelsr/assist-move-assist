@@ -21,6 +21,8 @@ const createCorsMiddleware = () => {
         'https://fictional-carnival-974jg97jjvgwcpr57-3000.app.github.dev',
         'https://laughing-space-adventure-9jgvjwgjr72p97x-8080.app.github.dev',
         'https://laughing-space-adventure-9jgvjwgjr72p97x-3000.app.github.dev',
+        'https://turbo-goldfish-6974xg9446jpf4xv4-8080.app.github.dev',
+        'https://turbo-goldfish-6974xg9446jpf4xv4-3000.app.github.dev',
         'http://movemarias.squadsolucoes.com.br',
         'https://movemarias.squadsolucoes.com.br'
       ];

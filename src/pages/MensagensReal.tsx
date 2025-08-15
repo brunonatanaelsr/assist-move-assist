@@ -4,11 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { MessageSquare, Send, Plus, Search, User, Calendar, AlertCircle, Clock } from "lucide-react";
+import { MessageSquare, Send, Plus, Search, Filter, User, Calendar, Clock, AlertCircle } from "lucide-react";
 import { apiService } from "@/services/apiService";
 import { toast } from "@/hooks/use-toast";
 
@@ -43,7 +44,7 @@ interface Conversa {
   ultimo_assunto: string;
 }
 
-export default function Mensagens() {
+export default function MensagensReal() {
   const [mensagens, setMensagens] = useState<Mensagem[]>([]);
   const [conversas, setConversas] = useState<Conversa[]>([]);
   const [conversaAtiva, setConversaAtiva] = useState<Conversa | null>(null);
@@ -62,35 +63,27 @@ export default function Mensagens() {
   const [showNewMessageDialog, setShowNewMessageDialog] = useState(false);
 
   useEffect(() => {
-    console.log('Mensagens: Componente montado, iniciando carregamento...');
     loadData();
   }, []);
 
   const loadData = async () => {
     try {
-      console.log('Mensagens: Iniciando carregamento de dados...');
       setLoading(true);
       
       // Carregar todas as mensagens
-      console.log('Mensagens: Carregando mensagens...');
       const mensagensResponse = await apiService.getMensagens();
-      console.log('Mensagens: Resposta das mensagens:', mensagensResponse);
       if (mensagensResponse.success) {
         setMensagens(mensagensResponse.data || []);
-        console.log('Mensagens: Mensagens carregadas:', mensagensResponse.data?.length || 0);
       }
 
       // Carregar conversas agrupadas por beneficiária
-      console.log('Mensagens: Carregando conversas...');
       const conversasResponse = await apiService.getConversasBeneficiarias();
-      console.log('Mensagens: Resposta das conversas:', conversasResponse);
       if (conversasResponse.success) {
         setConversas(conversasResponse.data || []);
-        console.log('Mensagens: Conversas carregadas:', conversasResponse.data?.length || 0);
       }
 
     } catch (error) {
-      console.error('Mensagens: Erro ao carregar dados:', error);
+      console.error('Erro ao carregar dados:', error);
       toast({
         title: "Erro",
         description: "Não foi possível carregar as mensagens",
@@ -98,21 +91,18 @@ export default function Mensagens() {
       });
     } finally {
       setLoading(false);
-      console.log('Mensagens: Carregamento finalizado');
     }
   };
 
   const loadConversa = async (conversa: Conversa) => {
     try {
-      console.log('Mensagens: Carregando conversa:', conversa.beneficiaria_nome);
       setConversaAtiva(conversa);
       const response = await apiService.getMensagensConversa(conversa.beneficiaria_id);
-      console.log('Mensagens: Resposta da conversa:', response);
       if (response.success) {
         setMensagensConversa(response.data || []);
       }
     } catch (error) {
-      console.error('Mensagens: Erro ao carregar conversa:', error);
+      console.error('Erro ao carregar conversa:', error);
       toast({
         title: "Erro",
         description: "Não foi possível carregar a conversa",
@@ -123,7 +113,6 @@ export default function Mensagens() {
 
   const enviarMensagem = async () => {
     try {
-      console.log('Mensagens: Enviando mensagem:', novaMensagem);
       if (!novaMensagem.assunto || !novaMensagem.conteudo) {
         toast({
           title: "Erro",
@@ -134,7 +123,6 @@ export default function Mensagens() {
       }
 
       const response = await apiService.enviarMensagem(novaMensagem);
-      console.log('Mensagens: Resposta do envio:', response);
       if (response.success) {
         toast({
           title: "Sucesso",
@@ -151,7 +139,7 @@ export default function Mensagens() {
         loadData();
       }
     } catch (error) {
-      console.error('Mensagens: Erro ao enviar mensagem:', error);
+      console.error('Erro ao enviar mensagem:', error);
       toast({
         title: "Erro",
         description: "Não foi possível enviar a mensagem",
@@ -162,9 +150,9 @@ export default function Mensagens() {
 
   const marcarComoLida = async (mensagemId: number) => {
     try {
-      console.log('Mensagens: Marcando como lida:', mensagemId);
       const response = await apiService.marcarMensagemLida(mensagemId, true);
       if (response.success) {
+        // Atualizar estado local
         setMensagens(prev => prev.map(m => 
           m.id === mensagemId ? { ...m, lida: true, data_leitura: new Date().toISOString() } : m
         ));
@@ -173,7 +161,7 @@ export default function Mensagens() {
         ));
       }
     } catch (error) {
-      console.error('Mensagens: Erro ao marcar como lida:', error);
+      console.error('Erro ao marcar como lida:', error);
     }
   };
 
@@ -207,8 +195,6 @@ export default function Mensagens() {
     return matchSearch && matchTipo && matchPrioridade;
   });
 
-  console.log('Mensagens: Renderizando componente - loading:', loading, 'mensagens:', mensagens.length, 'conversas:', conversas.length);
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -227,7 +213,7 @@ export default function Mensagens() {
         <div>
           <h1 className="text-3xl font-bold">Mensagens</h1>
           <p className="text-muted-foreground">
-            Sistema de mensagens com dados reais do PostgreSQL ({mensagens.length} mensagens, {conversas.length} conversas)
+            Gerencie mensagens e conversas com beneficiárias
           </p>
         </div>
 
@@ -316,8 +302,8 @@ export default function Mensagens() {
 
       <Tabs defaultValue="mensagens" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="mensagens">Todas as Mensagens ({mensagens.length})</TabsTrigger>
-          <TabsTrigger value="conversas">Conversas ({conversas.length})</TabsTrigger>
+          <TabsTrigger value="mensagens">Todas as Mensagens</TabsTrigger>
+          <TabsTrigger value="conversas">Conversas por Beneficiária</TabsTrigger>
         </TabsList>
 
         <TabsContent value="mensagens" className="space-y-4">
@@ -370,19 +356,13 @@ export default function Mensagens() {
               <Card>
                 <CardContent className="p-8 text-center">
                   <MessageSquare className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                  <h3 className="text-lg font-medium mb-2">
-                    {mensagens.length === 0 ? 'Nenhuma mensagem no sistema' : 'Nenhuma mensagem encontrada'}
-                  </h3>
-                  <p className="text-muted-foreground mb-4">
+                  <h3 className="text-lg font-medium mb-2">Nenhuma mensagem encontrada</h3>
+                  <p className="text-muted-foreground">
                     {searchTerm || filterTipo !== 'all' || filterPrioridade !== 'all' 
                       ? "Tente ajustar os filtros de busca"
-                      : "Comece criando uma nova mensagem"
+                      : "Ainda não há mensagens no sistema"
                     }
                   </p>
-                  <Button onClick={() => setShowNewMessageDialog(true)}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Criar Primera Mensagem
-                  </Button>
                 </CardContent>
               </Card>
             ) : (
@@ -420,7 +400,7 @@ export default function Mensagens() {
                           {mensagem.beneficiaria_nome && (
                             <div className="flex items-center space-x-1">
                               <User className="h-3 w-3" />
-                              <span>Para: {mensagem.beneficiaria_nome}</span>
+                              <span>Beneficiária: {mensagem.beneficiaria_nome}</span>
                             </div>
                           )}
                           <div className="flex items-center space-x-1">

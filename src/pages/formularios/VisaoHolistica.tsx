@@ -10,7 +10,7 @@ import { Slider } from '@/components/ui/slider';
 import { ArrowLeft, Eye, Target, TrendingUp, AlertCircle, CheckCircle, Brain, Heart, Users } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { apiFetch } from '@/lib/api';
+import { apiService } from '@/services/apiService';
 
 interface VisaoHolistica {
   beneficiaria_id: number;
@@ -94,6 +94,7 @@ export default function VisaoHolistica() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [beneficiaria, setBeneficiaria] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'dimensoes' | 'sintese' | 'profissional'>('dimensoes');
   
   const [visaoData, setVisaoData] = useState<Partial<VisaoHolistica>>({
@@ -134,26 +135,46 @@ export default function VisaoHolistica() {
 
   const carregarBeneficiaria = async () => {
     try {
-      const response = await apiFetch(`/api/beneficiarias/${id}`);
-      if (response.success) {
+      setLoading(true);
+      setError(null);
+      console.log('Carregando beneficiária ID:', id);
+      
+      if (!id) {
+        setError('ID da beneficiária não encontrado');
+        return;
+      }
+
+      const response = await apiService.getBeneficiaria(id);
+      console.log('Resposta da API:', response);
+      
+      if (response.success && response.data) {
         setBeneficiaria(response.data);
+        console.log('Beneficiária carregada:', response.data);
+      } else {
+        setError(`Erro ao carregar beneficiária: ${response.message || 'Erro desconhecido'}`);
       }
     } catch (error) {
       console.error('Erro ao carregar beneficiária:', error);
+      setError('Erro de conexão ao carregar dados da beneficiária');
+    } finally {
+      setLoading(false);
     }
   };
 
   const salvarVisaoHolistica = async () => {
+    // Temporariamente desabilitado até implementarmos a rota no backend
+    alert('Funcionalidade em desenvolvimento. A visualização dos dados da beneficiária está funcionando!');
+    
+    /* TODO: Implementar rota /api/visao-holistica no backend
     try {
       setLoading(true);
-      const response = await apiFetch('/api/visao-holistica', {
-        method: 'POST',
-        body: JSON.stringify(visaoData)
-      });
+      const response = await api.saveVisaoHolistica(visaoData);
 
       if (response.success) {
         alert('Visão Holística salva com sucesso!');
         navigate(`/beneficiarias/${id}`);
+      } else {
+        alert(`Erro ao salvar visão holística: ${response.message}`);
       }
     } catch (error) {
       console.error('Erro ao salvar visão holística:', error);
@@ -161,13 +182,14 @@ export default function VisaoHolistica() {
     } finally {
       setLoading(false);
     }
+    */
   };
 
   const updateDimensao = (dimensao: string, field: string, value: any) => {
     setVisaoData({
       ...visaoData,
       [dimensao]: {
-        ...visaoData[dimensao as keyof VisaoHolistica],
+        ...(visaoData[dimensao as keyof VisaoHolistica] as any),
         [field]: value
       }
     });
@@ -197,6 +219,23 @@ export default function VisaoHolistica() {
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-6xl mx-auto space-y-6">
+        {/* Mensagem de Erro */}
+        {error && (
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+            <div className="flex items-center">
+              <AlertCircle className="h-4 w-4 mr-2" />
+              {error}
+            </div>
+          </div>
+        )}
+
+        {/* Loading */}
+        {loading && (
+          <div className="text-center py-8">
+            <p>Carregando dados da beneficiária...</p>
+          </div>
+        )}
+
         {/* Header */}
         <div className="flex items-center gap-4">
           <Button variant="outline" onClick={() => navigate(`/beneficiarias/${id}`)}>

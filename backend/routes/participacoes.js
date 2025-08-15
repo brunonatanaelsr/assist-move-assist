@@ -20,10 +20,10 @@ router.get('/', authenticateToken, async (req, res) => {
     
     let query = `
       SELECT p.*, 
-             o.nome as oficina_nome, o.data_inicio, o.data_fim,
+             pr.nome as projeto_nome, pr.data_inicio, pr.data_fim_prevista, pr.data_fim_real,
              b.nome_completo as beneficiaria_nome
       FROM participacoes p
-      LEFT JOIN oficinas o ON p.oficina_id = o.id
+      LEFT JOIN projetos pr ON p.projeto_id = pr.id
       LEFT JOIN beneficiarias b ON p.beneficiaria_id = b.id
       WHERE p.ativo = true
     `;
@@ -38,8 +38,9 @@ router.get('/', authenticateToken, async (req, res) => {
     }
     
     if (oficina_id) {
+      // Nota: Como participações são por projeto, vamos buscar o projeto da oficina
       paramCount++;
-      query += ` AND p.oficina_id = $${paramCount}`;
+      query += ` AND p.projeto_id IN (SELECT projeto_id FROM oficinas WHERE id = $${paramCount})`;
       params.push(oficina_id);
     }
     

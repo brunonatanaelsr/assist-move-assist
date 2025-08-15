@@ -1,6 +1,9 @@
 // Frontend API client para comunicação com o backend PostgreSQL
 const getApiBaseUrl = () => {
-  return import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
+  // Em desenvolvimento, usar o proxy do Vite. Em produção, usar URL completa
+  return import.meta.env.DEV 
+    ? '/api' 
+    : (import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api');
 };
 
 const API_BASE_URL = getApiBaseUrl();
@@ -74,6 +77,47 @@ export const api = {
   async getBeneficiarias(): Promise<ApiResponse> {
     try {
       return await apiFetch<ApiResponse>(`${API_BASE_URL}/beneficiarias`, {
+        method: 'GET',
+      });
+    } catch (error: any) {
+      return { success: false, message: error.message };
+    }
+  },
+
+  async getBeneficiaria(id: string | number): Promise<ApiResponse> {
+    try {
+      return await apiFetch<ApiResponse>(`${API_BASE_URL}/beneficiarias/${id}`, {
+        method: 'GET',
+      });
+    } catch (error: any) {
+      return { success: false, message: error.message };
+    }
+  },
+
+  async updateBeneficiaria(id: string | number, data: any): Promise<ApiResponse> {
+    try {
+      return await apiFetch<ApiResponse>(`${API_BASE_URL}/beneficiarias/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      });
+    } catch (error: any) {
+      return { success: false, message: error.message };
+    }
+  },
+
+  async getParticipacoes(beneficiariaId: string | number): Promise<ApiResponse> {
+    try {
+      return await apiFetch<ApiResponse>(`${API_BASE_URL}/participacoes?beneficiaria_id=${beneficiariaId}`, {
+        method: 'GET',
+      });
+    } catch (error: any) {
+      return { success: false, message: error.message };
+    }
+  },
+
+  async getDocumentos(beneficiariaId: string | number): Promise<ApiResponse> {
+    try {
+      return await apiFetch<ApiResponse>(`${API_BASE_URL}/documentos?beneficiaria_id=${beneficiariaId}`, {
         method: 'GET',
       });
     } catch (error: any) {
@@ -233,6 +277,21 @@ export const api = {
           },
         }
       );
+    } catch (error: any) {
+      return { success: false, message: error.message };
+    }
+  },
+
+  // Visão Holística
+  async saveVisaoHolistica(data: any): Promise<ApiResponse<any>> {
+    try {
+      return await apiFetch<ApiResponse<any>>(`${API_BASE_URL}/visao-holistica`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
     } catch (error: any) {
       return { success: false, message: error.message };
     }
