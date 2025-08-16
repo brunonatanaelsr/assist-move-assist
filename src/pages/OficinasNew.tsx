@@ -92,8 +92,15 @@ export default function OficinasNew() {
   const carregarProjetos = async () => {
     try {
       const response = await apiFetch('/api/projetos');
+      console.log('Resposta da API projetos:', response);
       if (response.success) {
-        setProjetos(response.data.filter((p: Projeto) => p.status === 'ativo'));
+        console.log('Projetos recebidos:', response.data);
+        // Permitir projetos em planejamento ou em andamento para associação
+        const projetosFiltrados = response.data.filter((p: Projeto) => 
+          p.status === 'planejamento' || p.status === 'em_andamento'
+        );
+        console.log('Projetos após filtragem:', projetosFiltrados);
+        setProjetos(projetosFiltrados);
       }
     } catch (error) {
       console.error('Erro ao carregar projetos:', error);
