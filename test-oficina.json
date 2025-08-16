@@ -1,0 +1,13 @@
+{
+  "nome": "Oficina de Culinária",
+  "descricao": "Curso básico de culinária",
+  "instrutor": "Maria Silva", 
+  "data_inicio": "2025-08-20",
+  "data_fim": "2025-08-30",
+  "horario_inicio": "09:00",
+  "horario_fim": "12:00",
+  "local": "Cozinha Experimental",
+  "vagas_totais": 15,
+  "status": "ativa",
+  "projeto_id": null
+}

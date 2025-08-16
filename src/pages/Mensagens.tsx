@@ -181,7 +181,7 @@ export default function Mensagens() {
     switch (prioridade) {
       case 'urgente': return 'bg-red-100 text-red-800';
       case 'alta': return 'bg-orange-100 text-orange-800';
-      case 'normal': return 'bg-blue-100 text-blue-800';
+      case 'normal': return 'bg-primary/10 text-primary';
       case 'baixa': return 'bg-gray-100 text-gray-800';
       default: return 'bg-gray-100 text-gray-800';
     }

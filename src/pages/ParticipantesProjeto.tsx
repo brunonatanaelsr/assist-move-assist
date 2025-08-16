@@ -148,7 +148,7 @@ const mockParticipantes: Participante[] = [
 
 const statusColors = {
   ativo: 'bg-green-100 text-green-800 border-green-200',
-  concluido: 'bg-blue-100 text-blue-800 border-blue-200',
+  concluido: 'bg-primary/10 text-primary border-primary/20',
   desistente: 'bg-red-100 text-red-800 border-red-200',
   suspenso: 'bg-yellow-100 text-yellow-800 border-yellow-200'
 };
@@ -379,9 +379,9 @@ export default function ParticipantesProjeto() {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center space-x-2">
-              <Users className="h-5 w-5 text-blue-600" />
+              <Users className="h-5 w-5 text-primary" />
               <div>
-                <p className="text-2xl font-bold text-blue-600">{stats.total}</p>
+                <p className="text-2xl font-bold text-primary">{stats.total}</p>
                 <p className="text-sm text-gray-600">Total</p>
               </div>
             </div>
@@ -403,9 +403,9 @@ export default function ParticipantesProjeto() {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center space-x-2">
-              <CheckCircle className="h-5 w-5 text-blue-600" />
+              <CheckCircle className="h-5 w-5 text-primary" />
               <div>
-                <p className="text-2xl font-bold text-blue-600">{stats.concluidos}</p>
+                <p className="text-2xl font-bold text-primary">{stats.concluidos}</p>
                 <p className="text-sm text-gray-600">Concluídos</p>
               </div>
             </div>

@@ -18,7 +18,7 @@ const pool = new Pool({
 // Listar oficinas (público para permitir visualização sem autenticação)
 router.get('/', async (req, res) => {
   try {
-    const { page = 1, limit = 50, projeto_id, ativa } = req.query;
+    const { page = 1, limit = 50, projeto_id, status } = req.query;
     const offset = (page - 1) * limit;
 
     let whereConditions = ['o.ativo = true'];
@@ -32,25 +32,20 @@ router.get('/', async (req, res) => {
       params.push(projeto_id);
     }
 
-    if (ativa !== undefined) {
+    if (status !== undefined) {
       paramCount++;
-      whereConditions.push(`o.ativa = $${paramCount}`);
-      params.push(ativa === 'true');
+      whereConditions.push(`o.status = $${paramCount}`);
+      params.push(status);
     }
 
     const whereClause = whereConditions.join(' AND ');
 
     const result = await pool.query(
       `SELECT o.*,
-        p.nome as projeto_nome,
-        u.nome as responsavel_nome,
-        COUNT(pa.id) as total_participantes
+        p.nome as projeto_nome
        FROM oficinas o
        LEFT JOIN projetos p ON o.projeto_id = p.id
-       LEFT JOIN usuarios u ON o.responsavel_id = u.id
-       LEFT JOIN participacoes pa ON o.id = pa.oficina_id AND pa.ativo = true
        WHERE ${whereClause}
-       GROUP BY o.id, p.nome, u.nome
        ORDER BY o.data_inicio DESC
        LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}`,
       [...params, limit, offset]
@@ -91,14 +86,11 @@ router.get('/:id', async (req, res) => {
     const result = await pool.query(
       `SELECT o.*,
         p.nome as projeto_nome,
-        u.nome as responsavel_nome,
-        COUNT(pa.id) as total_participantes
+        u.nome as responsavel_nome
        FROM oficinas o
        LEFT JOIN projetos p ON o.projeto_id = p.id
        LEFT JOIN usuarios u ON o.responsavel_id = u.id
-       LEFT JOIN participacoes pa ON o.id = pa.oficina_id AND pa.ativo = true
-       WHERE o.id = $1 AND o.ativo = true
-       GROUP BY o.id, p.nome, u.nome`,
+       WHERE o.id = $1 AND o.ativo = true`,
       [id]
     );
 
@@ -130,7 +122,7 @@ router.post('/', authenticateToken, requireGestor, async (req, res) => {
       local,
       vagas_totais,
       projeto_id,
-      ativa = true
+      status = 'ativa'
     } = req.body;
 
     if (!nome || !data_inicio || !horario_inicio || !horario_fim) {
@@ -151,11 +143,11 @@ router.post('/', authenticateToken, requireGestor, async (req, res) => {
     const result = await pool.query(
       `INSERT INTO oficinas (
         nome, descricao, instrutor, data_inicio, data_fim, 
-        horario_inicio, horario_fim, local, vagas_totais,
-        projeto_id, responsavel_id, ativa
+        horario_inicio, horario_fim, local, vagas_total,
+        projeto_id, responsavel_id, status
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) 
         RETURNING *`,
-      [nome, descricao, instrutor, data_inicio, data_fim, horario_inicio, horario_fim, local, vagas_totais, projeto_id, req.user.id, ativa]
+      [nome, descricao, instrutor, data_inicio, data_fim, horario_inicio, horario_fim, local, vagas_totais, projeto_id, req.user.id, status]
     );
 
     const oficinaFormatada = formatObjectDates(result.rows[0], ['data_inicio', 'data_fim', 'data_criacao', 'data_atualizacao']);
@@ -185,7 +177,7 @@ router.put('/:id', authenticateToken, requireGestor, async (req, res) => {
       local,
       vagas_totais,
       projeto_id,
-      ativa
+      status
     } = req.body;
 
     // Verificar se a oficina existe
@@ -212,11 +204,11 @@ router.put('/:id', authenticateToken, requireGestor, async (req, res) => {
     const result = await pool.query(
       `UPDATE oficinas SET 
         nome = $1, descricao = $2, instrutor = $3, data_inicio = $4, data_fim = $5,
-        horario_inicio = $6, horario_fim = $7, local = $8, vagas_totais = $9,
-        projeto_id = $10, ativa = $11, data_atualizacao = NOW()
+        horario_inicio = $6, horario_fim = $7, local = $8, vagas_total = $9,
+        projeto_id = $10, status = $11, data_atualizacao = NOW()
       WHERE id = $12 AND ativo = true 
       RETURNING *`,
-      [nome, descricao, instrutor, data_inicio, data_fim, horario_inicio, horario_fim, local, vagas_totais, projeto_id, ativa, id]
+      [nome, descricao, instrutor, data_inicio, data_fim, horario_inicio, horario_fim, local, vagas_totais, projeto_id, status, id]
     );
 
     const oficinaFormatada = formatObjectDates(result.rows[0], ['data_inicio', 'data_fim', 'data_criacao', 'data_atualizacao']);
@@ -255,20 +247,33 @@ router.delete('/:id', authenticateToken, requireGestor, async (req, res) => {
   }
 });
 
-// Obter participantes de uma oficina
+// Obter participantes de uma oficina (através do projeto)
 router.get('/:id/participantes', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
 
+    // Primeiro buscar o projeto_id da oficina
+    const oficinaResult = await pool.query(
+      `SELECT projeto_id FROM oficinas WHERE id = $1 AND ativo = true`,
+      [id]
+    );
+
+    if (oficinaResult.rows.length === 0) {
+      return res.status(404).json(errorResponse("Oficina não encontrada"));
+    }
+
+    const projeto_id = oficinaResult.rows[0].projeto_id;
+
+    // Buscar participantes do projeto
     const result = await pool.query(
       `SELECT 
         b.id, b.nome_completo, b.email, b.telefone,
-        p.data_inscricao, p.status_participacao, p.avaliacao
+        p.data_inscricao, p.status as status_participacao
        FROM participacoes p
        JOIN beneficiarias b ON p.beneficiaria_id = b.id
-       WHERE p.oficina_id = $1 AND p.ativo = true AND b.ativo = true
+       WHERE p.projeto_id = $1 AND p.ativo = true AND b.ativo = true
        ORDER BY b.nome_completo`,
-      [id]
+      [projeto_id]
     );
 
     const participantesFormatados = formatArrayDates(result.rows, ['data_inscricao']);

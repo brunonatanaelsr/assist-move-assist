@@ -99,21 +99,21 @@ router.get('/:id', authenticateToken, async (req, res) => {
 // Criar projeto
 router.post('/', authenticateToken, requireGestor, async (req, res) => {
   try {
-    const { nome, descricao, data_inicio, data_fim, status, orcamento, localizacao } = req.body;
+    const { nome, descricao, data_inicio, data_fim_prevista, status, orcamento, localizacao } = req.body;
 
     if (!nome || !data_inicio) {
       return res.status(400).json(errorResponse("Nome e data de início são obrigatórios"));
     }
 
     const result = await pool.query(
-      `INSERT INTO projetos (nome, descricao, data_inicio, data_fim, status, responsavel_id, orcamento, localizacao, ativo)
+      `INSERT INTO projetos (nome, descricao, data_inicio, data_fim_prevista, status, responsavel_id, orcamento, local_execucao, ativo)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, true) RETURNING *`,
-      [nome, descricao, data_inicio, data_fim || null, status || 'ativo', req.user.id, orcamento || null, localizacao || null]
+      [nome, descricao, data_inicio, data_fim_prevista || null, status || 'planejamento', req.user.id, orcamento || null, localizacao || null]
     );
 
     console.log(`Novo projeto criado: ${nome} por ${req.user.email}`);
 
-    const projetoFormatado = formatObjectDates(result.rows[0], ['data_inicio', 'data_fim', 'data_criacao', 'data_atualizacao']);
+    const projetoFormatado = formatObjectDates(result.rows[0], ['data_inicio', 'data_fim_prevista', 'data_fim_real', 'data_criacao', 'data_atualizacao']);
 
     res.status(201).json(successResponse(projetoFormatado, "Projeto criado com sucesso"));
 
@@ -127,7 +127,7 @@ router.post('/', authenticateToken, requireGestor, async (req, res) => {
 router.put('/:id', authenticateToken, requireGestor, async (req, res) => {
   try {
     const { id } = req.params;
-    const { nome, descricao, data_inicio, data_fim, status, orcamento, localizacao } = req.body;
+    const { nome, descricao, data_inicio, data_fim_prevista, status, orcamento, localizacao } = req.body;
 
     if (!nome || !data_inicio) {
       return res.status(400).json(errorResponse("Nome e data de início são obrigatórios"));
@@ -135,11 +135,11 @@ router.put('/:id', authenticateToken, requireGestor, async (req, res) => {
 
     const result = await pool.query(
       `UPDATE projetos 
-       SET nome = $1, descricao = $2, data_inicio = $3, data_fim = $4, 
-           status = $5, orcamento = $6, localizacao = $7, data_atualizacao = CURRENT_TIMESTAMP
+       SET nome = $1, descricao = $2, data_inicio = $3, data_fim_prevista = $4, 
+           status = $5, orcamento = $6, local_execucao = $7, data_atualizacao = CURRENT_TIMESTAMP
        WHERE id = $8 AND ativo = true 
        RETURNING *`,
-      [nome, descricao, data_inicio, data_fim || null, status || 'ativo', orcamento || null, localizacao || null, id]
+      [nome, descricao, data_inicio, data_fim_prevista || null, status || 'planejamento', orcamento || null, localizacao || null, id]
     );
 
     if (result.rows.length === 0) {
@@ -148,7 +148,7 @@ router.put('/:id', authenticateToken, requireGestor, async (req, res) => {
 
     console.log(`Projeto atualizado: ${nome} por ${req.user.email}`);
 
-    const projetoFormatado = formatObjectDates(result.rows[0], ['data_inicio', 'data_fim', 'data_criacao', 'data_atualizacao']);
+    const projetoFormatado = formatObjectDates(result.rows[0], ['data_inicio', 'data_fim_prevista', 'data_fim_real', 'data_criacao', 'data_atualizacao']);
 
     res.json(successResponse(projetoFormatado, "Projeto atualizado com sucesso"));
 

@@ -18,12 +18,12 @@ interface Projeto {
   nome: string;
   descricao: string;
   data_inicio: string;
-  data_fim?: string;
-  status: 'ativo' | 'pausado' | 'finalizado' | 'cancelado';
+  data_fim_prevista?: string;
+  status: 'planejamento' | 'em_andamento' | 'pausado' | 'concluido' | 'cancelado';
   responsavel_id: number;
   responsavel_nome?: string;
   orcamento?: number;
-  localizacao?: string;
+  local_execucao?: string;
   ativo: boolean;
   data_criacao: string;
   data_atualizacao: string;
@@ -42,8 +42,8 @@ export default function Projetos() {
     nome: '',
     descricao: '',
     data_inicio: '',
-    data_fim: '',
-    status: 'ativo' as 'ativo' | 'pausado' | 'finalizado' | 'cancelado',
+    data_fim_prevista: '',
+    status: 'planejamento' as 'planejamento' | 'em_andamento' | 'pausado' | 'concluido' | 'cancelado',
     orcamento: '',
     localizacao: ''
   });
@@ -76,7 +76,7 @@ export default function Projetos() {
       const dados = {
         ...formData,
         orcamento: formData.orcamento ? parseFloat(formData.orcamento) : null,
-        data_fim: formData.data_fim || null
+        data_fim_prevista: formData.data_fim_prevista || null
       };
 
       const response = editingProjeto 
@@ -109,10 +109,10 @@ export default function Projetos() {
       nome: projeto.nome,
       descricao: projeto.descricao || '',
       data_inicio: projeto.data_inicio,
-      data_fim: projeto.data_fim || '',
+      data_fim_prevista: projeto.data_fim_prevista || '',
       status: projeto.status,
       orcamento: projeto.orcamento?.toString() || '',
-      localizacao: projeto.localizacao || ''
+      localizacao: projeto.local_execucao || ''
     });
     setDialogOpen(true);
   };
@@ -142,8 +142,8 @@ export default function Projetos() {
       nome: '',
       descricao: '',
       data_inicio: '',
-      data_fim: '',
-      status: 'ativo',
+      data_fim_prevista: '',
+      status: 'planejamento',
       orcamento: '',
       localizacao: ''
     });
@@ -153,9 +153,10 @@ export default function Projetos() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'ativo': return 'bg-green-100 text-green-800';
+      case 'planejamento': return 'bg-blue-100 text-blue-800';
+      case 'em_andamento': return 'bg-green-100 text-green-800';
       case 'pausado': return 'bg-yellow-100 text-yellow-800';
-      case 'finalizado': return 'bg-blue-100 text-blue-800';
+      case 'concluido': return 'bg-primary/10 text-primary';
       case 'cancelado': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
     }
@@ -163,9 +164,10 @@ export default function Projetos() {
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'ativo': return <CheckCircle className="h-4 w-4" />;
+      case 'planejamento': return <FolderKanban className="h-4 w-4" />;
+      case 'em_andamento': return <CheckCircle className="h-4 w-4" />;
       case 'pausado': return <AlertCircle className="h-4 w-4" />;
-      case 'finalizado': return <CheckCircle className="h-4 w-4" />;
+      case 'concluido': return <CheckCircle className="h-4 w-4" />;
       case 'cancelado': return <AlertCircle className="h-4 w-4" />;
       default: return <FolderKanban className="h-4 w-4" />;
     }
@@ -244,12 +246,12 @@ export default function Projetos() {
                   </div>
 
                   <div>
-                    <Label htmlFor="data_fim">Data de Fim</Label>
+                    <Label htmlFor="data_fim_prevista">Data de Fim Prevista</Label>
                     <Input
-                      id="data_fim"
+                      id="data_fim_prevista"
                       type="date"
-                      value={formData.data_fim}
-                      onChange={(e) => setFormData({ ...formData, data_fim: e.target.value })}
+                      value={formData.data_fim_prevista}
+                      onChange={(e) => setFormData({ ...formData, data_fim_prevista: e.target.value })}
                     />
                   </div>
                 </div>
@@ -262,9 +264,10 @@ export default function Projetos() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="ativo">Ativo</SelectItem>
+                        <SelectItem value="planejamento">Planejamento</SelectItem>
+                        <SelectItem value="em_andamento">Em Andamento</SelectItem>
                         <SelectItem value="pausado">Pausado</SelectItem>
-                        <SelectItem value="finalizado">Finalizado</SelectItem>
+                        <SelectItem value="concluido">Concluído</SelectItem>
                         <SelectItem value="cancelado">Cancelado</SelectItem>
                       </SelectContent>
                     </Select>
@@ -399,8 +402,8 @@ export default function Projetos() {
                     <Calendar className="h-4 w-4" />
                     <span>
                       {format(new Date(projeto.data_inicio), 'dd/MM/yyyy', { locale: ptBR })}
-                      {projeto.data_fim && (
-                        <> até {format(new Date(projeto.data_fim), 'dd/MM/yyyy', { locale: ptBR })}</>
+                      {projeto.data_fim_prevista && (
+                        <> até {format(new Date(projeto.data_fim_prevista), 'dd/MM/yyyy', { locale: ptBR })}</>
                       )}
                     </span>
                   </div>
@@ -419,10 +422,10 @@ export default function Projetos() {
                     </div>
                   )}
 
-                  {projeto.localizacao && (
+                  {projeto.local_execucao && (
                     <div className="flex items-center gap-2 text-muted-foreground">
                       <MapPin className="h-4 w-4" />
-                      <span>{projeto.localizacao}</span>
+                      <span>{projeto.local_execucao}</span>
                     </div>
                   )}
                 </div>

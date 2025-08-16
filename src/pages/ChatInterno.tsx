@@ -215,7 +215,9 @@ export default function ChatInterno() {
   };
 
   const formatarHora = (dataString: string) => {
+    if (!dataString) return '--:--';
     const data = new Date(dataString);
+    if (isNaN(data.getTime())) return '--:--';
     return data.toLocaleTimeString('pt-BR', { 
       hour: '2-digit', 
       minute: '2-digit' 
@@ -223,7 +225,10 @@ export default function ChatInterno() {
   };
 
   const formatarData = (dataString: string) => {
+    if (!dataString) return 'Data inválida';
     const data = new Date(dataString);
+    if (isNaN(data.getTime())) return 'Data inválida';
+    
     const hoje = new Date();
     
     if (data.toDateString() === hoje.toDateString()) {
@@ -237,6 +242,7 @@ export default function ChatInterno() {
   };
 
   const getInitials = (nome: string) => {
+    if (!nome) return 'UN'; // Usuário não identificado
     return nome.split(' ')
       .map(word => word[0])
       .join('')
@@ -265,7 +271,7 @@ export default function ChatInterno() {
     <div className="p-6 max-w-7xl mx-auto">
       <div className="mb-6">
         <div className="flex items-center gap-3 mb-4">
-          <MessageSquare className="h-8 w-8 text-blue-600" />
+          <MessageSquare className="h-8 w-8 text-primary" />
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Chat Interno</h1>
             <p className="text-gray-600">Converse com outros usuários do sistema</p>
@@ -343,7 +349,7 @@ export default function ChatInterno() {
                       key={conversa.usuario_id}
                       onClick={() => loadMensagensConversa(conversa)}
                       className={`p-3 border-b hover:bg-gray-50 cursor-pointer transition-colors ${
-                        conversaAtiva?.usuario_id === conversa.usuario_id ? 'bg-blue-50 border-blue-200' : ''
+                        conversaAtiva?.usuario_id === conversa.usuario_id ? 'bg-primary/10 border-primary/20' : ''
                       }`}
                     >
                       <div className="flex items-center gap-3">
@@ -414,13 +420,13 @@ export default function ChatInterno() {
                             <div
                               className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
                                 isFromMe
-                                  ? 'bg-blue-600 text-white'
+                                  ? 'bg-primary text-primary-foreground'
                                   : 'bg-gray-100 text-gray-900'
                               }`}
                             >
                               <p className="text-sm">{mensagem.conteudo}</p>
                               <div className={`flex items-center justify-end gap-1 mt-1 ${
-                                isFromMe ? 'text-blue-100' : 'text-gray-500'
+                                isFromMe ? 'text-primary-foreground/80' : 'text-gray-500'
                               }`}>
                                 <span className="text-xs">
                                   {formatarHora(mensagem.data_criacao)}

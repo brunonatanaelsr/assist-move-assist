@@ -1,0 +1,25 @@
+   column_name    
+------------------
+ id
+ nome
+ descricao
+ instrutor
+ data_inicio
+ data_fim
+ horario_inicio
+ horario_fim
+ dias_semana
+ vagas_total
+ vagas_ocupadas
+ local
+ materiais
+ pre_requisitos
+ valor
+ status
+ projeto_id
+ responsavel_id
+ ativo
+ data_criacao
+ data_atualizacao
+(21 rows)
+

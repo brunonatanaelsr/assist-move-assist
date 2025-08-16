@@ -17,7 +17,6 @@ import {
   GraduationCap,
   TrendingUp,
   FolderKanban,
-  MessageCircle,
   MessageSquare
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -53,11 +52,6 @@ const menuItems = [
     title: "Feed",
     icon: Heart,
     href: "/feed"
-  },
-  {
-    title: "Mensagens",
-    icon: MessageCircle,
-    href: "/mensagens"
   },
   {
     title: "Chat Interno",

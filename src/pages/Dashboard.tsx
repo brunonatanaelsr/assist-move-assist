@@ -19,7 +19,7 @@ interface StatCardProps {
 const StatCard = ({ title, value, description, icon, variant = "default" }: StatCardProps) => {
   const variantStyles = {
     default: "border-border",
-    primary: "border-blue-200 bg-blue-50",
+    primary: "border-primary/20 bg-primary/10",
     success: "border-green-200 bg-green-50", 
     warning: "border-yellow-200 bg-yellow-50"
   };
@@ -165,7 +165,7 @@ export default function Dashboard() {
                   <div key={activity.id} className="flex items-center gap-3 p-2 rounded border">
                     {activity.icon === 'Users' && <Users className="h-4 w-4 text-primary" />}
                     {activity.icon === 'FileText' && <FileText className="h-4 w-4 text-green-500" />}
-                    {activity.icon === 'Calendar' && <Calendar className="h-4 w-4 text-blue-500" />}
+                    {activity.icon === 'Calendar' && <Calendar className="h-4 w-4 text-primary" />}
                     <div className="flex-1">
                       <p className="text-sm font-medium">{activity.type}</p>
                       <p className="text-xs text-muted-foreground">{activity.description}</p>

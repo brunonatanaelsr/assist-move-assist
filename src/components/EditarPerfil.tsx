@@ -263,7 +263,7 @@ export default function EditarPerfil() {
           onClick={() => setActiveSection('info')}
           className={`flex items-center space-x-2 px-4 py-2 rounded-md transition-colors ${
             activeSection === 'info' 
-              ? 'bg-white shadow-sm text-blue-600' 
+              ? 'bg-white shadow-sm text-primary' 
               : 'text-gray-600 hover:text-gray-900'
           }`}
         >

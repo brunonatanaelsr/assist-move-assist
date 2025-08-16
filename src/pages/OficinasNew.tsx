@@ -25,13 +25,13 @@ interface Oficina {
   local?: string;
   vagas_totais: number;
   vagas_ocupadas?: number;
-  ativa: boolean;
+  status: 'ativa' | 'inativa' | 'pausada' | 'concluida';
+  ativo: boolean;
   projeto_id?: number;
   projeto_nome?: string;
   responsavel_id?: number;
   responsavel_nome?: string;
   total_participantes?: number;
-  ativo: boolean;
   data_criacao: string;
   data_atualizacao: string;
 }
@@ -62,7 +62,7 @@ export default function OficinasNew() {
     horario_fim: '',
     local: '',
     vagas_totais: 20,
-    ativa: true,
+    status: 'ativa' as 'ativa' | 'inativa' | 'pausada' | 'concluida',
     projeto_id: ''
   });
 
@@ -149,7 +149,7 @@ export default function OficinasNew() {
       horario_fim: oficina.horario_fim,
       local: oficina.local || '',
       vagas_totais: oficina.vagas_totais,
-      ativa: oficina.ativa,
+      status: oficina.status || 'ativa',
       projeto_id: oficina.projeto_id?.toString() || 'none'
     });
     setDialogOpen(true);
@@ -186,22 +186,25 @@ export default function OficinasNew() {
       horario_fim: '',
       local: '',
       vagas_totais: 20,
-      ativa: true,
+      status: 'ativa',
       projeto_id: 'none'
     });
     setEditingOficina(null);
     setError(null);
   };
 
-  const getStatusColor = (ativa: boolean, vagas_totais: number, vagas_ocupadas: number = 0) => {
-    if (!ativa) return 'bg-red-100 text-red-800';
+  const getStatusColor = (status: string, vagas_totais: number, vagas_ocupadas: number = 0) => {
+    if (status === 'inativa' || status === 'pausada') return 'bg-red-100 text-red-800';
+    if (status === 'concluida') return 'bg-primary/10 text-primary';
     if (vagas_ocupadas >= vagas_totais) return 'bg-orange-100 text-orange-800';
     return 'bg-green-100 text-green-800';
   };
 
-  const getStatusText = (ativa: boolean, vagas_totais: number, vagas_ocupadas: number = 0) => {
-    if (!ativa) return 'Inativa';
-    if (vagas_ocupadas >= vagas_totais) return 'Lotada';
+  const getStatusText = (status: string, vagas_totais: number, vagas_ocupadas: number = 0) => {
+    if (status === 'inativa') return 'Inativa';
+    if (status === 'pausada') return 'Pausada';
+    if (status === 'concluida') return 'Concluída';
+    if (status === 'ativa' && vagas_ocupadas >= vagas_totais) return 'Lotada';
     return 'Ativa';
   };
 
@@ -369,15 +372,19 @@ export default function OficinasNew() {
                   </div>
                 </div>
 
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    id="ativa"
-                    checked={formData.ativa}
-                    onChange={(e) => setFormData({ ...formData, ativa: e.target.checked })}
-                    className="rounded"
-                  />
-                  <Label htmlFor="ativa">Oficina ativa</Label>
+                <div>
+                  <Label htmlFor="status">Status da Oficina</Label>
+                  <Select value={formData.status} onValueChange={(value: any) => setFormData({ ...formData, status: value })}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ativa">Ativa</SelectItem>
+                      <SelectItem value="inativa">Inativa</SelectItem>
+                      <SelectItem value="pausada">Pausada</SelectItem>
+                      <SelectItem value="concluida">Concluída</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
@@ -470,8 +477,8 @@ export default function OficinasNew() {
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <Badge className={getStatusColor(oficina.ativa, oficina.vagas_totais, oficina.vagas_ocupadas || 0)}>
-                    {getStatusText(oficina.ativa, oficina.vagas_totais, oficina.vagas_ocupadas || 0)}
+                  <Badge className={getStatusColor(oficina.status, oficina.vagas_totais, oficina.vagas_ocupadas || 0)}>
+                    {getStatusText(oficina.status, oficina.vagas_totais, oficina.vagas_ocupadas || 0)}
                   </Badge>
                   <div className="flex items-center gap-1 text-sm text-muted-foreground">
                     <Users className="h-4 w-4" />
