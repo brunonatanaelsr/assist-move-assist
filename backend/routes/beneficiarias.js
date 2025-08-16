@@ -135,21 +135,23 @@ router.post('/', authenticateToken, requireGestor, async (req, res) => {
 
     const insertQuery = `
       INSERT INTO beneficiarias (
-        nome_completo, cpf, rg, data_nascimento, email, telefone, telefone_alternativo,
+        nome_completo, cpf, rg, data_nascimento, email, contato1, contato2,
         endereco, bairro, cep, cidade, estado, escolaridade, profissao, renda_familiar,
-        situacao_trabalho, tem_filhos, quantidade_filhos, observacoes, status
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+        composicao_familiar, programa_servico, observacoes, necessidades_especiais,
+        medicamentos, alergias, contato_emergencia, data_inicio_instituto
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
       RETURNING *
     `;
 
     const result = await pool.query(insertQuery, [
       nome_completo, cpf || null, rg || null, data_nascimento || null,
-      email || null, telefone || null, telefone_alternativo || null,
+      email || null, contato1 || null, contato2 || null,
       endereco || null, bairro || null, cep || null,
       cidade || 'São Paulo', estado || 'SP',
       escolaridade || null, profissao || null, renda_familiar || null,
-      situacao_trabalho || null, tem_filhos || false, quantidade_filhos || 0,
-      observacoes || null, status || 'ativa'
+      composicao_familiar || null, programa_servico || null, observacoes || null,
+      necessidades_especiais || null, medicamentos || null, alergias || null,
+      contato_emergencia || null, data_inicio_instituto || null
     ]);
 
     console.log(`Nova beneficiária criada: ${nome_completo} por ${req.user.email}`);
