@@ -1,0 +1,591 @@
+import React, { useState, useEffect } from 'react';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { 
+  Plus, 
+  Heart, 
+  MessageCircle, 
+  Share2, 
+  Filter, 
+  Calendar, 
+  Users, 
+  TrendingUp, 
+  Megaphone,
+  Trophy,
+  Newspaper,
+  Search,
+  MoreHorizontal,
+  Send,
+  Image as ImageIcon,
+  Smile,
+  Edit,
+  Trash2,
+  Loader2
+} from 'lucide-react';
+import apiService from '@/services/apiService';
+import { useAuth } from '@/hooks/usePostgreSQLAuth';
+import { useToast } from '@/components/ui/use-toast';
+import { formatDistanceToNow } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+
+interface Post {
+  id: number;
+  tipo: 'anuncio' | 'evento' | 'noticia' | 'conquista';
+  titulo: string;
+  conteudo: string;
+  autor_nome: string;
+  autor_foto?: string;
+  data_criacao: string;
+  curtidas: number;
+  comentarios: number;
+  imagem_url?: string;
+  ativo: boolean;
+}
+
+const tiposPost = [
+  { value: 'anuncio', label: 'Anúncio', icon: Megaphone, color: 'bg-blue-100 text-blue-800' },
+  { value: 'evento', label: 'Evento', icon: Calendar, color: 'bg-green-100 text-green-800' },
+  { value: 'noticia', label: 'Notícia', icon: Newspaper, color: 'bg-purple-100 text-purple-800' },
+  { value: 'conquista', label: 'Conquista', icon: Trophy, color: 'bg-yellow-100 text-yellow-800' }
+];
+
+export default function Feed() {
+  const { isAdmin, profile } = useAuth();
+  const { toast } = useToast();
+  
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [filteredPosts, setFilteredPosts] = useState<Post[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    total_posts: 0,
+    total_anuncios: 0,
+    total_eventos: 0,
+    total_noticias: 0,
+    total_conquistas: 0,
+    total_curtidas: 0,
+    total_comentarios: 0
+  });
+
+const tiposPost = [
+  { value: 'anuncio', label: 'Anúncio', icon: Megaphone, color: 'bg-blue-100 text-blue-800' },
+  { value: 'evento', label: 'Evento', icon: Calendar, color: 'bg-green-100 text-green-800' },
+  { value: 'noticia', label: 'Notícia', icon: Newspaper, color: 'bg-purple-100 text-purple-800' },
+  { value: 'conquista', label: 'Conquista', icon: Trophy, color: 'bg-yellow-100 text-yellow-800' }
+];
+
+export default function Feed() {
+  const { isAdmin, profile } = useAuth();
+  const { toast } = useToast();
+  
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [filteredPosts, setFilteredPosts] = useState<Post[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [selectedPost, setSelectedPost] = useState<Post | null>(null);
+  const [filtroTipo, setFiltroTipo] = useState<string>('todos');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [curtidas, setCurtidas] = useState<Record<number, boolean>>({});
+
+  // Estados para estatísticas
+  const [stats, setStats] = useState({
+    total_posts: 0,
+    total_anuncios: 0,
+    total_eventos: 0,
+    total_noticias: 0,
+    total_conquistas: 0,
+    total_curtidas: 0,
+    total_comentarios: 0
+  });
+
+  // Carregar posts do feed
+  const loadFeed = async () => {
+    try {
+      setLoading(true);
+      const response = await apiService.getFeed();
+      
+      if (response.success && response.data) {
+        setPosts(response.data);
+        setFilteredPosts(response.data);
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Erro",
+          description: "Não foi possível carregar o feed"
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao carregar feed:', error);
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "Erro ao carregar o feed"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Carregar estatísticas do feed
+  const loadStats = async () => {
+    try {
+      const response = await apiService.getFeedStats();
+      if (response.success && response.data) {
+        setStats(response.data);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar estatísticas:', error);
+    }
+  };
+
+  useEffect(() => {
+    loadFeed();
+    loadStats();
+  }, []);
+
+  useEffect(() => {
+    filterPosts();
+  }, [posts, filtroTipo, searchTerm]);
+
+  const filterPosts = () => {
+    let filtered = posts;
+
+    if (filtroTipo !== 'todos') {
+      filtered = filtered.filter(post => post.tipo === filtroTipo);
+    }
+
+    if (searchTerm) {
+      filtered = filtered.filter(post => 
+        post.titulo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        post.conteudo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        post.autor_nome.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    // Ordenar por data de criação (mais recente primeiro)
+    filtered.sort((a, b) => new Date(b.data_criacao).getTime() - new Date(a.data_criacao).getTime());
+
+    setFilteredPosts(filtered);
+  };
+
+  const handleLike = async (postId: number) => {
+    try {
+      setCurtidas(prev => ({ ...prev, [postId]: !prev[postId] }));
+      
+      const response = await apiService.likeFeedPost(postId);
+      
+      if (response.success) {
+        setPosts(prev => prev.map(post => 
+          post.id === postId 
+            ? { ...post, curtidas: response.data.curtidas }
+            : post
+        ));
+        
+        toast({
+          title: "Sucesso",
+          description: "Post curtido!"
+        });
+      } else {
+        // Reverter se deu erro
+        setCurtidas(prev => ({ ...prev, [postId]: !prev[postId] }));
+        toast({
+          variant: "destructive",
+          title: "Erro",
+          description: "Não foi possível curtir o post"
+        });
+      }
+    } catch (error) {
+      // Reverter se deu erro
+      setCurtidas(prev => ({ ...prev, [postId]: !prev[postId] }));
+      console.error('Erro ao curtir post:', error);
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "Erro ao curtir o post"
+      });
+    }
+
+    toast({
+      title: curtidas[postId] ? "Curtida removida" : "Post curtido!",
+      description: curtidas[postId] ? "" : "Obrigada pela interação! 💕"
+    });
+  };
+
+  const handleShare = async (post: Post) => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: post.titulo,
+          text: post.conteudo,
+          url: window.location.href
+        });
+      } catch (error) {
+        // Fallback para cópia
+        handleCopyLink(post);
+      }
+    } else {
+      handleCopyLink(post);
+    }
+  };
+
+  const handleCopyLink = (post: Post) => {
+    navigator.clipboard.writeText(`${window.location.origin}/feed#${post.id}`);
+    toast({
+      title: "Link copiado!",
+      description: "O link do post foi copiado para a área de transferência."
+    });
+  };
+
+  const handleSubmit = async (formData: FormData) => {
+    try {
+      setLoading(true);
+      
+      const postData = {
+        tipo: formData.get('tipo') as Post['tipo'],
+        titulo: formData.get('titulo') as string,
+        conteudo: formData.get('conteudo') as string,
+        autor_nome: profile?.nome_completo || 'Usuário',
+        autor_foto: profile?.foto_url,
+        imagem_url: formData.get('imagem_url') as string
+      };
+
+      const response = await apiService.createFeedPost(postData);
+      
+      if (response.success && response.data) {
+        // Recarregar posts e estatísticas
+        await loadFeed();
+        await loadStats();
+        
+        setShowForm(false);
+        
+        toast({
+          title: "Sucesso",
+          description: "Post publicado com sucesso!"
+        });
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Erro",
+          description: response.message || "Não foi possível criar o post"
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao criar post:', error);
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "Erro ao criar o post"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getPostIcon = (tipo: Post['tipo']) => {
+    const tipoInfo = tiposPost.find(t => t.value === tipo);
+    return tipoInfo?.icon || Megaphone;
+  };
+
+  const getPostColor = (tipo: Post['tipo']) => {
+    const tipoInfo = tiposPost.find(t => t.value === tipo);
+    return tipoInfo?.color || 'bg-gray-100 text-gray-800';
+  };
+
+  return (
+    <div className="container mx-auto px-4 py-8 space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Feed da Comunidade</h1>
+          <p className="text-gray-600">Fique por dentro das novidades do Move Marias</p>
+        </div>
+        {isAdmin && (
+          <Dialog open={showForm} onOpenChange={setShowForm}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="h-4 w-4 mr-2" />
+                Nova Publicação
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>Nova Publicação</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                handleSubmit(new FormData(e.target as HTMLFormElement));
+              }} className="space-y-4">
+                <div>
+                  <Label>Tipo de Publicação</Label>
+                  <Select name="tipo" required>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione o tipo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {tiposPost.map(tipo => (
+                        <SelectItem key={tipo.value} value={tipo.value}>
+                          <div className="flex items-center space-x-2">
+                            <tipo.icon className="h-4 w-4" />
+                            <span>{tipo.label}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Título</Label>
+                  <Input name="titulo" required placeholder="Título da publicação" />
+                </div>
+                <div>
+                  <Label>Conteúdo</Label>
+                  <Textarea 
+                    name="conteudo" 
+                    required 
+                    placeholder="Escreva o conteúdo da publicação..."
+                    rows={4}
+                  />
+                </div>
+                <div className="flex justify-end space-x-2">
+                  <Button type="button" variant="outline" onClick={() => setShowForm(false)}>
+                    Cancelar
+                  </Button>
+                  <Button type="submit" disabled={loading}>
+                    Publicar
+                  </Button>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
+        )}
+      </div>
+
+      {/* Estatísticas */}
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center space-x-2">
+              <TrendingUp className="h-5 w-5 text-blue-600" />
+              <div>
+                <p className="text-2xl font-bold text-blue-600">{stats.total_posts}</p>
+                <p className="text-sm text-gray-600">Posts</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center space-x-2">
+              <Megaphone className="h-5 w-5 text-blue-600" />
+              <div>
+                <p className="text-2xl font-bold text-blue-600">{stats.total_anuncios}</p>
+                <p className="text-sm text-gray-600">Anúncios</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center space-x-2">
+              <Calendar className="h-5 w-5 text-green-600" />
+              <div>
+                <p className="text-2xl font-bold text-green-600">{stats.total_eventos}</p>
+                <p className="text-sm text-gray-600">Eventos</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center space-x-2">
+              <Newspaper className="h-5 w-5 text-purple-600" />
+              <div>
+                <p className="text-2xl font-bold text-purple-600">{stats.total_noticias}</p>
+                <p className="text-sm text-gray-600">Notícias</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center space-x-2">
+              <Trophy className="h-5 w-5 text-yellow-600" />
+              <div>
+                <p className="text-2xl font-bold text-yellow-600">{stats.total_conquistas}</p>
+                <p className="text-sm text-gray-600">Conquistas</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center space-x-2">
+              <Heart className="h-5 w-5 text-red-600" />
+              <div>
+                <p className="text-2xl font-bold text-red-600">{stats.total_curtidas}</p>
+                <p className="text-sm text-gray-600">Curtidas</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center space-x-2">
+              <MessageCircle className="h-5 w-5 text-indigo-600" />
+              <div>
+                <p className="text-2xl font-bold text-indigo-600">{stats.total_comentarios}</p>
+                <p className="text-sm text-gray-600">Comentários</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Filtros */}
+      <div className="flex flex-col sm:flex-row gap-4 items-center">
+        <div className="flex-1">
+          <Input
+            placeholder="Buscar posts..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="max-w-sm"
+          />
+        </div>
+        <Select value={filtroTipo} onValueChange={setFiltroTipo}>
+          <SelectTrigger className="w-full sm:w-48">
+            <Filter className="h-4 w-4 mr-2" />
+            <SelectValue placeholder="Filtrar por tipo" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todos">Todos os tipos</SelectItem>
+            {tiposPost.map(tipo => (
+              <SelectItem key={tipo.value} value={tipo.value}>
+                <div className="flex items-center space-x-2">
+                  <tipo.icon className="h-4 w-4" />
+                  <span>{tipo.label}</span>
+                </div>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Lista de Posts */}
+      <div className="space-y-6">
+        {filteredPosts.map((post) => {
+          const PostIcon = getPostIcon(post.tipo);
+          const isLiked = curtidas[post.id];
+          
+          return (
+            <Card key={post.id} className="overflow-hidden">
+              <CardContent className="p-6">
+                <div className="space-y-4">
+                  {/* Header do Post */}
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center space-x-3">
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage src={post.autor_foto} />
+                        <AvatarFallback>
+                          {post.autor_nome.split(' ').map(n => n[0]).join('')}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-medium">{post.autor_nome}</p>
+                        <p className="text-sm text-gray-500">
+                          {formatDistanceToNow(new Date(post.data_criacao), { 
+                            addSuffix: true, 
+                            locale: ptBR 
+                          })}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Badge className={getPostColor(post.tipo)}>
+                        <PostIcon className="h-3 w-3 mr-1" />
+                        {tiposPost.find(t => t.value === post.tipo)?.label}
+                      </Badge>
+                      {isAdmin && (
+                        <Button variant="ghost" size="sm">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Conteúdo do Post */}
+                  <div className="space-y-3">
+                    <h3 className="text-lg font-semibold">{post.titulo}</h3>
+                    <p className="text-gray-700 leading-relaxed">{post.conteudo}</p>
+                    
+                    {/* Imagem do Post */}
+                    {post.imagem_url && (
+                      <div className="rounded-lg overflow-hidden">
+                        <img 
+                          src={post.imagem_url} 
+                          alt={post.titulo}
+                          className="w-full h-64 object-cover"
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Ações do Post */}
+                  <div className="flex items-center justify-between pt-3 border-t">
+                    <div className="flex items-center space-x-4">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleLike(post.id)}
+                        className={`${isLiked ? 'text-red-600' : 'text-gray-600'} hover:text-red-600`}
+                      >
+                        <Heart className={`h-4 w-4 mr-1 ${isLiked ? 'fill-current' : ''}`} />
+                        {post.curtidas}
+                      </Button>
+                      <Button variant="ghost" size="sm" className="text-gray-600 hover:text-blue-600">
+                        <MessageCircle className="h-4 w-4 mr-1" />
+                        {post.comentarios}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleShare(post)}
+                        className="text-gray-600 hover:text-green-600"
+                      >
+                        <Share2 className="h-4 w-4 mr-1" />
+                        Compartilhar
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+        
+        {filteredPosts.length === 0 && (
+          <Card>
+            <CardContent className="py-12">
+              <div className="text-center text-gray-500">
+                <TrendingUp className="mx-auto h-12 w-12 text-gray-300 mb-4" />
+                <p>Nenhum post encontrado</p>
+                <p className="text-sm">Tente ajustar os filtros ou termos de busca</p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    </div>
+  );
+}

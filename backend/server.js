@@ -5,6 +5,7 @@ const morgan = require("morgan");
 const compression = require("compression");
 const rateLimit = require("express-rate-limit");
 const { Pool } = require("pg");
+const path = require("path");
 
 // Importar utilitários personalizados
 const { successResponse, errorResponse } = require("./utils/responseFormatter");
@@ -50,7 +51,8 @@ pool.connect()
     process.exit(1);
   });
 
-// Middleware de segurança
+// Middleware de segurança - Desabilitado temporariamente para debug CORS
+/*
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
@@ -62,6 +64,7 @@ app.use(helmet({
   },
   crossOriginEmbedderPolicy: false
 }));
+*/
 
 // Rate limiting
 const limiter = rateLimit({
@@ -84,6 +87,9 @@ app.use(morgan("combined"));
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
+// Servir arquivos estáticos (imagens uploadadas)
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
 // Importar e usar routers modulares
 const authRouter = require('./routes/auth');
 const beneficiariasRouter = require('./routes/beneficiarias');
@@ -92,6 +98,7 @@ const projetosRouter = require('./routes/projetos');
 const participacoesRouter = require('./routes/participacoes');
 const mensagensRouter = require('./routes/mensagens');
 const dashboardRouter = require('./routes/dashboard');
+const feedRouter = require('./routes/feed');
 const relatoriosRouter = require('./routes/relatorios');
 const declaracoesRouter = require('./routes/declaracoes');
 const auditoriaRouter = require('./routes/auditoria');
@@ -106,6 +113,7 @@ app.use('/api/projetos', projetosRouter);
 app.use('/api/participacoes', participacoesRouter);
 app.use('/api/mensagens', mensagensRouter);
 app.use('/api/dashboard', dashboardRouter);
+app.use('/api/feed', feedRouter);
 app.use('/api/relatorios', relatoriosRouter);
 app.use('/api/declaracoes', declaracoesRouter);
 app.use('/api/auditoria', auditoriaRouter);

@@ -293,6 +293,39 @@ class ApiService {
     return this.post('/mensagens', data);
   }
 
+  // Métodos específicos para feed
+  async getFeed(params?: any): Promise<ApiResponse<any[]>> {
+    return this.get('/feed', { params });
+  }
+
+  async getFeedPost(id: string | number): Promise<ApiResponse<any>> {
+    return this.get(`/feed/${id}`);
+  }
+
+  async createFeedPost(data: any): Promise<ApiResponse<any>> {
+    return this.post('/feed', data);
+  }
+
+  async updateFeedPost(id: string | number, data: any): Promise<ApiResponse<any>> {
+    return this.put(`/feed/${id}`, data);
+  }
+
+  async deleteFeedPost(id: string | number): Promise<ApiResponse<any>> {
+    return this.delete(`/feed/${id}`);
+  }
+
+  async likeFeedPost(id: string | number): Promise<ApiResponse<any>> {
+    return this.post(`/feed/${id}/curtir`, {});
+  }
+
+  async shareFeedPost(id: string | number): Promise<ApiResponse<any>> {
+    return this.post(`/feed/${id}/compartilhar`, {});
+  }
+
+  async getFeedStats(): Promise<ApiResponse<any>> {
+    return this.get('/feed/stats/summary');
+  }
+
   // Métodos específicos para relatórios
   async getRelatorios(params?: any): Promise<ApiResponse<any[]>> {
     return this.get('/relatorios', { params });
@@ -338,6 +371,52 @@ class ApiService {
 
   async generateDeclaracao(data: any): Promise<ApiResponse<any>> {
     return this.post('/declaracoes', data);
+  }
+
+  // ====== MÉTODOS DE COMENTÁRIOS ======
+  
+  // Listar comentários de um post
+  async getCommentsByPostId(postId: number, params?: any): Promise<ApiResponse<any[]>> {
+    return this.get(`/feed/${postId}/comentarios`, { params });
+  }
+
+  // Criar novo comentário
+  async createComment(postId: number, data: { conteudo: string }): Promise<ApiResponse<any>> {
+    return this.post(`/feed/${postId}/comentarios`, data);
+  }
+
+  // Atualizar comentário
+  async updateComment(comentarioId: number, data: { conteudo: string }): Promise<ApiResponse<any>> {
+    return this.put(`/feed/comentarios/${comentarioId}`, data);
+  }
+
+  // Remover comentário
+  async deleteComment(comentarioId: number): Promise<ApiResponse<any>> {
+    return this.delete(`/feed/comentarios/${comentarioId}`);
+  }
+
+  // Upload de imagem para posts
+  async uploadImage(file: File): Promise<ApiResponse<{ url: string; filename: string }>> {
+    const formData = new FormData();
+    formData.append('image', file);
+
+    try {
+      const response = await this.api.post('/feed/upload-image', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      return {
+        success: true,
+        data: response.data.data
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        message: error.response?.data?.message || 'Erro no upload da imagem'
+      };
+    }
   }
 
   // Método para testar conectividade

@@ -27,8 +27,8 @@ const createCorsMiddleware = () => {
         'https://movemarias.squadsolucoes.com.br'
       ];
       
-      // Em desenvolvimento, permite qualquer origem ou sem origem (para testes com curl)
-      if (process.env.NODE_ENV === 'development') {
+      // Em desenvolvimento, permite TODAS as origens
+      if (process.env.NODE_ENV !== 'production') {
         console.log(`CORS: Permitindo origem em desenvolvimento: ${origin || 'sem origem'}`);
         return callback(null, true);
       }

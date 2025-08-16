@@ -12,8 +12,15 @@ const pool = new Pool({
   host: process.env.POSTGRES_HOST || 'localhost',
   port: parseInt(process.env.POSTGRES_PORT || '5432'),
   database: process.env.POSTGRES_DB || 'movemarias',
-  user: process.env.POSTGRES_USER || 'movemarias_user',
-  password: process.env.POSTGRES_PASSWORD || 'movemarias_password_2025',
+  user: process.env.POSTGRES_USER || 'postgres',
+  password: process.env.POSTGRES_PASSWORD || '15002031',
+  max: 20,
+  min: 2,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 5000,
+  ssl: process.env.NODE_ENV === 'production' ? { 
+    rejectUnauthorized: false 
+  } : false,
 });
 
 // Login de usuário
