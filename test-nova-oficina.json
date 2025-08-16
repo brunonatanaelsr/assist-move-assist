@@ -1,0 +1,13 @@
+est{
+  "nome": "Teste Formulário Oficina",
+  "descricao": "Testando se o formulário está funcionando",
+  "instrutor": "Instrutor Teste",
+  "data_inicio": "2025-08-20",
+  "data_fim": "2025-08-30",
+  "horario_inicio": "14:00",
+  "horario_fim": "16:00",
+  "local": "Sala de Teste",
+  "vagas_totais": 15,
+  "status": "ativa",
+  "projeto_id": 7
+}

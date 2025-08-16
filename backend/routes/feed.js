@@ -49,29 +49,22 @@ router.post('/upload-image', authenticateToken, uploadMiddleware, async (req, re
 // Listar posts do feed
 router.get('/', authenticateToken, async (req, res) => {
   try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
-    const offset = (page - 1) * limit;
-
+    console.log('Iniciando busca de posts do feed...');
+    
     const result = await pool.query(`
       SELECT 
-        id, tipo, titulo, conteudo, autor_id, autor_nome, autor_foto, imagem_url,
-        curtidas, comentarios, ativo, data_criacao, data_atualizacao
+        id, tipo, titulo, conteudo, autor_nome, curtidas, comentarios, ativo, data_criacao
       FROM feed_posts 
       WHERE ativo = true
       ORDER BY data_criacao DESC
-      LIMIT $1 OFFSET $2
-    `, [limit, offset]);
-
-    const countResult = await pool.query('SELECT COUNT(*) FROM feed_posts WHERE ativo = true');
-    const total = parseInt(countResult.rows[0].count);
-    const totalPages = Math.ceil(total / limit);
+      LIMIT 10
+    `);
+    
+    console.log('Posts encontrados:', result.rows.length);
 
     res.json(successResponse(
-      formatArrayDates(result.rows), 
-      'Posts obtidos com sucesso',
-      total,
-      { page, limit, totalPages }
+      result.rows,
+      'Posts obtidos com sucesso'
     ));
   } catch (error) {
     console.error('Erro ao buscar posts:', error);
@@ -95,7 +88,7 @@ router.post('/', authenticateToken, async (req, res) => {
       RETURNING *
     `, [tipo, titulo, conteudo, autor_id, autor_nome || 'Usuário', imagem_url]);
 
-    res.status(201).json(successResponse(formatObjectDates(result.rows[0]), 'Post criado com sucesso'));
+    res.status(201).json(successResponse(formatObjectDates(result.rows[0], ['data_criacao', 'data_atualizacao']), 'Post criado com sucesso'));
   } catch (error) {
     console.error('Erro ao criar post:', error);
     res.status(500).json(errorResponse('Erro interno do servidor'));
@@ -182,7 +175,7 @@ router.get('/:postId/comentarios', authenticateToken, async (req, res) => {
       ORDER BY c.data_criacao ASC
     `, [postId]);
 
-    res.json(successResponse(formatArrayDates(result.rows), 'Comentários obtidos'));
+    res.json(successResponse(formatArrayDates(result.rows, ['data_criacao', 'data_atualizacao']), 'Comentários obtidos'));
   } catch (error) {
     console.error('Erro ao buscar comentários:', error);
     res.status(500).json(errorResponse('Erro interno do servidor'));
@@ -215,7 +208,7 @@ router.post('/:postId/comentarios', authenticateToken, async (req, res) => {
       WHERE id = $1
     `, [postId]);
 
-    res.status(201).json(successResponse(formatObjectDates(result.rows[0]), 'Comentário criado'));
+    res.status(201).json(successResponse(formatObjectDates(result.rows[0], ['data_criacao', 'data_atualizacao']), 'Comentário criado'));
   } catch (error) {
     console.error('Erro ao criar comentário:', error);
     res.status(500).json(errorResponse('Erro interno do servidor'));
@@ -263,7 +256,7 @@ router.put('/:postId', authenticateToken, async (req, res) => {
       RETURNING *
     `, [tipo, titulo.trim(), conteudo.trim(), imagem_url || null, postId]);
 
-    res.json(successResponse(formatObjectDates(result.rows[0]), 'Post atualizado com sucesso'));
+    res.json(successResponse(formatObjectDates(result.rows[0], ['data_criacao', 'data_atualizacao']), 'Post atualizado com sucesso'));
   } catch (error) {
     console.error('Erro ao editar post:', error);
     res.status(500).json(errorResponse('Erro interno do servidor'));

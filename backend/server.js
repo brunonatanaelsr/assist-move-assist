@@ -284,6 +284,7 @@ const declaracoesRouter = require('./routes/declaracoes');
 const auditoriaRouter = require('./routes/auditoria');
 const configuracoesRouter = require('./routes/configuracoes');
 const documentosRouter = require('./routes/documentos');
+const formulariosRouter = require('./routes/formularios');
 
 // Usar routers
 app.use('/api/auth', authRouter);
@@ -299,6 +300,7 @@ app.use('/api/declaracoes', declaracoesRouter);
 app.use('/api/auditoria', auditoriaRouter);
 app.use('/api/configuracoes', configuracoesRouter);
 app.use('/api/documentos', documentosRouter);
+app.use('/api/formularios', formulariosRouter);
 
 // Health check endpoint
 app.get("/health", async (req, res) => {

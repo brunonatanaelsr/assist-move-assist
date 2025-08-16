@@ -1,0 +1,11 @@
+{
+  "nome": "Teste Formulário Projeto",
+  "descricao": "Testando criação via API",
+  "data_inicio": "2025-08-20",
+  "data_fim_prevista": "2025-12-20",
+  "status": "planejamento",
+  "responsavel_id": 2,
+  "orcamento": 10000,
+  "objetivos": "Testar funcionamento do formulário",
+  "local_execucao": "Instituto Move Marias"
+}

@@ -1,0 +1,7 @@
+{
+  "destinatario_id": 1,
+  "conteudo": "Teste de mensagem via API - formulário funcionando!",
+  "assunto": "Teste Formulário Mensagem",
+  "tipo": "mensagem",
+  "prioridade": "normal"
+}
