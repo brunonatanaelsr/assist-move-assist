@@ -19,27 +19,34 @@ interface Beneficiaria {
   id: number;
   nome_completo: string;
   cpf: string;
-  data_nascimento: string;
-  telefone: string;
-  email: string;
-  endereco_completo: string;
-  cep: string;
+  rg?: string;
+  data_nascimento?: string;
+  idade?: number;
+  contato1: string;
+  contato2?: string;
+  email?: string;
+  endereco?: string;
+  bairro?: string;
+  cep?: string;
   cidade: string;
   estado: string;
-  escolaridade: string;
-  profissao: string;
-  estado_civil: string;
-  tem_filhos: boolean;
-  quantidade_filhos?: number;
-  renda_familiar: number;
-  situacao_vulnerabilidade: string;
-  como_conheceu: string;
-  objetivos: string;
-  experiencia_anterior: string;
-  disponibilidade_horario: string;
-  status: string | null;
-  observacoes: string;
-  data_cadastro: string;
+  nis?: string;
+  escolaridade?: string;
+  profissao?: string;
+  renda_familiar?: number;
+  composicao_familiar?: number;
+  referencia?: string;
+  data_inicio_instituto?: string;
+  programa_servico?: string;
+  observacoes?: string;
+  necessidades_especiais?: string;
+  medicamentos?: string;
+  alergias?: string;
+  contato_emergencia?: string;
+  documentos_pendentes?: string[];
+  responsavel_cadastro?: number;
+  data_criacao: string;
+  data_atualizacao?: string;
   ativo: boolean;
 }
 
@@ -171,7 +178,7 @@ export default function DetalhesBeneficiaria() {
 
   const generatePAEDI = (beneficiaria: Beneficiaria) => {
     if (!beneficiaria) return 'N/A';
-    const dataCriacao = new Date(beneficiaria.data_cadastro);
+    const dataCriacao = new Date(beneficiaria.data_criacao);
     const ano = dataCriacao.getFullYear().toString().slice(-2);
     const mes = (dataCriacao.getMonth() + 1).toString().padStart(2, '0');
     const sequence = beneficiaria.id.toString().padStart(3, '0').slice(-3);
@@ -355,15 +362,15 @@ export default function DetalhesBeneficiaria() {
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="telefone">Telefone</Label>
+                      <Label htmlFor="contato1">Telefone</Label>
                       {editMode ? (
                         <Input
-                          id="telefone"
-                          value={beneficiaria.telefone || ''}
-                          onChange={(e) => setBeneficiaria({...beneficiaria, telefone: e.target.value})}
+                          id="contato1"
+                          value={beneficiaria.contato1 || ''}
+                          onChange={(e) => setBeneficiaria({...beneficiaria, contato1: e.target.value})}
                         />
                       ) : (
-                        <p className="text-sm">{beneficiaria.telefone || 'Não informado'}</p>
+                        <p className="text-sm">{beneficiaria.contato1 || 'Não informado'}</p>
                       )}
                     </div>
                     
@@ -395,15 +402,15 @@ export default function DetalhesBeneficiaria() {
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div className="space-y-2 md:col-span-2">
-                      <Label htmlFor="endereco_completo">Endereço Completo</Label>
+                      <Label htmlFor="endereco">Endereço Completo</Label>
                       {editMode ? (
                         <Input
-                          id="endereco_completo"
-                          value={beneficiaria.endereco_completo || ''}
-                          onChange={(e) => setBeneficiaria({...beneficiaria, endereco_completo: e.target.value})}
+                          id="endereco"
+                          value={beneficiaria.endereco || ''}
+                          onChange={(e) => setBeneficiaria({...beneficiaria, endereco: e.target.value})}
                         />
                       ) : (
-                        <p className="text-sm">{beneficiaria.endereco_completo || 'Não informado'}</p>
+                        <p className="text-sm">{beneficiaria.endereco || 'Não informado'}</p>
                       )}
                     </div>
                     

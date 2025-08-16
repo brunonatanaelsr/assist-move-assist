@@ -115,9 +115,10 @@ router.get('/:id', authenticateToken, async (req, res) => {
 router.post('/', authenticateToken, requireGestor, async (req, res) => {
   try {
     const { 
-      nome_completo, cpf, rg, data_nascimento, email, telefone, telefone_alternativo,
+      nome_completo, cpf, rg, data_nascimento, email, contato1, contato2,
       endereco, bairro, cep, cidade, estado, escolaridade, profissao, renda_familiar,
-      situacao_trabalho, tem_filhos, quantidade_filhos, observacoes, status
+      composicao_familiar, programa_servico, observacoes, necessidades_especiais,
+      medicamentos, alergias, contato_emergencia, data_inicio_instituto
     } = req.body;
 
     if (!nome_completo) {
@@ -172,9 +173,10 @@ router.put('/:id', authenticateToken, requireGestor, async (req, res) => {
   try {
     const { id } = req.params;
     const { 
-      nome_completo, cpf, rg, data_nascimento, email, telefone, telefone_alternativo,
+      nome_completo, cpf, rg, data_nascimento, email, contato1, contato2,
       endereco, bairro, cep, cidade, estado, escolaridade, profissao, renda_familiar,
-      situacao_trabalho, tem_filhos, quantidade_filhos, observacoes, status
+      composicao_familiar, programa_servico, observacoes, necessidades_especiais,
+      medicamentos, alergias, contato_emergencia, data_inicio_instituto
     } = req.body;
 
     if (!nome_completo) {
@@ -203,23 +205,25 @@ router.put('/:id', authenticateToken, requireGestor, async (req, res) => {
     const updateQuery = `
       UPDATE beneficiarias SET 
         nome_completo = $1, cpf = $2, rg = $3, data_nascimento = $4,
-        email = $5, telefone = $6, telefone_alternativo = $7,
+        email = $5, contato1 = $6, contato2 = $7,
         endereco = $8, bairro = $9, cep = $10, cidade = $11, estado = $12,
         escolaridade = $13, profissao = $14, renda_familiar = $15,
-        situacao_trabalho = $16, tem_filhos = $17, quantidade_filhos = $18,
-        observacoes = $19, status = $20, data_atualizacao = NOW()
-      WHERE id = $21
+        composicao_familiar = $16, programa_servico = $17, observacoes = $18,
+        necessidades_especiais = $19, medicamentos = $20, alergias = $21,
+        contato_emergencia = $22, data_inicio_instituto = $23, data_atualizacao = NOW()
+      WHERE id = $24
       RETURNING *
     `;
 
     const result = await pool.query(updateQuery, [
       nome_completo, cpf || null, rg || null, data_nascimento || null,
-      email || null, telefone || null, telefone_alternativo || null,
+      email || null, contato1 || null, contato2 || null,
       endereco || null, bairro || null, cep || null,
       cidade || 'São Paulo', estado || 'SP',
       escolaridade || null, profissao || null, renda_familiar || null,
-      situacao_trabalho || null, tem_filhos || false, quantidade_filhos || 0,
-      observacoes || null, status || 'ativa', id
+      composicao_familiar || null, programa_servico || null, observacoes || null,
+      necessidades_especiais || null, medicamentos || null, alergias || null,
+      contato_emergencia || null, data_inicio_instituto || null, id
     ]);
 
     console.log(`Beneficiária atualizada: ${nome_completo} por ${req.user.email}`);
