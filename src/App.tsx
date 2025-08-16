@@ -20,6 +20,7 @@ import ParticipantesProjeto from "./pages/ParticipantesProjeto";
 import Configuracoes from "./pages/Configuracoes";
 import EditarPerfil from "./components/EditarPerfil";
 import Mensagens from "./pages/Mensagens";
+import ChatInterno from "./pages/ChatInterno";
 import Atividades from "./pages/Atividades";
 import FeedNew from "./pages/FeedNew";
 import ProjetosNew from "./pages/ProjetosNew";
@@ -176,6 +177,13 @@ const App = () => (
               <ProtectedRoute>
                 <MainLayout>
                   <Mensagens />
+                </MainLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/chat-interno" element={
+              <ProtectedRoute>
+                <MainLayout>
+                  <ChatInterno />
                 </MainLayout>
               </ProtectedRoute>
             } />

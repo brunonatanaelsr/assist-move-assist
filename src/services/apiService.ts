@@ -293,6 +293,33 @@ class ApiService {
     return this.post('/mensagens', data);
   }
 
+  // ====== NOVOS MÉTODOS PARA CONVERSAS ENTRE USUÁRIOS ======
+  
+  // Listar usuários disponíveis para conversa
+  async getUsuariosConversa(): Promise<ApiResponse<any[]>> {
+    return this.get('/mensagens/usuarios');
+  }
+
+  // Listar conversas do usuário logado
+  async getConversasUsuario(): Promise<ApiResponse<any[]>> {
+    return this.get('/mensagens/conversas');
+  }
+
+  // Obter mensagens de uma conversa específica com outro usuário
+  async getMensagensUsuario(usuarioId: number, params?: any): Promise<ApiResponse<any[]>> {
+    return this.get(`/mensagens/conversa/${usuarioId}`, { params });
+  }
+
+  // Enviar mensagem direta para outro usuário
+  async enviarMensagemUsuario(data: {
+    destinatario_id: number;
+    conteudo: string;
+    tipo?: string;
+    prioridade?: string;
+  }): Promise<ApiResponse<any>> {
+    return this.post('/mensagens/enviar', data);
+  }
+
   // Métodos específicos para feed
   async getFeed(params?: any): Promise<ApiResponse<any[]>> {
     return this.get('/feed', { params });

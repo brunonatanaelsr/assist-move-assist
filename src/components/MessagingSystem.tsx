@@ -9,25 +9,25 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/usePostgreSQLAuth";
+import { apiService } from "@/services/apiService";
 import { cn } from "@/lib/utils";
 
 interface Conversation {
   id: string;
-  nome_grupo?: string;
-  tipo: string;
-  created_at: string;
-  updated_at: string;
-  last_message?: string;
-  unread_count: number;
+  nome_usuario?: string;
+  ultimo_contato?: string;
+  count_mensagens: number;
+  usuario_id?: string;
 }
 
 interface Message {
   id: string;
   conteudo: string;
-  sender_id: string;
+  remetente_id: string;
+  destinatario_id: string;
   created_at: string;
-  tipo: string;
-  sender_name?: string;
+  lida: boolean;
+  remetente_nome?: string;
 }
 
 export default function MessagingSystem() {
@@ -54,21 +54,27 @@ export default function MessagingSystem() {
   const loadConversations = async () => {
     try {
       setLoading(true);
-      // Mock data for now
-      setConversations([]);
+      const response = await apiService.getConversasUsuario();
+      if (response.success && response.data) {
+        setConversations(response.data);
+      }
     } catch (error) {
       console.error('Erro ao carregar conversas:', error);
+      setConversations([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const loadMessages = async (conversationId: string) => {
+  const loadMessages = async (usuarioId: string) => {
     try {
-      // Mock data for now
-      setMessages([]);
+      const response = await apiService.getMensagensUsuario(parseInt(usuarioId));
+      if (response.success && response.data) {
+        setMessages(response.data);
+      }
     } catch (error) {
       console.error('Erro ao carregar mensagens:', error);
+      setMessages([]);
     }
   };
 
@@ -76,16 +82,22 @@ export default function MessagingSystem() {
     if (!newMessage.trim() || !activeConversation) return;
 
     try {
-      // Mock implementation for now
-      setNewMessage("");
+      const response = await apiService.enviarMensagemUsuario({
+        destinatario_id: parseInt(activeConversation),
+        conteudo: newMessage
+      });
+      if (response.success) {
+        setNewMessage("");
+        // Recarregar mensagens
+        loadMessages(activeConversation);
+      }
     } catch (error) {
       console.error('Erro ao enviar mensagem:', error);
     }
   };
 
   const getConversationName = (conversation: Conversation) => {
-    return conversation.nome_grupo || 
-           (conversation.tipo === 'individual' ? 'Chat Individual' : 'Grupo');
+    return conversation.nome_usuario || 'Usuário';
   };
 
   const formatTime = (dateString: string) => {
@@ -155,11 +167,7 @@ export default function MessagingSystem() {
                         <div className="flex items-center gap-3">
                           <Avatar className="h-8 w-8">
                             <AvatarFallback>
-                              {conversation.tipo === 'grupo' ? (
-                                <Users className="h-4 w-4" />
-                              ) : (
-                                'U'
-                              )}
+                              {conversation.nome_usuario?.charAt(0)?.toUpperCase() || 'U'}
                             </AvatarFallback>
                           </Avatar>
                           <div className="flex-1 min-w-0">
@@ -167,12 +175,12 @@ export default function MessagingSystem() {
                               {getConversationName(conversation)}
                             </p>
                             <p className="text-xs text-muted-foreground">
-                              {conversation.last_message || 'Sem mensagens'}
+                              {conversation.ultimo_contato ? `Última conversa: ${new Date(conversation.ultimo_contato).toLocaleDateString()}` : 'Sem mensagens'}
                             </p>
                           </div>
-                          {conversation.unread_count > 0 && (
-                            <Badge variant="destructive" className="text-xs">
-                              {conversation.unread_count}
+                          {conversation.count_mensagens > 0 && (
+                            <Badge variant="secondary" className="text-xs">
+                              {conversation.count_mensagens}
                             </Badge>
                           )}
                         </div>
@@ -207,7 +215,7 @@ export default function MessagingSystem() {
                         key={message.id}
                         className={cn(
                           "flex",
-                          message.sender_id === profile?.user_id 
+                          message.remetente_id === profile?.user_id 
                             ? "justify-end" 
                             : "justify-start"
                         )}
@@ -215,14 +223,14 @@ export default function MessagingSystem() {
                         <div
                           className={cn(
                             "max-w-[80%] rounded-lg p-2 text-sm",
-                            message.sender_id === profile?.user_id
+                            message.remetente_id === profile?.user_id
                               ? "bg-primary text-primary-foreground"
                               : "bg-muted"
                           )}
                         >
-                          {message.sender_id !== profile?.user_id && (
+                          {message.remetente_id !== profile?.user_id && (
                             <p className="text-xs font-medium mb-1">
-                              {message.sender_name}
+                              {message.remetente_nome || 'Usuário'}
                             </p>
                           )}
                           <p>{message.conteudo}</p>
