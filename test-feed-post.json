@@ -1,0 +1,6 @@
+{
+  "tipo": "noticia",
+  "titulo": "Teste de Publicação no Feed",
+  "conteudo": "Este é um teste para verificar se a publicação no feed está funcionando corretamente.",
+  "autor_nome": "Admin Sistema"
+}
