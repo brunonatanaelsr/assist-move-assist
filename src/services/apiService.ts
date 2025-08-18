@@ -260,6 +260,15 @@ class ApiService {
     return this.delete(`/participacoes/${id}`);
   }
 
+  // Visão Holística
+  async getVisaoHolistica(beneficiariaId: number): Promise<ApiResponse<any>> {
+    return this.get(`/visao-holistica/${beneficiariaId}`);
+  }
+
+  async saveVisaoHolistica(data: any): Promise<ApiResponse<any>> {
+    return this.post('/visao-holistica', data);
+  }
+
   // Mensagens
   async getMensagens(): Promise<ApiResponse<any[]>> {
     return this.get('/mensagens');

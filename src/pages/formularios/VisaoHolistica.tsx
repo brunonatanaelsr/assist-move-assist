@@ -162,14 +162,9 @@ export default function VisaoHolistica() {
   };
 
   const salvarVisaoHolistica = async () => {
-    // Temporariamente desabilitado até implementarmos a rota no backend
-    alert('Funcionalidade em desenvolvimento. A visualização dos dados da beneficiária está funcionando!');
-    
-    /* TODO: Implementar rota /api/visao-holistica no backend
     try {
       setLoading(true);
-      const response = await api.saveVisaoHolistica(visaoData);
-
+      const response = await apiService.saveVisaoHolistica(visaoData);
       if (response.success) {
         alert('Visão Holística salva com sucesso!');
         navigate(`/beneficiarias/${id}`);
@@ -182,7 +177,6 @@ export default function VisaoHolistica() {
     } finally {
       setLoading(false);
     }
-    */
   };
 
   const updateDimensao = (dimensao: string, field: string, value: any) => {
