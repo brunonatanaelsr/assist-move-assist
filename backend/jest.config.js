@@ -9,6 +9,9 @@ module.exports = {
   transform: {
     '^.+\\.ts$': 'ts-jest',
   },
+  moduleNameMapper: {
+    '^cpf-cnpj-validator$': '<rootDir>/src/__mocks__/cpf-cnpj-validator.js'
+  },
   collectCoverageFrom: [
     'src/**/*.ts',
     '!src/**/*.d.ts',

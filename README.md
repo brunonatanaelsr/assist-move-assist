@@ -57,6 +57,30 @@ npm run test:coverage # Testes com coverage
 npm run test:e2e     # Testes E2E
 ```
 
+## Testes
+
+### Unitários
+Execute todos os testes de unidade do frontend e backend:
+
+```bash
+npm test
+```
+
+Para testar apenas o frontend ou backend:
+
+```bash
+npm run test:frontend
+npm run test:backend
+```
+
+### E2E
+Os testes end-to-end usam Playwright e requerem build prévio do frontend:
+
+```bash
+npm run build
+npm run test:e2e
+```
+
 ## Arquitetura
 - **Frontend**: React 18 + TypeScript + Vite + Tailwind CSS. Código principal em `src/`. Detalhes de componentes e hooks em [docs/TECHNICAL_DOCUMENTATION.md](docs/TECHNICAL_DOCUMENTATION.md).
 - **Backend**: Supabase (PostgreSQL, Auth, Storage). Implementação alternativa com Node/Express em [`backend/`](backend/README.md) para uso com PostgreSQL puro.
