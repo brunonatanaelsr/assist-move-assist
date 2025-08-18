@@ -18,6 +18,9 @@ const pool = new Pool({
 // Listar beneficiárias
 router.get('/', authenticateToken, async (req, res) => {
   try {
+    console.log('=== LISTAGEM DE BENEFICIÁRIAS INICIADA ===');
+    console.log('Query params:', req.query);
+    
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const search = req.query.search || "";
@@ -52,16 +55,34 @@ router.get('/', authenticateToken, async (req, res) => {
 
     const whereClause = whereConditions.join(' AND ');
 
-    const query = `SELECT * FROM beneficiarias WHERE ${whereClause} ORDER BY nome_completo LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}`;
+    // Log da query para debug
+    console.log('Query conditions:', whereClause);
+    console.log('Query params:', params);
+
+    const query = `
+      SELECT * FROM beneficiarias 
+      WHERE ${whereClause} 
+      ORDER BY nome_completo 
+      LIMIT $${paramCount + 1} 
+      OFFSET $${paramCount + 2}
+    `;
     params.push(limit, offset);
 
+    console.log('Final query:', query);
+    console.log('Final params:', params);
+
     const result = await pool.query(query, params);
+
+    // Log dos resultados
+    console.log('Query results:', result.rows.length);
 
     // Query para contar total
     const countQuery = `SELECT COUNT(*) FROM beneficiarias WHERE ${whereClause}`;
     const countParams = params.slice(0, -2); // Remove limit e offset
     const countResult = await pool.query(countQuery, countParams);
     const total = parseInt(countResult.rows[0].count);
+    
+    console.log('Total count:', total);
 
     console.log(`Beneficiarias request from ${req.ip}: page=${page}, limit=${limit}, search=${search || "no"}`);
 
