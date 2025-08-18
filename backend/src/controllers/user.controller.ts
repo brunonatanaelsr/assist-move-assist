@@ -1,7 +1,8 @@
+import { Request, Response } from 'express';
 import { loggerService } from '../services/logger.service';
 
 class UserController {
-  async create(req: any, res: any) {
+  async create(req: Request, res: Response) {
     try {
       loggerService.setContext('UserController');
       loggerService.info('Iniciando criação de usuário', { data: req.body });
@@ -21,7 +22,7 @@ class UserController {
     }
   }
 
-  async get(req: any, res: any) {
+  async get(req: Request, res: Response) {
     const start = Date.now();
     try {
       loggerService.setContext('UserController');
@@ -44,3 +45,5 @@ class UserController {
     }
   }
 }
+
+export default new UserController();
