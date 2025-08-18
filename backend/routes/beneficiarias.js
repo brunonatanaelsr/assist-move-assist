@@ -181,7 +181,8 @@ router.get('/:id', authenticateToken, async (req, res) => {
         data_cadastro,
         data_atualizacao,
         ativo,
-        status
+        status,
+        data_criacao
       FROM beneficiarias 
       WHERE id = $1 AND ativo = true`,
       [id]
