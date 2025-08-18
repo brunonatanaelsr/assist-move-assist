@@ -1,6 +1,7 @@
 const express = require('express');
 const { Pool } = require('pg');
 const { successResponse, errorResponse } = require('../utils/responseFormatter');
+const { formatArrayDates, formatObjectDates } = require('../utils/dateFormatter');
 const { authenticateToken } = require('../middleware/auth');
 
 const router = express.Router();
@@ -9,8 +10,8 @@ const pool = new Pool({
   host: process.env.POSTGRES_HOST || 'localhost',
   port: parseInt(process.env.POSTGRES_PORT || '5432'),
   database: process.env.POSTGRES_DB || 'movemarias',
-  user: process.env.POSTGRES_USER || 'movemarias_user',
-  password: process.env.POSTGRES_PASSWORD || 'movemarias_password_2025',
+  user: process.env.POSTGRES_USER || 'postgres',
+  password: process.env.POSTGRES_PASSWORD || '15002031',
 });
 
 // Dashboard geral
@@ -20,93 +21,82 @@ router.get('/', authenticateToken, async (req, res) => {
   try {
     console.log('Iniciando consultas completas...');
     
-    // Totais gerais
-    const [beneficiariasTotal, oficinasTotalResult, projetosTotalResult, participacoesTotalResult] = await Promise.all([
-      pool.query('SELECT COUNT(*) FROM beneficiarias'),
-      pool.query('SELECT COUNT(*) FROM oficinas'),
-      pool.query('SELECT COUNT(*) FROM projetos'),
-      pool.query('SELECT COUNT(*) FROM presencas_oficinas')
-    ]);
+    // Totais gerais com tratamento de erro para cada query
+    let beneficiariasTotal = { rows: [{ count: 0 }] };
+    let oficinasTotalResult = { rows: [{ count: 0 }] };
+    let projetosTotalResult = { rows: [{ count: 0 }] };
+    let participacoesTotalResult = { rows: [{ count: 0 }] };
 
-    // Beneficiárias por status
-    const beneficiariasStatus = await pool.query(`
-      SELECT 
-        CASE WHEN ativo = true THEN 'Ativa' ELSE 'Inativa' END as status,
-        COUNT(*) as total
-      FROM beneficiarias 
-      GROUP BY ativo
-      ORDER BY ativo DESC
-    `);
+    try {
+      beneficiariasTotal = await pool.query('SELECT COUNT(*) FROM beneficiarias WHERE ativo = true');
+    } catch (err) {
+      console.error('Erro ao contar beneficiárias:', err);
+    }
 
-    // Oficinas por status (se existirem)
+    try {
+      oficinasTotalResult = await pool.query('SELECT COUNT(*) FROM oficinas WHERE ativo = true');
+    } catch (err) {
+      console.error('Erro ao contar oficinas:', err);
+    }
+
+    try {
+      projetosTotalResult = await pool.query('SELECT COUNT(*) FROM projetos WHERE ativo = true');
+    } catch (err) {
+      console.error('Erro ao contar projetos:', err);
+    }
+
+    try {
+      participacoesTotalResult = await pool.query('SELECT COUNT(*) FROM participacoes WHERE ativo = true');
+    } catch (err) {
+      console.error('Erro ao contar participações:', err);
+    }
+
+    // Estatísticas de status com tratamento de erro
+    let beneficiariasStatus = [];
+    try {
+      const beneficiariasStatusResult = await pool.query(`
+        SELECT 
+          CASE WHEN ativo = true THEN 'Ativa' ELSE 'Inativa' END as status,
+          COUNT(*) as total
+        FROM beneficiarias 
+        GROUP BY ativo
+        ORDER BY ativo DESC
+      `);
+      beneficiariasStatus = beneficiariasStatusResult.rows;
+    } catch (err) {
+      console.error('Erro ao buscar status das beneficiárias:', err);
+    }
+
+    // Oficinas por status com tratamento de erro
     let oficinasStatus = [];
     try {
       const oficinasStatusResult = await pool.query(`
         SELECT 
-          CASE WHEN ativo = true THEN 'Ativa' ELSE 'Inativa' END as status,
+          COALESCE(status_detalhado, 'Sem status') as status,
           COUNT(*) as total
         FROM oficinas 
-        GROUP BY ativo
-        ORDER BY ativo DESC
+        WHERE ativo = true
+        GROUP BY status_detalhado
+        ORDER BY COUNT(*) DESC
       `);
       oficinasStatus = oficinasStatusResult.rows;
     } catch (err) {
-      console.log('Tabela oficinas sem dados ou erro:', err.message);
+      console.error('Erro ao buscar status das oficinas:', err);
     }
 
-    // Projetos por status
-    let projetosStatus = [];
-    try {
-      const projetosStatusResult = await pool.query(`
-        SELECT 
-          CASE WHEN ativo = true THEN 'Ativo' ELSE 'Inativo' END as status,
-          COUNT(*) as total
-        FROM projetos 
-        GROUP BY ativo
-        ORDER BY ativo DESC
-      `);
-      projetosStatus = projetosStatusResult.rows;
-    } catch (err) {
-      console.log('Erro ao buscar projetos por status:', err.message);
-    }
-
-    // Estatísticas de participação
-    let estatisticasParticipacao = {
-      totalParticipacoes: 0,
-      participacoesAtivas: 0,
-      beneficiariasComParticipacao: 0
-    };
-
-    try {
-      const [participacoesAtivasResult, beneficiariasComParticipacaoResult] = await Promise.all([
-        pool.query('SELECT COUNT(*) FROM presencas_oficinas WHERE ativo = true'),
-        pool.query('SELECT COUNT(DISTINCT beneficiaria_id) FROM presencas_oficinas WHERE ativo = true')
-      ]);
-
-      estatisticasParticipacao = {
-        totalParticipacoes: parseInt(participacoesTotalResult.rows[0].count),
-        participacoesAtivas: parseInt(participacoesAtivasResult.rows[0].count),
-        beneficiariasComParticipacao: parseInt(beneficiariasComParticipacaoResult.rows[0].count)
-      };
-    } catch (err) {
-      console.log('Erro ao buscar estatísticas de participação:', err.message);
-    }
-
+    // Dados do dashboard
     const dashboardData = {
       totais: {
-        beneficiarias: parseInt(beneficiariasTotal.rows[0].count),
-        oficinas: parseInt(oficinasTotalResult.rows[0].count),
-        projetos: parseInt(projetosTotalResult.rows[0].count),
-        participacoes: parseInt(participacoesTotalResult.rows[0].count)
+        beneficiarias: parseInt(beneficiariasTotal.rows[0].count || 0),
+        oficinas: parseInt(oficinasTotalResult.rows[0].count || 0),
+        projetos: parseInt(projetosTotalResult.rows[0].count || 0),
+        participacoes: parseInt(participacoesTotalResult.rows[0].count || 0)
       },
-      beneficiarias_status: beneficiariasStatus.rows,
+      beneficiarias_status: beneficiariasStatus,
       oficinas_status: oficinasStatus,
-      projetos_status: projetosStatus,
-      estatisticas_participacao: estatisticasParticipacao,
       timestamp: new Date().toISOString()
     };
 
-    console.log('Dashboard data completo:', JSON.stringify(dashboardData, null, 2));
     res.json(successResponse(dashboardData, "Dashboard carregado com sucesso"));
 
   } catch (error) {
@@ -115,44 +105,65 @@ router.get('/', authenticateToken, async (req, res) => {
   }
 });
 
-// Endpoint para estatísticas do dashboard
+// Endpoint para estatísticas
 router.get('/stats', authenticateToken, async (req, res) => {
   try {
+    let stats = {
+      totalBeneficiarias: 0,
+      atendimentosMes: 0,
+      participacoesAtivas: 0,
+      engajamento: "0%",
+      formularios: 0
+    };
+
     // Total de beneficiárias
-    const totalBeneficiarias = await pool.query('SELECT COUNT(*) as count FROM beneficiarias WHERE ativo = true');
-    
-    // Total de formulários (declarações de comparecimento)
-    const totalFormularios = await pool.query('SELECT COUNT(*) as count FROM declaracoes_comparecimento');
-    
-    // Atendimentos este mês
-    const atendimentosMes = await pool.query(`
-      SELECT COUNT(*) as count 
-      FROM declaracoes_comparecimento 
-      WHERE DATE_TRUNC('month', data_criacao) = DATE_TRUNC('month', CURRENT_DATE)
-    `);
-    
-    // Participações em oficinas para calcular engajamento
-    const totalParticipacoes = await pool.query('SELECT COUNT(*) as count FROM participacoes WHERE ativo = true');
-    const totalOficinas = await pool.query('SELECT COUNT(*) as count FROM oficinas WHERE ativo = true');
-    
-    // Calcular taxa de engajamento
-    const participacoes = parseInt(totalParticipacoes.rows[0].count);
-    const oficinas = parseInt(totalOficinas.rows[0].count);
-    const beneficiarias = parseInt(totalBeneficiarias.rows[0].count);
-    
-    let engajamento = 0;
-    if (beneficiarias > 0 && oficinas > 0) {
-      engajamento = Math.round((participacoes / (beneficiarias * oficinas)) * 100);
-    } else if (beneficiarias > 0) {
-      engajamento = Math.round((participacoes / beneficiarias) * 100);
+    try {
+      const beneficiariasResult = await pool.query(
+        'SELECT COUNT(*) as count FROM beneficiarias WHERE ativo = true'
+      );
+      stats.totalBeneficiarias = parseInt(beneficiariasResult.rows[0].count);
+    } catch (err) {
+      console.error('Erro ao contar beneficiárias:', err);
     }
 
-    const stats = {
-      totalBeneficiarias: parseInt(totalBeneficiarias.rows[0].count),
-      formularios: parseInt(totalFormularios.rows[0].count),
-      atendimentosMes: parseInt(atendimentosMes.rows[0].count),
-      engajamento: `${engajamento}%`
-    };
+    // Atendimentos este mês
+    try {
+      const atendimentosResult = await pool.query(`
+        SELECT COUNT(*) as count 
+        FROM participacoes 
+        WHERE ativo = true 
+        AND DATE_TRUNC('month', data_inscricao) = DATE_TRUNC('month', CURRENT_DATE)
+      `);
+      stats.atendimentosMes = parseInt(atendimentosResult.rows[0].count);
+    } catch (err) {
+      console.error('Erro ao contar atendimentos:', err);
+    }
+
+    // Participações ativas
+    try {
+      const participacoesResult = await pool.query(
+        'SELECT COUNT(*) as count FROM participacoes WHERE ativo = true'
+      );
+      stats.participacoesAtivas = parseInt(participacoesResult.rows[0].count);
+    } catch (err) {
+      console.error('Erro ao contar participações:', err);
+    }
+
+    // Contagem de formulários
+    try {
+      const formulariosResult = await pool.query(
+        'SELECT COUNT(*) as count FROM anamnese WHERE ativo = true'
+      );
+      stats.formularios = parseInt(formulariosResult.rows[0].count);
+    } catch (err) {
+      console.error('Erro ao contar formulários:', err);
+    }
+
+    // Calcular engajamento
+    if (stats.totalBeneficiarias > 0) {
+      const engajamento = (stats.participacoesAtivas / stats.totalBeneficiarias) * 100;
+      stats.engajamento = `${Math.round(engajamento)}%`;
+    }
 
     res.json(successResponse(stats, "Estatísticas carregadas com sucesso"));
   } catch (error) {
@@ -167,78 +178,57 @@ router.get('/activities', authenticateToken, async (req, res) => {
     const activities = [];
 
     // Beneficiárias cadastradas recentemente
-    const recentBeneficiarias = await pool.query(`
-      SELECT nome_completo, data_criacao 
-      FROM beneficiarias 
-      WHERE ativo = true
-      ORDER BY data_criacao DESC 
-      LIMIT 3
-    `);
-
-    recentBeneficiarias.rows.forEach(beneficiaria => {
-      activities.push({
-        id: `beneficiaria-${beneficiaria.nome_completo}`,
-        type: "Nova beneficiária",
-        description: `${beneficiaria.nome_completo} foi cadastrada no sistema`,
-        time: beneficiaria.data_criacao || new Date().toISOString(),
-        icon: "Users"
-      });
-    });
-
-    // Declarações emitidas recentemente (se existir a tabela)
     try {
-      const recentDeclaracoes = await pool.query(`
-        SELECT d.*, b.nome_completo 
-        FROM declaracoes_comparecimento d
-        JOIN beneficiarias b ON d.beneficiaria_id = b.id
-        WHERE b.ativo = true
-        ORDER BY d.data_criacao DESC 
+      const recentBeneficiarias = await pool.query(`
+        SELECT nome_completo, data_cadastro 
+        FROM beneficiarias 
+        WHERE ativo = true
+        ORDER BY data_cadastro DESC 
         LIMIT 3
       `);
 
-      recentDeclaracoes.rows.forEach(declaracao => {
+      recentBeneficiarias.rows.forEach(beneficiaria => {
         activities.push({
-          id: `declaracao-${declaracao.id}`,
-          type: "Declaração emitida",
-          description: `Declaração de comparecimento - ${declaracao.nome_completo}`,
-          time: declaracao.data_criacao,
-          icon: "FileText"
+          id: `beneficiaria-${beneficiaria.nome_completo}`,
+          type: "Nova beneficiária",
+          description: `${beneficiaria.nome_completo} foi cadastrada no sistema`,
+          time: beneficiaria.data_cadastro || new Date().toISOString(),
+          icon: "Users"
         });
       });
     } catch (err) {
-      console.log('Sem declarações recentes');
+      console.error('Erro ao buscar beneficiárias recentes:', err);
     }
 
-    // Participações recentes em oficinas
+    // Participações recentes
     try {
       const recentParticipacoes = await pool.query(`
         SELECT p.*, b.nome_completo, o.nome as oficina_nome
-        FROM presencas_oficinas p
+        FROM participacoes p
         JOIN beneficiarias b ON p.beneficiaria_id = b.id
         JOIN oficinas o ON p.oficina_id = o.id
-        WHERE p.ativo = true AND b.ativo = true AND o.ativo = true
-        ORDER BY p.data_registro DESC 
+        WHERE p.ativo = true AND b.ativo = true
+        ORDER BY p.data_inscricao DESC 
         LIMIT 3
       `);
 
       recentParticipacoes.rows.forEach(participacao => {
         activities.push({
           id: `participacao-${participacao.id}`,
-          type: "Participação em oficina",
+          type: "Nova participação",
           description: `${participacao.nome_completo} - ${participacao.oficina_nome}`,
-          time: participacao.data_registro || new Date().toISOString(),
+          time: participacao.data_inscricao || new Date().toISOString(),
           icon: "Calendar"
         });
       });
     } catch (err) {
-      console.log('Sem participações recentes:', err.message);
+      console.error('Erro ao buscar participações recentes:', err);
     }
 
-    // Ordenar por data mais recente e limitar
+    // Ordenar por data mais recente
     activities.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
-    const recentActivities = activities.slice(0, 5);
 
-    res.json(successResponse(recentActivities, "Atividades carregadas com sucesso"));
+    res.json(successResponse(activities.slice(0, 5), "Atividades carregadas com sucesso"));
   } catch (error) {
     console.error('Erro ao buscar atividades:', error);
     res.status(500).json(errorResponse('Erro ao carregar atividades'));
@@ -250,77 +240,61 @@ router.get('/tasks', authenticateToken, async (req, res) => {
   try {
     const tasks = [];
 
-    // Verificar beneficiárias sem declarações recentes
+    // Verificar beneficiárias sem atividades recentes
     try {
-        const beneficiariasSemDeclaracoes = await pool.query(`
-          SELECT COUNT(*) as count 
-          FROM beneficiarias b
-          WHERE b.ativo = true AND NOT EXISTS (
-            SELECT 1 FROM declaracoes_comparecimento d 
-            WHERE d.beneficiaria_id = b.id 
-            AND d.data_criacao >= CURRENT_DATE - INTERVAL '30 days'
-          )
-        `);      if (parseInt(beneficiariasSemDeclaracoes.rows[0].count) > 0) {
+      const beneficiariasSemAtividades = await pool.query(`
+        SELECT COUNT(*) as count 
+        FROM beneficiarias b
+        WHERE b.ativo = true AND NOT EXISTS (
+          SELECT 1 FROM participacoes p 
+          WHERE p.beneficiaria_id = b.id 
+          AND p.data_inscricao >= CURRENT_DATE - INTERVAL '30 days'
+        )
+      `);
+
+      if (parseInt(beneficiariasSemAtividades.rows[0].count) > 0) {
         tasks.push({
           id: 'review-beneficiarias',
-          title: 'Revisar cadastros sem atividade recente',
+          title: `${beneficiariasSemAtividades.rows[0].count} beneficiárias sem atividades recentes`,
           due: 'Hoje',
           priority: 'Alta'
         });
       }
     } catch (err) {
-      // Ignore se tabela não existe
+      console.error('Erro ao verificar beneficiárias sem atividades:', err);
     }
 
-    // Verificar oficinas sem participações
+    // Verificar oficinas com vagas disponíveis
     try {
-      const oficinasSemParticipacoes = await pool.query(`
+      const oficinasComVagas = await pool.query(`
         SELECT COUNT(*) as count 
         FROM oficinas o
-        WHERE o.ativo = true AND NOT EXISTS (
-          SELECT 1 FROM participacoes p 
+        WHERE o.ativo = true 
+        AND o.status_detalhado != 'concluida'
+        AND o.vagas_total > (
+          SELECT COUNT(*) FROM participacoes p 
           WHERE p.oficina_id = o.id AND p.ativo = true
         )
       `);
 
-      if (parseInt(oficinasSemParticipacoes.rows[0].count) > 0) {
+      if (parseInt(oficinasComVagas.rows[0].count) > 0) {
         tasks.push({
-          id: 'review-oficinas',
-          title: 'Verificar oficinas sem participações',
-          due: 'Amanhã',
+          id: 'oficinas-vagas',
+          title: `${oficinasComVagas.rows[0].count} oficinas com vagas disponíveis`,
+          due: 'Esta semana',
           priority: 'Média'
         });
       }
     } catch (err) {
-      // Ignore se tabela não existe
+      console.error('Erro ao verificar oficinas com vagas:', err);
     }
 
-    // Verificar mensagens não lidas
-    try {
-      const mensagensNaoLidas = await pool.query(`
-        SELECT COUNT(*) as count 
-        FROM mensagens 
-        WHERE lida = false
-      `);
-
-      if (parseInt(mensagensNaoLidas.rows[0].count) > 0) {
-        tasks.push({
-          id: 'review-messages',
-          title: `Responder ${mensagensNaoLidas.rows[0].count} mensagens pendentes`,
-          due: 'Hoje',
-          priority: 'Média'
-        });
-      }
-    } catch (err) {
-      // Ignore se tabela não existe
-    }
-
-    // Se não há tarefas reais, adicionar uma tarefa padrão
+    // Se não há tarefas, adicionar mensagem padrão
     if (tasks.length === 0) {
       tasks.push({
-        id: 'system-update',
-        title: 'Sistema atualizado e funcionando',
-        due: 'Concluído',
+        id: 'all-good',
+        title: 'Tudo em ordem por aqui!',
+        due: 'Agora',
         priority: 'Baixa'
       });
     }
