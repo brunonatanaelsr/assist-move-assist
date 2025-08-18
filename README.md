@@ -1,88 +1,75 @@
-# Welcome to your Lovable project
+# Assist Move Assist
 
-## Project info
+Sistema de gestão para institutos sociais que auxilia no acompanhamento de beneficiárias, na organização de projetos e na comunicação interna.
 
-**URL**: https://lovable.dev/projects/81219a15-64e5-4b80-9e8c-9340826fee14
+## Visão Geral
+- Cadastro e acompanhamento de beneficiárias
+- Dashboard com métricas e exportação de relatórios (PDF/Excel)
+- Feed de comunicação e sistema de mensagens
+- Gestão de tarefas, projetos e oficinas
 
-## How can I edit this code?
+## Requisitos
+- Node.js 18+
+- npm ou bun
+- Conta no Supabase
+- Conta na Vercel (para deploy)
 
-There are several ways of editing your application.
+## Instalação
+1. **Clone o repositório**
+   ```bash
+   git clone https://github.com/brunonatanaelsr/assist-move-assist.git
+   cd assist-move-assist
+   ```
+2. **Instale as dependências**
+   ```bash
+   npm install
+   # ou
+   bun install
+   ```
+3. **Configure as variáveis de ambiente**
+   ```bash
+   cp .env.example .env.local
+   ```
+   Edite `.env.local` com as chaves do Supabase:
+   ```env
+   VITE_SUPABASE_URL=sua_url_supabase
+   VITE_SUPABASE_ANON_KEY=sua_chave_publica_supabase
+   ```
+4. **Configure o banco de dados**
+   ```bash
+   npm install -g supabase
+   supabase link --project-ref SEU_PROJECT_REF
+   supabase db push
+   ```
+5. **Execute o projeto**
+   ```bash
+   npm run dev
+   # ou
+   bun dev
+   ```
+   Acesse [http://localhost:3000](http://localhost:3000)
 
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/81219a15-64e5-4b80-9e8c-9340826fee14) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+## Scripts Úteis
+```bash
+npm run dev          # Servidor de desenvolvimento
+npm run build        # Build de produção
+npm run preview      # Preview do build
+npm run lint         # Linter ESLint
+npm run type-check   # Verificação de tipos TypeScript
+npm test             # Executar testes
+npm run test:coverage # Testes com coverage
+npm run test:e2e     # Testes E2E
 ```
 
-**Edit a file directly in GitHub**
+## Arquitetura
+- **Frontend**: React 18 + TypeScript + Vite + Tailwind CSS. Código principal em `src/`. Detalhes de componentes e hooks em [docs/TECHNICAL_DOCUMENTATION.md](docs/TECHNICAL_DOCUMENTATION.md).
+- **Backend**: Supabase (PostgreSQL, Auth, Storage). Implementação alternativa com Node/Express em [`backend/`](backend/README.md) para uso com PostgreSQL puro.
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+Para documentação detalhada consulte:
+- [Documentação Técnica](docs/TECHNICAL_DOCUMENTATION.md)
+- [Documentação da API](docs/API_DOCUMENTATION.md)
+- [Guia de Deploy](docs/DEPLOY_GUIDE.md)
+- [Banco de Dados](docs/database/)
 
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/81219a15-64e5-4b80-9e8c-9340826fee14) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
-
-## Environment variables
-
-This project relies on environment variables for configuration. For local development, copy `.env.example` to `.env` and fill in the required values:
-
-```sh
-cp .env.example .env
-```
-
-In production, **do not commit `.env` files**. Instead, supply secrets through your deployment platform or a secret manager:
-
-- **Docker secrets** – create secrets with `docker secret create` and reference them in your `docker-compose.yml`.
-- **Vault** or similar services – store key/value pairs and inject them at runtime.
-
-These approaches keep sensitive values out of version control while still making them available to the application.
+---
+Projeto sob licença MIT.
