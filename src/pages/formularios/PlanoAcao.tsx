@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { generatePAEDI } from '@/utils/paedi';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -162,14 +163,7 @@ export default function PlanoAcao() {
     }
   };
 
-  const generatePAEDI = (beneficiaria: any) => {
-    if (!beneficiaria) return 'N/A';
-    const dataCriacao = new Date(beneficiaria.data_cadastro || beneficiaria.data_criacao);
-    const ano = dataCriacao.getFullYear().toString().slice(-2);
-    const mes = (dataCriacao.getMonth() + 1).toString().padStart(2, '0');
-    const sequence = beneficiaria.id.toString().padStart(3, '0').slice(-3);
-    return `${ano}${mes}${sequence}`;
-  };
+import { generatePAEDI } from '@/utils/paedi';
 
   return (
     <div className="min-h-screen bg-background p-6">

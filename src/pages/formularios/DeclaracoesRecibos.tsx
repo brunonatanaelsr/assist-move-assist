@@ -115,12 +115,19 @@ export default function DeclaracoesRecibos() {
   };
 
   const generatePAEDI = (beneficiaria: any) => {
-    if (!beneficiaria) return 'N/A';
-    const dataCriacao = new Date(beneficiaria.data_cadastro || beneficiaria.data_criacao);
-    const ano = dataCriacao.getFullYear().toString().slice(-2);
-    const mes = (dataCriacao.getMonth() + 1).toString().padStart(2, '0');
-    const sequence = beneficiaria.id.toString().padStart(3, '0').slice(-3);
-    return `${ano}${mes}${sequence}`;
+    if (!beneficiaria || !beneficiaria.id) return 'N/A';
+    try {
+      const dataCriacao = new Date(beneficiaria.data_cadastro || beneficiaria.data_criacao);
+      if (isNaN(dataCriacao.getTime())) return 'N/A';
+      
+      const ano = dataCriacao.getFullYear().toString().slice(-2);
+      const mes = (dataCriacao.getMonth() + 1).toString().padStart(2, '0');
+      const sequence = beneficiaria.id.toString().padStart(3, '0').slice(-3);
+      return `${ano}${mes}${sequence}`;
+    } catch (err) {
+      console.error('Erro ao gerar PAEDI:', err);
+      return 'N/A';
+    }
   };
 
   return (

@@ -4,6 +4,12 @@ const compression = require('compression');
 const morgan = require('morgan');
 require('dotenv').config({ path: process.env.NODE_ENV === 'production' ? '.env.prod' : '.env' });
 
+// Importar middlewares personalizados
+const errorHandler = require('./middleware/errorHandler');
+const { loggerMiddleware } = require('./middleware/logger');
+const validate = require('./middleware/validate');
+const rateLimiter = require('./middleware/rateLimiter');
+
 const app = express();
 
 // Configuração de segurança com Helmet
@@ -95,37 +101,8 @@ app.use('/api/avaliacoes', avaliacoesRouter);
 app.use('/api/presencas', presencasRouter);
 app.use('/api/lista-espera', listaEsperaRouter);
 
-// Rate limiting simples
-const requests = new Map();
-const RATE_LIMIT_WINDOW = 15 * 60 * 1000; // 15 minutos
-const RATE_LIMIT_MAX = 100; // requests por janela
-
-const rateLimit = (req, res, next) => {
-  const ip = req.ip || req.connection.remoteAddress;
-  const now = Date.now();
-  
-  if (!requests.has(ip)) {
-    requests.set(ip, []);
-  }
-  
-  const userRequests = requests.get(ip);
-  const validRequests = userRequests.filter(time => now - time < RATE_LIMIT_WINDOW);
-  
-  if (validRequests.length >= RATE_LIMIT_MAX) {
-    return res.status(429).json({
-      success: false,
-      message: 'Muitas requisições, tente novamente mais tarde'
-    });
-  }
-  
-  validRequests.push(now);
-  requests.set(ip, validRequests);
-  
-  next();
-};
-
 // Aplicar rate limiting nas APIs
-app.use('/api/', rateLimit);
+app.use('/api/', rateLimiter);
 
 // Logging
 if (process.env.NODE_ENV === 'production') {
@@ -369,23 +346,11 @@ app.post('/api/beneficiarias', async (req, res) => {
   }
 });
 
+// Logger middleware
+app.use(loggerMiddleware);
+
 // Middleware de tratamento de erros global
-app.use((error, req, res, next) => {
-  console.error('Unhandled error:', {
-    error: error.message,
-    stack: error.stack,
-    url: req.url,
-    method: req.method,
-    ip: req.ip
-  });
-  
-  res.status(500).json({
-    success: false,
-    message: process.env.NODE_ENV === 'production' 
-      ? 'Erro interno do servidor' 
-      : error.message
-  });
-});
+app.use(errorHandler);
 
 // Middleware para rotas não encontradas
 app.use('*', (req, res) => {

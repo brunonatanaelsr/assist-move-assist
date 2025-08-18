@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom';
+import { generatePAEDI } from '@/utils/paedi';
+import { BeneficiariaDetalhes } from '../types/beneficiaria';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -15,40 +17,7 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { apiService } from '@/services/apiService';
 
-interface Beneficiaria {
-  id: number;
-  nome_completo: string;
-  cpf: string;
-  rg?: string;
-  data_nascimento?: string;
-  idade?: number;
-  contato1: string;
-  contato2?: string;
-  email?: string;
-  endereco?: string;
-  bairro?: string;
-  cep?: string;
-  cidade: string;
-  estado: string;
-  nis?: string;
-  escolaridade?: string;
-  profissao?: string;
-  renda_familiar?: number;
-  composicao_familiar?: number;
-  referencia?: string;
-  data_inicio_instituto?: string;
-  programa_servico?: string;
-  observacoes?: string;
-  necessidades_especiais?: string;
-  medicamentos?: string;
-  alergias?: string;
-  contato_emergencia?: string;
-  documentos_pendentes?: string[];
-  responsavel_cadastro?: number;
-  data_criacao: string;
-  data_atualizacao?: string;
-  ativo: boolean;
-}
+type Beneficiaria = BeneficiariaDetalhes;
 
 interface Participacao {
   id: number;
@@ -176,14 +145,7 @@ export default function DetalhesBeneficiaria() {
     }
   };
 
-  const generatePAEDI = (beneficiaria: Beneficiaria) => {
-    if (!beneficiaria) return 'N/A';
-    const dataCriacao = new Date(beneficiaria.data_criacao);
-    const ano = dataCriacao.getFullYear().toString().slice(-2);
-    const mes = (dataCriacao.getMonth() + 1).toString().padStart(2, '0');
-    const sequence = beneficiaria.id.toString().padStart(3, '0').slice(-3);
-    return `${ano}${mes}${sequence}`;
-  };
+import { generatePAEDI } from '@/utils/paedi';
 
   if (loading) {
     return (

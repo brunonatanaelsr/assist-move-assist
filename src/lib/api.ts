@@ -8,8 +8,13 @@ const getApiBaseUrl = () => {
 
 const API_BASE_URL = getApiBaseUrl();
 
+import { logger } from '@/utils/logger';
+
 const apiFetch = async <T = any>(url: string, options: RequestInit = {}): Promise<T> => {
   try {
+    // Log da requisição
+    logger.api.request(options.method || 'GET', url, options.body);
+    
     // Adicionar token de autenticação do localStorage
     const token = localStorage.getItem('token');
     const headers = {
@@ -27,16 +32,22 @@ const apiFetch = async <T = any>(url: string, options: RequestInit = {}): Promis
     let data: any = null;
     try {
       data = await response.json();
+      // Log da resposta bem sucedida
+      logger.api.response(options.method || 'GET', url, response.status, data);
     } catch {
       data = null;
     }
     if (!response.ok) {
       const message = data?.message || data?.error || response.statusText;
+      // Log do erro da API
+      logger.api.error(options.method || 'GET', url, { status: response.status, message });
       throw new Error(message);
     }
     return data as T;
   } catch (error: any) {
     const message = error?.message || 'Network error';
+    // Log do erro de rede
+    logger.api.error(options.method || 'GET', url, error);
     throw new Error(message);
   }
 };
