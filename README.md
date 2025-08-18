@@ -10,7 +10,7 @@ Sistema de gestão para institutos sociais que auxilia no acompanhamento de bene
 
 ## Requisitos
 - Node.js 18+
-- npm ou bun
+- npm
 - Conta no Supabase
 - Conta na Vercel (para deploy)
 
@@ -23,8 +23,6 @@ Sistema de gestão para institutos sociais que auxilia no acompanhamento de bene
 2. **Instale as dependências**
    ```bash
    npm install
-   # ou
-   bun install
    ```
 3. **Configure as variáveis de ambiente**
    ```bash
@@ -44,8 +42,6 @@ Sistema de gestão para institutos sociais que auxilia no acompanhamento de bene
 5. **Execute o projeto**
    ```bash
    npm run dev
-   # ou
-   bun dev
    ```
    Acesse [http://localhost:3000](http://localhost:3000)
 
