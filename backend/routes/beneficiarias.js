@@ -148,18 +148,52 @@ router.get('/novo', authenticateToken, requireGestor, async (req, res) => {
 // Obter beneficiária específica
 router.get('/:id', authenticateToken, async (req, res) => {
   try {
+    console.log('=== DETALHES DE BENEFICIÁRIA INICIADO ===');
     const { id } = req.params;
+    console.log('ID requisitado:', id);
 
-    const result = await pool.query(
-      "SELECT * FROM beneficiarias WHERE id = $1 AND ativo = true",
+    const result = await pool.query(`
+      SELECT 
+        id,
+        nome_completo,
+        cpf,
+        rg,
+        data_nascimento,
+        email,
+        contato1,
+        contato2,
+        endereco,
+        bairro,
+        cep,
+        cidade,
+        estado,
+        escolaridade,
+        profissao,
+        renda_familiar,
+        composicao_familiar,
+        programa_servico,
+        observacoes,
+        necessidades_especiais,
+        medicamentos,
+        alergias,
+        contato_emergencia,
+        data_inicio_instituto,
+        data_cadastro,
+        data_atualizacao,
+        ativo,
+        status
+      FROM beneficiarias 
+      WHERE id = $1 AND ativo = true`,
       [id]
     );
 
     if (result.rows.length === 0) {
+      console.log('Beneficiária não encontrada com ID:', id);
       return res.status(404).json(errorResponse("Beneficiária não encontrada"));
     }
 
-    const beneficiariaFormatada = formatObjectDates(result.rows[0], ['data_nascimento', 'data_cadastro', 'data_atualizacao']);
+    const beneficiariaFormatada = formatObjectDates(result.rows[0], ['data_nascimento', 'data_cadastro', 'data_atualizacao', 'data_inicio_instituto']);
+    console.log('Dados formatados:', beneficiariaFormatada);
 
     res.json(successResponse(beneficiariaFormatada, "Beneficiária carregada com sucesso"));
 
