@@ -19,7 +19,10 @@ const pool = new Pool({
 router.get('/', authenticateToken, async (req, res) => {
   try {
     console.log('=== LISTAGEM DE BENEFICIÁRIAS INICIADA ===');
+    console.log('IP:', req.ip);
+    console.log('Headers:', req.headers);
     console.log('Query params:', req.query);
+    console.log('User:', req.user);
     
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
@@ -59,14 +62,24 @@ router.get('/', authenticateToken, async (req, res) => {
     console.log('Query conditions:', whereClause);
     console.log('Query params:', params);
 
+    // Query base simplificada
+    const baseQuery = `SELECT * FROM beneficiarias WHERE ${whereClause}`;
+    console.log('Query base:', baseQuery);
+    console.log('Params:', params);
+    
+    // Testa primeiro sem paginação para ver se há resultados
+    const testResult = await pool.query(baseQuery, params);
+    console.log('Total registros sem paginação:', testResult.rows.length);
+
+    // Adiciona ordenação e paginação
+    params.push(limit, offset);
     const query = `
-      SELECT * FROM beneficiarias 
-      WHERE ${whereClause} 
+      ${baseQuery}
       ORDER BY nome_completo 
       LIMIT $${paramCount + 1} 
       OFFSET $${paramCount + 2}
     `;
-    params.push(limit, offset);
+    console.log('Query final:', query);
 
     console.log('Final query:', query);
     console.log('Final params:', params);
@@ -86,8 +99,33 @@ router.get('/', authenticateToken, async (req, res) => {
 
     console.log(`Beneficiarias request from ${req.ip}: page=${page}, limit=${limit}, search=${search || "no"}`);
 
+    // Se não houver resultados, retorna lista vazia com paginação
+    if (result.rows.length === 0) {
+      console.log('Nenhum registro encontrado');
+      return res.json(successResponse(
+        [],
+        "Nenhuma beneficiária encontrada",
+        {
+          pagination: {
+            page,
+            limit,
+            total: 0,
+            pages: 0
+          }
+        }
+      ));
+    }
+
     // Formatar datas das beneficiárias
     const beneficiariasFormatadas = formatArrayDates(result.rows, ['data_nascimento', 'data_cadastro', 'data_atualizacao']);
+
+    // Log dos dados formatados
+    console.log('Dados formatados:', {
+      quantidade: beneficiariasFormatadas.length,
+      pagina_atual: page,
+      total_paginas: Math.ceil(total / limit),
+      total_registros: total
+    });
 
     res.json(successResponse(
       beneficiariasFormatadas,
