@@ -1,4 +1,5 @@
-import type { Request, Response, NextFunction } from 'express';
+import type { Express } from 'express';
+import type { Request, Response, NextFunction } from 'express-serve-static-core';
 import helmet from 'helmet';
 import cors from 'cors';
 import { rateLimit } from 'express-rate-limit';

@@ -24,8 +24,17 @@
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "resolveJsonModule": true,
+    "moduleResolution": "node",
     "typeRoots": ["./node_modules/@types", "./src/types"],
-    "types": ["node", "express", "express-serve-static-core"]
+    "types": ["node", "express", "jest"],
+    "baseUrl": ".",
+    "paths": {
+      "*": ["./node_modules/*", "./src/types/*"]
+    },
+    "allowJs": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "esModuleInterop": true
   },
   "include": [
     "src/**/*"
