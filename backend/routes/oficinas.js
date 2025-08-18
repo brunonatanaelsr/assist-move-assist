@@ -3,6 +3,8 @@ const { Pool } = require('pg');
 const { successResponse, errorResponse } = require('../utils/responseFormatter');
 const { formatArrayDates, formatObjectDates } = require('../utils/dateFormatter');
 const { authenticateToken, requireGestor } = require('../middleware/auth');
+const { registrarEvento } = require('../utils/auditoria');
+const { validarPeriodo } = require('../utils/validacoes');
 
 const router = express.Router();
 
@@ -122,11 +124,35 @@ router.post('/', authenticateToken, requireGestor, async (req, res) => {
       local,
       vagas_totais,
       projeto_id,
-      status = 'ativa'
+      status_detalhado = 'em_planejamento',
+      publico_alvo,
+      pre_requisitos,
+      objetivos,
+      categoria,
+      nivel = 'iniciante',
+      carga_horaria,
+      certificado_disponivel = false,
+      materiais_necessarios,
+      tem_lista_espera = false,
+      lista_espera_limite = 5,
+      meta_dados = {}
     } = req.body;
 
-    if (!nome || !data_inicio || !horario_inicio || !horario_fim) {
-      return res.status(400).json(errorResponse("Campos obrigatórios: nome, data_inicio, horario_inicio, horario_fim"));
+    // Validar campos obrigatórios
+    if (!nome || !data_inicio || !horario_inicio || !horario_fim || !carga_horaria) {
+      return res.status(400).json(errorResponse("Campos obrigatórios: nome, data_inicio, horario_inicio, horario_fim, carga_horaria"));
+    }
+
+    // Validar período
+    const validacaoPeriodo = validarPeriodo({
+      dataInicio: data_inicio,
+      dataFim: data_fim,
+      horarioInicio: horario_inicio,
+      horarioFim: horario_fim
+    });
+
+    if (!validacaoPeriodo.isValid) {
+      return res.status(400).json(errorResponse(validacaoPeriodo.errors.join(", ")));
     }
 
     // Verificar se o projeto existe (se fornecido)
@@ -140,14 +166,46 @@ router.post('/', authenticateToken, requireGestor, async (req, res) => {
       }
     }
 
+    // Verificar se já existe oficina com mesmo nome no mesmo período
+    const oficinaExistente = await pool.query(
+      `SELECT id FROM oficinas 
+       WHERE nome = $1 
+       AND data_inicio = $2 
+       AND ativo = true`,
+      [nome, data_inicio]
+    );
+
+    if (oficinaExistente.rows.length > 0) {
+      return res.status(400).json(errorResponse("Já existe uma oficina com este nome agendada para esta data"));
+    }
+
     const result = await pool.query(
       `INSERT INTO oficinas (
         nome, descricao, instrutor, data_inicio, data_fim, 
         horario_inicio, horario_fim, local, vagas_total,
-        projeto_id, responsavel_id, status
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) 
-        RETURNING *`,
-      [nome, descricao, instrutor, data_inicio, data_fim, horario_inicio, horario_fim, local, vagas_totais, projeto_id, req.user.id, status]
+        projeto_id, responsavel_id, status_detalhado,
+        publico_alvo, pre_requisitos, objetivos,
+        categoria, nivel, carga_horaria,
+        certificado_disponivel, materiais_necessarios,
+        tem_lista_espera, lista_espera_limite, meta_dados
+      ) VALUES (
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
+        $13, $14, $15, $16, $17, $18, $19, $20, $21, $22,
+        $23 || jsonb_build_object(
+          'criado_por', $24,
+          'data_criacao', CURRENT_TIMESTAMP
+        )
+      ) RETURNING *`,
+      [
+        nome, descricao, instrutor, data_inicio, data_fim,
+        horario_inicio, horario_fim, local, vagas_totais,
+        projeto_id, req.user.id, status_detalhado,
+        publico_alvo, pre_requisitos, objetivos,
+        categoria, nivel, carga_horaria,
+        certificado_disponivel, materiais_necessarios,
+        tem_lista_espera, lista_espera_limite, meta_dados,
+        req.user.email
+      ]
     );
 
     const oficinaFormatada = formatObjectDates(result.rows[0], ['data_inicio', 'data_fim', 'data_criacao', 'data_atualizacao']);

@@ -6,7 +6,9 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
-import Beneficiarias from "./pages/Beneficiarias";
+import { ListaBeneficiarias } from "./pages/ListaBeneficiarias";
+import { ListaOficinas } from "./pages/ListaOficinas";
+import { ListaProjetos } from "./pages/ListaProjetos";
 import CadastroBeneficiaria from "./pages/CadastroBeneficiaria";
 import DetalhesBeneficiaria from "./pages/DetalhesBeneficiaria";
 import EditarBeneficiaria from "./pages/EditarBeneficiaria";
@@ -15,14 +17,12 @@ import MainLayout from "./components/layout/main-layout";
 import { PostgreSQLAuthProvider } from "./hooks/usePostgreSQLAuth";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 import Analytics from "./pages/Analytics";
-import OficinasNew from "./pages/OficinasNew";
 import ParticipantesProjeto from "./pages/ParticipantesProjeto";
 import Configuracoes from "./pages/Configuracoes";
 import EditarPerfil from "./components/EditarPerfil";
 import ChatInterno from "./pages/ChatInterno";
 import Atividades from "./pages/Atividades";
 import FeedNew from "./pages/FeedNew";
-import ProjetosNew from "./pages/ProjetosNew";
 import Relatorios from "./pages/Relatorios";
 import FormularioGenerico from "./pages/FormularioGenerico";
 import AnamneseSocial from "./pages/formularios/AnamneseSocial";
@@ -56,7 +56,7 @@ const App = () => (
             <Route path="/beneficiarias" element={
               <ProtectedRoute>
                 <MainLayout>
-                  <Beneficiarias />
+                  <ListaBeneficiarias />
                 </MainLayout>
               </ProtectedRoute>
             } />
@@ -147,7 +147,7 @@ const App = () => (
             <Route path="/oficinas" element={
               <ProtectedRoute>
                 <MainLayout>
-                  <OficinasNew />
+                  <ListaOficinas />
                 </MainLayout>
               </ProtectedRoute>
             } />
@@ -196,7 +196,7 @@ const App = () => (
             <Route path="/projetos" element={
               <ProtectedRoute>
                 <MainLayout>
-                  <ProjetosNew />
+                  <ListaProjetos />
                 </MainLayout>
               </ProtectedRoute>
             } />

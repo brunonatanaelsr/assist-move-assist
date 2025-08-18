@@ -1,4 +1,6 @@
 import { createRoot } from 'react-dom/client'
+import { StrictMode } from 'react'
+import { AppProviders } from './providers/AppProviders'
 import App from './App.tsx'
 import './index.css'
 
@@ -12,7 +14,13 @@ window.addEventListener('unhandledrejection', (e) => {
 });
 
 try {
-  createRoot(document.getElementById("root")!).render(<App />);
+  createRoot(document.getElementById("root")!).render(
+  <StrictMode>
+    <AppProviders>
+      <App />
+    </AppProviders>
+  </StrictMode>
+);
 } catch (error) {
   console.error('Erro ao renderizar App:', error);
   // Fallback para erro

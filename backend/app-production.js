@@ -57,6 +57,18 @@ app.use((req, res, next) => {
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// Importar rotas
+const oficinasRouter = require('./routes/oficinas');
+const presencasRouter = require('./routes/presencas');
+const avaliacoesRouter = require('./routes/avaliacoes');
+const listaEsperaRouter = require('./routes/lista-espera');
+
+// Registrar rotas
+app.use('/api/oficinas', oficinasRouter);
+app.use('/api/presencas', presencasRouter);
+app.use('/api/avaliacoes', avaliacoesRouter);
+app.use('/api/lista-espera', listaEsperaRouter);
+
 // Rate limiting simples
 const requests = new Map();
 const RATE_LIMIT_WINDOW = 15 * 60 * 1000; // 15 minutos
