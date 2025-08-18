@@ -1,11 +1,11 @@
-import { Request, Response, NextFunction } from 'express';
+import type { Request, Response, NextFunction } from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
 import { rateLimit } from 'express-rate-limit';
 import { sanitize } from 'express-mongo-sanitize';
 import xss from 'xss-clean';
 import hpp from 'hpp';
-import { loggerService } from '../services/logger';
+import { loggerService } from '../services/logger.service';
 
 // Configuração base do CORS
 const corsOptions = {
