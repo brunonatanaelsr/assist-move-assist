@@ -11,8 +11,8 @@ const pool = new Pool({
   host: process.env.POSTGRES_HOST || 'localhost',
   port: parseInt(process.env.POSTGRES_PORT || '5432'),
   database: process.env.POSTGRES_DB || 'movemarias',
-  user: process.env.POSTGRES_USER || 'movemarias_user',
-  password: process.env.POSTGRES_PASSWORD || 'movemarias_password_2025',
+  user: process.env.POSTGRES_USER || 'postgres',
+  password: process.env.POSTGRES_PASSWORD || '15002031',
 });
 
 // Listar beneficiárias
@@ -84,6 +84,43 @@ router.get('/', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error("Beneficiarias error:", error);
     res.status(500).json(errorResponse("Erro ao buscar beneficiárias"));
+  }
+});
+
+// Rota para formulário de nova beneficiária
+router.get('/novo', authenticateToken, requireGestor, async (req, res) => {
+  try {
+    // Retornar template de beneficiária
+    const template = {
+      nome_completo: '',
+      cpf: '',
+      rg: '',
+      data_nascimento: null,
+      email: '',
+      contato1: '',
+      contato2: '',
+      endereco: '',
+      bairro: '',
+      cep: '',
+      cidade: 'São Paulo',
+      estado: 'SP',
+      escolaridade: '',
+      profissao: '',
+      renda_familiar: null,
+      composicao_familiar: '',
+      programa_servico: '',
+      observacoes: '',
+      necessidades_especiais: '',
+      medicamentos: '',
+      alergias: '',
+      contato_emergencia: '',
+      data_inicio_instituto: null
+    };
+
+    res.json(successResponse(template, "Template de nova beneficiária"));
+  } catch (error) {
+    console.error("Get template error:", error);
+    res.status(500).json(errorResponse("Erro ao carregar template"));
   }
 });
 
