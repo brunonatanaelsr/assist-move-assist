@@ -9,7 +9,7 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    
+
     services:
       postgres:
         image: postgres:15
@@ -24,30 +24,23 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-    
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
-          
-      - name: Install Backend Dependencies
+
+      - name: Install dependencies
         run: |
-          cd backend
           npm ci
-          
-      - name: Install Frontend Dependencies
-        run: |
-          cd frontend
-          npm ci
-          
-      - name: Run Backend Tests
-        run: |
-          cd backend
-          npm test
+          npm --prefix backend ci
+
+      - name: Run unit tests
+        run: npm test
         env:
           NODE_ENV: test
           PORT: 3000
@@ -58,60 +51,50 @@ jobs:
           POSTGRES_PASSWORD: postgres
           JWT_SECRET: test_secret
           CORS_ORIGIN: http://localhost:5173
-          
-      - name: Run Frontend Tests
-        run: |
-          cd frontend
-          npm test
-          
-      - name: Build Frontend
-        run: |
-          cd frontend
-          npm run build
-          
-      - name: Run E2E Tests
-        run: |
-          cd frontend
-          npm run test:e2e
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Run E2E tests
+        run: npm run test:e2e
 
   deploy:
     needs: test
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
-    
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
-          
+
       - name: Install PM2
         run: npm install -g pm2
-        
+
       - name: Deploy
         run: |
           echo "🚀 Iniciando deploy..."
-          
+
           # Backend
           cd backend
           npm ci --production
           npm run build
-          
+
           # Frontend
-          cd ../frontend
+          cd ..
           npm ci --production
           npm run build
-          
+
           # Aplicar migrations
-          cd ../backend
+          cd backend
           npm run migrate
-          
+
           # Reiniciar PM2
           pm2 reload ecosystem.config.js
         env:
           NODE_ENV: production
-          # Aqui você adicionaria outras variáveis de ambiente necessárias
-          # Recomenda-se usar GitHub Secrets para variáveis sensíveis
+          # Variáveis de ambiente adicionais devem ser configuradas via GitHub Secrets

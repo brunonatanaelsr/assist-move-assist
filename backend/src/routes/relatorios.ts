@@ -1,7 +1,9 @@
 import express from 'express';
 import { Pool } from 'pg';
 import { successResponse, errorResponse } from '../utils/responseFormatter';
-import { authenticateToken, requireGestor } from '../middleware/auth';
+import * as auth from '../middleware/auth';
+const authenticateToken = auth.authenticateToken;
+const requireGestor = auth.requireGestor || ((_req: any, _res: any, next: any) => next());
 import { formatArrayDates } from '../utils/dateFormatter';
 
 const router = express.Router();

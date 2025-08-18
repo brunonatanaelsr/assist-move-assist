@@ -283,3 +283,5 @@ export const requireProfissional = requireRole(['admin', 'profissional']);
 
 // Middleware para administradores
 export const requireAdmin = requireRole('admin');
+
+export const requireGestor = requireRole('gestor');
