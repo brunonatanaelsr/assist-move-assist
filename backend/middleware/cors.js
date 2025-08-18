@@ -17,14 +17,9 @@ const createCorsMiddleware = () => {
         'http://localhost:5173',
         'http://localhost:8080',
         'http://localhost:3000',
-<<<<<<< HEAD
-        'https://special-parakeet-x5qpx47jv5r939p9q-8080.app.github.dev',
-        'https://special-parakeet-x5qpx47jv5r939p9q-3000.app.github.dev',
-=======
         'http://10.0.10.194:8080',
-        'https://special-parakeet-x5qpx47jv5r939p9q-3000.app.github.dev/',
-        'https://special-parakeet-x5qpx47jv5r939p9q-8080.app.github.dev/',
->>>>>>> 8aaf4bc (sua mensagem aqui)
+        'https://probable-fiesta-p7jvj9gp7jj36xp4-8080.app.github.dev',
+        'https://probable-fiesta-p7jvj9gp7jj36xp4-3000.app.github.dev',
         'http://movemarias.squadsolucoes.com.br',
         'https://movemarias.squadsolucoes.com.br'
       ];
