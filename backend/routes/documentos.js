@@ -4,13 +4,13 @@ const path = require('path');
 const { successResponse, errorResponse } = require('../utils/responseFormatter');
 const { formatArrayDates, formatObjectDates } = require('../utils/dateFormatter');
 const { authenticateToken, requireGestor } = require('../middleware/auth');
-const { registrarEvento } = require('./auditoria');
+const { registrarEvento } = require('../utils/auditoria');
 const { 
   upload, 
   calcularHashArquivo, 
   validarArquivo, 
   removerArquivo 
-} = require('../src/config/upload');
+} = require('../middleware/upload-new');
 
 const router = express.Router();
 
@@ -125,7 +125,7 @@ router.get('/', authenticateToken, async (req, res) => {
 });
 
 // Upload de documento
-router.post('/', authenticateToken, requireGestor, upload.single('arquivo'), async (req, res) => {
+router.post('/', authenticateToken, requireGestor, upload.single('documento'), async (req, res) => {
   try {
     const { beneficiaria_id, tipo, nome, descricao } = req.body;
     const arquivo = req.file;
@@ -276,7 +276,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
 });
 
 // Atualizar documento
-router.put('/:id', authenticateToken, requireGestor, upload.single('arquivo'), async (req, res) => {
+router.put('/:id', authenticateToken, requireGestor, upload.single('documento'), async (req, res) => {
   try {
     const { id } = req.params;
     const { tipo, nome, descricao } = req.body;

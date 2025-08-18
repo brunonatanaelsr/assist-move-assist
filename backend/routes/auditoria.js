@@ -23,31 +23,8 @@ const pool = new Pool({
   connectionTimeoutMillis: 2000,
 });
 
-// Função auxiliar para registrar eventos de auditoria
-async function registrarEvento(tipo, descricao, usuario_id, modulo, detalhes = null, ip = null) {
-  try {
-    const query = `
-      INSERT INTO eventos_auditoria 
-        (tipo, descricao, usuario_id, modulo, detalhes, ip_address)
-      VALUES ($1, $2, $3, $4, $5, $6)
-      RETURNING *
-    `;
-    
-    const result = await pool.query(query, [
-      tipo,
-      descricao,
-      usuario_id,
-      modulo,
-      detalhes ? JSON.stringify(detalhes) : null,
-      ip
-    ]);
-
-    return result.rows[0];
-  } catch (error) {
-    console.error('Erro ao registrar evento de auditoria:', error);
-    return null;
-  }
-}
+// Importar função registrarEvento de utils
+const { registrarEvento } = require('../utils/auditoria');
 
 // Listar eventos de auditoria com filtros
 router.get('/', authenticateToken, requireAdmin, async (req, res) => {
@@ -348,8 +325,5 @@ router.get('/:id', authenticateToken, requireAdmin, async (req, res) => {
   }
 });
 
-// Exportar função de registro de eventos para uso em outros módulos
-module.exports = {
-  router,
-  registrarEvento
-};
+// Exportar router para uso no app.js
+module.exports = router;

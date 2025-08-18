@@ -25,7 +25,7 @@ router.get('/', authenticateToken, async (req, res) => {
       pool.query('SELECT COUNT(*) FROM beneficiarias'),
       pool.query('SELECT COUNT(*) FROM oficinas'),
       pool.query('SELECT COUNT(*) FROM projetos'),
-      pool.query('SELECT COUNT(*) FROM participacoes')
+      pool.query('SELECT COUNT(*) FROM presencas_oficinas')
     ]);
 
     // Beneficiárias por status
@@ -79,8 +79,8 @@ router.get('/', authenticateToken, async (req, res) => {
 
     try {
       const [participacoesAtivasResult, beneficiariasComParticipacaoResult] = await Promise.all([
-        pool.query('SELECT COUNT(*) FROM participacoes WHERE ativo = true'),
-        pool.query('SELECT COUNT(DISTINCT beneficiaria_id) FROM participacoes WHERE ativo = true')
+        pool.query('SELECT COUNT(*) FROM presencas_oficinas WHERE ativo = true'),
+        pool.query('SELECT COUNT(DISTINCT beneficiaria_id) FROM presencas_oficinas WHERE ativo = true')
       ]);
 
       estatisticasParticipacao = {
@@ -212,21 +212,21 @@ router.get('/activities', authenticateToken, async (req, res) => {
     // Participações recentes em oficinas
     try {
       const recentParticipacoes = await pool.query(`
-        SELECT p.*, b.nome_completo, pr.nome as projeto_nome
-        FROM participacoes p
+        SELECT p.*, b.nome_completo, o.nome as oficina_nome
+        FROM presencas_oficinas p
         JOIN beneficiarias b ON p.beneficiaria_id = b.id
-        JOIN projetos pr ON p.projeto_id = pr.id
-        WHERE p.ativo = true AND b.ativo = true AND pr.ativo = true
-        ORDER BY p.data_criacao DESC 
+        JOIN oficinas o ON p.oficina_id = o.id
+        WHERE p.ativo = true AND b.ativo = true AND o.ativo = true
+        ORDER BY p.data_registro DESC 
         LIMIT 3
       `);
 
       recentParticipacoes.rows.forEach(participacao => {
         activities.push({
           id: `participacao-${participacao.id}`,
-          type: "Participação em projeto",
-          description: `${participacao.nome_completo} - ${participacao.projeto_nome}`,
-          time: participacao.data_criacao || new Date().toISOString(),
+          type: "Participação em oficina",
+          description: `${participacao.nome_completo} - ${participacao.oficina_nome}`,
+          time: participacao.data_registro || new Date().toISOString(),
           icon: "Calendar"
         });
       });

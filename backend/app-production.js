@@ -58,15 +58,41 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Importar rotas
+const authRouter = require('./routes/auth');
+const beneficiariasRouter = require('./routes/beneficiarias');
 const oficinasRouter = require('./routes/oficinas');
-const presencasRouter = require('./routes/presencas');
+const projetosRouter = require('./routes/projetos');
+const participacoesRouter = require('./routes/participacoes');
+const mensagensRouter = require('./routes/mensagens');
+const dashboardRouter = require('./routes/dashboard');
+const feedRouter = require('./routes/feed');
+const relatoriosRouter = require('./routes/relatorios');
+const declaracoesRouter = require('./routes/declaracoes');
+const auditoriaRouter = require('./routes/auditoria');
+const configuracoesRouter = require('./routes/configuracoes');
+const documentosRouter = require('./routes/documentos');
+const formulariosRouter = require('./routes/formularios');
 const avaliacoesRouter = require('./routes/avaliacoes');
+const presencasRouter = require('./routes/presencas');
 const listaEsperaRouter = require('./routes/lista-espera');
 
 // Registrar rotas
+app.use('/api/auth', authRouter);
+app.use('/api/beneficiarias', beneficiariasRouter);
 app.use('/api/oficinas', oficinasRouter);
-app.use('/api/presencas', presencasRouter);
+app.use('/api/projetos', projetosRouter);
+app.use('/api/participacoes', participacoesRouter);
+app.use('/api/mensagens', mensagensRouter);
+app.use('/api/dashboard', dashboardRouter);
+app.use('/api/feed', feedRouter);
+app.use('/api/relatorios', relatoriosRouter);
+app.use('/api/declaracoes', declaracoesRouter);
+app.use('/api/auditoria', auditoriaRouter);
+app.use('/api/configuracoes', configuracoesRouter);
+app.use('/api/documentos', documentosRouter);
+app.use('/api/formularios', formulariosRouter);
 app.use('/api/avaliacoes', avaliacoesRouter);
+app.use('/api/presencas', presencasRouter);
 app.use('/api/lista-espera', listaEsperaRouter);
 
 // Rate limiting simples

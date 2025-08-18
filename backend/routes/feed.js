@@ -4,7 +4,7 @@ const { Pool } = require('pg');
 const { authenticateToken } = require('../middleware/auth');
 const { successResponse, errorResponse } = require('../utils/responseFormatter');
 const { formatArrayDates, formatObjectDates } = require('../utils/dateFormatter');
-const { uploadMiddleware } = require('../middleware/upload');
+const { uploadMiddleware } = require('../middleware/upload-new');
 
 const pool = new Pool({
   host: process.env.POSTGRES_HOST || 'localhost',

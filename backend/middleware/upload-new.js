@@ -4,15 +4,24 @@ const fs = require('fs');
 const crypto = require('crypto');
 
 // Criar diretório de uploads se não existir
-const uploadsDir = path.join(__dirname, '../uploads/documentos');
+const uploadsDir = path.join(__dirname, '../uploads');
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
+}
+if (!fs.existsSync(path.join(uploadsDir, 'images'))) {
+  fs.mkdirSync(path.join(uploadsDir, 'images'), { recursive: true });
+}
+if (!fs.existsSync(path.join(uploadsDir, 'documentos'))) {
+  fs.mkdirSync(path.join(uploadsDir, 'documentos'), { recursive: true });
 }
 
 // Configuração do storage
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, uploadsDir);
+    // Decide o diretório com base no tipo de upload
+    const isDocument = req.baseUrl.includes('documentos');
+    const uploadPath = isDocument ? path.join(uploadsDir, 'documentos') : path.join(uploadsDir, 'images');
+    cb(null, uploadPath);
   },
   filename: function (req, file, cb) {
     // Gerar nome único: timestamp + nome original
@@ -25,14 +34,21 @@ const storage = multer.diskStorage({
 
 // Filtro para aceitar arquivos permitidos
 const fileFilter = (req, file, cb) => {
-  const allowedTypes = /jpeg|jpg|png|gif|webp|pdf|doc|docx|xls|xlsx|txt/;
+  // Define os tipos permitidos com base no tipo de upload
+  const isDocument = req.baseUrl.includes('documentos');
+  const allowedTypes = isDocument
+    ? /jpeg|jpg|png|gif|webp|pdf|doc|docx|xls|xlsx|txt/
+    : /jpeg|jpg|png|gif|webp/;
+
   const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
   const mimetype = allowedTypes.test(file.mimetype);
 
   if (mimetype && extname) {
     return cb(null, true);
   } else {
-    cb(new Error('Tipo de arquivo não permitido. Formatos aceitos: jpg, png, gif, webp, pdf, doc, docx, xls, xlsx, txt'));
+    cb(new Error(isDocument 
+      ? 'Tipo de arquivo não permitido. Formatos aceitos: jpg, png, gif, webp, pdf, doc, docx, xls, xlsx, txt'
+      : 'Apenas arquivos de imagem são permitidos (jpeg, jpg, png, gif, webp)'));
   }
 };
 
@@ -44,6 +60,33 @@ const upload = multer({
   },
   fileFilter: fileFilter
 });
+
+// Middleware para upload de uma única imagem
+const uploadSingle = upload.single('image');
+
+// Middleware customizado com tratamento de erro
+const uploadMiddleware = (req, res, next) => {
+  uploadSingle(req, res, (err) => {
+    if (err instanceof multer.MulterError) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({
+          success: false,
+          message: 'Arquivo muito grande. Tamanho máximo: 10MB'
+        });
+      }
+      return res.status(400).json({
+        success: false,
+        message: `Erro no upload: ${err.message}`
+      });
+    } else if (err) {
+      return res.status(400).json({
+        success: false,
+        message: err.message
+      });
+    }
+    next();
+  });
+};
 
 // Função para calcular hash do arquivo
 const calcularHashArquivo = async (filePath) => {
@@ -95,6 +138,7 @@ const removerArquivo = async (filePath) => {
 
 module.exports = {
   upload,
+  uploadMiddleware,
   calcularHashArquivo,
   validarArquivo,
   removerArquivo,
