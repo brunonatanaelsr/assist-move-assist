@@ -7,6 +7,7 @@ import { Slider } from '@/components/ui/slider';
 import { Textarea } from '@/components/ui/textarea';
 import { ArrowLeft, Save, Target, TrendingUp, Heart, Home, Users, Briefcase, GraduationCap, Smile } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
+import type { Beneficiaria } from '@/types';
 
 interface RodaVidaData {
   beneficiaria_id: number;
@@ -63,7 +64,7 @@ export default function RodaVida() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-  const [beneficiaria, setBeneficiaria] = useState<any>(null);
+  const [beneficiaria, setBeneficiaria] = useState<Beneficiaria | null>(null);
   const [formData, setFormData] = useState<Partial<RodaVidaData>>({
     beneficiaria_id: parseInt(id || '0'),
     // Inicializar todas as áreas com 5 (neutro)
@@ -232,7 +233,7 @@ export default function RodaVida() {
                     <Textarea
                       id={`reflexao_${area.key}`}
                       placeholder={`Reflita sobre sua satisfação com ${area.label.toLowerCase()}...`}
-                      value={(formData as any)[`reflexoes_${area.key.split('_')[0]}`] || ''}
+                      value={(formData as Record<string, string>)[`reflexoes_${area.key.split('_')[0]}`] || ''}
                       onChange={(e) => setFormData({
                         ...formData,
                         [`reflexoes_${area.key.split('_')[0]}`]: e.target.value

@@ -11,6 +11,7 @@ import { ArrowLeft, Save, Plus, TrendingUp, Calendar, User, Activity, Target } f
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { apiFetch } from '@/lib/api';
+import type { Beneficiaria } from '@/types';
 
 interface RegistroEvolucao {
   id?: number;
@@ -38,7 +39,7 @@ export default function FichaEvolucao() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-  const [beneficiaria, setBeneficiaria] = useState<any>(null);
+  const [beneficiaria, setBeneficiaria] = useState<Beneficiaria | null>(null);
   const [fichaData, setFichaData] = useState<Partial<FichaEvolucaoData>>({
     beneficiaria_id: parseInt(id || '0'),
     registros: [],

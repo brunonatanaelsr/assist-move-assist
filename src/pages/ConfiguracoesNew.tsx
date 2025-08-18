@@ -304,7 +304,7 @@ export default function Configuracoes() {
       });
       
       // Dados mock para exportação baseados no tipo selecionado
-      let dados: any[] = [];
+      let dados: Record<string, unknown>[] = [];
       let titulo = '';
       
       switch (exportConfig.dados) {
@@ -433,7 +433,7 @@ export default function Configuracoes() {
               <div className="space-y-4">
                 <div>
                   <Label>Formato</Label>
-                  <Select value={exportConfig.formato} onValueChange={(value: any) => 
+                  <Select value={exportConfig.formato} onValueChange={(value: ExportConfig['formato']) =>
                     setExportConfig(prev => ({...prev, formato: value}))}>
                     <SelectTrigger>
                       <SelectValue />
@@ -447,7 +447,7 @@ export default function Configuracoes() {
                 </div>
                 <div>
                   <Label>Dados</Label>
-                  <Select value={exportConfig.dados} onValueChange={(value: any) => 
+                  <Select value={exportConfig.dados} onValueChange={(value: ExportConfig['dados']) =>
                     setExportConfig(prev => ({...prev, dados: value}))}>
                     <SelectTrigger>
                       <SelectValue />
@@ -463,7 +463,7 @@ export default function Configuracoes() {
                 </div>
                 <div>
                   <Label>Período</Label>
-                  <Select value={exportConfig.periodo} onValueChange={(value: any) => 
+                  <Select value={exportConfig.periodo} onValueChange={(value: ExportConfig['periodo']) =>
                     setExportConfig(prev => ({...prev, periodo: value}))}>
                     <SelectTrigger>
                       <SelectValue />

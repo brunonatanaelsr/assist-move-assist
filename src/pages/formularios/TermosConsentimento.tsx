@@ -11,6 +11,7 @@ import { ArrowLeft, Shield, FileText, User, CheckCircle, AlertCircle, Eye, Downl
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { apiFetch } from '@/lib/api';
+import type { Beneficiaria } from '@/types';
 
 interface TermoConsentimento {
   beneficiaria_id: number;
@@ -33,7 +34,7 @@ export default function TermosConsentimento() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-  const [beneficiaria, setBeneficiaria] = useState<any>(null);
+  const [beneficiaria, setBeneficiaria] = useState<Beneficiaria | null>(null);
   const [activeSection, setActiveSection] = useState<'novo' | 'historico'>('novo');
   
   const [termoData, setTermoData] = useState<Partial<TermoConsentimento>>({
@@ -46,7 +47,7 @@ export default function TermosConsentimento() {
     local_aplicacao: 'Sede do Projeto Move Marias'
   });
 
-  const [termosExistentes, setTermosExistentes] = useState<any[]>([]);
+  const [termosExistentes, setTermosExistentes] = useState<TermoConsentimento[]>([]);
 
   const tiposTermos = {
     'lgpd': 'Termo de Consentimento LGPD',
@@ -164,7 +165,7 @@ export default function TermosConsentimento() {
     }
   };
 
-  const generatePAEDI = (beneficiaria: any) => {
+  const generatePAEDI = (beneficiaria: Beneficiaria) => {
     if (!beneficiaria) return 'N/A';
     const dataCriacao = new Date(beneficiaria.data_cadastro || beneficiaria.data_criacao);
     const ano = dataCriacao.getFullYear().toString().slice(-2);
@@ -245,7 +246,7 @@ export default function TermosConsentimento() {
                   <Label htmlFor="tipo_termo">Tipo do Termo</Label>
                   <Select
                     value={termoData.tipo_termo || ''}
-                    onValueChange={(value: any) => setTermoData({...termoData, tipo_termo: value})}
+                    onValueChange={(value: TermoConsentimento['tipo_termo']) => setTermoData({...termoData, tipo_termo: value})}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione o tipo" />

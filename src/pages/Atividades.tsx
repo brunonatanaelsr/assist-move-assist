@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, type ComponentType } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,7 @@ interface Activity {
   type: string;
   description: string;
   time: string;
-  icon: any;
+  icon: ComponentType<{ className?: string }>;
   status?: string;
 }
 

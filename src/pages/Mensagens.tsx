@@ -11,28 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { MessageSquare, Send, Plus, Search, User, Calendar, AlertCircle, Clock } from "lucide-react";
 import { apiService } from "@/services/apiService";
 import { toast } from "@/hooks/use-toast";
-
-// Interfaces
-interface Mensagem {
-  id: number;
-  assunto: string;
-  conteudo: string;
-  tipo: 'mensagem' | 'notificacao' | 'lembrete' | 'alerta';
-  prioridade: 'baixa' | 'normal' | 'alta' | 'urgente';
-  remetente_id: number;
-  destinatario_id: number | null;
-  beneficiaria_id: number | null;
-  lida: boolean;
-  data_leitura: string | null;
-  anexos: string[];
-  tags: string[];
-  ativo: boolean;
-  data_criacao: string;
-  data_atualizacao: string;
-  remetente_nome: string;
-  destinatario_nome: string | null;
-  beneficiaria_nome: string | null;
-}
+import type { Mensagem } from '@/types';
 
 interface Conversa {
   beneficiaria_id: number;
@@ -52,12 +31,13 @@ export default function Mensagens() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterTipo, setFilterTipo] = useState<string>("all");
   const [filterPrioridade, setFilterPrioridade] = useState<string>("all");
-  const [novaMensagem, setNovaMensagem] = useState({
+  type NovaMensagem = Pick<Mensagem, 'assunto' | 'conteudo' | 'tipo' | 'prioridade' | 'beneficiaria_id'>;
+  const [novaMensagem, setNovaMensagem] = useState<NovaMensagem>({
     assunto: "",
     conteudo: "",
-    tipo: "mensagem" as const,
-    prioridade: "normal" as const,
-    beneficiaria_id: null as number | null
+    tipo: "mensagem",
+    prioridade: "normal",
+    beneficiaria_id: null
   });
   const [showNewMessageDialog, setShowNewMessageDialog] = useState(false);
 
@@ -267,7 +247,7 @@ export default function Mensagens() {
                   <label className="text-sm font-medium">Tipo</label>
                   <Select
                     value={novaMensagem.tipo}
-                    onValueChange={(value) => setNovaMensagem(prev => ({ ...prev, tipo: value as any }))}
+                    onValueChange={(value: Mensagem['tipo']) => setNovaMensagem(prev => ({ ...prev, tipo: value }))}
                   >
                     <SelectTrigger>
                       <SelectValue />
@@ -285,7 +265,7 @@ export default function Mensagens() {
                   <label className="text-sm font-medium">Prioridade</label>
                   <Select
                     value={novaMensagem.prioridade}
-                    onValueChange={(value) => setNovaMensagem(prev => ({ ...prev, prioridade: value as any }))}
+                    onValueChange={(value: Mensagem['prioridade']) => setNovaMensagem(prev => ({ ...prev, prioridade: value }))}
                   >
                     <SelectTrigger>
                       <SelectValue />

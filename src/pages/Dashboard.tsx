@@ -52,8 +52,8 @@ export default function Dashboard() {
     atendimentosMes: 0,
     engajamento: "0%"
   });
-  const [recentActivities, setRecentActivities] = useState<any[]>([]);
-  const [upcomingTasks, setUpcomingTasks] = useState<any[]>([]);
+  const [recentActivities, setRecentActivities] = useState<Record<string, unknown>[]>([]);
+  const [upcomingTasks, setUpcomingTasks] = useState<Record<string, unknown>[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

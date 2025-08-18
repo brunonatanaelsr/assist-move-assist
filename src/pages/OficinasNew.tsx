@@ -381,7 +381,7 @@ export default function OficinasNew() {
 
                 <div>
                   <Label htmlFor="status">Status da Oficina</Label>
-                  <Select value={formData.status} onValueChange={(value: any) => setFormData({ ...formData, status: value })}>
+                  <Select value={formData.status} onValueChange={(value: Oficina['status']) => setFormData({ ...formData, status: value })}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>

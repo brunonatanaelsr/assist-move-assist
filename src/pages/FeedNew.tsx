@@ -71,6 +71,14 @@ interface Stats {
   posts_recentes: number;
 }
 
+interface PostFormData {
+  tipo: Post['tipo'];
+  titulo: string;
+  conteudo: string;
+  autor_nome?: string;
+  imagem_url: string;
+}
+
 const tiposPost = [
   { value: 'anuncio', label: 'Anúncio', icon: Megaphone, color: 'bg-blue-100 text-blue-800' },
   { value: 'evento', label: 'Evento', icon: Calendar, color: 'bg-green-100 text-green-800' },
@@ -110,8 +118,8 @@ export default function Feed() {
     posts_recentes: 0
   });
 
-  const [formData, setFormData] = useState({
-    tipo: 'anuncio' as const,
+  const [formData, setFormData] = useState<PostFormData>({
+    tipo: 'anuncio',
     titulo: '',
     conteudo: '',
     autor_nome: profile?.nome_completo || '',
@@ -129,8 +137,8 @@ export default function Feed() {
   // Estados para edição
   const [editingPost, setEditingPost] = useState<Post | null>(null);
   const [showEditForm, setShowEditForm] = useState(false);
-  const [editFormData, setEditFormData] = useState({
-    tipo: 'anuncio' as 'anuncio' | 'evento' | 'noticia' | 'conquista',
+  const [editFormData, setEditFormData] = useState<PostFormData>({
+    tipo: 'anuncio',
     titulo: '',
     conteudo: '',
     imagem_url: ''
@@ -393,7 +401,7 @@ export default function Feed() {
       } else {
         throw new Error(response.message || 'Erro no upload');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Erro',
         description: error.message || 'Erro ao enviar imagem',
@@ -468,7 +476,7 @@ export default function Feed() {
           description: 'Post criado com sucesso!',
         });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Erro',
         description: error.message || 'Erro ao criar post',
@@ -503,7 +511,7 @@ export default function Feed() {
       } else {
         throw new Error(response.message);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Erro',
         description: error.message || 'Erro ao excluir post',
@@ -606,7 +614,7 @@ export default function Feed() {
       } else {
         throw new Error(uploadResponse.message || 'Erro no upload');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Erro',
         description: error.message || 'Erro ao enviar imagem',
@@ -673,7 +681,7 @@ export default function Feed() {
       } else {
         throw new Error(response.message);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Erro',
         description: error.message || 'Erro ao editar post',
@@ -791,7 +799,7 @@ export default function Feed() {
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div>
                     <Label>Tipo</Label>
-                    <Select value={formData.tipo} onValueChange={(value: any) => setFormData({ ...formData, tipo: value })}>
+                    <Select value={formData.tipo} onValueChange={(value: Post['tipo']) => setFormData({ ...formData, tipo: value })}>
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
@@ -919,7 +927,7 @@ export default function Feed() {
                 <form onSubmit={handleEditSubmit} className="space-y-4">
                   <div>
                     <Label>Tipo do Post</Label>
-                    <Select value={editFormData.tipo} onValueChange={(value: any) => setEditFormData({ ...editFormData, tipo: value })}>
+                    <Select value={editFormData.tipo} onValueChange={(value: Post['tipo']) => setEditFormData({ ...editFormData, tipo: value })}>
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>

@@ -92,7 +92,7 @@ export default function CadastroBeneficiaria() {
         navigate('/beneficiarias');
       }, 2000);
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Erro ao cadastrar beneficiária:', error);
       if (error.message?.includes('CPF já existe')) {
         setError('Este CPF já está cadastrado no sistema');

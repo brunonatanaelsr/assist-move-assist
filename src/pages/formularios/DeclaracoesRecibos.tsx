@@ -10,6 +10,7 @@ import { ArrowLeft, FileText, Download, Calendar, User, Award, Receipt, CheckCir
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { apiFetch } from '@/lib/api';
+import type { Beneficiaria } from '@/types';
 
 interface DeclaracaoData {
   tipo: 'comparecimento' | 'participacao' | 'conclusao' | 'frequencia';
@@ -40,7 +41,7 @@ export default function DeclaracoesRecibos() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-  const [beneficiaria, setBeneficiaria] = useState<any>(null);
+  const [beneficiaria, setBeneficiaria] = useState<Beneficiaria | null>(null);
   const [activeTab, setActiveTab] = useState<'declaracao' | 'recibo'>('declaracao');
   
   const [declaracaoData, setDeclaracaoData] = useState<Partial<DeclaracaoData>>({
@@ -114,7 +115,7 @@ export default function DeclaracoesRecibos() {
     }
   };
 
-  const generatePAEDI = (beneficiaria: any) => {
+  const generatePAEDI = (beneficiaria: Beneficiaria) => {
     if (!beneficiaria) return 'N/A';
     const dataCriacao = new Date(beneficiaria.data_cadastro || beneficiaria.data_criacao);
     const ano = dataCriacao.getFullYear().toString().slice(-2);
@@ -182,7 +183,7 @@ export default function DeclaracoesRecibos() {
                 <Label htmlFor="tipo_declaracao">Tipo de Declaração</Label>
                 <Select
                   value={declaracaoData.tipo || ''}
-                  onValueChange={(value: any) => setDeclaracaoData({...declaracaoData, tipo: value})}
+                  onValueChange={(value: DeclaracaoData['tipo']) => setDeclaracaoData({...declaracaoData, tipo: value})}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione o tipo" />
@@ -324,7 +325,7 @@ export default function DeclaracoesRecibos() {
                 <Label htmlFor="tipo_recibo">Tipo de Benefício</Label>
                 <Select
                   value={reciboData.tipo || ''}
-                  onValueChange={(value: any) => setReciboData({...reciboData, tipo: value})}
+                  onValueChange={(value: ReciboData['tipo']) => setReciboData({...reciboData, tipo: value})}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione o tipo" />

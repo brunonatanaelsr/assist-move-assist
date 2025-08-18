@@ -11,6 +11,7 @@ import { ArrowLeft, GraduationCap, Calendar, User, MapPin, Clock, CheckCircle, A
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { apiFetch } from '@/lib/api';
+import type { Beneficiaria } from '@/types';
 
 interface MatriculaProjeto {
   beneficiaria_id: number;
@@ -63,12 +64,18 @@ interface MatriculaProjeto {
   data_aprovacao?: string;
 }
 
+interface Projeto {
+  id: number;
+  nome: string;
+  status: string;
+}
+
 export default function MatriculaProjetos() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-  const [beneficiaria, setBeneficiaria] = useState<any>(null);
-  const [projetos, setProjetos] = useState<any[]>([]);
+  const [beneficiaria, setBeneficiaria] = useState<Beneficiaria | null>(null);
+  const [projetos, setProjetos] = useState<Projeto[]>([]);
   const [activeTab, setActiveTab] = useState<'dados' | 'elegibilidade' | 'compromissos' | 'complementares'>('dados');
   
   const [matriculaData, setMatriculaData] = useState<Partial<MatriculaProjeto>>({
@@ -131,7 +138,7 @@ export default function MatriculaProjetos() {
     try {
       const response = await apiFetch('/api/projetos');
       if (response.success) {
-        setProjetos(response.data.filter((p: any) => p.status === 'ativo'));
+        setProjetos(response.data.filter((p: Projeto) => p.status === 'ativo'));
       }
     } catch (error) {
       console.error('Erro ao carregar projetos:', error);
@@ -207,7 +214,7 @@ export default function MatriculaProjetos() {
     return criterios.every(criterio => criterio === true);
   };
 
-  const generatePAEDI = (beneficiaria: any) => {
+  const generatePAEDI = (beneficiaria: Beneficiaria) => {
     if (!beneficiaria) return 'N/A';
     const dataCriacao = new Date(beneficiaria.data_cadastro || beneficiaria.data_criacao);
     const ano = dataCriacao.getFullYear().toString().slice(-2);
@@ -795,7 +802,7 @@ export default function MatriculaProjetos() {
                   <Label>Status da Matrícula</Label>
                   <Select
                     value={matriculaData.status_matricula || 'pendente'}
-                    onValueChange={(value: any) => setMatriculaData({...matriculaData, status_matricula: value})}
+                    onValueChange={(value: MatriculaProjeto['status_matricula']) => setMatriculaData({...matriculaData, status_matricula: value})}
                   >
                     <SelectTrigger>
                       <SelectValue />

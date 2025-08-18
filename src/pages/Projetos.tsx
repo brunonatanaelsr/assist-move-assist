@@ -62,7 +62,7 @@ export default function Projetos() {
       } else {
         setError(response.message || 'Erro ao carregar projetos');
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Erro ao carregar projetos:', err);
       setError(err.message || 'Erro ao carregar projetos');
     } finally {
@@ -102,7 +102,7 @@ export default function Projetos() {
       } else {
         setError(response.message || 'Erro ao salvar projeto');
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Erro ao salvar projeto:', err);
       setError(err.message || 'Erro ao salvar projeto');
     } finally {

@@ -8,7 +8,7 @@ import { apiService } from "@/services/apiService";
 export default function DashboardTest() {
   const [loading, setLoading] = useState(true);
   const [count, setCount] = useState(0);
-  const [apiData, setApiData] = useState<any>(null);
+  const [apiData, setApiData] = useState<Record<string, unknown> | null>(null);
 
   useEffect(() => {
     const loadData = async () => {

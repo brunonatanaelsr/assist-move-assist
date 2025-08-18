@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
+import type { FormData } from '@/types';
 
 export default function DebugDashboard() {
-  const [debug, setDebug] = useState<any>({});
+  const [debug, setDebug] = useState<FormData>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

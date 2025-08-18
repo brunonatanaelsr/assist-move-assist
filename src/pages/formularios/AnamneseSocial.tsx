@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { ArrowLeft, Save, FileText, User, Home, Heart, Users, Briefcase, GraduationCap } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
+import type { Beneficiaria } from '@/types';
 
 interface AnamneseSocialData {
   beneficiaria_id: number;
@@ -55,7 +56,7 @@ export default function AnamneseSocial() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-  const [beneficiaria, setBeneficiaria] = useState<any>(null);
+  const [beneficiaria, setBeneficiaria] = useState<Beneficiaria | null>(null);
   const [formData, setFormData] = useState<Partial<AnamneseSocialData>>({
     beneficiaria_id: parseInt(id || '0'),
     beneficios_sociais: [],

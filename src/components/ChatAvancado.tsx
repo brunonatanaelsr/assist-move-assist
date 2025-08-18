@@ -351,7 +351,7 @@ export default function ChatAvancado() {
           }
         }
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Erro ao enviar mensagem:', error);
       toast.error(error.message || 'Erro ao enviar mensagem');
     }
@@ -399,7 +399,7 @@ export default function ChatAvancado() {
       }
 
       toast.success('Arquivo enviado com sucesso');
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Erro no upload:', error);
       toast.error(error.message || 'Erro ao enviar arquivo');
     } finally {

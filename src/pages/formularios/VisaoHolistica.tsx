@@ -11,6 +11,7 @@ import { ArrowLeft, Eye, Target, TrendingUp, AlertCircle, CheckCircle, Brain, He
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { apiService } from '@/services/apiService';
+import type { Beneficiaria } from '@/types';
 
 interface VisaoHolistica {
   beneficiaria_id: number;
@@ -93,7 +94,7 @@ export default function VisaoHolistica() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-  const [beneficiaria, setBeneficiaria] = useState<any>(null);
+  const [beneficiaria, setBeneficiaria] = useState<Beneficiaria | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'dimensoes' | 'sintese' | 'profissional'>('dimensoes');
   
@@ -185,11 +186,11 @@ export default function VisaoHolistica() {
     */
   };
 
-  const updateDimensao = (dimensao: string, field: string, value: any) => {
+  const updateDimensao = (dimensao: string, field: string, value: string | number) => {
     setVisaoData({
       ...visaoData,
       [dimensao]: {
-        ...(visaoData[dimensao as keyof VisaoHolistica] as any),
+        ...(visaoData[dimensao as keyof VisaoHolistica] as VisaoHolistica[keyof VisaoHolistica]),
         [field]: value
       }
     });
@@ -207,7 +208,7 @@ export default function VisaoHolistica() {
     return 'Alto';
   };
 
-  const generatePAEDI = (beneficiaria: any) => {
+  const generatePAEDI = (beneficiaria: Beneficiaria) => {
     if (!beneficiaria) return 'N/A';
     const dataCriacao = new Date(beneficiaria.data_cadastro || beneficiaria.data_criacao);
     const ano = dataCriacao.getFullYear().toString().slice(-2);
@@ -288,7 +289,7 @@ export default function VisaoHolistica() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {dimensoes.map((dimensao) => {
               const Icon = dimensao.icon;
-              const data = visaoData[dimensao.key as keyof VisaoHolistica] as any;
+              const data = visaoData[dimensao.key as keyof VisaoHolistica] as VisaoHolistica[keyof VisaoHolistica];
               
               return (
                 <Card key={dimensao.key}>
@@ -478,7 +479,7 @@ export default function VisaoHolistica() {
                   <Label>Complexidade do Caso</Label>
                   <Select
                     value={visaoData.avaliacao_complexidade || 'media'}
-                    onValueChange={(value: any) => setVisaoData({...visaoData, avaliacao_complexidade: value})}
+                    onValueChange={(value: VisaoHolistica['avaliacao_complexidade']) => setVisaoData({...visaoData, avaliacao_complexidade: value})}
                   >
                     <SelectTrigger>
                       <SelectValue />

@@ -259,7 +259,7 @@ export default function Projetos() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="status">Status</Label>
-                    <Select value={formData.status} onValueChange={(value: any) => setFormData({ ...formData, status: value })}>
+                    <Select value={formData.status} onValueChange={(value: Projeto['status']) => setFormData({ ...formData, status: value })}>
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>

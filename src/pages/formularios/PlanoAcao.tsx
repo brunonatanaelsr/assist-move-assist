@@ -11,6 +11,7 @@ import { ArrowLeft, Target, Plus, Trash2, Calendar, User, CheckCircle, AlertTria
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { apiFetch } from '@/lib/api';
+import type { Beneficiaria } from '@/types';
 
 interface Acao {
   id?: number;
@@ -59,7 +60,7 @@ export default function PlanoAcao() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-  const [beneficiaria, setBeneficiaria] = useState<any>(null);
+  const [beneficiaria, setBeneficiaria] = useState<Beneficiaria | null>(null);
   const [activeTab, setActiveTab] = useState<'planejamento' | 'acoes' | 'monitoramento'>('planejamento');
   
   const [planoData, setPlanoData] = useState<Partial<PlanoAcao>>({
@@ -114,7 +115,7 @@ export default function PlanoAcao() {
     setPlanoData({ ...planoData, acoes });
   };
 
-  const updateAcao = (index: number, field: keyof Acao, value: any) => {
+  const updateAcao = (index: number, field: keyof Acao, value: Acao[keyof Acao]) => {
     const acoes = [...(planoData.acoes || [])];
     acoes[index] = { ...acoes[index], [field]: value };
     setPlanoData({ ...planoData, acoes });
@@ -162,7 +163,7 @@ export default function PlanoAcao() {
     }
   };
 
-  const generatePAEDI = (beneficiaria: any) => {
+  const generatePAEDI = (beneficiaria: Beneficiaria) => {
     if (!beneficiaria) return 'N/A';
     const dataCriacao = new Date(beneficiaria.data_cadastro || beneficiaria.data_criacao);
     const ano = dataCriacao.getFullYear().toString().slice(-2);
@@ -507,7 +508,7 @@ export default function PlanoAcao() {
                     <Label htmlFor="frequencia">Frequência de Monitoramento</Label>
                     <Select
                       value={planoData.frequencia_monitoramento || 'mensal'}
-                      onValueChange={(value: any) => setPlanoData({...planoData, frequencia_monitoramento: value})}
+                    onValueChange={(value: PlanoAcao['frequencia_monitoramento']) => setPlanoData({...planoData, frequencia_monitoramento: value})}
                     >
                       <SelectTrigger>
                         <SelectValue />
