@@ -1,8 +1,8 @@
-const express = require('express');
-const { Pool } = require('pg');
-const { successResponse, errorResponse } = require('../utils/responseFormatter');
-const { authenticateToken, requireGestor } = require('../middleware/auth');
-const { formatArrayDates } = require('../utils/dateFormatter');
+import express from 'express';
+import { Pool } from 'pg';
+import { successResponse, errorResponse } from '../utils/responseFormatter';
+import { authenticateToken, requireGestor } from '../middleware/auth';
+import { formatArrayDates } from '../utils/dateFormatter';
 
 const router = express.Router();
 
@@ -23,7 +23,7 @@ router.get('/beneficiarias', authenticateToken, requireGestor, async (req, res) 
   try {
     const { data_inicio, data_fim } = req.query;
     let whereClause = 'WHERE b.ativo = true';
-    const params = [];
+    const params: any[] = [];
 
     if (data_inicio && data_fim) {
       whereClause += ' AND b.data_criacao BETWEEN $1 AND $2';
@@ -56,7 +56,7 @@ router.get('/oficinas', authenticateToken, requireGestor, async (req, res) => {
   try {
     const { data_inicio, data_fim } = req.query;
     let whereClause = 'WHERE o.ativo = true';
-    const params = [];
+    const params: any[] = [];
 
     if (data_inicio && data_fim) {
       whereClause += ' AND o.data_inicio BETWEEN $1 AND $2';
@@ -108,7 +108,7 @@ router.get('/projetos', authenticateToken, requireGestor, async (req, res) => {
   try {
     const { data_inicio, data_fim } = req.query;
     let whereClause = 'WHERE p.ativo = true';
-    const params = [];
+    const params: any[] = [];
 
     if (data_inicio && data_fim) {
       whereClause += ' AND p.data_inicio BETWEEN $1 AND $2';
@@ -145,7 +145,7 @@ router.get('/participacao', authenticateToken, requireGestor, async (req, res) =
   try {
     const { data_inicio, data_fim } = req.query;
     let whereClause = 'WHERE p.ativo = true';
-    const params = [];
+    const params: any[] = [];
 
     if (data_inicio && data_fim) {
       whereClause += ' AND p.data_criacao BETWEEN $1 AND $2';
@@ -242,4 +242,4 @@ router.get('/consolidado', authenticateToken, requireGestor, async (req, res) =>
   }
 });
 
-module.exports = router;
+export default router;
