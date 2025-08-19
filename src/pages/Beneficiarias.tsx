@@ -160,7 +160,9 @@ export default function Beneficiarias() {
     }
   };
 
-  const getInitials = (nome: string) => {
+  const getInitials = (nome?: string | null) => {
+    if (!nome) return 'UN';
+    
     return nome.split(" ").map(n => n[0]).join("").substring(0, 2).toUpperCase();
   };
 

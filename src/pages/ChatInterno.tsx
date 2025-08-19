@@ -241,16 +241,16 @@ export default function ChatInterno() {
     });
   };
 
-  const getInitials = (nome: string) => {
-    if (!nome) return 'UN'; // Usuário não identificado
-    return nome.split(' ')
+  const getInitials = (nome?: string | null) => {
+    if (!nome) return 'UN';
+    
+    return nome
+      .split(' ')
       .map(word => word[0])
       .join('')
       .toUpperCase()
       .slice(0, 2);
-  };
-
-  const usuariosFiltrados = usuarios.filter(u => 
+  };  const usuariosFiltrados = usuarios.filter(u => 
     u.nome.toLowerCase().includes(buscarUsuario.toLowerCase()) ||
     u.email.toLowerCase().includes(buscarUsuario.toLowerCase())
   );

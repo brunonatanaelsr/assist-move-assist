@@ -719,7 +719,9 @@ export default function Feed() {
     return false;
   };
 
-  const getInitials = (name: string) => {
+  const getInitials = (name?: string | null) => {
+    if (!name) return 'UN'; // UN = Usuário não identificado
+    
     return name
       .split(' ')
       .map(word => word[0])

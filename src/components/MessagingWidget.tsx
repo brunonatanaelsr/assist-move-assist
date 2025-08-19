@@ -127,11 +127,16 @@ const MessagingWidget = () => {
     return otherParticipant?.nome_completo || 'Usuário';
   };
 
-  const getInitials = (name: string) => {
-    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-  };
-
-  if (!isOpen) {
+  const getInitials = (name?: string | null) => {
+    if (!name) return 'UN';
+    
+    return name
+      .split(' ')
+      .map(word => word[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+  };  if (!isOpen) {
     return (
       <Button
         onClick={() => setIsOpen(true)}
