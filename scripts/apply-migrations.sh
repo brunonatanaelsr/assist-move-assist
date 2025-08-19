@@ -8,9 +8,9 @@ DB_PORT="${POSTGRES_PORT:-5432}"
 DB_NAME="${POSTGRES_DB:-movemarias}"
 DB_USER="${POSTGRES_USER:-postgres}"
 
-# Executar o arquivo de schema
-echo "Aplicando schema completo..."
-psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -f /workspaces/assist-move-assist/migrations/schema_completo_adequado.sql
+# Executar o schema consolidado
+echo "Aplicando schema consolidado v2..."
+psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -f /workspaces/assist-move-assist/migrations/schema_consolidado_v2.sql
 
 # Verificar se houve erro
 if [ $? -eq 0 ]; then

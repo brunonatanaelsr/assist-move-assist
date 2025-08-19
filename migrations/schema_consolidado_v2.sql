@@ -249,12 +249,54 @@ CREATE TABLE IF NOT EXISTS log_auditoria (
     data_operacao TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Tabela de Cache do Dashboard
+-- Tabelas para o Dashboard
 CREATE TABLE IF NOT EXISTS dashboard_cache (
     key VARCHAR(100) PRIMARY KEY,
     data JSONB NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    expires_at TIMESTAMP WITH TIME ZONE NOT NULL
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    cache_type VARCHAR(50) NOT NULL DEFAULT 'general',
+    user_id INTEGER REFERENCES usuarios(id)
+);
+
+CREATE TABLE IF NOT EXISTS dashboard_widgets (
+    id SERIAL PRIMARY KEY,
+    usuario_id INTEGER NOT NULL REFERENCES usuarios(id),
+    widget_type VARCHAR(50) NOT NULL,
+    posicao INTEGER NOT NULL,
+    configuracoes JSONB DEFAULT '{}',
+    visivel BOOLEAN DEFAULT true,
+    data_criacao TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    data_atualizacao TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS dashboard_alertas (
+    id SERIAL PRIMARY KEY,
+    tipo VARCHAR(50) NOT NULL,
+    mensagem TEXT NOT NULL,
+    nivel VARCHAR(20) NOT NULL DEFAULT 'info',
+    data_inicio TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    data_fim TIMESTAMP WITH TIME ZONE,
+    usuarios_alvo JSONB,
+    acoes_requeridas JSONB,
+    resolvido BOOLEAN DEFAULT false,
+    resolvido_por INTEGER REFERENCES usuarios(id),
+    data_resolucao TIMESTAMP WITH TIME ZONE,
+    data_criacao TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS dashboard_kpis (
+    id SERIAL PRIMARY KEY,
+    nome VARCHAR(100) NOT NULL,
+    descricao TEXT,
+    formula TEXT NOT NULL,
+    meta DECIMAL(10,2),
+    unidade VARCHAR(20),
+    frequencia_atualizacao VARCHAR(20) DEFAULT 'diaria',
+    responsavel_id INTEGER REFERENCES usuarios(id),
+    ativo BOOLEAN DEFAULT true,
+    data_criacao TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    data_atualizacao TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- Tabela de Configurações do Sistema
@@ -341,15 +383,45 @@ CREATE INDEX IF NOT EXISTS idx_log_auditoria_usuario ON log_auditoria(usuario_id
 CREATE INDEX IF NOT EXISTS idx_login_attempts_email_time ON login_attempts(email, attempt_time DESC);
 CREATE INDEX IF NOT EXISTS idx_dashboard_cache_expires ON dashboard_cache(expires_at);
 
--- Views Materializadas
+-- Views Materializadas para Dashboard
 CREATE MATERIALIZED VIEW IF NOT EXISTS mv_beneficiarias_stats AS
 SELECT 
-    date_trunc('month', data_cadastro) as month,
+    date_trunc('month', b.data_cadastro) as month,
     COUNT(*) as total_registros,
     COUNT(CASE WHEN status = 'ativa' THEN 1 END) as ativas,
-    COUNT(CASE WHEN status = 'inativa' THEN 1 END) as inativas
-FROM beneficiarias
-GROUP BY date_trunc('month', data_cadastro)
+    COUNT(CASE WHEN status = 'inativa' THEN 1 END) as inativas,
+    COUNT(DISTINCT CASE WHEN p.id IS NOT NULL THEN b.id END) as com_participacao,
+    COUNT(DISTINCT CASE WHEN dc.id IS NOT NULL THEN b.id END) as com_declaracoes
+FROM beneficiarias b
+LEFT JOIN participacoes p ON b.id = p.beneficiaria_id AND p.ativo = true
+LEFT JOIN declaracoes_comparecimento dc ON b.id = dc.beneficiaria_id
+GROUP BY date_trunc('month', b.data_cadastro)
+WITH DATA;
+
+CREATE MATERIALIZED VIEW IF NOT EXISTS mv_oficinas_stats AS
+SELECT 
+    date_trunc('month', o.data_inicio) as month,
+    COUNT(DISTINCT o.id) as total_oficinas,
+    SUM(o.vagas_totais) as total_vagas,
+    SUM(o.vagas_ocupadas) as vagas_ocupadas,
+    COUNT(DISTINCT p.beneficiaria_id) as total_participantes,
+    ROUND(AVG(CASE WHEN p.avaliacao IS NOT NULL THEN p.avaliacao ELSE NULL END), 2) as media_avaliacao
+FROM oficinas o
+LEFT JOIN participacoes p ON o.id = p.oficina_id AND p.ativo = true
+GROUP BY date_trunc('month', o.data_inicio)
+WITH DATA;
+
+CREATE MATERIALIZED VIEW IF NOT EXISTS mv_projetos_stats AS
+SELECT 
+    date_trunc('month', p.data_inicio) as month,
+    COUNT(DISTINCT p.id) as total_projetos,
+    COUNT(DISTINCT o.id) as total_oficinas,
+    COUNT(DISTINCT pa.beneficiaria_id) as total_beneficiarias,
+    SUM(p.orcamento) as orcamento_total
+FROM projetos p
+LEFT JOIN oficinas o ON p.id = o.projeto_id AND o.ativo = true
+LEFT JOIN participacoes pa ON o.id = pa.oficina_id AND pa.ativo = true
+GROUP BY date_trunc('month', p.data_inicio)
 WITH DATA;
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_mv_beneficiarias_stats_month ON mv_beneficiarias_stats(month);
