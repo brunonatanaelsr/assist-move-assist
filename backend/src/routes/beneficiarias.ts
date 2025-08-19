@@ -1,52 +1,54 @@
 import express from 'express';
-import { db } from '../services/db';
-import { authenticateToken, requireProfissional, AuthenticatedRequest } from '../middleware/auth';
+import { Pool } from 'pg';
+import { BeneficiariasRepository } from '../repositories/BeneficiariasRepository';
+import { authenticateToken, PERMISSIONS, requirePermissions, AuthenticatedRequest } from '../middleware/auth';
+import { successResponse, errorResponse } from '../utils/responseFormatter';
+import { catchAsync } from '../middleware/errorHandler';
+import { formatObjectDates } from '../utils/dateFormatter';
+import { AppError } from '../utils/AppError';
 import { loggerService } from '../services/logger';
 
+// Configuração do PostgreSQL
+const pool = new Pool({
+  host: process.env.POSTGRES_HOST || 'localhost',
+  port: parseInt(process.env.POSTGRES_PORT || '5432'),
+  database: process.env.POSTGRES_DB || 'movemarias',
+  user: process.env.POSTGRES_USER || 'movemarias_user',
+  password: process.env.POSTGRES_PASSWORD || 'movemarias_password_2025',
+});
+
 const router = express.Router();
+const beneficiariasRepository = new BeneficiariasRepository(pool);
 
-// GET /beneficiarias - Listar beneficiárias
-router.get('/', authenticateToken, async (req: AuthenticatedRequest, res: express.Response) => {
-  try {
-    const { search, status, page = '1', limit = '10' } = req.query;
-    
-    const offset = (Number(page) - 1) * Number(limit);
-    
-    const filters = {
-      search: search as string,
-      status: status as string,
-      limit: Number(limit),
-      offset
-    };
+// GET /:id - Buscar beneficiária por ID
+router.get(
+  '/:id',
+  authenticateToken,
+  requirePermissions([PERMISSIONS.READ_BENEFICIARIA]),
+  catchAsync(async (req: AuthenticatedRequest, res: express.Response) => {
+    const { id } = req.params;
 
-    const beneficiarias = await db.getBeneficiarias(filters);
-    
-    // Contar total para paginação
-    let countQuery = 'SELECT COUNT(*) as total FROM beneficiarias WHERE 1=1';
-    const countParams: any[] = [];
-
-    if (filters.search) {
-      countParams.push(`%${filters.search}%`);
-      countQuery += ` AND (nome_completo ILIKE $${countParams.length} OR cpf ILIKE $${countParams.length})`;
-    }
-
-    if (filters.status) {
-      countParams.push(filters.status);
-      countQuery += ` AND status = $${countParams.length}`;
-    }
-
-    const totalResult = await db.query(countQuery, countParams);
-    const total = Number(totalResult[0].total);
-
-    res.json({
-      beneficiarias,
-      pagination: {
-        page: Number(page),
-        limit: Number(limit),
-        total,
-        totalPages: Math.ceil(total / Number(limit))
+    try {
+      const beneficiaria = await beneficiariasRepository.buscarPorId(Number(id));
+      
+      // Formatar datas antes de enviar a resposta
+      const beneficiariaFormatada = formatObjectDates(beneficiaria, [
+        'data_nascimento',
+        'data_criacao',
+        'data_atualizacao'
+      ]);
+      
+      res.json(successResponse(beneficiariaFormatada, "Beneficiária carregada com sucesso"));
+    } catch (error) {
+      if (error instanceof AppError) {
+        res.status(error.statusCode).json(errorResponse(error.message));
+      } else {
+        loggerService.error("Get beneficiaria error:", error);
+        res.status(500).json(errorResponse("Erro ao buscar beneficiária"));
       }
-    });
+    }
+  })
+);
   } catch (error) {
     loggerService.error('Erro ao listar beneficiárias:', error);
     res.status(500).json({

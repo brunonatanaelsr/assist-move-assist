@@ -7,10 +7,18 @@ import { loggerService } from '../services/logger';
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
 
+export enum PERMISSIONS {
+  READ_BENEFICIARIA = 'beneficiarias.ler',
+  CREATE_BENEFICIARIA = 'beneficiarias.criar',
+  UPDATE_BENEFICIARIA = 'beneficiarias.editar',
+  DELETE_BENEFICIARIA = 'beneficiarias.excluir'
+}
+
 export interface JWTPayload {
   id: string;
   email: string;
   role: string;
+  permissions?: PERMISSIONS[];
   iat?: number;
   exp?: number;
 }
