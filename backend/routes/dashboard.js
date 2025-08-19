@@ -12,13 +12,22 @@ router.get('/', authenticateToken, async (req, res) => {
   try {
     console.log('Iniciando consultas completas...');
     
-    // Totais gerais
-    const [beneficiariasTotal, oficinasTotalResult, projetosTotalResult, participacoesTotalResult] = await Promise.all([
-      pool.query('SELECT COUNT(*) FROM beneficiarias'),
-      pool.query('SELECT COUNT(*) FROM oficinas'),
-      pool.query('SELECT COUNT(*) FROM projetos'),
-      pool.query('SELECT COUNT(*) FROM participacoes')
+    // Buscar dados do cache
+    const [dashboardStats, formularioStats] = await Promise.all([
+      pool.query('SELECT data FROM dashboard_cache WHERE key = \'dashboard_stats\''),
+      pool.query('SELECT data FROM dashboard_cache WHERE key = \'formularios_stats\'')
     ]);
+
+    const stats = dashboardStats.rows[0]?.data || {
+      beneficiarias: { total: 0, ativas: 0, cadastradas_mes: 0 },
+      atendimentos: { total: 0, mes_atual: 0 },
+      engajamento: { taxa_participacao: 0 }
+    };
+
+    const forms = formularioStats.rows[0]?.data || {
+      total_preenchidos: 0,
+      mes_atual: 0
+    };
 
     // Beneficiárias por status
     const beneficiariasStatus = await pool.query(`
@@ -85,16 +94,16 @@ router.get('/', authenticateToken, async (req, res) => {
     }
 
     const dashboardData = {
-      totais: {
-        beneficiarias: parseInt(beneficiariasTotal.rows[0].count),
-        oficinas: parseInt(oficinasTotalResult.rows[0].count),
-        projetos: parseInt(projetosTotalResult.rows[0].count),
-        participacoes: parseInt(participacoesTotalResult.rows[0].count)
+      totalBeneficiarias: stats.beneficiarias.total,
+      formularios: forms.total_preenchidos,
+      atendimentosMes: stats.atendimentos.mes_atual,
+      engajamento: `${stats.engajamento.taxa_participacao}%`,
+      detalhes: {
+        beneficiarias_status: beneficiariasStatus.rows,
+        oficinas_status: oficinasStatus,
+        projetos_status: projetosStatus,
+        participacoes: estatisticasParticipacao
       },
-      beneficiarias_status: beneficiariasStatus.rows,
-      oficinas_status: oficinasStatus,
-      projetos_status: projetosStatus,
-      estatisticas_participacao: estatisticasParticipacao,
       timestamp: new Date().toISOString()
     };
 
@@ -110,34 +119,22 @@ router.get('/', authenticateToken, async (req, res) => {
 // Endpoint para estatísticas do dashboard
 router.get('/stats', authenticateToken, async (req, res) => {
   try {
-    // Total de beneficiárias
-    const totalBeneficiarias = await pool.query('SELECT COUNT(*) as count FROM beneficiarias WHERE ativo = true');
-    
-    // Total de formulários (declarações de comparecimento)
-    const totalFormularios = await pool.query('SELECT COUNT(*) as count FROM declaracoes_comparecimento');
-    
-    // Atendimentos este mês
-    const atendimentosMes = await pool.query(`
-      SELECT COUNT(*) as count 
-      FROM declaracoes_comparecimento 
-      WHERE DATE_TRUNC('month', data_criacao) = DATE_TRUNC('month', CURRENT_DATE)
-    `);
-    
-    // Participações em oficinas para calcular engajamento
-    const totalParticipacoes = await pool.query('SELECT COUNT(*) as count FROM participacoes WHERE ativo = true');
-    const totalOficinas = await pool.query('SELECT COUNT(*) as count FROM oficinas WHERE ativo = true');
-    
-    // Calcular taxa de engajamento
-    const participacoes = parseInt(totalParticipacoes.rows[0].count);
-    const oficinas = parseInt(totalOficinas.rows[0].count);
-    const beneficiarias = parseInt(totalBeneficiarias.rows[0].count);
-    
-    let engajamento = 0;
-    if (beneficiarias > 0 && oficinas > 0) {
-      engajamento = Math.round((participacoes / (beneficiarias * oficinas)) * 100);
-    } else if (beneficiarias > 0) {
-      engajamento = Math.round((participacoes / beneficiarias) * 100);
-    }
+    // Buscar estatísticas do cache
+    const [dashboardStats, formularioStats] = await Promise.all([
+      pool.query('SELECT data FROM dashboard_cache WHERE key = \'dashboard_stats\''),
+      pool.query('SELECT data FROM dashboard_cache WHERE key = \'formularios_stats\'')
+    ]);
+
+    const stats = dashboardStats.rows[0]?.data || {
+      beneficiarias: { total: 0, ativas: 0, cadastradas_mes: 0 },
+      atendimentos: { total: 0, mes_atual: 0 },
+      engajamento: { taxa_participacao: 0, participantes: 0 }
+    };
+
+    const forms = formularioStats.rows[0]?.data || {
+      total_preenchidos: 0,
+      mes_atual: 0
+    };
 
     const stats = {
       totalBeneficiarias: parseInt(totalBeneficiarias.rows[0].count),

@@ -134,11 +134,11 @@ router.post('/', authenticateToken, requireGestor, async (req, res) => {
     const result = await pool.query(
       `INSERT INTO oficinas (
         nome, descricao, instrutor, data_inicio, data_fim, 
-        horario_inicio, horario_fim, local, vagas_total,
-        projeto_id, responsavel_id, status
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) 
+        horario_inicio, horario_fim, local, vagas_totais,
+        projeto_id, responsavel_id, status, dias_semana
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) 
         RETURNING *`,
-      [nome, descricao, instrutor, data_inicio, data_fim, horario_inicio, horario_fim, local, vagas_totais, projeto_id, req.user.id, status]
+      [nome, descricao, instrutor, data_inicio, data_fim, horario_inicio, horario_fim, local, vagas_totais, projeto_id, req.user.id, status, req.body.dias_semana]
     );
 
     const oficinaFormatada = formatObjectDates(result.rows[0], ['data_inicio', 'data_fim', 'data_criacao', 'data_atualizacao']);
