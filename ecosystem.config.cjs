@@ -14,7 +14,7 @@ module.exports = {
         POSTGRES_DB: 'movemarias',
         POSTGRES_USER: 'postgres',
         POSTGRES_PASSWORD: '15002031',
-        JWT_SECRET: 'sua_chave_secreta_muito_segura',
+        JWT_SECRET: 'movemarias_jwt_secret_key_2025_production',
         JWT_EXPIRY: '24h'
       },
       env_production: {

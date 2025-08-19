@@ -4,24 +4,12 @@
  */
 
 const express = require('express');
-const { Pool } = require('pg');
 const { successResponse, errorResponse } = require('../utils/responseFormatter');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
 const { formatArrayDates, formatObjectDates } = require('../utils/dateFormatter');
+const { pool } = require('../config/database');
 
 const router = express.Router();
-
-// Configuração do PostgreSQL com pool de conexões
-const pool = new Pool({
-  host: process.env.POSTGRES_HOST || 'localhost',
-  port: parseInt(process.env.POSTGRES_PORT || '5432'),
-  database: process.env.POSTGRES_DB || 'movemarias',
-  user: process.env.POSTGRES_USER || 'postgres',
-  password: process.env.POSTGRES_PASSWORD || '15002031',
-  max: 20,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
-});
 
 // Função auxiliar para registrar eventos de auditoria
 async function registrarEvento(tipo, descricao, usuario_id, modulo, detalhes = null, ip = null) {
@@ -348,8 +336,6 @@ router.get('/:id', authenticateToken, requireAdmin, async (req, res) => {
   }
 });
 
-// Exportar função de registro de eventos para uso em outros módulos
-module.exports = {
-  router,
-  registrarEvento
-};
+// Exportar router e a função de registro de eventos em objetos separados
+module.exports = router;
+module.exports.registrarEvento = registrarEvento;

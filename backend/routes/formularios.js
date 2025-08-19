@@ -1,19 +1,10 @@
 const express = require('express');
-const { Pool } = require('pg');
 const { successResponse, errorResponse } = require('../utils/responseFormatter');
 const { formatArrayDates, formatObjectDates } = require('../utils/dateFormatter');
 const { authenticateToken, requireGestor } = require('../middleware/auth');
+const { pool } = require('../config/database');
 
 const router = express.Router();
-
-// Configuração do PostgreSQL
-const pool = new Pool({
-  host: process.env.POSTGRES_HOST || 'localhost',
-  port: parseInt(process.env.POSTGRES_PORT || '5432'),
-  database: process.env.POSTGRES_DB || 'movemarias',
-  user: process.env.POSTGRES_USER || 'postgres',
-  password: process.env.POSTGRES_PASSWORD || '15002031',
-});
 
 // Criar tabela de anamneses se não existir
 const createAnamneseTable = async () => {

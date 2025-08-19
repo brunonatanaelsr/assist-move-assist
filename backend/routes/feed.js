@@ -1,25 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const { Pool } = require('pg');
 const { authenticateToken } = require('../middleware/auth');
 const { successResponse, errorResponse } = require('../utils/responseFormatter');
 const { formatArrayDates, formatObjectDates } = require('../utils/dateFormatter');
 const { uploadMiddleware } = require('../middleware/upload');
-
-const pool = new Pool({
-  host: process.env.POSTGRES_HOST || 'localhost',
-  port: parseInt(process.env.POSTGRES_PORT || '5432'),
-  database: process.env.POSTGRES_DB || 'movemarias',
-  user: process.env.POSTGRES_USER || 'postgres',
-  password: process.env.POSTGRES_PASSWORD || '15002031',
-  max: 20,
-  min: 2,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 5000,
-  ssl: process.env.NODE_ENV === 'production' ? { 
-    rejectUnauthorized: false 
-  } : false,
-});
+const { pool } = require('../config/database');
 
 // ====== ROTAS DE POSTS ======
 

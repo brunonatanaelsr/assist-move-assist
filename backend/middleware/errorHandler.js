@@ -67,9 +67,28 @@ const validateRequest = (schema) => {
   };
 };
 
+// Middleware para erros de validação do Joi
+const joiErrorHandler = (err, req, res, next) => {
+  if (err && err.isJoi) {
+    return res.status(400).json({
+      status: 'error',
+      message: err.details.map(detail => detail.message).join(', ')
+    });
+  }
+  next(err);
+};
+
+// Middleware para rotas não encontradas
+const notFoundHandler = (req, res, next) => {
+  const err = new AppError(`Rota ${req.originalUrl} não encontrada`, 404);
+  next(err);
+};
+
 module.exports = {
   AppError,
   errorHandler,
+  joiErrorHandler,
+  notFoundHandler,
   catchAsync,
   validateRequest
 };

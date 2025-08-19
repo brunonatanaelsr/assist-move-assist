@@ -5,6 +5,13 @@ const cors = require("cors");
 const helmet = require("helmet");
 const compression = require("compression");
 const rateLimit = require("express-rate-limit");
+const path = require("path");
+const jwt = require("jsonwebtoken");
+const morgan = require("morgan");
+
+// Importar configurações centralizadas
+const config = require('./config');
+const { pool } = require('./config/database');
 
 const { logger, httpLogger } = require("./config/logger");
 const { 
@@ -13,10 +20,6 @@ const {
   notFoundHandler 
 } = require("./middleware/errorHandler");
 const sqlInjectionProtection = require("./middleware/sqlInjectionProtection");
-const xss = require('xss-clean');
-const { Pool } = require("pg");
-const path = require("path");
-const jwt = require("jsonwebtoken");
 
 // Importar utilitários personalizados
 const { successResponse, errorResponse } = require("./utils/responseFormatter");
@@ -27,25 +30,14 @@ require("dotenv").config();
 
 const app = express();
 const server = http.createServer(app);
+
 const io = socketIo(server, {
   cors: config.cors
 });
-
-// Importar configurações centralizadas
-const config = require('./config');
 const PORT = config.server.port;
 
 // Configurar trust proxy para rate limiting
 app.set("trust proxy", 1);
-
-// Configuração do PostgreSQL
-const pool = new Pool(config.database);
-  
-  // SSL para produção
-  ssl: process.env.NODE_ENV === 'production' ? { 
-    rejectUnauthorized: false 
-  } : false,
-});
 
 // Teste de conexão do banco
 pool.connect()
@@ -251,26 +243,26 @@ const limiter = rateLimit({
 app.use(limiter);
 
 // CORS
-app.use(corsMiddleware);
-app.use(corsErrorHandler);
+app.use(cors({
+  origin: ['http://localhost:8080', 'https://opulent-pancake-4j9v574gw96x27x59-8080.app.github.dev'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 
 // Middleware básico
 app.use(compression());
 app.use(sqlInjectionProtection);
-app.use(xss());
 
 // Logging de requisições HTTP
 app.use(httpLogger);
 
-// Rotas e outros middlewares aqui...
-
-// Handlers de erro (devem ser os últimos middlewares)
-app.use(joiErrorHandler);
-app.use(notFoundHandler);
-app.use(errorHandler);
-app.use(morgan("combined"));
+// Middleware de parsing do body
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+app.use(morgan("combined"));
+
+// Rotas e outros middlewares aqui...
 
 // Servir arquivos estáticos (imagens uploadadas)
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
@@ -313,9 +305,9 @@ app.get("/health", async (req, res) => {
     const client = await pool.connect();
     
     // Verificar conexão e contar registros principais
-    const usersCount = await client.query('SELECT COUNT(*) FROM usuarios WHERE ativo = true');
-    const beneficiariasCount = await client.query('SELECT COUNT(*) FROM beneficiarias WHERE ativo = true');
-    const oficinasCount = await client.query('SELECT COUNT(*) FROM oficinas WHERE ativo = true');
+    const usersCount = await client.query('SELECT COUNT(*) FROM usuarios WHERE ativo = true').catch(() => ({ rows: [{ count: 0 }] }));
+    const beneficiariasCount = await client.query('SELECT COUNT(*) FROM beneficiarias WHERE ativo = true').catch(() => ({ rows: [{ count: 0 }] }));
+    const oficinasCount = await client.query('SELECT COUNT(*) FROM oficinas WHERE ativo = true').catch(() => ({ rows: [{ count: 0 }] }));
     
     client.release();
     
@@ -364,6 +356,11 @@ app.use((err, req, res, next) => {
   
   res.status(500).json(errorResponse('Erro interno do servidor'));
 });
+
+// Handlers de erro (devem ser os últimos middlewares)
+app.use(joiErrorHandler);
+app.use(notFoundHandler);
+app.use(errorHandler);
 
 // Middleware para rotas não encontradas
 app.use('*', (req, res) => {

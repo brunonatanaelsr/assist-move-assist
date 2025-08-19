@@ -1,22 +1,10 @@
 const express = require('express');
-const { Pool } = require('pg');
 const { successResponse, errorResponse } = require('../utils/responseFormatter');
 const { authenticateToken, requireGestor } = require('../middleware/auth');
 const { formatArrayDates } = require('../utils/dateFormatter');
+const { pool } = require('../config/database');
 
 const router = express.Router();
-
-// Configuração do PostgreSQL
-const pool = new Pool({
-  host: process.env.POSTGRES_HOST || 'localhost',
-  port: parseInt(process.env.POSTGRES_PORT || '5432'),
-  database: process.env.POSTGRES_DB || 'movemarias',
-  user: process.env.POSTGRES_USER || 'postgres',
-  password: process.env.POSTGRES_PASSWORD || '15002031',
-  max: 20,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
-});
 
 // Relatório geral de beneficiárias
 router.get('/beneficiarias', authenticateToken, requireGestor, async (req, res) => {

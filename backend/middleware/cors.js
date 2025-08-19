@@ -18,8 +18,8 @@ const createCorsMiddleware = () => {
         'http://localhost:8080',
         'http://localhost:3000',
         'http://10.0.10.194:8080',
-        'https://probable-fiesta-p7jvj9gp7jj36xp4-8080.app.github.dev',
-        'https://probable-fiesta-p7jvj9gp7jj36xp4-3000.app.github.dev',
+        'https://opulent-pancake-4j9v574gw96x27x59-8080.app.github.dev',
+        'https://opulent-pancake-4j9v574gw96x27x59-3000.app.github.dev',
         'http://movemarias.squadsolucoes.com.br',
         'https://movemarias.squadsolucoes.com.br'
       ];

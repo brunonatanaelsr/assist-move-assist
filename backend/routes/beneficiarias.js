@@ -1,92 +1,45 @@
 const express = require('express');
-const { Pool } = require('pg');
 const { successResponse, errorResponse } = require('../utils/responseFormatter');
 const { formatArrayDates, formatObjectDates } = require('../utils/dateFormatter');
 const { authenticateToken, requireGestor } = require('../middleware/auth');
+const { pool } = require('../config/database');
 
 const router = express.Router();
-
-// Configuração do PostgreSQL
-const pool = new Pool({
-  host: process.env.POSTGRES_HOST || 'localhost',
-  port: parseInt(process.env.POSTGRES_PORT || '5432'),
-  database: process.env.POSTGRES_DB || 'movemarias',
-  user: process.env.POSTGRES_USER || 'movemarias_user',
-  password: process.env.POSTGRES_PASSWORD || 'movemarias_password_2025',
-});
 
 const { schemas, validate } = require('../validation');
 
 // Listar beneficiárias
-const { PERMISSIONS, requirePermissions } = require('../middleware/auth');
-
 const { logger } = require('../config/logger');
 const { catchAsync } = require('../middleware/errorHandler');
 
-router.get('/', 
-  authenticateToken,
-  requirePermissions([PERMISSIONS.READ_BENEFICIARIA]),
-  validate(schemas.beneficiarias.query, 'query'),
-  catchAsync(async (req, res) => {
+router.get('/', authenticateToken, async (req, res) => {
     try {
-      const { page, limit, search, status, bairro } = req.query;
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 10;
+      const { search, status, bairro } = req.query;
       const offset = (page - 1) * limit;
 
-    let whereConditions = ['ativo = true'];
-    let params = [];
-    let paramCount = 0;
+      const query = `
+        SELECT * FROM beneficiarias 
+        WHERE ativo = true 
+        ORDER BY nome_completo 
+        LIMIT $1 OFFSET $2
+      `;
+      const result = await pool.query(query, [limit, offset]);
 
-    // Filtro de busca por nome, CPF ou email
-    if (search) {
-      paramCount++;
-      whereConditions.push(`(nome_completo ILIKE $${paramCount} OR cpf ILIKE $${paramCount} OR email ILIKE $${paramCount})`);
-      params.push(`%${search}%`);
-    }
+      const countResult = await pool.query('SELECT COUNT(*) FROM beneficiarias WHERE ativo = true');
+      const total = parseInt(countResult.rows[0].count);
 
-    // Filtro por status
-    if (status) {
-      paramCount++;
-      whereConditions.push(`status = $${paramCount}`);
-      params.push(status);
-    }
+      const beneficiariasFormatadas = formatArrayDates(result.rows, ['data_nascimento', 'data_cadastro', 'data_atualizacao']);
 
-    // Filtro por bairro
-    if (bairro) {
-      paramCount++;
-      whereConditions.push(`bairro ILIKE $${paramCount}`);
-      params.push(`%${bairro}%`);
-    }
-
-    const whereClause = whereConditions.join(' AND ');
-
-    const query = `SELECT * FROM beneficiarias WHERE ${whereClause} ORDER BY nome_completo LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}`;
-    params.push(limit, offset);
-
-    const result = await pool.query(query, params);
-
-    // Query para contar total
-    const countQuery = `SELECT COUNT(*) FROM beneficiarias WHERE ${whereClause}`;
-    const countParams = params.slice(0, -2); // Remove limit e offset
-    const countResult = await pool.query(countQuery, countParams);
-    const total = parseInt(countResult.rows[0].count);
-
-    console.log(`Beneficiarias request from ${req.ip}: page=${page}, limit=${limit}, search=${search || "no"}`);
-
-    // Formatar datas das beneficiárias
-    const beneficiariasFormatadas = formatArrayDates(result.rows, ['data_nascimento', 'data_cadastro', 'data_atualizacao']);
-
-    res.json(successResponse(
-      beneficiariasFormatadas,
-      "Beneficiárias carregadas com sucesso",
-      {
+      res.json(successResponse(beneficiariasFormatadas, "Beneficiárias carregadas com sucesso", {
         pagination: {
           page,
           limit,
           total,
           pages: Math.ceil(total / limit)
         }
-      }
-    ));
+      }));
 
   } catch (error) {
     console.error("Beneficiarias error:", error);

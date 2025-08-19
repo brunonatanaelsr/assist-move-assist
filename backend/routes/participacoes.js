@@ -1,17 +1,9 @@
 const express = require('express');
-const { Pool } = require('pg');
 const { successResponse, errorResponse } = require('../utils/responseFormatter');
 const { authenticateToken, requireGestor } = require('../middleware/auth');
+const { pool } = require('../config/database');
 
 const router = express.Router();
-
-const pool = new Pool({
-  host: process.env.POSTGRES_HOST || 'localhost',
-  port: parseInt(process.env.POSTGRES_PORT || '5432'),
-  database: process.env.POSTGRES_DB || 'movemarias',
-  user: process.env.POSTGRES_USER || 'movemarias_user',
-  password: process.env.POSTGRES_PASSWORD || 'movemarias_password_2025',
-});
 
 // Listar participações
 router.get('/', authenticateToken, async (req, res) => {
