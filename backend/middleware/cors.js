@@ -24,10 +24,13 @@ const createCorsMiddleware = () => {
         'https://movemarias.squadsolucoes.com.br'
       ];
       
-      // Em desenvolvimento, permite TODAS as origens
+      // Em desenvolvimento, permite apenas origens específicas
       if (process.env.NODE_ENV !== 'production') {
-        console.log(`CORS: Permitindo origem em desenvolvimento: ${origin || 'sem origem'}`);
-        return callback(null, true);
+        if (!origin || allowedOrigins.includes(origin)) {
+          console.log(`CORS: Origem permitida: ${origin || 'sem origem'}`);
+          return callback(null, true);
+        }
+        return callback(new Error('Origem não permitida pelo CORS'));
       }
       
       // Se não há origem (requisições diretas, mobile apps, etc.)

@@ -1,0 +1,55 @@
+# Dependências de Segurança
+django-cors-headers>=4.3.0
+django-security>=0.16.1
+django-csp>=3.7
+django-ratelimit>=4.1.0
+django-honeypot>=1.1.1
+django-axes>=6.1.1
+bleach>=6.1.0
+python-jose>=3.3.0
+pyjwt>=2.8.0
+cryptography>=41.0.7
+django-storages>=1.14.2
+django-environ>=0.11.2
+python-dotenv>=1.0.0
+argon2-cffi>=23.1.0  # Para hashing de senhas mais seguro
+
+# Dependências do Django
+Django>=4.2.0,<5.0
+djangorestframework>=3.14.0
+django-filter>=23.5
+django-redis>=5.4.0
+
+# Banco de Dados
+psycopg2-binary>=2.9.9
+dj-database-url>=2.1.0
+
+# Cache e Sessions
+redis>=5.0.1
+django-redis-sessions>=0.6.2
+
+# Validação e Sanitização
+python-magic>=0.4.27  # Para validação de tipos de arquivo
+django-cleanup>=8.0.0  # Para limpeza automática de arquivos
+django-safedelete>=1.3.3  # Para deleção segura de registros
+
+# Monitoramento e Logging
+sentry-sdk>=1.39.1
+django-prometheus>=2.3.1
+python-json-logger>=2.0.7
+
+# Testes
+pytest>=7.4.3
+pytest-django>=4.7.0
+pytest-cov>=4.1.0
+factory-boy>=3.3.0
+faker>=20.1.0
+
+# Desenvolvimento
+django-debug-toolbar>=4.2.0
+django-extensions>=3.2.3
+black>=23.12.1
+isort>=5.13.2
+flake8>=6.1.0
+mypy>=1.7.1
+bandit>=1.7.6  # Para análise de segurança estática

@@ -3,9 +3,17 @@ const http = require("http");
 const socketIo = require("socket.io");
 const cors = require("cors");
 const helmet = require("helmet");
-const morgan = require("morgan");
 const compression = require("compression");
 const rateLimit = require("express-rate-limit");
+
+const { logger, httpLogger } = require("./config/logger");
+const { 
+  errorHandler, 
+  joiErrorHandler, 
+  notFoundHandler 
+} = require("./middleware/errorHandler");
+const sqlInjectionProtection = require("./middleware/sqlInjectionProtection");
+const xss = require('xss-clean');
 const { Pool } = require("pg");
 const path = require("path");
 const jwt = require("jsonwebtoken");
@@ -20,33 +28,18 @@ require("dotenv").config();
 const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, {
-  cors: {
-    origin: process.env.NODE_ENV !== 'production' 
-      ? ['http://localhost:8080', 'http://localhost:3000', 'http://127.0.0.1:8080'] 
-      : ['https://seu-dominio.com'],
-    methods: ['GET', 'POST'],
-    credentials: true
-  }
+  cors: config.cors
 });
 
-const PORT = process.env.PORT || 3000;
+// Importar configurações centralizadas
+const config = require('./config');
+const PORT = config.server.port;
 
 // Configurar trust proxy para rate limiting
 app.set("trust proxy", 1);
 
 // Configuração do PostgreSQL
-const pool = new Pool({
-  host: process.env.POSTGRES_HOST || 'localhost',
-  port: parseInt(process.env.POSTGRES_PORT || '5432'),
-  database: process.env.POSTGRES_DB || 'movemarias',
-  user: process.env.POSTGRES_USER || 'postgres',
-  password: process.env.POSTGRES_PASSWORD || '15002031',
-  
-  // Configurações do pool
-  max: 20,
-  min: 2,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 5000,
+const pool = new Pool(config.database);
   
   // SSL para produção
   ssl: process.env.NODE_ENV === 'production' ? { 
@@ -263,6 +256,18 @@ app.use(corsErrorHandler);
 
 // Middleware básico
 app.use(compression());
+app.use(sqlInjectionProtection);
+app.use(xss());
+
+// Logging de requisições HTTP
+app.use(httpLogger);
+
+// Rotas e outros middlewares aqui...
+
+// Handlers de erro (devem ser os últimos middlewares)
+app.use(joiErrorHandler);
+app.use(notFoundHandler);
+app.use(errorHandler);
 app.use(morgan("combined"));
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));

@@ -15,15 +15,22 @@ const pool = new Pool({
   password: process.env.POSTGRES_PASSWORD || 'movemarias_password_2025',
 });
 
+const { schemas, validate } = require('../validation');
+
 // Listar beneficiárias
-router.get('/', authenticateToken, async (req, res) => {
-  try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
-    const search = req.query.search || "";
-    const status = req.query.status;
-    const bairro = req.query.bairro;
-    const offset = (page - 1) * limit;
+const { PERMISSIONS, requirePermissions } = require('../middleware/auth');
+
+const { logger } = require('../config/logger');
+const { catchAsync } = require('../middleware/errorHandler');
+
+router.get('/', 
+  authenticateToken,
+  requirePermissions([PERMISSIONS.READ_BENEFICIARIA]),
+  validate(schemas.beneficiarias.query, 'query'),
+  catchAsync(async (req, res) => {
+    try {
+      const { page, limit, search, status, bairro } = req.query;
+      const offset = (page - 1) * limit;
 
     let whereConditions = ['ativo = true'];
     let params = [];

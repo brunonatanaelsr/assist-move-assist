@@ -7,30 +7,15 @@ const { authenticateToken } = require('../middleware/auth');
 
 const router = express.Router();
 
-// Configuração do PostgreSQL (reutilizar do servidor principal)
-const pool = new Pool({
-  host: process.env.POSTGRES_HOST || 'localhost',
-  port: parseInt(process.env.POSTGRES_PORT || '5432'),
-  database: process.env.POSTGRES_DB || 'movemarias',
-  user: process.env.POSTGRES_USER || 'postgres',
-  password: process.env.POSTGRES_PASSWORD || '15002031',
-  max: 20,
-  min: 2,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 5000,
-  ssl: process.env.NODE_ENV === 'production' ? { 
-    rejectUnauthorized: false 
-  } : false,
-});
+// Importar pool do módulo de configuração central
+const { pool } = require('../config/database');
+
+const { schemas, validate } = require('../validation');
 
 // Login de usuário
-router.post('/login', async (req, res) => {
+router.post('/login', validate(schemas.auth.login), async (req, res) => {
   try {
     const { email, password } = req.body;
-
-    if (!email || !password) {
-      return res.status(400).json(errorResponse("Email e senha são obrigatórios"));
-    }
 
     // Buscar usuário no banco
     const userQuery = "SELECT * FROM usuarios WHERE email = $1 AND ativo = true";
