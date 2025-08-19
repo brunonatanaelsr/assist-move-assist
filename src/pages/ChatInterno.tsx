@@ -34,29 +34,33 @@ interface Conversa {
   usuario_id: number;
   usuario_nome: string;
   usuario_email: string;
-  total_mensagens: number;
+  total_mensagens?: number;
   nao_lidas: number;
   ultima_mensagem_data: string;
   ultima_mensagem: string;
 }
 
-interface Mensagem {
+interface ApiMensagem {
   id: number;
-  assunto: string;
+  data_publicacao: string;
+  titulo: string;
   conteudo: string;
   tipo: string;
-  prioridade: string;
-  remetente_id: number;
+  autor_id: number;
+  autor_nome?: string;
+  autor_email?: string;
+  destinatario_tipo: string;
   destinatario_id: number;
+  destinatario_nome?: string;
+  destinatario_email?: string;
+  data_expiracao?: string;
+  ativo: boolean;
   lida: boolean;
-  data_leitura: string | null;
-  data_criacao: string;
-  data_atualizacao: string;
-  remetente_nome: string;
-  remetente_email: string;
-  destinatario_nome: string;
-  destinatario_email: string;
+  anexo_url?: string;
+  prioridade: string | number;
 }
+
+type Mensagem = ApiMensagem;
 
 export default function ChatInterno() {
   const { user } = useAuth();
@@ -78,34 +82,81 @@ export default function ChatInterno() {
   
   // Carregar dados iniciais
   useEffect(() => {
-    loadData();
-  }, []);
+    if (user?.id) {
+      loadData();
+    }
+  }, [user]);
 
   // Auto scroll para última mensagem
   useEffect(() => {
     scrollToBottom();
   }, [mensagens]);
 
+  // Escutar por novas mensagens
+  useEffect(() => {
+    if (conversaAtiva?.usuario_id && user?.id) {
+      const eventSource = new EventSource(`/api/mensagens/stream?userId=${user.id}`);
+      
+      eventSource.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (
+            data.remetente_id === conversaAtiva.usuario_id || 
+            data.destinatario_id === conversaAtiva.usuario_id
+          ) {
+            setMensagens(prev => [...prev, data]);
+          }
+          // Recarregar conversas para atualizar contadores
+          loadData();
+        } catch (error) {
+          console.error('Erro ao processar mensagem:', error);
+        }
+      };
+
+      return () => {
+        eventSource.close();
+      };
+    }
+  }, [conversaAtiva?.usuario_id, user?.id]);
+
   const scrollToBottom = () => {
     mensagensEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
   const loadData = async () => {
+    if (!user?.id) return;
+    
     try {
       setLoading(true);
       
-      const [conversasResponse, usuariosResponse] = await Promise.all([
-        apiService.getConversasUsuario(),
-        apiService.getUsuariosConversa()
-      ]);
+      // Buscar todas as mensagens onde o usuário é autor ou destinatário
+      const mensagensResponse = await apiService.get<ApiMensagem[]>('/mensagens/conversas');
+      
+      if (mensagensResponse.success && Array.isArray(mensagensResponse.data)) {
+        const mensagensPorUsuario = mensagensResponse.data.reduce<Record<number, Conversa>>((acc, msg) => {
+          const outroUsuarioId = msg.autor_id === user.id ? msg.destinatario_id : msg.autor_id;
+          if (!acc[outroUsuarioId]) {
+            acc[outroUsuarioId] = {
+              usuario_id: outroUsuarioId,
+              usuario_nome: msg.autor_id === user.id ? msg.destinatario_nome || 'Usuário' : msg.autor_nome || 'Usuário',
+              usuario_email: msg.autor_id === user.id ? msg.destinatario_email || '' : msg.autor_email || '',
+              ultima_mensagem: msg.conteudo,
+              ultima_mensagem_data: msg.data_publicacao,
+              nao_lidas: msg.destinatario_id === user.id && !msg.lida ? 1 : 0
+            };
+          }
+          return acc;
+        }, {});
 
-      if (conversasResponse.success) {
-        setConversas(conversasResponse.data || []);
+        setConversas(Object.values(mensagensPorUsuario));
       }
       
-      if (usuariosResponse.success) {
-        setUsuarios(usuariosResponse.data || []);
+      // Buscar usuários disponíveis para conversa
+      const usuariosResponse = await apiService.get<Usuario[]>('/mensagens/usuarios');
+      if (usuariosResponse.success && Array.isArray(usuariosResponse.data)) {
+        setUsuarios(usuariosResponse.data);
       }
+      
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
       toast({
@@ -144,16 +195,19 @@ export default function ChatInterno() {
   const enviarMensagem = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!novaMensagem.trim() || !conversaAtiva) return;
+    if (!novaMensagem.trim() || !conversaAtiva || !user?.id) return;
 
     try {
       setEnviandoMensagem(true);
       
       const response = await apiService.enviarMensagemUsuario({
-        destinatario_id: conversaAtiva.usuario_id,
+        titulo: 'Chat Interno',
         conteudo: novaMensagem.trim(),
+        autor_id: user.id,
+        destinatario_id: conversaAtiva.usuario_id,
+        destinatario_tipo: 'individual',
         tipo: 'mensagem',
-        prioridade: 'normal'
+        prioridade: 1
       });
 
       if (response.success) {
@@ -162,8 +216,12 @@ export default function ChatInterno() {
         // Adicionar mensagem à lista local para feedback imediato
         const novaMensagemObj: Mensagem = {
           ...response.data,
-          remetente_nome: user?.name || 'Você',
-          destinatario_nome: conversaAtiva.usuario_nome
+          id: response.data.id,
+          data_publicacao: response.data.data_publicacao,
+          autor_id: user.id,
+          destinatario_id: conversaAtiva.usuario_id,
+          conteudo: novaMensagem.trim(),
+          lida: false
         };
         
         setMensagens(prev => [...prev, novaMensagemObj]);
@@ -410,7 +468,7 @@ export default function ChatInterno() {
                   <ScrollArea className="flex-1 p-4">
                     <div className="space-y-4">
                       {mensagens.map((mensagem) => {
-                        const isFromMe = mensagem.remetente_id === user?.id;
+                        const isFromMe = mensagem.autor_id === user?.id;
                         
                         return (
                           <div
@@ -429,7 +487,7 @@ export default function ChatInterno() {
                                 isFromMe ? 'text-primary-foreground/80' : 'text-gray-500'
                               }`}>
                                 <span className="text-xs">
-                                  {formatarHora(mensagem.data_criacao)}
+                                  {formatarHora(mensagem.data_publicacao)}
                                 </span>
                                 {isFromMe && (
                                   <div className="flex">
