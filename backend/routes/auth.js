@@ -35,11 +35,23 @@ router.post('/login', validate(schemas.auth.login), async (req, res) => {
       return res.status(401).json(errorResponse("Credenciais inválidas"));
     }
 
-    // Atualizar último login
-    await pool.query(
-      "UPDATE usuarios SET ultimo_login = NOW() WHERE id = $1",
-      [user.id]
-    );
+    // Debug da query de login
+    console.log('🔍 Executando query de login...');
+    console.log('🔍 Dados do usuário para update:', { userId: user.id });
+
+    try {
+      // Atualizar último login
+      await pool.query(
+        "UPDATE usuarios SET ultimo_login = NOW() WHERE id = $1",
+        [user.id]
+      );
+      console.log('✅ Query executada com sucesso');
+    } catch (error) {
+      console.log('❌ Erro na query:', error.message);
+      console.log('❌ Código do erro:', error.code);
+      console.log('❌ Query que falhou:', error.query);
+      throw error;
+    }
 
     // Gerar token JWT
     const token = jwt.sign(
