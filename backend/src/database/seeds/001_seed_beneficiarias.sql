@@ -1,0 +1,82 @@
+INSERT INTO beneficiarias (
+    nome_completo,
+    data_nascimento,
+    cpf,
+    rg,
+    telefone,
+    email,
+    estado_civil,
+    num_filhos,
+    escolaridade,
+    profissao,
+    renda_familiar,
+    status,
+    observacoes,
+    usuario_criacao,
+    usuario_atualizacao
+) VALUES 
+(
+    'Maria da Silva Santos',
+    '1990-05-15',
+    '123.456.789-00',
+    '12.345.678-9',
+    '(11) 98765-4321',
+    'maria.silva@email.com',
+    'casada',
+    2,
+    'medio_completo',
+    'Vendedora Autônoma',
+    2500.00,
+    'ativa',
+    'Participante do projeto de empreendedorismo',
+    1,
+    1
+),
+(
+    'Ana Paula Oliveira',
+    '1985-08-22',
+    '987.654.321-00',
+    '98.765.432-1',
+    '(11) 91234-5678',
+    'ana.oliveira@email.com',
+    'solteira',
+    1,
+    'superior_incompleto',
+    'Estudante',
+    1800.00,
+    'ativa',
+    'Interessada em cursos de tecnologia',
+    1,
+    1
+),
+(
+    'Joana Pereira Lima',
+    '1992-03-10',
+    '456.789.123-00',
+    '45.678.912-3',
+    '(11) 95555-4444',
+    'joana.lima@email.com',
+    'divorciada',
+    3,
+    'fundamental_completo',
+    'Diarista',
+    1500.00,
+    'pendente',
+    'Em processo de análise para programa de qualificação',
+    1,
+    1
+);
+
+INSERT INTO enderecos_beneficiarias (
+    beneficiaria_id,
+    cep,
+    logradouro,
+    numero,
+    complemento,
+    bairro,
+    cidade,
+    estado
+) VALUES
+(1, '01234-567', 'Rua das Flores', '123', 'Apto 45', 'Jardim São Paulo', 'São Paulo', 'SP'),
+(2, '04567-890', 'Avenida Brasil', '789', NULL, 'Centro', 'São Paulo', 'SP'),
+(3, '06789-123', 'Rua dos Pássaros', '456', 'Casa 2', 'Vila Mariana', 'São Paulo', 'SP');
