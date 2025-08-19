@@ -1,9 +1,11 @@
+import { Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { Loading } from "@/components/ui/loading";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Beneficiarias from "./pages/Beneficiarias";
@@ -43,9 +45,10 @@ const App = () => (
         <Toaster />
         <Sonner />
         <PostgreSQLAuthProvider>
-        <BrowserRouter>
-          <Routes>
-            <Route path="/auth" element={<Auth />} />
+        <HashRouter>
+          <Suspense fallback={<Loading fullScreen message="Carregando aplicação..." />}>
+            <Routes>
+              <Route path="/auth" element={<Auth />} />
             <Route path="/" element={
               <ProtectedRoute>
                 <MainLayout>
@@ -223,7 +226,9 @@ const App = () => (
             } />
             <Route path="*" element={<NotFound />} />
           </Routes>
-        </BrowserRouter>
+            </Routes>
+          </Suspense>
+        </HashRouter>
         </PostgreSQLAuthProvider>
       </TooltipProvider>
     </QueryClientProvider>
