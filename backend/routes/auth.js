@@ -56,6 +56,7 @@ router.post('/login', validate(schemas.auth.login), async (req, res) => {
     );
 
     if (userResult.rows.length === 0) {
+      await client.query('ROLLBACK');
       return res.status(401).json(errorResponse("Credenciais inválidas"));
     }
 
@@ -63,6 +64,7 @@ router.post('/login', validate(schemas.auth.login), async (req, res) => {
     const passwordMatch = await bcrypt.compare(password, user.senha_hash);
 
     if (!passwordMatch) {
+      await client.query('ROLLBACK');
       return res.status(401).json(errorResponse("Credenciais inválidas"));
     }
 
@@ -83,12 +85,8 @@ router.post('/login', validate(schemas.auth.login), async (req, res) => {
       "UPDATE usuarios SET ultimo_login = NOW() WHERE id = $1",
       [user.id]
     );
-    } catch (error) {
-      console.log('❌ Erro na query:', error.message);
-      console.log('❌ Código do erro:', error.code);
-      console.log('❌ Query que falhou:', error.query);
-      throw error;
-    }
+
+    await client.query('COMMIT');
 
     // Gerar token JWT
     const token = jwt.sign(
@@ -112,10 +110,12 @@ router.post('/login', validate(schemas.auth.login), async (req, res) => {
         role: user.papel
       }
     }, "Login realizado com sucesso"));
-
   } catch (error) {
+    await client.query('ROLLBACK');
     console.error("Login error:", error);
     res.status(500).json(errorResponse("Erro interno do servidor"));
+  } finally {
+    client.release(); // Liberando o cliente de volta para o pool
   }
 });
 
