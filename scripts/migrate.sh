@@ -138,19 +138,13 @@ create_migrations_table || exit 1
 
 # Array com a ordem correta das migrations
 migrations=(
+    "2025_08_20_00_create_users_table.sql"
     "2025_08_20_01_enhance_users_table.sql"
     "2025_08_20_02_create_refresh_tokens.sql"
     "2025_08_20_03_create_auth_audit.sql"
     "2025_08_20_04_create_security_functions.sql"
     "2025_08_20_05_create_configuracoes_tables.sql"
-    "2025_08_20_06_create_projetos_tables.sql"
-    "2025_08_20_07_create_beneficiarias_tables.sql"
-    "2025_08_20_08_create_oficinas_tables.sql"
-    "2025_08_20_09_create_feed_tables.sql"
-    "2025_08_20_10_create_formularios_tables.sql"
-    "2025_08_20_11_create_mensagens_tables.sql"
-    "2025_08_20_12_create_documentos_tables.sql"
-    "2025_08_20_13_create_relatorios_tables.sql"
+    "2025_08_20_15_fix_missing_tables.sql"
     "2025_08_20_14_add_missing_features.sql"
 )
 
