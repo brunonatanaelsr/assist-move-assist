@@ -1,23 +1,35 @@
 const jwt = require('jsonwebtoken');
 const { errorResponse } = require('../utils/responseFormatter');
+const { pool } = require('../config/database');
 
-const authenticateToken = (req, res, next) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+const authenticateToken = async (req, res, next) => {
+  try {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
 
-  if (!token) {
-    return res.status(401).json(errorResponse("Token de acesso requerido"));
-  }
+    if (!token) {
+      return res.status(401).json(errorResponse('Token não fornecido'));
+    }
 
-  jwt.verify(token, process.env.JWT_SECRET || 'movemarias_jwt_secret_key_2025_production', (err, user) => {
-    if (err) {
-      if (err.name === 'TokenExpiredError') {
-        return res.status(401).json(errorResponse("Token expirado"));
-      }
-      if (err.name === 'JsonWebTokenError') {
-        return res.status(401).json(errorResponse("Token inválido"));
-      }
-      return res.status(403).json(errorResponse("Token inválido"));
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    // Verificar se o usuário ainda está ativo
+    const userResult = await pool.query(
+      "SELECT ativo FROM usuarios WHERE id = $1",
+      [decoded.id]
+    );
+
+    if (userResult.rows.length === 0 || !userResult.rows[0].ativo) {
+      return res.status(401).json(errorResponse('Usuário inativo ou não encontrado'));
+    }
+
+    req.user = decoded;
+    next();
+  } catch (error) {
+    if (error instanceof jwt.TokenExpiredError) {
+      return res.status(401).json(errorResponse('Token expirado'));
+    }
+    return res.status(401).json(errorResponse('Token inválido'));
     }
 
     req.user = user;

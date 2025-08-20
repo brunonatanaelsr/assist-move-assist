@@ -3,49 +3,86 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { successResponse, errorResponse } = require('../utils/responseFormatter');
 const { authenticateToken } = require('../middleware/auth');
+const { pool } = require('../config/database');
+const { schemas, validate } = require('../validation');
+const crypto = require('crypto');
 
 const router = express.Router();
 
-// Importar pool do módulo de configuração central
-const { pool } = require('../config/database');
+// Configurações de token
+const ACCESS_TOKEN_EXPIRY = '15m';
+const REFRESH_TOKEN_EXPIRY = '7d';
+const COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'strict',
+  maxAge: 7 * 24 * 60 * 60 * 1000 // 7 dias
+};
 
-const { schemas, validate } = require('../validation');
+// Gerar tokens
+const generateTokens = (user) => {
+  const accessToken = jwt.sign(
+    { id: user.id, email: user.email, role: user.role },
+    process.env.JWT_SECRET,
+    { expiresIn: ACCESS_TOKEN_EXPIRY }
+  );
+
+  const refreshToken = jwt.sign(
+    { id: user.id, tokenVersion: user.token_version },
+    process.env.JWT_REFRESH_SECRET,
+    { expiresIn: REFRESH_TOKEN_EXPIRY }
+  );
+
+  return { accessToken, refreshToken };
+};
+
+// Hash do refresh token para armazenamento
+const hashToken = (token) => {
+  return crypto.createHash('sha256').update(token).digest('hex');
+};
 
 // Login de usuário
 router.post('/login', validate(schemas.auth.login), async (req, res) => {
+  const client = await pool.connect();
+  
   try {
+    await client.query('BEGIN');
     const { email, password } = req.body;
 
-    // Buscar usuário no banco
-    const userQuery = "SELECT * FROM usuarios WHERE email = $1 AND ativo = true";
-    const userResult = await pool.query(userQuery, [email.toLowerCase()]);
+    // Buscar usuário
+    const userResult = await client.query(
+      "SELECT * FROM usuarios WHERE email = $1 AND ativo = true",
+      [email.toLowerCase()]
+    );
 
     if (userResult.rows.length === 0) {
-      console.log(`Failed login attempt: ${email} from ${req.ip}`);
       return res.status(401).json(errorResponse("Credenciais inválidas"));
     }
 
     const user = userResult.rows[0];
-
-    // Verificar senha
     const passwordMatch = await bcrypt.compare(password, user.senha_hash);
 
     if (!passwordMatch) {
-      console.log(`Failed login attempt: ${email} (wrong password) from ${req.ip}`);
       return res.status(401).json(errorResponse("Credenciais inválidas"));
     }
 
-    // Debug da query de login
-    console.log('🔍 Executando query de login...');
-    console.log('🔍 Dados do usuário para update:', { userId: user.id });
+    // Gerar tokens
+    const tokens = generateTokens(user);
+    const tokenHash = hashToken(tokens.refreshToken);
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
-    try {
-      // Atualizar último login
-      await pool.query(
-        "UPDATE usuarios SET ultimo_login = NOW() WHERE id = $1",
-        [user.id]
-      );
-      console.log('✅ Query executada com sucesso');
+    // Salvar refresh token
+    await client.query(
+      `INSERT INTO refresh_tokens (user_id, token_hash, ip_address, user_agent, expires_at)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [user.id, tokenHash, req.ip, req.get('user-agent'), expiresAt]
+    );
+
+    // Atualizar último login
+    await client.query(
+      "UPDATE usuarios SET ultimo_login = NOW() WHERE id = $1",
+      [user.id]
+    );
     } catch (error) {
       console.log('❌ Erro na query:', error.message);
       console.log('❌ Código do erro:', error.code);
