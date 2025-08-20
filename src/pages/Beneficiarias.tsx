@@ -22,31 +22,15 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { api } from "@/lib/api";
 
-interface Beneficiaria {
-  id: number;
-  nome_completo: string;
-  cpf: string | null;
-  rg: string | null;
-  data_nascimento: string | null;
-  email: string;
-  telefone: string;
-  telefone_alternativo: string | null;
-  endereco: string | null;
-  bairro: string | null;
-  cep: string | null;
-  cidade: string;
-  estado: string;
-  escolaridade: string | null;
-  profissao: string | null;
-  renda_familiar: number | null;
-  situacao_trabalho: string | null;
-  tem_filhos: boolean;
-  quantidade_filhos: number;
-  observacoes: string | null;
-  status: string;
-  ativo: boolean;
-  data_cadastro: string;
-  data_atualizacao: string;
+import type { Beneficiaria as IBeneficiaria } from '@/types/shared';
+
+// Tipo local extendido para manipulação na listagem
+interface Beneficiaria extends IBeneficiaria {
+    // Campos calculados/auxiliares para a interface
+    statusDisplay: 'Ativa' | 'Inativa' | 'Arquivada';
+    enderecoDisplay: string;
+    telefoneFormatado: string;
+    idadeAnos: number;
 }
 
 export default function Beneficiarias() {
