@@ -1,4 +1,5 @@
 import express from 'express';
+import type { Request as ExpressRequest, Response as ExpressResponse, NextFunction, Application } from 'express';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { loggerService } from '../services/logger.service';
@@ -18,9 +19,9 @@ const limiter = rateLimit({
 
 // Validação de payload
 export const validatePayload = (schema: any) => {
-    return (req: any, res: any, next: any) => {
+    return (req: Request, res: Response, next: NextFunction) => {
         try {
-            const { error } = schema.validate(req.body);
+            const { error } = schema.validate(req.body as any);
             if (error) {
                 const validationError: ValidationError = {
                     field: error.details[0].context?.key || 'unknown',
@@ -43,7 +44,7 @@ export const validatePayload = (schema: any) => {
 };
 
 // Middleware de segurança
-export function configureSecurityMiddleware(app: any) {
+export function configureSecurityMiddleware(app: Application) {
     // Headers de segurança
     app.use(helmet());
 

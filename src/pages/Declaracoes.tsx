@@ -1,4 +1,7 @@
 import { Plus, FileText, Trash2, Download } from "lucide-react";
+import { useAuth } from '@/hooks/usePostgreSQLAuth';
+import { Profile } from '@/types/profile';
+import { ApiResponse } from '@/services/api.service';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -12,7 +15,7 @@ import {
 import { useToast } from "@/components/ui/use-toast";
 import { useState, useEffect } from "react";
 import { apiService } from "@/services/apiService";
-import { useAuth } from "@/hooks/usePostgreSQLAuth";
+
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -42,8 +45,8 @@ export default function Declaracoes() {
     try {
       setLoading(true);
       const params = beneficiariaId ? `?beneficiaria_id=${beneficiariaId}` : "";
-      const response = await apiService.get(`/declaracoes${params}`);
-      setDeclaracoes(response.data.data);
+      const response = await apiService.get<Declaracao[]>(`/declaracoes${params}`);
+      setDeclaracoes(response.data);
     } catch (error) {
       toast({
         title: "Erro",
@@ -74,7 +77,7 @@ export default function Declaracoes() {
       await apiService.post("/declaracoes", {
         beneficiaria_id: Number(beneficiariaId),
         ...novaDeclaracao,
-        assinado_por: profile?.nome,
+        assinado_por: (profile as any)?.name || 'Usuário',
       });
 
       toast({

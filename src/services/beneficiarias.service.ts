@@ -1,5 +1,5 @@
-import type { Beneficiaria, ApiResponse } from '@/types/shared';
-import { api } from '@/lib/api';
+import type { Beneficiaria } from '@/types/shared';
+import { apiService, ApiResponse } from './api.service';
 
 export const BeneficiariasService = {
     listar: async (params?: {
@@ -8,7 +8,7 @@ export const BeneficiariasService = {
         status?: Beneficiaria['status'];
         search?: string;
     }): Promise<ApiResponse<Beneficiaria[]>> => {
-        const response = await api.get('/beneficiarias', { params });
+        const response = await apiService.get('/beneficiarias', { params });
         return response.data;
     },
 

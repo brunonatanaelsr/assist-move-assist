@@ -1,4 +1,6 @@
 import { Plus, FileText, Trash2, Download } from "lucide-react";
+import { useAuth } from '@/hooks/usePostgreSQLAuth';
+import { ApiResponse } from '@/services/api.service';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -12,7 +14,7 @@ import {
 import { useToast } from "@/components/ui/use-toast";
 import { useState, useEffect } from "react";
 import { apiService } from "@/services/apiService";
-import { useAuth } from "@/hooks/usePostgreSQLAuth";
+
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -43,8 +45,8 @@ export default function Documentos() {
     try {
       setLoading(true);
       const params = beneficiariaId ? `?beneficiaria_id=${beneficiariaId}` : "";
-      const response = await apiService.get(`/documentos${params}`);
-      setDocumentos(response.data.data);
+      const response = await apiService.get<Documento[]>(`/documentos${params}`);
+      setDocumentos(response.data);
     } catch (error) {
       toast({
         title: "Erro",

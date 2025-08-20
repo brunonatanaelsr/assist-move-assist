@@ -355,7 +355,7 @@ export default function Beneficiarias() {
                           {getBeneficiariaStatus(beneficiaria)}
                         </Badge>
                       </TableCell>
-                      <TableCell>{formatDate(beneficiaria.data_cadastro)}</TableCell>
+                      <TableCell>{formatDate(beneficiaria.data_nascimento.toString())}</TableCell>
                       <TableCell>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>

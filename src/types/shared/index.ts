@@ -15,7 +15,7 @@ export interface Usuario {
     data_atualizacao: Date;
 }
 
-interface Beneficiaria {
+export interface Beneficiaria {
     id: number;
     nome_completo: string;
     cpf: string;

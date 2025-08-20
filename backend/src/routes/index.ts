@@ -1,4 +1,5 @@
-import { Router } from 'express';
+const express = require('express');
+const Router = express.Router;
 import { validatePayload } from '../middleware/security.middleware';
 
 // Schemas de validação
