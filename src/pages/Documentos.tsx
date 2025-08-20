@@ -1,6 +1,6 @@
 import { Plus, FileText, Trash2, Download } from "lucide-react";
 import { useAuth } from '@/hooks/usePostgreSQLAuth';
-import { ApiResponse } from '@/services/api.service';
+import { ApiResponse, apiService } from '@/services/api.service';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -13,8 +13,6 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/components/ui/use-toast";
 import { useState, useEffect } from "react";
-import { apiService } from "@/services/apiService";
-
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -97,6 +95,10 @@ export default function Documentos() {
 
   // Excluir documento
   const handleDelete = async (id: number) => {
+    if (!window.confirm('Tem certeza que deseja excluir este documento?')) {
+      return;
+    }
+
     try {
       await apiService.delete(`/documentos/${id}`);
       toast({
@@ -113,6 +115,16 @@ export default function Documentos() {
     }
   };
 
+  if (loading) {
+    return (
+      <div className="container mx-auto py-6">
+        <div className="flex items-center justify-center h-64">
+          <p>Carregando documentos...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto py-6">
       <h1 className="text-3xl font-bold mb-6">Documentos</h1>
@@ -128,6 +140,7 @@ export default function Documentos() {
                 placeholder="ID da Beneficiária"
                 value={beneficiariaId}
                 onChange={(e) => setBeneficiariaId(e.target.value)}
+                type="number"
               />
               <Select
                 value={novoDocumento.tipo}
@@ -160,6 +173,7 @@ export default function Documentos() {
                 onChange={(e) =>
                   setNovoDocumento({ ...novoDocumento, url: e.target.value })
                 }
+                type="url"
               />
             </div>
             <Button onClick={handleUpload} className="mt-4">
@@ -170,48 +184,56 @@ export default function Documentos() {
         </Card>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {documentos.map((doc) => (
-          <Card key={doc.id}>
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <span className="flex items-center">
-                  <FileText className="w-5 h-5 mr-2" />
-                  {doc.nome}
-                </span>
-                {isAdmin && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleDelete(doc.id)}
-                  >
-                    <Trash2 className="w-4 h-4 text-destructive" />
+      {documentos.length === 0 ? (
+        <Card>
+          <CardContent className="flex items-center justify-center h-32">
+            <p className="text-muted-foreground">Nenhum documento encontrado</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {documentos.map((doc) => (
+            <Card key={doc.id}>
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between">
+                  <span className="flex items-center">
+                    <FileText className="w-5 h-5 mr-2" />
+                    {doc.nome}
+                  </span>
+                  {isAdmin && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleDelete(doc.id)}
+                    >
+                      <Trash2 className="w-4 h-4 text-destructive" />
+                    </Button>
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground mb-2">
+                  Beneficiária: {doc.beneficiaria_nome}
+                </p>
+                <p className="text-sm text-muted-foreground mb-2">
+                  Tipo: {doc.tipo}
+                </p>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Upload: {format(new Date(doc.data_upload), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                </p>
+                {doc.url && (
+                  <Button variant="outline" size="sm" asChild>
+                    <a href={doc.url} target="_blank" rel="noopener noreferrer">
+                      <Download className="w-4 h-4 mr-2" />
+                      Baixar
+                    </a>
                   </Button>
                 )}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground mb-2">
-                Beneficiária: {doc.beneficiaria_nome}
-              </p>
-              <p className="text-sm text-muted-foreground mb-2">
-                Tipo: {doc.tipo}
-              </p>
-              <p className="text-sm text-muted-foreground mb-4">
-                Upload: {format(new Date(doc.data_upload), "dd/MM/yyyy HH:mm", { locale: ptBR })}
-              </p>
-              {doc.url && (
-                <Button variant="outline" size="sm" asChild>
-                  <a href={doc.url} target="_blank" rel="noopener noreferrer">
-                    <Download className="w-4 h-4 mr-2" />
-                    Baixar
-                  </a>
-                </Button>
-              )}
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

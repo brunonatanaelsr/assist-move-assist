@@ -1,7 +1,21 @@
-import { Request, Response, NextFunction } from 'express';
+import type { Request as ExpressRequest, Response as ExpressResponse, NextFunction } from 'express';
 import { loggerService } from '../services/logger.service';
 
-export function httpLogger(req: Request, res: Response, next: NextFunction) {
+interface Request extends ExpressRequest {
+  method: string;
+  originalUrl: string;
+  ip: string;
+  get(name: string): string | undefined;
+}
+
+interface Response extends ExpressResponse {
+  statusCode: number;
+  on(event: string, listener: () => void): this;
+}
+
+type Next = (error?: any) => void;
+
+export function httpLogger(req: Request, res: Response, next: Next) {
   const start = Date.now();
 
   // Log ao receber a requisição

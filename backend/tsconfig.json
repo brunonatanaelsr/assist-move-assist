@@ -1,7 +1,6 @@
 {
   "compilerOptions": {
     "target": "ES2020",
-    "types": ["node"],
     "module": "CommonJS",
     "moduleResolution": "Node",
     "lib": ["ES2020"],
@@ -9,6 +8,8 @@
     "rootDir": "./src",
     "strict": false,
     "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "allowJs": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "declaration": true,
@@ -22,17 +23,15 @@
     "noFallthroughCasesInSwitch": false,
     "noUncheckedIndexedAccess": false,
     "noImplicitOverride": false,
-    "allowSyntheticDefaultImports": true,
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "resolveJsonModule": true,
     "typeRoots": ["./node_modules/@types", "./src/types"],
-    "types": ["node", "express", "jest"],
+    "types": ["node", "express"],
     "baseUrl": ".",
     "paths": {
       "*": ["./node_modules/*", "./src/types/*"]
     },
-    "allowJs": true,
     "isolatedModules": true
   },
   "include": [

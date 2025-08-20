@@ -6,7 +6,15 @@ export interface ApiResponse<T = any> {
   metadata?: any;
 }
 
-class ApiService {
+export interface IApiService {
+  get<T = any>(url: string, params?: any): Promise<ApiResponse<T>>;
+  post<T = any>(url: string, data?: any, config?: any): Promise<ApiResponse<T>>;
+  put<T = any>(url: string, data?: any): Promise<ApiResponse<T>>;
+  patch<T = any>(url: string, data?: any): Promise<ApiResponse<T>>;
+  delete<T = any>(url: string): Promise<ApiResponse<T>>;
+}
+
+export class ApiService implements IApiService {
   private instance: AxiosInstance;
 
   constructor() {
@@ -23,8 +31,8 @@ class ApiService {
     return response.data;
   }
 
-  public async post<T = any>(url: string, data?: any): Promise<ApiResponse<T>> {
-    const response: AxiosResponse<ApiResponse<T>> = await this.instance.post(url, data);
+  public async post<T = any>(url: string, data?: any, config?: any): Promise<ApiResponse<T>> {
+    const response: AxiosResponse<ApiResponse<T>> = await this.instance.post(url, data, config);
     return response.data;
   }
 
@@ -44,4 +52,4 @@ class ApiService {
   }
 }
 
-export const apiService = new ApiService();
+export const apiService: IApiService = new ApiService();
