@@ -30,11 +30,7 @@ const authenticateToken = async (req, res, next) => {
       return res.status(401).json(errorResponse('Token expirado'));
     }
     return res.status(401).json(errorResponse('Token inválido'));
-    }
-
-    req.user = user;
-    next();
-  });
+  }
 };
 
 const requireRole = (roles) => {

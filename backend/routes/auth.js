@@ -21,6 +21,9 @@ const COOKIE_OPTIONS = {
 
 // Gerar tokens
 const generateTokens = (user) => {
+  console.log('JWT_SECRET:', process.env.JWT_SECRET);
+  console.log('JWT_REFRESH_SECRET:', process.env.JWT_REFRESH_SECRET);
+  
   const accessToken = jwt.sign(
     { id: user.id, email: user.email, role: user.role },
     process.env.JWT_SECRET,

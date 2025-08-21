@@ -136,12 +136,10 @@ router.get('/stats', authenticateToken, async (req, res) => {
       mes_atual: 0
     };
 
-    const stats = {
-      totalBeneficiarias: parseInt(totalBeneficiarias.rows[0].count),
-      formularios: parseInt(totalFormularios.rows[0].count),
-      atendimentosMes: parseInt(atendimentosMes.rows[0].count),
-      engajamento: `${engajamento}%`
-    };
+    stats.totalBeneficiarias = parseInt(totalBeneficiarias.rows[0].count);
+    stats.formularios = parseInt(totalFormularios.rows[0].count);
+    stats.atendimentosMes = parseInt(atendimentosMes.rows[0].count);
+    stats.engajamento = `${engajamento}%`;
 
     res.json(successResponse(stats, "Estatísticas carregadas com sucesso"));
   } catch (error) {

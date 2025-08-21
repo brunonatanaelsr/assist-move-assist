@@ -1,3 +1,5 @@
+require("dotenv").config();
+
 const express = require("express");
 const http = require("http");
 const socketIo = require("socket.io");
@@ -25,8 +27,6 @@ const sqlInjectionProtection = require("./middleware/sqlInjectionProtection");
 const { successResponse, errorResponse } = require("./utils/responseFormatter");
 const { formatArrayDates, formatObjectDates } = require("./utils/dateFormatter");
 const { corsMiddleware, corsErrorHandler } = require("./middleware/cors");
-
-require("dotenv").config();
 
 const app = express();
 const server = http.createServer(app);
