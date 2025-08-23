@@ -121,13 +121,25 @@ export default function OficinasNew() {
     }
 
     try {
+      const vagasTotais = parseInt(formData.vagas_totais.toString());
+      if (isNaN(vagasTotais) || vagasTotais <= 0) {
+        setError('O número de vagas deve ser maior que zero');
+        return;
+      }
+
       const dados = {
-        ...formData,
-        vagas_totais: parseInt(formData.vagas_totais.toString()),
-        projeto_id: formData.projeto_id && formData.projeto_id !== 'none' ? parseInt(formData.projeto_id) : null,
+        nome: formData.nome.trim(),
+        descricao: formData.descricao?.trim() || null,
+        instrutor: formData.instrutor?.trim() || null,
+        data_inicio: formData.data_inicio,
         data_fim: formData.data_fim || null,
+        horario_inicio: formData.horario_inicio,
+        horario_fim: formData.horario_fim,
+        local: formData.local?.trim() || null,
+        vagas_totais: vagasTotais,
+        projeto_id: formData.projeto_id && formData.projeto_id !== 'none' ? parseInt(formData.projeto_id) : null,
         status: formData.status || 'ativa',
-        dias_semana: formData.dias_semana || null
+        dias_semana: formData.dias_semana?.trim() || null
       };
 
       const response = editingOficina 
@@ -155,8 +167,10 @@ export default function OficinasNew() {
   };
 
   const handleEdit = (oficina: Oficina) => {
+    console.log('Editando oficina:', oficina);
     setEditingOficina(oficina);
-    setFormData({
+    
+    const formDataEdit = {
       nome: oficina.nome,
       descricao: oficina.descricao || '',
       instrutor: oficina.instrutor || '',
@@ -169,7 +183,10 @@ export default function OficinasNew() {
       status: oficina.status || 'ativa',
       projeto_id: oficina.projeto_id?.toString() || 'none',
       dias_semana: oficina.dias_semana || ''
-    });
+    };
+    
+    console.log('Form data para edição:', formDataEdit);
+    setFormData(formDataEdit);
     setDialogOpen(true);
   };
 

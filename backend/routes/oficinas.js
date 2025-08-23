@@ -198,6 +198,38 @@ router.put('/:id', authenticateToken, requireGestor, async (req, res) => {
       }
     }
 
+    console.log('Dados recebidos para edição:', {
+      id,
+      nome,
+      vagas_totais,
+      projeto_id,
+      status,
+      dias_semana
+    });
+
+    // Validar campos obrigatórios
+    if (!nome || !data_inicio || !horario_inicio || !horario_fim || !vagas_totais) {
+      return res.status(400).json(errorResponse("Campos obrigatórios faltando"));
+    }
+
+    const parametros = [
+      nome, 
+      descricao || null, 
+      instrutor || null, 
+      data_inicio, 
+      data_fim || null, 
+      horario_inicio, 
+      horario_fim, 
+      local || null, 
+      parseInt(vagas_totais) || 0, 
+      projeto_id || null, 
+      status || 'ativa', 
+      dias_semana || null,
+      id
+    ];
+
+    console.log('Parâmetros da query:', parametros);
+
     const result = await pool.query(
       `UPDATE oficinas SET 
         nome = $1, descricao = $2, instrutor = $3, data_inicio = $4, data_fim = $5,
@@ -205,21 +237,7 @@ router.put('/:id', authenticateToken, requireGestor, async (req, res) => {
         projeto_id = $10, status = $11, dias_semana = $12, data_atualizacao = NOW()
       WHERE id = $13 AND ativo = true 
       RETURNING *`,
-      [
-        nome, 
-        descricao || null, 
-        instrutor || null, 
-        data_inicio, 
-        data_fim || null, 
-        horario_inicio, 
-        horario_fim, 
-        local || null, 
-        parseInt(vagas_totais), 
-        projeto_id || null, 
-        status || 'ativa', 
-        dias_semana || null,
-        id
-      ]
+      parametros
     );
 
     const oficinaFormatada = formatObjectDates(result.rows[0], ['data_inicio', 'data_fim', 'data_criacao', 'data_atualizacao']);
@@ -230,8 +248,12 @@ router.put('/:id', authenticateToken, requireGestor, async (req, res) => {
 
   } catch (error) {
     console.error("Update oficina error:", error);
+    console.error("Error details:", {
+      message: error.message,
+      stack: error.stack,
+      code: error.code
+    });
     console.error("Request body:", req.body);
-    console.error("Query parameters:", [nome, descricao, instrutor, data_inicio, data_fim, horario_inicio, horario_fim, local, vagas_totais, projeto_id, status, id]);
     res.status(500).json(errorResponse("Erro ao atualizar oficina: " + error.message));
   }
 });
