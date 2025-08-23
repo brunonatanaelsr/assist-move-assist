@@ -195,7 +195,7 @@ router.put('/:id', authenticateToken, requireGestor, async (req, res) => {
     const result = await pool.query(
       `UPDATE oficinas SET 
         nome = $1, descricao = $2, instrutor = $3, data_inicio = $4, data_fim = $5,
-        horario_inicio = $6, horario_fim = $7, local = $8, vagas_total = $9,
+        horario_inicio = $6, horario_fim = $7, local = $8, vagas_totais = $9,
         projeto_id = $10, status = $11, data_atualizacao = NOW()
       WHERE id = $12 AND ativo = true 
       RETURNING *`,
