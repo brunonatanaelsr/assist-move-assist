@@ -34,6 +34,7 @@ interface Oficina {
   total_participantes?: number;
   data_criacao: string;
   data_atualizacao: string;
+  dias_semana?: string;
 }
 
 interface Projeto {
@@ -63,7 +64,8 @@ export default function OficinasNew() {
     local: '',
     vagas_totais: 20,
     status: 'ativa' as 'ativa' | 'inativa' | 'pausada' | 'concluida',
-    projeto_id: ''
+    projeto_id: '',
+    dias_semana: ''
   });
 
   useEffect(() => {
@@ -112,12 +114,20 @@ export default function OficinasNew() {
     setError(null);
     setSuccess(null);
 
+    // Validar campos obrigatórios
+    if (!formData.nome || !formData.data_inicio || !formData.horario_inicio || !formData.horario_fim || !formData.vagas_totais) {
+      setError('Por favor, preencha todos os campos obrigatórios');
+      return;
+    }
+
     try {
       const dados = {
         ...formData,
         vagas_totais: parseInt(formData.vagas_totais.toString()),
         projeto_id: formData.projeto_id && formData.projeto_id !== 'none' ? parseInt(formData.projeto_id) : null,
-        data_fim: formData.data_fim || null
+        data_fim: formData.data_fim || null,
+        status: formData.status || 'ativa',
+        dias_semana: formData.dias_semana || null
       };
 
       const response = editingOficina 
@@ -157,7 +167,8 @@ export default function OficinasNew() {
       local: oficina.local || '',
       vagas_totais: oficina.vagas_totais,
       status: oficina.status || 'ativa',
-      projeto_id: oficina.projeto_id?.toString() || 'none'
+      projeto_id: oficina.projeto_id?.toString() || 'none',
+      dias_semana: oficina.dias_semana || ''
     });
     setDialogOpen(true);
   };
@@ -194,7 +205,8 @@ export default function OficinasNew() {
       local: '',
       vagas_totais: 20,
       status: 'ativa',
-      projeto_id: 'none'
+      projeto_id: 'none',
+      dias_semana: ''
     });
     setEditingOficina(null);
     setError(null);
@@ -377,6 +389,16 @@ export default function OficinasNew() {
                       required
                     />
                   </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="dias_semana">Dias da Semana</Label>
+                  <Input
+                    id="dias_semana"
+                    value={formData.dias_semana}
+                    onChange={(e) => setFormData({ ...formData, dias_semana: e.target.value })}
+                    placeholder="Ex: Segunda, Quarta e Sexta"
+                  />
                 </div>
 
                 <div>

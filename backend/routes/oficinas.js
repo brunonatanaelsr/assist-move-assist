@@ -168,8 +168,14 @@ router.put('/:id', authenticateToken, requireGestor, async (req, res) => {
       local,
       vagas_totais,
       projeto_id,
-      status
+      status,
+      dias_semana
     } = req.body;
+
+    // Validar campos obrigatórios
+    if (!nome || !data_inicio || !horario_inicio || !horario_fim || !vagas_totais) {
+      return res.status(400).json(errorResponse("Campos obrigatórios faltando"));
+    }
 
     // Verificar se a oficina existe
     const oficinaCheck = await pool.query(
@@ -196,10 +202,24 @@ router.put('/:id', authenticateToken, requireGestor, async (req, res) => {
       `UPDATE oficinas SET 
         nome = $1, descricao = $2, instrutor = $3, data_inicio = $4, data_fim = $5,
         horario_inicio = $6, horario_fim = $7, local = $8, vagas_totais = $9,
-        projeto_id = $10, status = $11, data_atualizacao = NOW()
-      WHERE id = $12 AND ativo = true 
+        projeto_id = $10, status = $11, dias_semana = $12, data_atualizacao = NOW()
+      WHERE id = $13 AND ativo = true 
       RETURNING *`,
-      [nome, descricao, instrutor, data_inicio, data_fim, horario_inicio, horario_fim, local, vagas_totais, projeto_id, status, id]
+      [
+        nome, 
+        descricao || null, 
+        instrutor || null, 
+        data_inicio, 
+        data_fim || null, 
+        horario_inicio, 
+        horario_fim, 
+        local || null, 
+        parseInt(vagas_totais), 
+        projeto_id || null, 
+        status || 'ativa', 
+        dias_semana || null,
+        id
+      ]
     );
 
     const oficinaFormatada = formatObjectDates(result.rows[0], ['data_inicio', 'data_fim', 'data_criacao', 'data_atualizacao']);
@@ -210,7 +230,9 @@ router.put('/:id', authenticateToken, requireGestor, async (req, res) => {
 
   } catch (error) {
     console.error("Update oficina error:", error);
-    res.status(500).json(errorResponse("Erro ao atualizar oficina"));
+    console.error("Request body:", req.body);
+    console.error("Query parameters:", [nome, descricao, instrutor, data_inicio, data_fim, horario_inicio, horario_fim, local, vagas_totais, projeto_id, status, id]);
+    res.status(500).json(errorResponse("Erro ao atualizar oficina: " + error.message));
   }
 });
 
