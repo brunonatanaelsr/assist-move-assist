@@ -86,7 +86,7 @@ export default function Auth() {
               <Input
                 id="email"
                 type="email"
-                placeholder="bruno@move.com"
+                placeholder="email"
                 value={loginEmail}
                 onChange={(e) => setLoginEmail(e.target.value)}
                 required
@@ -100,7 +100,7 @@ export default function Auth() {
                 <Input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
-                  placeholder="15002031"
+                  placeholder="senha"
                   value={loginPassword}
                   onChange={(e) => setLoginPassword(e.target.value)}
                   required
