@@ -13,28 +13,29 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { apiFetch } from '@/lib/api';
 
+// Interface com tipos mais específicos para as datas e status
 interface Oficina {
   id: number;
   nome: string;
-  descricao?: string;
-  instrutor?: string;
-  data_inicio: string;
-  data_fim?: string;
-  horario_inicio: string;
-  horario_fim: string;
-  local?: string;
+  descricao?: string | null;
+  instrutor?: string | null;
+  data_inicio: string; // ISO date string
+  data_fim?: string | null; // ISO date string
+  horario_inicio: string; // HH:mm
+  horario_fim: string; // HH:mm
+  local?: string | null;
   vagas_totais: number;
   vagas_ocupadas?: number;
   status: 'ativa' | 'inativa' | 'pausada' | 'concluida';
   ativo: boolean;
-  projeto_id?: number;
-  projeto_nome?: string;
-  responsavel_id?: number;
-  responsavel_nome?: string;
+  projeto_id?: number | null;
+  projeto_nome?: string | null;
+  responsavel_id?: number | null;
+  responsavel_nome?: string | null;
   total_participantes?: number;
-  data_criacao: string;
-  data_atualizacao: string;
-  dias_semana?: string;
+  data_criacao: string; // ISO date string
+  data_atualizacao: string; // ISO date string
+  dias_semana?: string | null;
 }
 
 interface Projeto {
@@ -52,6 +53,13 @@ export default function OficinasNew() {
   const [editingOficina, setEditingOficina] = useState<Oficina | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  // ✅ Função auxiliar para formatar datas ISO para input[type="date"]
+  const formatDateForInput = (isoDate: string) => {
+    if (!isoDate) return '';
+    return isoDate.split('T')[0]; // Pega apenas a parte da data antes do 'T'
+  };
   
   const [formData, setFormData] = useState({
     nome: '',
@@ -114,18 +122,32 @@ export default function OficinasNew() {
     setError(null);
     setSuccess(null);
 
-    // Validar campos obrigatórios
-    if (!formData.nome || !formData.data_inicio || !formData.horario_inicio || !formData.horario_fim || !formData.vagas_totais) {
+    // ✅ VALIDAÇÃO MELHORADA
+    if (!formData.nome?.trim() || !formData.data_inicio || !formData.horario_inicio || !formData.horario_fim) {
       setError('Por favor, preencha todos os campos obrigatórios');
       return;
     }
 
+    const vagasTotais = parseInt(formData.vagas_totais.toString());
+    if (isNaN(vagasTotais) || vagasTotais <= 0) {
+      setError('O número de vagas deve ser maior que zero');
+      return;
+    }
+
+    // ✅ VALIDAÇÃO DE HORÁRIOS
+    if (formData.horario_inicio >= formData.horario_fim) {
+      setError('O horário de início deve ser anterior ao horário de fim');
+      return;
+    }
+
+    // ✅ VALIDAÇÃO DE DATAS
+    if (formData.data_fim && formData.data_inicio > formData.data_fim) {
+      setError('A data de início deve ser anterior à data de fim');
+      return;
+    }
+
     try {
-      const vagasTotais = parseInt(formData.vagas_totais.toString());
-      if (isNaN(vagasTotais) || vagasTotais <= 0) {
-        setError('O número de vagas deve ser maior que zero');
-        return;
-      }
+      setSubmitting(true);
 
       const dados = {
         nome: formData.nome.trim(),
@@ -137,10 +159,12 @@ export default function OficinasNew() {
         horario_fim: formData.horario_fim,
         local: formData.local?.trim() || null,
         vagas_totais: vagasTotais,
-        projeto_id: formData.projeto_id && formData.projeto_id !== 'none' ? parseInt(formData.projeto_id) : null,
+        projeto_id: (formData.projeto_id && formData.projeto_id !== 'none') ? parseInt(formData.projeto_id) : null,
         status: formData.status || 'ativa',
         dias_semana: formData.dias_semana?.trim() || null
       };
+
+      console.log('Enviando dados:', dados); // ✅ DEBUG
 
       const response = editingOficina 
         ? await apiFetch(`/api/oficinas/${editingOficina.id}`, {
@@ -156,26 +180,28 @@ export default function OficinasNew() {
         setSuccess(editingOficina ? 'Oficina atualizada com sucesso!' : 'Oficina criada com sucesso!');
         setDialogOpen(false);
         resetForm();
-        carregarOficinas();
+        await carregarOficinas(); // ✅ AGUARDAR RECARREGAMENTO
       } else {
         setError(response.message || 'Erro ao salvar oficina');
       }
     } catch (error) {
+      console.error('Erro detalhado:', error);
       setError('Erro ao salvar oficina');
-      console.error('Erro ao salvar oficina:', error);
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const handleEdit = (oficina: Oficina) => {
     console.log('Editando oficina:', oficina);
     setEditingOficina(oficina);
-    
+        
     const formDataEdit = {
       nome: oficina.nome,
       descricao: oficina.descricao || '',
       instrutor: oficina.instrutor || '',
-      data_inicio: oficina.data_inicio,
-      data_fim: oficina.data_fim || '',
+      data_inicio: formatDateForInput(oficina.data_inicio), // Usando a função global
+      data_fim: oficina.data_fim ? formatDateForInput(oficina.data_fim) : '', // Usando a função global
       horario_inicio: oficina.horario_inicio,
       horario_fim: oficina.horario_fim,
       local: oficina.local || '',
@@ -442,8 +468,8 @@ export default function OficinasNew() {
                 >
                   Cancelar
                 </Button>
-                <Button type="submit">
-                  {editingOficina ? 'Salvar Alterações' : 'Criar Oficina'}
+                <Button type="submit" disabled={submitting}>
+                  {submitting ? 'Salvando...' : (editingOficina ? 'Salvar Alterações' : 'Criar Oficina')}
                 </Button>
               </div>
             </form>

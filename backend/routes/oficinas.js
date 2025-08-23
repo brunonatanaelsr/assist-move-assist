@@ -172,9 +172,18 @@ router.put('/:id', authenticateToken, requireGestor, async (req, res) => {
       dias_semana
     } = req.body;
 
-    // Validar campos obrigatórios
-    if (!nome || !data_inicio || !horario_inicio || !horario_fim || !vagas_totais) {
-      return res.status(400).json(errorResponse("Campos obrigatórios faltando"));
+    console.log('Dados recebidos para edição:', {
+      id,
+      nome,
+      vagas_totais: typeof vagas_totais,
+      projeto_id: typeof projeto_id,
+      status,
+      dias_semana
+    });
+
+    // ✅ VALIDAÇÃO ÚNICA E CLARA
+    if (!nome?.trim() || !data_inicio || !horario_inicio || !horario_fim || !vagas_totais) {
+      return res.status(400).json(errorResponse("Campos obrigatórios: nome, data_inicio, horario_inicio, horario_fim, vagas_totais"));
     }
 
     // Verificar se a oficina existe
@@ -187,8 +196,8 @@ router.put('/:id', authenticateToken, requireGestor, async (req, res) => {
       return res.status(404).json(errorResponse("Oficina não encontrada"));
     }
 
-    // Verificar se o projeto existe (se fornecido)
-    if (projeto_id) {
+    // Verificar se o projeto existe (apenas se projeto_id não for null/undefined)
+    if (projeto_id && projeto_id !== null) {
       const projetoCheck = await pool.query(
         "SELECT id FROM projetos WHERE id = $1 AND ativo = true",
         [projeto_id]
@@ -198,34 +207,36 @@ router.put('/:id', authenticateToken, requireGestor, async (req, res) => {
       }
     }
 
-    console.log('Dados recebidos para edição:', {
-      id,
-      nome,
-      vagas_totais,
-      projeto_id,
-      status,
-      dias_semana
-    });
+    // ✅ VALIDAÇÃO DE DATAS
+    if (data_fim && data_inicio > data_fim) {
+      return res.status(400).json(errorResponse("A data de início deve ser anterior à data de fim"));
+    }
 
-    // Validar campos obrigatórios
-    if (!nome || !data_inicio || !horario_inicio || !horario_fim || !vagas_totais) {
-      return res.status(400).json(errorResponse("Campos obrigatórios faltando"));
+    // ✅ VALIDAÇÃO DE HORÁRIOS
+    if (horario_inicio >= horario_fim) {
+      return res.status(400).json(errorResponse("O horário de início deve ser anterior ao horário de fim"));
+    }
+
+    // ✅ TRATAMENTO CORRETO DOS PARÂMETROS
+    const vagasTotaisNum = parseInt(vagas_totais);
+    if (isNaN(vagasTotaisNum) || vagasTotaisNum <= 0) {
+      return res.status(400).json(errorResponse("Número de vagas deve ser maior que zero"));
     }
 
     const parametros = [
-      nome, 
-      descricao || null, 
-      instrutor || null, 
-      data_inicio, 
-      data_fim || null, 
-      horario_inicio, 
-      horario_fim, 
-      local || null, 
-      parseInt(vagas_totais) || 0, 
-      projeto_id || null, 
-      status || 'ativa', 
-      dias_semana || null,
-      id
+      nome.trim(),
+      descricao?.trim() || null,
+      instrutor?.trim() || null,
+      data_inicio,
+      data_fim || null,
+      horario_inicio,
+      horario_fim,
+      local?.trim() || null,
+      vagasTotaisNum,
+      projeto_id || null,
+      status || 'ativa',
+      dias_semana?.trim() || null,
+      parseInt(id) // ✅ GARANTIR QUE ID É NÚMERO
     ];
 
     console.log('Parâmetros da query:', parametros);
