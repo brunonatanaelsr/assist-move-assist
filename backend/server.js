@@ -6,6 +6,7 @@ const socketIo = require("socket.io");
 const cors = require("cors");
 const helmet = require("helmet");
 const compression = require("compression");
+const cookieParser = require('cookie-parser');
 const rateLimit = require("express-rate-limit");
 const path = require("path");
 const jwt = require("jsonwebtoken");
@@ -38,6 +39,9 @@ const PORT = config.server.port;
 
 // Configurar trust proxy para rate limiting
 app.set("trust proxy", 1);
+
+// Adicionar cookie-parser
+app.use(cookieParser());
 
 // Teste de conexão do banco
 pool.connect()

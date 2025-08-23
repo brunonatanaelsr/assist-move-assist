@@ -3,29 +3,14 @@ import { apiService } from '@/services/apiService';
 
 interface User {
   id: number;
-  name: string;
+  nome: string;
   email: string;
-  role: string;
-  nome_completo?: string;
-  tipo_usuario?: string;
+  papel: string;
+  ativo: boolean;
 }
 
-interface Profile {
-  id: string;
-  user_id: string;
-  nome_completo: string;
-  email: string;
+interface Profile extends User {
   telefone?: string;
-  cargo?: string;
-  departamento?: string;
-  foto_url?: string;
-  bio?: string;
-  endereco?: string;
-  data_nascimento?: string;
-  tipo_usuario: 'super_admin' | 'admin' | 'coordenador' | 'profissional' | 'assistente';
-  ativo: boolean;
-  data_criacao: string;
-  ultimo_acesso?: string;
 }
 
 interface AuthContextType {
@@ -74,30 +59,26 @@ export const PostgreSQLAuthProvider: React.FC<AuthProviderProps> = ({ children }
         const response = await apiService.getCurrentUser();
         console.log('Response getCurrentUser:', response);
         
-        if (response && response.success && response.data) {
-          const user = response.data as any;
-          setUser(user);
-
-          const mockProfile: Profile = {
-            id: user.id.toString(),
-            user_id: user.id.toString(),
-            nome_completo: user.name || user.email,
-            email: user.email,
-            tipo_usuario: user.role as any,
-            ativo: true,
-            data_criacao: new Date().toISOString()
+        if (response && response.success && response.data && response.data.user) {
+          const userData = response.data.user;
+          const userProfile: Profile = {
+            id: userData.id,
+            nome: userData.nome,
+            email: userData.email,
+            papel: userData.papel,
+            ativo: userData.ativo
           };
-          setProfile(mockProfile);
+          
+          setUser(userData);
+          setProfile(userProfile);
         } else {
           console.log('Response inválido ou usuário não encontrado');
-          // Token pode estar expirado ou inválido
           localStorage.removeItem('token');
           setUser(null);
           setProfile(null);
         }
       } catch (error) {
         console.error('Error loading user:', error);
-        // Se houver erro na autenticação, limpar o token inválido
         localStorage.removeItem('token');
         setUser(null);
         setProfile(null);
@@ -118,23 +99,21 @@ export const PostgreSQLAuthProvider: React.FC<AuthProviderProps> = ({ children }
       console.log('Response do apiService:', response);
 
       if (response && response.data && response.data.user) {
-        setUser(response.data.user);
+        const userData = response.data.user;
+        setUser(userData);
 
-        // Salvar token no localStorage
         if (response.data.token) {
           localStorage.setItem('token', response.data.token);
         }
 
-        const mockProfile: Profile = {
-          id: response.data.user.id.toString(),
-          user_id: response.data.user.id.toString(),
-          nome_completo: response.data.user.name,
-          email: response.data.user.email,
-          tipo_usuario: response.data.user.role as any,
-          ativo: true,
-          data_criacao: new Date().toISOString()
+        const userProfile: Profile = {
+          id: userData.id,
+          nome: userData.nome,
+          email: userData.email,
+          papel: userData.papel,
+          ativo: userData.ativo
         };
-        setProfile(mockProfile);
+        setProfile(userProfile);
 
         return { error: null };
       } else {
@@ -150,7 +129,6 @@ export const PostgreSQLAuthProvider: React.FC<AuthProviderProps> = ({ children }
 
   const signOut = async () => {
     try {
-      // Remover token do localStorage
       localStorage.removeItem('token');
       setUser(null);
       setProfile(null);
@@ -168,7 +146,7 @@ export const PostgreSQLAuthProvider: React.FC<AuthProviderProps> = ({ children }
     signIn,
     signOut,
     isAuthenticated: !!user,
-    isAdmin: user?.role === 'admin' || user?.role === 'super_admin' || user?.role === 'superadmin',
+    isAdmin: user?.papel === 'admin' || user?.papel === 'super_admin' || user?.papel === 'superadmin',
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

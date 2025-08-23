@@ -18,7 +18,7 @@ export default function Header() {
   const { profile, signOut } = useAuth();
   
   // Verificar se é admin baseado no profile
-  const isAdmin = profile?.tipo_usuario === 'admin' || profile?.tipo_usuario === 'super_admin';
+  const isAdmin = profile?.papel === 'admin' || profile?.papel === 'super_admin';
 
   const handleLogout = async () => {
     await signOut();
@@ -57,7 +57,7 @@ export default function Header() {
             <Button variant="ghost" className="relative h-8 w-8 rounded-full">
               <Avatar className="h-8 w-8">
                 <AvatarFallback className="bg-primary text-primary-foreground text-sm">
-                  {getInitials(profile.nome_completo)}
+                  {getInitials(profile.nome || '')}
                 </AvatarFallback>
               </Avatar>
             </Button>
@@ -65,7 +65,7 @@ export default function Header() {
           <DropdownMenuContent className="w-56" align="end" forceMount>
             <DropdownMenuLabel className="font-normal">
               <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium leading-none">{profile.nome_completo}</p>
+                <p className="text-sm font-medium leading-none">{profile.nome}</p>
                 <p className="text-xs leading-none text-muted-foreground">
                   {profile.email}
                 </p>

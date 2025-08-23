@@ -53,7 +53,7 @@ export class AuthService {
     try {
       // Buscar usuário
       const users = await db.query(
-        'SELECT * FROM profiles WHERE email = $1 AND active = true',
+        'SELECT id, nome, email, senha_hash, papel, ativo FROM usuarios WHERE email = $1 AND ativo = true',
         [email]
       );
 
@@ -64,15 +64,15 @@ export class AuthService {
 
       const user = users[0];
 
-      // Verificar senha
-      if (!user.password_hash || !(await this.verifyPassword(password, user.password_hash))) {
+            // Verificar senha
+      if (!user.senha_hash || !(await this.verifyPassword(password, user.senha_hash))) {
         loggerService.audit('LOGIN_FAILED', user.id, { email, reason: 'invalid_password' });
         return null;
       }
 
       // Atualizar último login
       await db.query(
-        'UPDATE profiles SET last_login = NOW() WHERE id = $1',
+        'UPDATE usuarios SET ultimo_login = NOW() WHERE id = $1',
         [user.id]
       );
 
@@ -80,7 +80,7 @@ export class AuthService {
       const token = this.generateToken({
         id: user.id,
         email: user.email,
-        role: user.role || 'user'
+        role: user.papel
       });
 
       loggerService.audit('LOGIN_SUCCESS', user.id, { email });
@@ -89,9 +89,9 @@ export class AuthService {
         user: {
           id: user.id,
           email: user.email,
-          nome_completo: user.nome_completo,
-          role: user.role,
-          avatar_url: user.avatar_url
+          nome: user.nome,
+          role: user.papel,
+          ativo: user.ativo
         },
         token
       };

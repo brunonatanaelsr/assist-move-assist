@@ -4,18 +4,26 @@ const { pool } = require('../config/database');
 
 const authenticateToken = async (req, res, next) => {
   try {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
+    let token;
+    
+    // Tentar pegar o token do cookie primeiro
+    if (req.cookies && req.cookies.auth_token) {
+      token = req.cookies.auth_token;
+    } else {
+      // Se não houver cookie, tentar do header Authorization
+      const authHeader = req.headers['authorization'];
+      token = authHeader && authHeader.split(' ')[1];
+    }
 
     if (!token) {
       return res.status(401).json(errorResponse('Token não fornecido'));
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'movemarias_jwt_secret_key_2025_production');
     
     // Verificar se o usuário ainda está ativo
     const userResult = await pool.query(
-      "SELECT ativo FROM usuarios WHERE id = $1",
+      "SELECT id, nome, email, papel, ativo FROM usuarios WHERE id = $1 AND ativo = true",
       [decoded.id]
     );
 
@@ -23,7 +31,10 @@ const authenticateToken = async (req, res, next) => {
       return res.status(401).json(errorResponse('Usuário inativo ou não encontrado'));
     }
 
-    req.user = decoded;
+    req.user = {
+      ...decoded,
+      ...userResult.rows[0]
+    };
     next();
   } catch (error) {
     if (error instanceof jwt.TokenExpiredError) {
