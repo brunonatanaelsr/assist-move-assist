@@ -48,6 +48,8 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [stats, setStats] = useState({
     totalBeneficiarias: 0,
+    beneficiariasAtivas: 0,
+    beneficiariasInativas: 0,
     formularios: 0,
     atendimentosMes: 0,
     engajamento: "0%"
@@ -116,7 +118,7 @@ export default function Dashboard() {
         <StatCard
           title="Total de Beneficiárias"
           value={loading ? "..." : stats.totalBeneficiarias.toString()}
-          description={loading ? "Carregando..." : `${stats.totalBeneficiarias} cadastradas`}
+          description={loading ? "Carregando..." : `${stats.beneficiariasAtivas} ativas • ${stats.beneficiariasInativas} inativas`}
           icon={<Users className="h-4 w-4" />}
           variant="primary"
         />
