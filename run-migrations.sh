@@ -28,6 +28,7 @@ migrations=(
     "2025_08_21_103200_create_avaliacoes_oficinas_table.sql"
     "2025_08_21_103300_create_etapas_projeto_table.sql"
     "2025_08_21_103400_create_recursos_projeto_table.sql"
+    "2025_08_23_add_formularios_tables.sql"
 )
 
 # Executa cada migração na ordem especificada
