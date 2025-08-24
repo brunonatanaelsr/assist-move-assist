@@ -1,10 +1,37 @@
 #!/bin/bash
 
+# Cores para output
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+NC='\033[0m' # No Color
+
+# Função para executar migration com tratamento de erro
+execute_migration() {
+    local file=$1
+    echo -e "${GREEN}Executando $file...${NC}"
+    PGPASSWORD=15002031 psql -h localhost -U postgres -d movemarias -f "migrations/$file"
+    
+    if [ $? -ne 0 ]; then
+        echo -e "${RED}Erro ao executar $file${NC}"
+        exit 1
+    fi
+}
+
 # Array com a ordem correta das migrações
 migrations=(
+    # Tabelas base do sistema
     "2025_08_20_184600_create_usuarios_table.sql"
     "2025_08_20_184700_create_refresh_tokens_table.sql"
     "2025_08_20_184800_create_database_extensions.sql"
+    
+    # Sistema de Perfis e Permissões
+    "2025_08_24_000001_create_perfis_table.sql"
+    "2025_08_24_000002_create_permissoes_table.sql"
+    "2025_08_24_000003_create_perfil_permissoes_table.sql"
+    "2025_08_24_000004_add_perfil_to_usuarios.sql"
+    "2025_08_24_000005_insert_initial_roles_and_permissions.sql"
+    
+    # Dados iniciais e outras tabelas
     "2025_08_20_184900_insert_initial_data.sql"
     "2025_08_20_185100_create_beneficiarias_table.sql"
     "2025_08_20_185200_create_eventos_auditoria_table.sql"
