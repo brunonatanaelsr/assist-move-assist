@@ -56,6 +56,10 @@ migrations=(
     "2025_08_21_103300_create_etapas_projeto_table.sql"
     "2025_08_21_103400_create_recursos_projeto_table.sql"
     "2025_08_23_add_formularios_tables.sql"
+    # Logs e Auditoria Avançada
+    "2025_08_25_143000_create_logs_configuracoes_table.sql"
+    "2025_08_25_143500_create_configuracoes_sistema_table.sql"
+    "2025_08_25_143600_create_update_triggers.sql"
 )
 
 # Executa cada migração na ordem especificada
