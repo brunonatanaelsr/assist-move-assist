@@ -9,7 +9,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/usePostgreSQLAuth";
-import { apiService } from "@/services/apiService";
+import { apiService } from "@/services/api";
 import { cn } from "@/lib/utils";
 
 interface Conversation {

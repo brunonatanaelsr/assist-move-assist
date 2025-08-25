@@ -13,7 +13,7 @@ import { AlertCircle, ArrowLeft, Edit, Save, X, Plus, FileText, Calendar, User, 
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { apiService } from '@/services/apiService';
+import { apiService } from '@/services/api';
 
 interface Beneficiaria {
   id: number;

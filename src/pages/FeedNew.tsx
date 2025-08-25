@@ -30,7 +30,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/hooks/usePostgreSQLAuth';
 import { useToast } from '@/components/ui/use-toast';
-import apiService from '@/services/apiService';
+import { apiService } from '@/services/api';
 
 interface Post {
   id: number;

@@ -34,7 +34,7 @@ import { Progress } from "@/components/ui/progress";
 import { useAuth } from "@/hooks/usePostgreSQLAuth";
 import { useSocket } from "@/hooks/useSocket";
 import { cn } from "@/lib/utils";
-import apiService from "@/services/apiService";
+import { apiService } from "@/services/api";
 import { toast } from "sonner";
 
 interface User {

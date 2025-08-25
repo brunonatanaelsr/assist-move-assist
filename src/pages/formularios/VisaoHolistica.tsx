@@ -10,7 +10,7 @@ import { Slider } from '@/components/ui/slider';
 import { ArrowLeft, Eye, Target, TrendingUp, AlertCircle, CheckCircle, Brain, Heart, Users } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { apiService } from '@/services/apiService';
+import { apiService } from '@/services/api';
 
 interface VisaoHolistica {
   beneficiaria_id: number;

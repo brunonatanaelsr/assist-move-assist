@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MessageSquare, Send, Plus, Search, Filter, User, Calendar, Clock, AlertCircle } from "lucide-react";
-import { apiService } from "@/services/apiService";
+import { apiService } from "@/services/api";
 import { toast } from "@/hooks/use-toast";
 
 // Interfaces

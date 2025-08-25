@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { apiService } from '@/services/apiService';
+import { apiService } from '@/services/api';
 
 interface User {
   id: number;
@@ -7,10 +7,17 @@ interface User {
   email: string;
   papel: string;
   ativo: boolean;
+  cargo?: string;
+  departamento?: string;
+  foto_url?: string;
 }
 
 interface Profile extends User {
   telefone?: string;
+  cargo?: string;
+  departamento?: string;
+  tipo_usuario: string;
+  foto_url?: string;
 }
 
 interface AuthContextType {
@@ -66,7 +73,11 @@ export const PostgreSQLAuthProvider: React.FC<AuthProviderProps> = ({ children }
             nome: userData.nome,
             email: userData.email,
             papel: userData.papel,
-            ativo: userData.ativo
+            ativo: userData.ativo,
+            tipo_usuario: userData.papel || 'usuario',
+            cargo: userData.cargo || '',
+            departamento: userData.departamento || '',
+            foto_url: userData.foto_url || ''
           };
           
           setUser(userData);
@@ -111,7 +122,11 @@ export const PostgreSQLAuthProvider: React.FC<AuthProviderProps> = ({ children }
           nome: userData.nome,
           email: userData.email,
           papel: userData.papel,
-          ativo: userData.ativo
+          ativo: userData.ativo,
+          tipo_usuario: userData.papel || 'usuario',
+          cargo: userData.cargo || '',
+          departamento: userData.departamento || '',
+          foto_url: userData.foto_url || ''
         };
         setProfile(userProfile);
 

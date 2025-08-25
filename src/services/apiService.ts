@@ -1,14 +1,312 @@
-/**
- * Serviço de API padronizado
- * Comunicação robusta com o backend PostgreSQL
- */
+import axios from 'axios';
 
-import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
+export interface ApiResponse<T = any> {
+  success: boolean;
+  data?: T;
+  message?: string;
+}
 
-// Em desenvolvimento, usar o proxy do Vite. Em produção, usar URL completa
-const API_URL = '/api';
+export const apiService = {
+  get: async (url: string): Promise<ApiResponse> => {
+    try {
+      const response = await api.get(url);
+      return response.data;
+    } catch (error) {
+      console.error('GET request error:', error);
+      return { success: false, message: 'Erro na requisição GET' };
+    }
+  },
 
-interface ApiResponse<T = any> {
+  put: async (url: string, data: any): Promise<ApiResponse> => {
+    try {
+      const response = await api.put(url, data);
+      return response.data;
+    } catch (error) {
+      console.error('PUT request error:', error);
+      return { success: false, message: 'Erro na requisição PUT' };
+    }
+  }
+};
+
+import axios from 'axios';
+
+// Create API instance
+const api = axios.create({
+  baseURL: '/api',
+  timeout: 10000,
+  headers: { 'Content-Type': 'application/json' }
+});
+
+// Add auth interceptor
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token');
+  if (token && config.headers) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+}, (error) => Promise.reject(error));
+
+// Handle auth errors
+api.interceptors.response.use((response) => response, (error) => {
+  if (error.response?.status === 401) {
+    localStorage.removeItem('token');
+    window.location.href = '/login';
+  }
+  return Promise.reject(error);
+});
+
+// Export API service
+export const apiService = {
+  get: async (url: string) => {
+    try {
+      const response = await api.get(url);
+      return response.data;
+    } catch (error) {
+      console.error('GET request error:', error);
+      return { success: false, message: 'Erro na requisição GET' };
+    }
+  },
+  put: async (url: string, data: any) => {
+    try {
+      const response = await api.put(url, data);
+      return response.data;
+    } catch (error) {
+      console.error('PUT request error:', error);
+      return { success: false, message: 'Erro na requisição PUT' };
+    }
+  }
+};
+
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token');
+    if (token && config.headers) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    console.error('Request error:', error);
+    return Promise.reject(error);
+  }
+);
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('token');
+      window.location.href = '/login';
+    }
+    return Promise.reject(error);
+  }
+);
+
+export const apiService = {
+  async get<T>(url: string, config = {}) {
+    try {
+      const response = await api.get<ApiResponse<T>>(url, config);
+      return response.data;
+    } catch (error) {
+      console.error('GET request error:', error);
+      return { success: false, message: 'Erro na requisição GET' };
+    }
+  },
+
+  async put<T>(url: string, data = {}, config = {}) {
+    try {
+      const response = await api.put<ApiResponse<T>>(url, data, config);
+      return response.data;
+    } catch (error) {
+      console.error('PUT request error:', error);
+      return { success: false, message: 'Erro na requisição PUT' };
+    }
+  },
+
+  async post<T>(url: string, data = {}, config = {}) {
+    try {
+      const response = await api.post<ApiResponse<T>>(url, data, config);
+      return response.data;
+    } catch (error) {
+      console.error('POST request error:', error);
+      return { success: false, message: 'Erro na requisição POST' };
+    }
+  },
+
+  async delete<T>(url: string, config = {}) {
+    try {
+      const response = await api.delete<ApiResponse<T>>(url, config);
+      return response.data;
+    } catch (error) {
+      console.error('DELETE request error:', error);
+      return { success: false, message: 'Erro na requisição DELETE' };
+    }
+  }
+};
+
+class ApiService {
+  private api: AxiosInstance;
+
+  constructor() {
+    this.api = axios.create({
+      baseURL: API_URL,
+      timeout: 10000,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    this.setupInterceptors();
+  }
+
+  private setupInterceptors(): void {
+    this.api.interceptors.request.use(
+      (config) => {
+        const token = localStorage.getItem('token');
+        if (token && config.headers) {
+          config.headers.Authorization = `Bearer ${token}`;
+        }
+        return config;
+      },
+      (error) => {
+        console.error('Request error:', error);
+        return Promise.reject(error);
+      }
+    );
+
+    this.api.interceptors.response.use(
+      (response) => response,
+      (error) => {
+        if (error.response?.status === 401) {
+          localStorage.removeItem('token');
+          window.location.href = '/login';
+        }
+        return Promise.reject(error);
+      }
+    );
+  }
+
+  public get<T>(url: string, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
+    return this.api.get<ApiResponse<T>>(url, config)
+      .then(response => response.data)
+      .catch(error => {
+        console.error('GET request error:', error);
+        return { success: false, message: 'Erro na requisição GET' };
+      });
+  }
+
+  public put<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
+    return this.api.put<ApiResponse<T>>(url, data, config)
+      .then(response => response.data)
+      .catch(error => {
+        console.error('PUT request error:', error);
+        return { success: false, message: 'Erro na requisição PUT' };
+      });
+  }
+
+  public post<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
+    return this.api.post<ApiResponse<T>>(url, data, config)
+      .then(response => response.data)
+      .catch(error => {
+        console.error('POST request error:', error);
+        return { success: false, message: 'Erro na requisição POST' };
+      });
+  }
+
+  public delete<T>(url: string, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
+    return this.api.delete<ApiResponse<T>>(url, config)
+      .then(response => response.data)
+      .catch(error => {
+        console.error('DELETE request error:', error);
+        return { success: false, message: 'Erro na requisição DELETE' };
+      });
+  }
+}
+
+export const apiService = new ApiService();
+
+class ApiService {
+  private api: AxiosInstance;
+
+  constructor() {
+    this.api = axios.create({
+      baseURL: API_URL,
+      timeout: 10000,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    this.setupInterceptors();
+  }
+
+  private setupInterceptors(): void {
+    this.api.interceptors.request.use(
+      (config) => {
+        const token = localStorage.getItem('token');
+        if (token && config.headers) {
+          config.headers.Authorization = `Bearer ${token}`;
+        }
+        return config;
+      },
+      (error) => {
+        console.error('Request error:', error);
+        return Promise.reject(error);
+      }
+    );
+
+    this.api.interceptors.response.use(
+      (response) => response,
+      (error) => {
+        if (error.response?.status === 401) {
+          localStorage.removeItem('token');
+          window.location.href = '/login';
+        }
+        return Promise.reject(error);
+      }
+    );
+  }
+
+  public get<T = any>(url: string, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
+    return this.api.get<ApiResponse<T>>(url, config)
+      .then(response => response.data)
+      .catch(error => {
+        console.error('GET request error:', error);
+        return { success: false, message: 'Erro na requisição GET' };
+      });
+  }
+
+  public put<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
+    return this.api.put<ApiResponse<T>>(url, data, config)
+      .then(response => response.data)
+      .catch(error => {
+        console.error('PUT request error:', error);
+        return { success: false, message: 'Erro na requisição PUT' };
+      });
+  }
+
+  public post<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
+    return this.api.post<ApiResponse<T>>(url, data, config)
+      .then(response => response.data)
+      .catch(error => {
+        console.error('POST request error:', error);
+        return { success: false, message: 'Erro na requisição POST' };
+      });
+  }
+
+  public delete<T = any>(url: string, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
+    return this.api.delete<ApiResponse<T>>(url, config)
+      .then(response => response.data)
+      .catch(error => {
+        console.error('DELETE request error:', error);
+        return { success: false, message: 'Erro na requisição DELETE' };
+      });
+  }
+}
+
+export const apiService = new ApiService();
+
+export interface ApiResponse<T = any> {
   success: boolean;
   data?: T;
   message?: string;
@@ -20,7 +318,7 @@ interface ApiResponse<T = any> {
   };
 }
 
-class ApiService {
+export class ApiService {
   private api: AxiosInstance;
 
   constructor() {
@@ -36,11 +334,9 @@ class ApiService {
     this.api.interceptors.request.use(
       (config) => {
         const token = localStorage.getItem('token');
-        if (token) {
+        if (token && config.headers) {
           config.headers.Authorization = `Bearer ${token}`;
         }
-        
-        console.log(`API Request: ${config.method?.toUpperCase()} ${config.url}`);
         return config;
       },
       (error) => {
@@ -48,6 +344,90 @@ class ApiService {
         return Promise.reject(error);
       }
     );
+  }
+
+  // Métodos HTTP públicos
+  public async get<T = any>(url: string, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
+    try {
+      const response = await this.api.get<ApiResponse<T>>(url, config);
+      return response.data;
+    } catch (error) {
+      console.error('GET request error:', error);
+      return { success: false, message: 'Erro na requisição GET' };
+    }
+  }
+
+  public async put<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
+    try {
+      const response = await this.api.put<ApiResponse<T>>(url, data, config);
+      return response.data;
+    } catch (error) {
+      console.error('PUT request error:', error);
+      return { success: false, message: 'Erro na requisição PUT' };
+    }
+  }
+
+  public async post<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
+    try {
+      const response = await this.api.post<ApiResponse<T>>(url, data, config);
+      return response.data;
+    } catch (error) {
+      console.error('POST request error:', error);
+      return { success: false, message: 'Erro na requisição POST' };
+    }
+  }
+
+  public async delete<T = any>(url: string, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
+    try {
+      const response = await this.api.delete<ApiResponse<T>>(url, config);
+      return response.data;
+    } catch (error) {
+      console.error('DELETE request error:', error);
+      return { success: false, message: 'Erro na requisição DELETE' };
+    }
+  }
+  }
+
+  // Métodos HTTP públicos
+  async get<T = any>(url: string, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
+    try {
+      const response = await this.api.get<ApiResponse<T>>(url, config);
+      return response.data;
+    } catch (error) {
+      console.error('GET request error:', error);
+      return { success: false, message: 'Erro na requisição GET' };
+    }
+  }
+
+  async put<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
+    try {
+      const response = await this.api.put<ApiResponse<T>>(url, data, config);
+      return response.data;
+    } catch (error) {
+      console.error('PUT request error:', error);
+      return { success: false, message: 'Erro na requisição PUT' };
+    }
+  }
+
+  async post<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
+    try {
+      const response = await this.api.post<ApiResponse<T>>(url, data, config);
+      return response.data;
+    } catch (error) {
+      console.error('POST request error:', error);
+      return { success: false, message: 'Erro na requisição POST' };
+    }
+  }
+
+  async delete<T = any>(url: string, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
+    try {
+      const response = await this.api.delete<ApiResponse<T>>(url, config);
+      return response.data;
+    } catch (error) {
+      console.error('DELETE request error:', error);
+      return { success: false, message: 'Erro na requisição DELETE' };
+    }
+  }
 
     // Interceptor para tratar respostas e erros
     this.api.interceptors.response.use(

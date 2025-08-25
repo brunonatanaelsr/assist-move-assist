@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { apiService } from "@/services/apiService";
+import { apiService } from "@/services/api";
 import { ReactNode } from "react";
 
 // Componente StatCard local
