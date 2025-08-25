@@ -1,0 +1,242 @@
+import { apiService } from '../services/apiService';
+import axios from 'axios';
+
+const mockApi = {
+  get: vi.fn(),
+  post: vi.fn(),
+  put: vi.fn(),
+  delete: vi.fn(),
+  interceptors: {
+    request: { use: vi.fn() },
+    response: { use: vi.fn() }
+  }
+};
+
+vi.mock('axios', () => ({
+  default: {
+    create: () => mockApi
+  }
+}));
+
+describe('API Service Tests', () => {
+  let testId = '1';
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  // Mock de uma resposta de sucesso genérica
+  const mockSuccessResponse = {
+    data: {
+      success: true,
+      data: { id: testId, nome: 'Test' }
+    }
+  };
+
+  // Teste de autenticação
+  describe('Autenticação', () => {
+    it('Deve fazer login com sucesso', async () => {
+      mockApi.post.mockResolvedValueOnce({
+        data: {
+          success: true,
+          data: {
+            token: 'fake-token',
+            user: { id: 1, email: 'test@example.com' }
+          }
+        }
+      });
+
+      const response = await apiService.login('test@example.com', 'password');
+      expect(response.success).toBe(true);
+      expect(response.data).toHaveProperty('token');
+    });
+
+    it('Deve obter usuário atual', async () => {
+      mockApi.get.mockResolvedValueOnce({
+        data: {
+          success: true,
+          data: { id: 1, email: 'test@example.com' }
+        }
+      });
+
+      const response = await apiService.getCurrentUser();
+      expect(response.success).toBe(true);
+      expect(response.data).toHaveProperty('id');
+    });
+  });
+
+  // Testes de Oficinas
+  describe('Oficinas CRUD', () => {
+    it('Deve criar uma nova oficina', async () => {
+      mockApi.post.mockResolvedValueOnce(mockSuccessResponse);
+
+      const oficinaData = {
+        nome: 'Oficina de Teste',
+        descricao: 'Descrição da oficina de teste',
+        data_inicio: '2025-09-01',
+        data_fim: '2025-09-30',
+        vagas: 20,
+        status: 'ativa'
+      };
+
+      const response = await apiService.createOficina(oficinaData);
+      expect(response.success).toBe(true);
+      expect(response.data).toHaveProperty('id');
+    });
+
+    it('Deve listar oficinas', async () => {
+      mockApi.get.mockResolvedValueOnce({
+        data: {
+          success: true,
+          data: [
+            { id: '1', nome: 'Oficina 1' },
+            { id: '2', nome: 'Oficina 2' }
+          ]
+        }
+      });
+
+      const response = await apiService.getOficinas();
+      expect(response.success).toBe(true);
+      expect(Array.isArray(response.data)).toBe(true);
+    });
+
+    it('Deve atualizar uma oficina', async () => {
+      mockApi.put.mockResolvedValueOnce(mockSuccessResponse);
+
+      const updateData = {
+        nome: 'Oficina Atualizada',
+        vagas: 25
+      };
+
+      const response = await apiService.updateOficina(testId, updateData);
+      expect(response.success).toBe(true);
+      expect(response.data.nome).toBe('Test');
+    });
+
+    it('Deve deletar uma oficina', async () => {
+      mockApi.delete.mockResolvedValueOnce({
+        data: {
+          success: true
+        }
+      });
+
+      const response = await apiService.deleteOficina(testId);
+      expect(response.success).toBe(true);
+    });
+  });
+
+  // Testes de Beneficiárias
+  describe('Beneficiárias CRUD', () => {
+    it('Deve criar uma nova beneficiária', async () => {
+      mockApi.post.mockResolvedValueOnce(mockSuccessResponse);
+
+      const beneficiariaData = {
+        nome: 'Maria Teste',
+        cpf: '123.456.789-00',
+        data_nascimento: '1990-01-01',
+        telefone: '(11) 98765-4321',
+        endereco: 'Rua Teste, 123',
+        status: 'ativa'
+      };
+
+      const response = await apiService.createBeneficiaria(beneficiariaData);
+      expect(response.success).toBe(true);
+      expect(response.data).toHaveProperty('id');
+    });
+
+    it('Deve listar beneficiárias', async () => {
+      mockApi.get.mockResolvedValueOnce({
+        data: {
+          success: true,
+          data: [
+            { id: '1', nome: 'Beneficiária 1' },
+            { id: '2', nome: 'Beneficiária 2' }
+          ]
+        }
+      });
+
+      const response = await apiService.getBeneficiarias();
+      expect(response.success).toBe(true);
+      expect(Array.isArray(response.data)).toBe(true);
+    });
+
+    it('Deve obter uma beneficiária específica', async () => {
+      mockApi.get.mockResolvedValueOnce(mockSuccessResponse);
+
+      const response = await apiService.getBeneficiaria(testId);
+      expect(response.success).toBe(true);
+      expect(response.data).toHaveProperty('id');
+    });
+
+    it('Deve atualizar uma beneficiária', async () => {
+      mockApi.put.mockResolvedValueOnce(mockSuccessResponse);
+
+      const updateData = {
+        nome: 'Maria Teste Atualizado',
+        telefone: '(11) 99999-9999'
+      };
+
+      const response = await apiService.updateBeneficiaria(testId, updateData);
+      expect(response.success).toBe(true);
+      expect(response.data).toHaveProperty('id');
+    });
+
+    it('Deve deletar uma beneficiária', async () => {
+      mockApi.delete.mockResolvedValueOnce({
+        data: {
+          success: true
+        }
+      });
+
+      const response = await apiService.deleteBeneficiaria(testId);
+      expect(response.success).toBe(true);
+    });
+  });
+
+  // Testes de Upload
+  describe('Upload', () => {
+    it('Deve fazer upload de imagem', async () => {
+      mockApi.post.mockResolvedValueOnce({
+        data: {
+          success: true,
+          data: {
+            url: 'http://example.com/image.jpg',
+            filename: 'image.jpg'
+          }
+        }
+      });
+
+      const mockFile = new File([''], 'test.jpg', { type: 'image/jpeg' });
+      const response = await apiService.uploadImage(mockFile);
+      
+      expect(response.success).toBe(true);
+      expect(response.data).toHaveProperty('url');
+    });
+  });
+
+  // Testes de Health Check
+  describe('Health Check', () => {
+    it('Deve verificar saúde do sistema', async () => {
+      mockApi.get.mockResolvedValueOnce({
+        data: {
+          success: true,
+          data: {
+            status: 'healthy',
+            version: '1.0.0'
+          }
+        }
+      });
+
+      const response = await apiService.healthCheck();
+      expect(response.success).toBe(true);
+    });
+
+    it('Deve lidar com erro de conexão', async () => {
+      mockApi.get.mockRejectedValueOnce(new Error('Network Error'));
+
+      const response = await apiService.healthCheck();
+      expect(response.success).toBe(false);
+      expect(response.message).toContain('Network Error');
+    });
+  });
+});

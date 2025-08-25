@@ -190,6 +190,31 @@ export class ApiService {
       };
     }
   }
+
+  // Feed Posts
+  public async getFeed(params?: any): Promise<ApiResponse<any[]>> {
+    return this.get('/feed', { params });
+  }
+
+  public async getFeedPost(id: string | number): Promise<ApiResponse<any>> {
+    return this.get(`/feed/${id}`);
+  }
+
+  public async createFeedPost(data: any): Promise<ApiResponse<any>> {
+    return this.post('/feed', data);
+  }
+
+  public async updateFeedPost(id: string | number, data: any): Promise<ApiResponse<any>> {
+    return this.put(`/feed/${id}`, data);
+  }
+
+  public async deleteFeedPost(id: string | number): Promise<ApiResponse<any>> {
+    return this.delete(`/feed/${id}`);
+  }
+
+  public async likeFeedPost(id: string | number): Promise<ApiResponse<any>> {
+    return this.post(`/feed/${id}/like`, {});
+  }
 }
 
 export const apiService = new ApiService();

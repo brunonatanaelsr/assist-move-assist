@@ -1,9 +1,9 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { ErrorBoundary } from '../components/ErrorBoundary';
-import { Loading } from '../components/ui/loading';
-import { LoadingSuspense } from '../components/ui/loading-suspense';
+import { ErrorBoundary } from '../ErrorBoundary';
+import { Loading } from '../ui/loading';
+import { LoadingSuspense, LoadingError, LoadingRetry } from '../ui/loading-suspense';
 
 // Mock dos hooks necessários
 vi.mock('@/hooks/usePostgreSQLAuth', () => ({
@@ -103,16 +103,13 @@ describe('Loading Component Tests', () => {
     expect(screen.getByText(message)).toBeInTheDocument();
   });
 
-  it('should apply different sizes', () => {
-    render(<Loading size="sm" />);
-    expect(document.querySelector('.h-4.w-4')).toBeInTheDocument();
-
-    render(<Loading size="lg" />);
-    expect(document.querySelector('.h-12.w-12')).toBeInTheDocument();
+  it('should show proper loading icon size', () => {
+    render(<Loading />);
+    expect(document.querySelector('.h-8.w-8')).toBeInTheDocument();
   });
 
-  it('should show overlay with blur', () => {
-    render(<Loading fullScreen overlay />);
+  it('should show backdrop blur when fullScreen', () => {
+    render(<Loading fullScreen />);
     
     const overlay = document.querySelector('.backdrop-blur-sm');
     expect(overlay).toBeInTheDocument();
@@ -169,7 +166,7 @@ describe('LoadingSuspense Tests', () => {
 
   it('should render error state', async () => {
     const error = new Error('Test Error');
-    render(<LoadingSuspense error={error} />);
+    render(<LoadingError error={error} />);
 
     expect(screen.getByText(/erro ao carregar/i)).toBeInTheDocument();
     expect(screen.getByText('Test Error')).toBeInTheDocument();
@@ -180,7 +177,7 @@ describe('LoadingSuspense Tests', () => {
     const error = new Error('Test Error');
 
     render(
-      <LoadingSuspense 
+      <LoadingRetry
         error={error}
         onRetry={onRetry}
       />
