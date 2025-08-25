@@ -19,7 +19,7 @@ import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 import Analytics from "./pages/Analytics";
 import OficinasNew from "./pages/OficinasNew";
 import ParticipantesProjeto from "./pages/ParticipantesProjeto";
-import Configuracoes from "./pages/Configuracoes";
+import Configuracoes from "./pages/ConfiguracoesNew";
 import EditarPerfil from "./components/EditarPerfil";
 import ChatInterno from "./pages/ChatInterno";
 import Atividades from "./pages/Atividades";

@@ -504,22 +504,26 @@ export default function Configuracoes() {
             <User className="h-4 w-4 mr-2" />
             Meu Perfil
           </TabsTrigger>
-          <TabsTrigger value="usuarios">
-            <Users className="h-4 w-4 mr-2" />
-            Usuários
-          </TabsTrigger>
-          <TabsTrigger value="permissoes">
-            <Shield className="h-4 w-4 mr-2" />
-            Permissões
-          </TabsTrigger>
-          <TabsTrigger value="sistema">
-            <Settings className="h-4 w-4 mr-2" />
-            Sistema
-          </TabsTrigger>
-          <TabsTrigger value="banco">
-            <Database className="h-4 w-4 mr-2" />
-            Banco de Dados
-          </TabsTrigger>
+          {isAdmin && (
+            <>
+              <TabsTrigger value="usuarios">
+                <Users className="h-4 w-4 mr-2" />
+                Usuários
+              </TabsTrigger>
+              <TabsTrigger value="permissoes">
+                <Shield className="h-4 w-4 mr-2" />
+                Permissões
+              </TabsTrigger>
+              <TabsTrigger value="sistema">
+                <Settings className="h-4 w-4 mr-2" />
+                Sistema
+              </TabsTrigger>
+              <TabsTrigger value="banco">
+                <Database className="h-4 w-4 mr-2" />
+                Banco de Dados
+              </TabsTrigger>
+            </>
+          )}
         </TabsList>
 
         {/* Aba Meu Perfil */}

@@ -139,15 +139,13 @@ export const PostgreSQLAuthProvider: React.FC<AuthProviderProps> = ({ children }
     }
   };
 
-  const value: AuthContextType = {
+    const value: AuthContextType = {
     user,
     profile,
     loading,
     signIn,
     signOut,
     isAuthenticated: !!user,
-    isAdmin: user?.papel === 'admin' || user?.papel === 'super_admin' || user?.papel === 'superadmin',
-  };
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+    isAdmin: user?.papel === 'admin' || user?.papel === 'super_admin' || user?.papel === 'superadmin' || (!!profile && profile.papel === 'admin'),
+  };  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
