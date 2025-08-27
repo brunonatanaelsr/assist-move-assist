@@ -1,22 +1,25 @@
 import { Pool } from 'pg';
 import Redis from 'ioredis';
 import { OficinaService } from '../oficina.service';
+import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { createMockPool, createMockRedis, MockPool, MockRedis } from '../../utils/testUtils';
+import { Oficina, QueryResult, Participante } from '../../types/oficina';
 
 jest.mock('pg');
 jest.mock('ioredis');
 
 describe('OficinaService', () => {
   let oficinaService: OficinaService;
-  let mockPool: jest.Mocked<Pool>;
-  let mockRedis: jest.Mocked<Redis>;
+  let mockPool: MockPool;
+  let mockRedis: MockRedis;
 
-  const mockOficina = {
+  const mockOficina: Oficina = {
     id: 1,
     nome: 'Oficina Teste',
     descricao: 'Descrição da oficina teste',
     instrutor: 'Instrutor Teste',
-    data_inicio: new Date('2025-08-20'),
-    data_fim: new Date('2025-08-21'),
+    data_inicio: '2025-08-20',
+    data_fim: '2025-08-21',
     horario_inicio: '09:00',
     horario_fim: '17:00',
     local: 'Local Teste',
@@ -25,14 +28,14 @@ describe('OficinaService', () => {
     responsavel_id: '123',
     status: 'ativa',
     ativo: true,
-    data_criacao: new Date(),
-    data_atualizacao: new Date()
+    data_criacao: '2025-08-26',
+    data_atualizacao: '2025-08-26'
   };
 
   beforeEach(() => {
-    mockPool = new Pool() as jest.Mocked<Pool>;
-    mockRedis = new Redis() as jest.Mocked<Redis>;
-    oficinaService = new OficinaService(mockPool, mockRedis);
+    mockPool = createMockPool();
+    mockRedis = createMockRedis();
+    oficinaService = new OficinaService(mockPool as unknown as Pool, mockRedis as unknown as Redis);
   });
 
   afterEach(() => {

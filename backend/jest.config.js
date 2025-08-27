@@ -1,7 +1,7 @@
 module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
-  roots: ['<rootDir>/src'],
+  roots: ['<rootDir>/src', '<rootDir>/tests'],
   testMatch: [
     '**/__tests__/**/*.ts',
     '**/?(*.)+(spec|test).ts'
@@ -10,8 +10,10 @@ module.exports = {
     '^.+\\.ts$': 'ts-jest',
   },
   moduleNameMapper: {
-    '^cpf-cnpj-validator$': '<rootDir>/src/__mocks__/cpf-cnpj-validator.js'
+    '^cpf-cnpj-validator$': '<rootDir>/src/__mocks__/cpf-cnpj-validator.js',
+    '^@/(.*)$': '<rootDir>/src/$1'
   },
+  moduleDirectories: ['node_modules', 'src'],
   collectCoverageFrom: [
     'src/**/*.ts',
     '!src/**/*.d.ts',

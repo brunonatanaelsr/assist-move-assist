@@ -1,27 +1,48 @@
-import express from 'express';
-import { ExtendedRequest, TypedResponse } from '../types/express';
+import express, { Request as ExpressRequest, Response as ExpressResponse } from 'express';
 import type { NextFunction as ExpressNextFunction } from 'express';
 type NextFunction = ExpressNextFunction & (() => void);
-import { createRouter, createRouterInstance } from '../utils/router';
+import { createRouterInstance } from '../utils/router';
 import rateLimit from 'express-rate-limit';
+
+// Types auxiliares
+interface Request extends ExpressRequest {
+  connection: { remoteAddress: string };
+  method: string;
+  originalUrl: string;
+  ip?: string;
+  get(name: string): string | undefined;
+  headers: {
+    'x-request-id'?: string;
+    [key: string]: string | string[] | undefined;
+  };
+  body: any;
+  query: any;
+  params: any;
+}
+
+interface Response extends ExpressResponse {
+  setHeader(name: string, value: string): this;
+  status(code: number): this;
+  json(body: any): this;
+}
 
 // ========== IMPORTAÇÃO DAS ROTAS ==========
 // Priorizando versões TypeScript quando disponíveis, com fallback para JavaScript
 
 // Rotas de autenticação
-import authRoutes from './auth';
+import authRoutes from './auth.routes';
 
 // Rotas de auditoria (temporariamente desabilitado)
 const auditoriaRoutes = createRouterInstance();
 
-// Rotas de beneficiárias (TypeScript)
-import beneficiariasRoutes from './beneficiarias';
+// Rotas de beneficiárias
+import beneficiariasRoutes from './beneficiarias.routes';
 
 // Rotas de configurações (temporariamente desabilitado)
 const configuracoesRoutes = createRouterInstance();
 
-// Rotas de dashboard (TypeScript)
-import dashboardRoutes from './dashboard';
+// Rotas de dashboard
+import dashboardRoutes from './dashboard.routes';
 
 // Rotas de declarações (temporariamente desabilitado)
 const declaracoesRoutes = createRouterInstance();
@@ -29,29 +50,29 @@ const declaracoesRoutes = createRouterInstance();
 // Rotas de documentos (temporariamente desabilitado)
 const documentosRoutes = createRouterInstance();
 
-// Rotas de feed (TypeScript - renomeando de feed.routes.ts)
+// Rotas de feed
 import feedRoutes from './feed.routes';
 
 // Rotas de formulários (temporariamente desabilitado)
 const formulariosRoutes = createRouterInstance();
 
-// Rotas de health check (TypeScript)
-import healthRoutes from './health';
+// Rotas de health check
+import healthRoutes from './health.routes';
 
 // Rotas de mensagens (temporariamente desabilitado)
 const mensagensRoutes = createRouterInstance();
 
-// Rotas de oficinas (TypeScript - renomeando de oficina.routes.ts)
+// Rotas de oficinas
 import oficinasRoutes from './oficina.routes';
 
-// Rotas de participações (TypeScript - renomeando de participacao.routes.ts)
+// Rotas de participações
 import participacoesRoutes from './participacao.routes';
 
-// Rotas de projetos (TypeScript - renomeando de projeto.routes.ts)
+// Rotas de projetos
 import projetosRoutes from './projeto.routes';
 
-// Rotas de relatórios (TypeScript)
-import relatoriosRoutes from './relatorios';
+// Rotas de relatórios
+import relatoriosRoutes from './relatorios.routes';
 
 // ========== CONFIGURAÇÃO DO ROUTER ==========
 const router = createRouterInstance();
@@ -77,7 +98,7 @@ router.use('/health', healthRoutes); // Health check sem rate limit
 router.use(limiter); // Rate limit para todas as outras rotas
 
 // Middleware de logging de requisições
-router.use((req: ExtendedRequest, res: TypedResponse, next: NextFunction) => {
+router.use((req: Request, res: Response, next: NextFunction) => {
   const timestamp = new Date().toISOString();
   const method = req.method;
   const url = req.originalUrl;
@@ -89,7 +110,7 @@ router.use((req: ExtendedRequest, res: TypedResponse, next: NextFunction) => {
 });
 
 // Middleware para adicionar headers de segurança
-router.use((req: ExtendedRequest, res: TypedResponse, next: NextFunction) => {
+router.use((req: Request, res: Response, next: NextFunction) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('X-XSS-Protection', '1; mode=block');
@@ -128,7 +149,7 @@ router.use('/auditoria', auditoriaRoutes);
 router.use('/configuracoes', configuracoesRoutes);
 
 // ========== ROTA RAIZ DA API ==========
-router.get('/', (req: ExtendedRequest, res: TypedResponse) => {
+router.get('/', (req: Request, res: Response) => {
   res.json({
     name: 'Move Marias API',
     version: '1.0.0',
@@ -173,7 +194,7 @@ router.get('/', (req: ExtendedRequest, res: TypedResponse) => {
 });
 
 // ========== MIDDLEWARE PARA ROTAS NÃO ENCONTRADAS (404) ==========
-router.use('*', (req: ExtendedRequest, res: TypedResponse) => {
+router.use('*', (req: Request, res: Response) => {
   const method = req.method;
   const path = req.originalUrl;
   
@@ -202,7 +223,7 @@ router.use('*', (req: ExtendedRequest, res: TypedResponse) => {
 });
 
 // ========== MIDDLEWARE GLOBAL DE TRATAMENTO DE ERROS ==========
-router.use((error: any, req: ExtendedRequest, res: TypedResponse, next: NextFunction) => {
+router.use((error: any, req: Request, res: Response, next: NextFunction) => {
   // Log detalhado do erro
   const errorInfo = {
     message: error.message,

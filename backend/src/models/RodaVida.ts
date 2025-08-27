@@ -1,0 +1,32 @@
+export interface RodaVida {
+  id: string;
+  beneficiaria_id: string;
+  data_avaliacao: Date;
+  objetivo_principal: string;
+  espiritualidade_score: number;
+  saude_score: number;
+  lazer_score: number;
+  equilibrio_emocional_score: number;
+  vida_social_score: number;
+  relacionamento_familiar_score: number;
+  recursos_financeiros_score: number;
+  amor_score: number;
+  contribuicao_social_score: number;
+  proposito_score: number;
+  observacoes_saude?: string;
+  observacoes_amor?: string;
+  observacoes_recursos_financeiros?: string;
+  observacoes_relacionamento_familiar?: string;
+  observacoes_vida_social?: string;
+  observacoes_contribuicao_social?: string;
+  observacoes_proposito?: string;
+  observacoes_equilibrio_emocional?: string;
+  observacoes_lazer?: string;
+  observacoes_espiritualidade?: string;
+  planos_melhoria?: string;
+  assinatura_beneficiaria: boolean;
+  assinatura_profissional: boolean;
+  responsavel_tecnico: string;
+  data_criacao: Date;
+  data_atualizacao?: Date;
+}

@@ -1,114 +1,220 @@
 import express from 'express';
-import { Pool } from 'pg';
-import Redis from 'ioredis';
-import { AuthService } from '../services/auth.service';
-import { authenticateToken } from '../middleware/auth';
-import { successResponse, errorResponse } from '../utils/responseFormatter';
-import { loginSchema, changePasswordSchema } from '../validators/auth.validator';
+import { AuthService, authenticateToken, AuthenticatedRequest } from '../middleware/auth';
+import { loggerService } from '../services/logger';
 
 const router = express.Router();
 
-// Inicialização do pool e redis
-const pool = new Pool({
-  host: process.env.POSTGRES_HOST || 'localhost',
-  port: parseInt(process.env.POSTGRES_PORT || '5432'),
-  database: process.env.POSTGRES_DB || 'movemarias',
-  user: process.env.POSTGRES_USER || 'postgres',
-  password: process.env.POSTGRES_PASSWORD || '15002031',
-  max: 20,
-  min: 2,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 5000,
-  ssl: process.env.NODE_ENV === 'production' ? { 
-    rejectUnauthorized: false 
-  } : false,
-});
+const COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure: true,
+  sameSite: 'strict' as const,
+  maxAge: 24 * 60 * 60 * 1000, // 1 dia
+};
 
-const redis = new Redis({
-  host: process.env.REDIS_HOST || 'localhost',
-  port: parseInt(process.env.REDIS_PORT || '6379'),
-  password: process.env.REDIS_PASSWORD,
-  db: 0
-});
-
-const authService = new AuthService(pool, redis);
-
-// Login de usuário
-router.post('/login', async (req, res) => {
+// POST /auth/login
+router.post('/login', async (req: express.Request, res: express.Response) => {
   try {
-    // Validar dados de entrada
-    const loginData = loginSchema.parse(req.body);
+    const { email, password } = req.body;
 
-    const result = await authService.login(loginData, req.ip);
-    res.json(successResponse(result, "Login realizado com sucesso"));
-
-  } catch (error: any) {
-    console.error("Login error:", error);
-
-    if (error.name === 'ZodError') {
-      return res.status(400).json(errorResponse("Dados de entrada inválidos"));
+    if (!email || !password) {
+      return res.status(400).json({
+        error: 'Email e senha são obrigatórios'
+      });
     }
 
-    if (error.message === "Credenciais inválidas") {
-      return res.status(401).json(errorResponse(error.message));
+    const result = await AuthService.login(email, password);
+
+    if (!result) {
+      return res.status(401).json({
+        error: 'Credenciais inválidas'
+      });
     }
 
-    res.status(500).json(errorResponse("Erro interno do servidor"));
+    res.cookie('auth_token', result.token, COOKIE_OPTIONS);
+
+    res.json({
+      message: 'Login realizado com sucesso',
+      user: result.user
+    });
+  } catch (error) {
+    loggerService.error('Erro no endpoint de login:', error);
+    res.status(500).json({
+      error: 'Erro interno do servidor'
+    });
   }
 });
 
-// Obter informações do usuário autenticado
-router.get('/me', authenticateToken, async (req, res) => {
+// POST /auth/register
+router.post('/register', async (req: express.Request, res: express.Response) => {
   try {
-    const userId = req.user.id;
-    const user = await authService.getCurrentUser(userId);
-    res.json(successResponse(user, "Dados do usuário carregados com sucesso"));
-  } catch (error: any) {
-    console.error("Get user error:", error);
+    const { email, password, nome_completo, role } = req.body;
 
-    if (error.message === "Usuário não encontrado") {
-      return res.status(404).json(errorResponse(error.message));
+    if (!email || !password || !nome_completo) {
+      return res.status(400).json({
+        error: 'Email, senha e nome completo são obrigatórios'
+      });
     }
 
-    res.status(500).json(errorResponse("Erro ao buscar informações do usuário"));
+    // Validação de formato de email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({
+        error: 'Formato de email inválido'
+      });
+    }
+
+    // Validação de senha
+    if (password.length < 6) {
+      return res.status(400).json({
+        error: 'Senha deve ter pelo menos 6 caracteres'
+      });
+    }
+
+    const result = await AuthService.register({
+      email,
+      password,
+      nome_completo,
+      role
+    });
+
+    res.cookie('auth_token', result.token, COOKIE_OPTIONS);
+
+    res.status(201).json({
+      message: 'Usuário registrado com sucesso',
+      user: result.user
+    });
+  } catch (error: any) {
+    loggerService.error('Erro no endpoint de registro:', error);
+    
+    if (error.message === 'Email já está em uso') {
+      return res.status(409).json({
+        error: error.message
+      });
+    }
+
+    res.status(500).json({
+      error: 'Erro interno do servidor'
+    });
   }
 });
 
-// Logout (invalidar token)
-router.post('/logout', authenticateToken, (req, res) => {
-  // Em uma implementação mais robusta, manteria uma blacklist de tokens no Redis
-  res.json(successResponse(null, "Logout realizado com sucesso"));
+// GET /auth/profile
+router.get('/profile', authenticateToken, async (req: AuthenticatedRequest, res: express.Response) => {
+  try {
+    const profile = await AuthService.getProfile(req.user!.id);
+
+    if (!profile) {
+      return res.status(404).json({
+        error: 'Perfil não encontrado'
+      });
+    }
+
+    res.json({
+      user: profile
+    });
+  } catch (error) {
+    loggerService.error('Erro ao buscar perfil:', error);
+    res.status(500).json({
+      error: 'Erro interno do servidor'
+    });
+  }
 });
 
-// Alterar senha
-router.post('/change-password', authenticateToken, async (req, res) => {
+// PUT /auth/profile
+router.put('/profile', authenticateToken, async (req: AuthenticatedRequest, res: express.Response) => {
   try {
-    // Validar dados de entrada
-    const passwordData = changePasswordSchema.parse(req.body);
+    const { nome_completo, avatar_url } = req.body;
 
-    await authService.changePassword(req.user.id, passwordData, req.ip);
-    res.json(successResponse(null, "Senha alterada com sucesso"));
+    const updatedUser = await AuthService.updateProfile(req.user!.id, {
+      nome_completo,
+      avatar_url
+    });
 
+    res.json({
+      message: 'Perfil atualizado com sucesso',
+      user: updatedUser
+    });
   } catch (error: any) {
-    console.error("Change password error:", error);
+    loggerService.error('Erro ao atualizar perfil:', error);
+    res.status(400).json({
+      error: error.message || 'Erro ao atualizar perfil'
+    });
+  }
+});
 
-    if (error.name === 'ZodError') {
-      return res.status(400).json(errorResponse("Dados de entrada inválidos"));
+// POST /auth/change-password
+router.post('/change-password', authenticateToken, async (req: AuthenticatedRequest, res: express.Response) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({
+        error: 'Senha atual e nova senha são obrigatórias'
+      });
     }
 
-    if (error.message === "Senha atual incorreta") {
-      return res.status(401).json(errorResponse(error.message));
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        error: 'Nova senha deve ter pelo menos 6 caracteres'
+      });
     }
 
-    if (error.message === "Usuário não encontrado") {
-      return res.status(404).json(errorResponse(error.message));
+    await AuthService.changePassword(req.user!.id, currentPassword, newPassword);
+
+    res.json({
+      message: 'Senha alterada com sucesso'
+    });
+  } catch (error: any) {
+    loggerService.error('Erro ao alterar senha:', error);
+    
+    if (error.message === 'Senha atual incorreta' || error.message === 'Usuário não encontrado') {
+      return res.status(400).json({
+        error: error.message
+      });
     }
 
-    if (error.message === "Nova senha deve ser diferente da atual") {
-      return res.status(400).json(errorResponse(error.message));
-    }
+    res.status(500).json({
+      error: 'Erro interno do servidor'
+    });
+  }
+});
 
-    res.status(500).json(errorResponse("Erro ao alterar senha"));
+// POST /auth/refresh-token
+router.post('/refresh-token', authenticateToken, async (req: AuthenticatedRequest, res: express.Response) => {
+  try {
+    // Gerar novo token com as informações atuais do usuário
+    const newToken = AuthService.generateToken({
+      id: req.user!.id,
+      email: req.user!.email,
+      role: req.user!.role
+    });
+
+    res.cookie('auth_token', newToken, COOKIE_OPTIONS);
+
+    res.json({
+      message: 'Token renovado com sucesso'
+    });
+  } catch (error) {
+    loggerService.error('Erro ao renovar token:', error);
+    res.status(500).json({
+      error: 'Erro interno do servidor'
+    });
+  }
+});
+
+// POST /auth/logout
+router.post('/logout', async (req: express.Request, res: express.Response) => {
+  try {
+    res.clearCookie('auth_token', COOKIE_OPTIONS);
+
+    res.json({
+      message: 'Logout realizado com sucesso'
+    });
+  } catch (error) {
+    loggerService.error('Erro no logout:', error);
+    res.status(500).json({
+      error: 'Erro interno do servidor'
+    });
   }
 });
 

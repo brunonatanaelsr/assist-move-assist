@@ -28,6 +28,7 @@ export interface AuthenticatedRequest extends Request {
   headers: Request['headers'];
 }
 
+// Middleware para verificar permissões
 export const requirePermissions = (requiredPermissions: PERMISSIONS[]) => {
   return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     if (!req.user) {
@@ -55,9 +56,25 @@ export const requirePermissions = (requiredPermissions: PERMISSIONS[]) => {
   };
 };
 
+// Middleware de autenticação principal
 export const authenticateToken = (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   const authHeader = req.headers.authorization;
-  const token = authHeader && authHeader.split(' ')[1];
+  let token: string | undefined;
+
+  // Tentar extrair token do cookie "auth_token"
+  const cookieHeader = req.headers.cookie;
+  if (cookieHeader) {
+    const cookies = cookieHeader.split(';').map(c => c.trim());
+    const authCookie = cookies.find(c => c.startsWith('auth_token='));
+    if (authCookie) {
+      token = decodeURIComponent(authCookie.split('=')[1]);
+    }
+  }
+
+  // Fallback para header Authorization
+  if (!token && authHeader) {
+    token = authHeader.split(' ')[1]; // Bearer TOKEN
+  }
 
   if (!token) {
     return res.status(401).json({
@@ -71,6 +88,7 @@ export const authenticateToken = (req: AuthenticatedRequest, res: Response, next
     req.user = decoded;
     next();
   } catch (error) {
+    loggerService.audit('INVALID_TOKEN', undefined, { token: token.substring(0, 20) + '...' });
     return res.status(401).json({
       success: false,
       error: 'Token inválido'
@@ -78,69 +96,34 @@ export const authenticateToken = (req: AuthenticatedRequest, res: Response, next
   }
 };
 
-export class AuthService {
-  static async hashPassword(password: string): Promise<string> {
-    return bcrypt.hash(password, 12);
-  }
-
-  static async verifyPassword(password: string, hashedPassword: string): Promise<boolean> {
-    return bcrypt.compare(password, hashedPassword);
-  }
-
-  static generateToken(payload: Omit<JWTPayload, 'iat' | 'exp'>): string {
-    return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
-  }
-
-  static verifyToken(token: string): JWTPayload {
-    return jwt.verify(token, JWT_SECRET) as JWTPayload;
-  }
-
-  static async login(email: string, password: string): Promise<{ user: any; token: string } | null> {
-    try {
-      const users = await db.query(
-        'SELECT id, nome, email, senha_hash, papel, ativo FROM usuarios WHERE email = $1 AND ativo = true',
-        [email]
-      );
-
-      if (users.rows.length === 0) {
-        loggerService.error('Login falhou: usuário não encontrado', { email });
-        return null;
-      }
-
-      const user = users.rows[0];
-
-      if (!user.senha_hash || !(await this.verifyPassword(password, user.senha_hash))) {
-        loggerService.error('Login falhou: senha inválida', { email });
-        return null;
-      }
-
-      await db.query(
-        'UPDATE usuarios SET ultimo_login = NOW() WHERE id = $1',
-        [user.id]
-      );
-
-      const token = this.generateToken({
-        id: user.id,
-        email: user.email,
-        role: user.papel
-      });
-
-      return {
-        user: {
-          id: user.id,
-          email: user.email,
-          nome: user.nome,
-          role: user.papel,
-          ativo: user.ativo
-        },
-        token
-      };
-    } catch (error) {
-      loggerService.error('Erro no login:', error);
-      throw error;
+// Middleware de autorização por role
+export const requireRole = (roles: string | string[]) => {
+  return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Usuário não autenticado' });
     }
-  }
-}
+
+    const allowedRoles = Array.isArray(roles) ? roles : [roles];
+    
+    if (!allowedRoles.includes(req.user.role)) {
+      loggerService.audit('ACCESS_DENIED', req.user.id, { 
+        required_roles: allowedRoles, 
+        user_role: req.user.role 
+      });
+      return res.status(403).json({ error: 'Acesso negado' });
+    }
+
+    next();
+  };
+};
+
+// Middlewares específicos por role
+export const requireProfissional = requireRole(['admin', 'profissional']);
+export const requireAdmin = requireRole('admin');
+export const requireGestor = requireRole('gestor');
+
+// Classe de serviços de autenticação
+export class AuthService {
   // Gerar hash da senha
   static async hashPassword(password: string): Promise<string> {
     return bcrypt.hash(password, 12);
@@ -153,7 +136,7 @@ export class AuthService {
 
   // Gerar token JWT
   static generateToken(payload: Omit<JWTPayload, 'iat' | 'exp'>): string {
-    return (jwt as any).sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+    return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
   }
 
   // Verificar token JWT
@@ -177,7 +160,7 @@ export class AuthService {
 
       const user = users[0];
 
-            // Verificar senha
+      // Verificar senha
       if (!user.senha_hash || !(await this.verifyPassword(password, user.senha_hash))) {
         loggerService.audit('LOGIN_FAILED', user.id, { email, reason: 'invalid_password' });
         return null;
@@ -342,67 +325,3 @@ export class AuthService {
     loggerService.audit('PASSWORD_CHANGED', userId);
   }
 }
-
-// Middleware de autenticação
-export const authenticateToken = (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
-  const authHeader = req.headers['authorization'];
-
-  let token: string | undefined;
-
-  // Tentar extrair token do cookie "auth_token"
-  const cookieHeader = req.headers.cookie;
-  if (cookieHeader) {
-    const cookies = cookieHeader.split(';').map(c => c.trim());
-    const authCookie = cookies.find(c => c.startsWith('auth_token='));
-    if (authCookie) {
-      token = decodeURIComponent(authCookie.split('=')[1]);
-    }
-  }
-
-  // Fallback para header Authorization
-  if (!token && authHeader) {
-    token = authHeader.split(' ')[1]; // Bearer TOKEN
-  }
-
-  if (!token) {
-    return res.status(401).json({ error: 'Token de acesso requerido' });
-  }
-
-  try {
-    const decoded = AuthService.verifyToken(token);
-    req.user = decoded;
-    next();
-  } catch (error) {
-    loggerService.audit('INVALID_TOKEN', undefined, { token: token.substring(0, 20) + '...' });
-    return res.status(403).json({ error: 'Token inválido' });
-  }
-};
-
-// Middleware de autorização por role
-export const requireRole = (roles: string | string[]) => {
-  return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
-    if (!req.user) {
-      return res.status(401).json({ error: 'Usuário não autenticado' });
-    }
-
-    const allowedRoles = Array.isArray(roles) ? roles : [roles];
-    
-    if (!allowedRoles.includes(req.user.role)) {
-      loggerService.audit('ACCESS_DENIED', req.user.id, { 
-        required_roles: allowedRoles, 
-        user_role: req.user.role 
-      });
-      return res.status(403).json({ error: 'Acesso negado' });
-    }
-
-    next();
-  };
-};
-
-// Middleware para profissionais
-export const requireProfissional = requireRole(['admin', 'profissional']);
-
-// Middleware para administradores
-export const requireAdmin = requireRole('admin');
-
-export const requireGestor = requireRole('gestor');

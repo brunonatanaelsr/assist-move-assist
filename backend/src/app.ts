@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { Express, Request, Response } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
@@ -7,7 +7,7 @@ import rateLimit from 'express-rate-limit';
 import { createServer } from 'http';
 import dotenv from 'dotenv';
 
-import { apiRoutes } from './routes/api';
+import apiRoutes from './routes/api';
 import { initializeWebSocket } from './services/websocket';
 import { errorHandler } from './middleware/errorHandler';
 import { logger } from './services/logger';
@@ -15,7 +15,7 @@ import { logger } from './services/logger';
 // Carregar variáveis de ambiente
 dotenv.config();
 
-const app = express();
+const app: Express = express();
 const server = createServer(app);
 
 // Middleware de segurança

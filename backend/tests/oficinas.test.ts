@@ -1,0 +1,60 @@
+import request from 'supertest';
+import { app } from '../src/app';
+import { pool } from '../src/config/database';
+import { describe, expect, it, beforeAll, afterAll } from '@jest/globals';
+
+describe('Oficinas API Tests', () => {
+  let authToken: string;
+
+  beforeAll(async () => {
+    // Login para obter token
+    const res = await request(app)
+      .post('/api/auth/login')
+      .send({
+        email: 'bruno@move.com',
+        password: '15002031'
+      });
+    
+    authToken = res.body.token;
+  });
+
+  afterAll(async () => {
+    await pool.end();
+  });
+
+  it('should create new oficina', async () => {
+    const oficina = {
+      titulo: 'Oficina de Teste',
+      descricao: 'Descrição da oficina de teste',
+      data_inicio: new Date(),
+      data_fim: new Date(Date.now() + 86400000),
+      local: 'Local de Teste',
+      max_participantes: 20,
+      status: 'AGENDADA'
+    };
+
+    const res = await request(app)
+      .post('/api/oficinas')
+      .set('Authorization', `Bearer ${authToken}`)
+      .send(oficina);
+    
+    expect(res.status).toBe(201);
+    expect(res.body).toHaveProperty('id');
+  });
+
+  it('should list oficinas', async () => {
+    const res = await request(app)
+      .get('/api/oficinas')
+      .set('Authorization', `Bearer ${authToken}`);
+    
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
+  });
+
+  it('should require auth for oficinas endpoints', async () => {
+    const res = await request(app)
+      .get('/api/oficinas');
+    
+    expect(res.status).toBe(401);
+  });
+});

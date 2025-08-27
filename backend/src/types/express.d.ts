@@ -1,46 +1,59 @@
-import * as express from 'express';
+import { Request as ExpressRequest, Response as ExpressResponse, NextFunction } from 'express';
+import { Query as ExpressQuery } from 'express-serve-static-core';
 import { PERMISSIONS } from './permissions';
 
-export interface ExtendedRequest extends express.Request {
-  user?: {
-    id: string;
-    email: string;
-    role: string;
-    permissions?: PERMISSIONS[];
-  };
-  method: string;
-  originalUrl: string;
-  ip: string;
-  connection: {
-    remoteAddress: string;
-  };
-  get(header: string): string;
-  body: any;
-  query: any;
-  params: any;
-  headers: {
-    [key: string]: string | string[] | undefined;
-  };
+// Interface básica de usuário
+export interface UserInfo {
+  id: number;
+  email: string;
+  role: string;
+  permissions?: PERMISSIONS[];
 }
 
-export interface AuthenticatedRequest extends ExtendedRequest {
-  user: {
-    id: string;
-    email: string;
-    role: string;
-    permissions?: PERMISSIONS[];
-  };
+// Interface para requisições autenticadas
+export interface AuthenticatedRequest extends ExpressRequest {
+  user: UserInfo;
 }
 
-export interface TypedRequest<T = any, U = any> extends ExtendedRequest {
+// Interface para requisições com tipos
+export interface TypedRequest<T = any, Q extends ExpressQuery = ExpressQuery> extends ExpressRequest {
   body: T;
-  query: U;
+  query: Q;
+  params: {
+    [key: string]: string;
+  };
+  user?: UserInfo;
 }
 
-export interface TypedResponse<T = any> extends express.Response {
-  json: (body: T) => TypedResponse<T>;
-  setHeader(name: string, value: string): this;
+// Interface para respostas tipadas
+export interface TypedResponse<T = any> extends ExpressResponse {
+  json(body: T): this;
   status(code: number): this;
 }
 
-export type NextFunction = express.NextFunction;
+// Interface para corpo da requisição do plano de ação
+export interface PlanoAcaoBody {
+  beneficiaria_id: number;
+  data_plano: string;
+  objetivo_principal: string;
+  areas_prioritarias: string[];
+  outras_areas?: string[];
+  acoes_realizadas: string[];
+  suporte_instituto?: string;
+  assinatura_beneficiaria: string;
+  assinatura_responsavel_tecnico: string;
+}
+
+declare global {
+  namespace Express {
+    interface Request {
+      user?: UserInfo;
+    }
+  }
+}
+
+export { NextFunction };
+    interface Request extends ExtendedRequest {}
+    interface Response extends TypedResponse {}
+  }
+}
