@@ -1,5 +1,0 @@
- id |       nome       |     email      |           senha_hash            |   papel    | ativo | ultimo_login | tentativas_login | bloqueado_ate |         data_criacao          |       data_atualizacao        
-----+------------------+----------------+---------------------------------+------------+-------+--------------+------------------+---------------+-------------------------------+-------------------------------
-  1 | Bruno Superadmin | bruno@move.com | $2a$12$example_hash_change_this | superadmin | t     |              |                0 |               | 2025-08-15 20:20:12.081713+00 | 2025-08-15 20:20:12.081713+00
-(1 row)
-

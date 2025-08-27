@@ -1,6 +1,6 @@
 import { ReactNode, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '@/hooks/usePostgreSQLAuth';
+import { useAuth } from '@/hooks/useAuth';
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -11,7 +11,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   children, 
   adminOnly = false 
 }) => {
-  const { user, profile, loading } = useAuth();
+  const { user, loading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -26,13 +26,13 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
             replace: true 
           });
         }
-      } else if (adminOnly && profile && profile.tipo_usuario !== 'admin') {
+      } else if (adminOnly && user && user.papel !== 'admin') {
         console.log('ProtectedRoute: Usuário sem privilégios de admin');
         // User is authenticated but doesn't have admin privileges
         navigate('/', { replace: true });
       }
     }
-  }, [loading, user, adminOnly, profile, navigate, location]);
+  }, [loading, user, adminOnly, navigate, location]);
 
   // Show loading state while checking authentication
   if (loading) {

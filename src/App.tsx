@@ -1,4 +1,4 @@
-import { Suspense } from "react";
+import { Suspense, lazy } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -6,35 +6,38 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Loading } from "@/components/ui/loading";
-import Index from "./pages/Index";
-import Auth from "./pages/Auth";
-import Beneficiarias from "./pages/Beneficiarias";
-import CadastroBeneficiaria from "./pages/CadastroBeneficiaria";
-import DetalhesBeneficiaria from "./pages/DetalhesBeneficiaria";
-import EditarBeneficiaria from "./pages/EditarBeneficiaria";
-import NotFound from "./pages/NotFound";
-import MainLayout from "./components/layout/main-layout";
-import { PostgreSQLAuthProvider } from "./hooks/usePostgreSQLAuth";
-import { ProtectedRoute } from "./components/auth/ProtectedRoute";
-import Analytics from "./pages/Analytics";
-import OficinasNew from "./pages/OficinasNew";
-import ParticipantesProjeto from "./pages/ParticipantesProjeto";
-import Configuracoes from "./pages/Configuracoes";
-import EditarPerfil from "./components/EditarPerfil";
-import ChatInterno from "./pages/ChatInterno";
-import Atividades from "./pages/Atividades";
-import FeedNew from "./pages/FeedNew";
-import ProjetosNew from "./pages/ProjetosNew";
-import Relatorios from "./pages/Relatorios";
-import FormularioGenerico from "./pages/FormularioGenerico";
-import AnamneseSocial from "./pages/formularios/AnamneseSocial";
-import RodaVida from "./pages/formularios/RodaVida";
-import FichaEvolucao from "./pages/formularios/FichaEvolucao";
-import DeclaracoesRecibos from "./pages/formularios/DeclaracoesRecibos";
-import TermosConsentimento from "./pages/formularios/TermosConsentimento";
-import VisaoHolistica from "./pages/formularios/VisaoHolistica";
-import PlanoAcao from "./pages/formularios/PlanoAcao";
-import MatriculaProjetos from "./pages/formularios/MatriculaProjetos";
+import MainLayout from "@/components/layout/main-layout";
+import { AuthProvider } from "@/hooks/useAuth";
+import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+
+// Lazy loaded pages
+const Index = lazy(() => import("@/pages/Index"));
+const Auth = lazy(() => import("@/pages/Auth"));
+const Beneficiarias = lazy(() => import("@/pages/Beneficiarias"));
+const CadastroBeneficiaria = lazy(() => import("@/pages/CadastroBeneficiaria"));
+const DetalhesBeneficiaria = lazy(() => import("@/pages/DetalhesBeneficiaria"));
+const EditarBeneficiaria = lazy(() => import("@/pages/EditarBeneficiaria"));
+const NotFound = lazy(() => import("@/pages/NotFound"));
+const Analytics = lazy(() => import("@/pages/Analytics"));
+const OficinasNew = lazy(() => import("@/pages/OficinasNew"));
+const ParticipantesProjeto = lazy(() => import("@/pages/ParticipantesProjeto"));
+// Lazy load remaining pages
+const Configuracoes = lazy(() => import("@/pages/Configuracoes"));
+const EditarPerfil = lazy(() => import("@/components/EditarPerfil"));
+const ChatInterno = lazy(() => import("@/pages/ChatInterno"));
+const Atividades = lazy(() => import("@/pages/Atividades"));
+const FeedNew = lazy(() => import("@/pages/FeedNew"));
+const ProjetosNew = lazy(() => import("@/pages/ProjetosNew"));
+const Relatorios = lazy(() => import("@/pages/Relatorios"));
+const FormularioGenerico = lazy(() => import("@/pages/FormularioGenerico"));
+const AnamneseSocial = lazy(() => import("@/pages/formularios/AnamneseSocial"));
+const RodaVida = lazy(() => import("@/pages/formularios/RodaVida"));
+const FichaEvolucao = lazy(() => import("@/pages/formularios/FichaEvolucao"));
+const DeclaracoesRecibos = lazy(() => import("@/pages/formularios/DeclaracoesRecibos"));
+const TermosConsentimento = lazy(() => import("@/pages/formularios/TermosConsentimento"));
+const VisaoHolistica = lazy(() => import("@/pages/formularios/VisaoHolistica"));
+const PlanoAcao = lazy(() => import("@/pages/formularios/PlanoAcao"));
+const MatriculaProjetos = lazy(() => import("@/pages/formularios/MatriculaProjetos"));
 
 const queryClient = new QueryClient();
 
@@ -44,10 +47,10 @@ const App = () => (
       <TooltipProvider>
         <Toaster />
         <Sonner />
-        <PostgreSQLAuthProvider>
-        <HashRouter>
-          <Suspense fallback={<Loading fullScreen message="Carregando aplicação..." />}>
-            <Routes>
+        <AuthProvider>
+          <HashRouter>
+            <Suspense fallback={<Loading fullScreen message="Carregando aplicação..." />}>
+              <Routes>
               <Route path="/auth" element={<Auth />} />
             <Route path="/" element={
               <ProtectedRoute>
@@ -225,10 +228,10 @@ const App = () => (
               </ProtectedRoute>
             } />
             <Route path="*" element={<NotFound />} />
-          </Routes>
-          </Suspense>
-        </HashRouter>
-        </PostgreSQLAuthProvider>
+              </Routes>
+            </Suspense>
+          </HashRouter>
+        </AuthProvider>
       </TooltipProvider>
     </QueryClientProvider>
   </ErrorBoundary>

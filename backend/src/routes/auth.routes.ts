@@ -1,8 +1,46 @@
 import express from 'express';
-import { AuthService, authenticateToken, AuthenticatedRequest } from '../middleware/auth';
+import type { Request, Response } from 'express';
+import { authenticateToken, AuthenticatedRequest } from '../middleware/auth';
 import { loggerService } from '../services/logger';
+import { authService } from '../services';
+
+interface RequestWithBody<T = any> {
+  body: T;
+  ip?: string;
+  connection?: {
+    remoteAddress?: string;
+  };
+}
+
+interface LoginRequestBody {
+  email: string;
+  password: string;
+}
+
+interface RegisterRequestBody {
+  email: string;
+  password: string;
+  nome_completo: string;
+  role: string;
+}
+
+interface UpdateProfileBody {
+  nome_completo?: string;
+  avatar_url?: string;
+}
+
+interface ChangePasswordBody {
+  currentPassword: string;
+  newPassword: string;
+}
 
 const router = express.Router();
+
+// Rota base /api/auth
+router.use((req, res, next) => {
+  console.log(`[AUTH] ${req.method} ${req.originalUrl}`);
+  next();
+});
 
 const COOKIE_OPTIONS = {
   httpOnly: true,
@@ -12,7 +50,7 @@ const COOKIE_OPTIONS = {
 };
 
 // POST /auth/login
-router.post('/login', async (req: express.Request, res: express.Response) => {
+router.post('/login', async (req: RequestWithBody<LoginRequestBody>, res: Response) => {
   try {
     const { email, password } = req.body;
 
@@ -22,7 +60,8 @@ router.post('/login', async (req: express.Request, res: express.Response) => {
       });
     }
 
-    const result = await AuthService.login(email, password);
+    const ipAddress = req.ip || req.connection.remoteAddress || 'unknown';
+    const result = await authService.login({ email, password }, ipAddress);
 
     if (!result) {
       return res.status(401).json({
@@ -45,7 +84,7 @@ router.post('/login', async (req: express.Request, res: express.Response) => {
 });
 
 // POST /auth/register
-router.post('/register', async (req: express.Request, res: express.Response) => {
+router.post('/register', async (req: RequestWithBody<RegisterRequestBody>, res: Response) => {
   try {
     const { email, password, nome_completo, role } = req.body;
 
@@ -70,7 +109,7 @@ router.post('/register', async (req: express.Request, res: express.Response) => 
       });
     }
 
-    const result = await AuthService.register({
+    const result = await authService.register({
       email,
       password,
       nome_completo,
@@ -101,7 +140,7 @@ router.post('/register', async (req: express.Request, res: express.Response) => 
 // GET /auth/profile
 router.get('/profile', authenticateToken, async (req: AuthenticatedRequest, res: express.Response) => {
   try {
-    const profile = await AuthService.getProfile(req.user!.id);
+    const profile = await authService.getProfile(req.user!.id);
 
     if (!profile) {
       return res.status(404).json({
@@ -121,11 +160,11 @@ router.get('/profile', authenticateToken, async (req: AuthenticatedRequest, res:
 });
 
 // PUT /auth/profile
-router.put('/profile', authenticateToken, async (req: AuthenticatedRequest, res: express.Response) => {
+router.put('/profile', authenticateToken, async (req: AuthRequestWithBody<UpdateProfileBody>, res: Response) => {
   try {
     const { nome_completo, avatar_url } = req.body;
 
-    const updatedUser = await AuthService.updateProfile(req.user!.id, {
+    const updatedUser = await authService.updateProfile(req.user!.id, {
       nome_completo,
       avatar_url
     });
@@ -143,7 +182,7 @@ router.put('/profile', authenticateToken, async (req: AuthenticatedRequest, res:
 });
 
 // POST /auth/change-password
-router.post('/change-password', authenticateToken, async (req: AuthenticatedRequest, res: express.Response) => {
+router.post('/change-password', authenticateToken, async (req: AuthRequestWithBody<ChangePasswordBody>, res: Response) => {
   try {
     const { currentPassword, newPassword } = req.body;
 
@@ -159,7 +198,7 @@ router.post('/change-password', authenticateToken, async (req: AuthenticatedRequ
       });
     }
 
-    await AuthService.changePassword(req.user!.id, currentPassword, newPassword);
+    await authService.changePassword(req.user!.id, currentPassword, newPassword);
 
     res.json({
       message: 'Senha alterada com sucesso'
@@ -183,7 +222,7 @@ router.post('/change-password', authenticateToken, async (req: AuthenticatedRequ
 router.post('/refresh-token', authenticateToken, async (req: AuthenticatedRequest, res: express.Response) => {
   try {
     // Gerar novo token com as informações atuais do usuário
-    const newToken = AuthService.generateToken({
+    const newToken = authService.generateToken({
       id: req.user!.id,
       email: req.user!.email,
       role: req.user!.role

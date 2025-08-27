@@ -1,12 +1,12 @@
-import express from 'express';
+import { Router, Request, Response } from 'express';
 import { Pool } from 'pg';
 import Redis from 'ioredis';
-import { authenticateToken } from '../middleware/auth';
+import { authenticateToken, AuthenticatedRequest } from '../middleware/auth';
 import { successResponse, errorResponse } from '../utils/responseFormatter';
-import { uploadMiddleware } from '../middleware/upload';
+import { uploadSingle } from '../middleware/upload';
 import { FeedService } from '../services/feed.service';
 
-const router = express.Router();
+const router = Router();
 
 // Inicialização do pool e redis
 const pool = new Pool({
@@ -28,197 +28,195 @@ const redis = new Redis({
   host: process.env.REDIS_HOST || 'localhost',
   port: parseInt(process.env.REDIS_PORT || '6379'),
   password: process.env.REDIS_PASSWORD,
-  db: 0
+  enableReadyCheck: true,
 });
 
 const feedService = new FeedService(pool, redis);
 
-// ====== ROTAS DE POSTS ======
+interface ExtendedRequest extends AuthenticatedRequest {
+  file?: Express.Multer.File;
+}
 
-// Upload de imagem para posts
-router.post('/upload-image', authenticateToken, uploadMiddleware, async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json(errorResponse('Nenhum arquivo foi enviado'));
+// Upload de imagem
+router.post(
+  '/upload-image',
+  authenticateToken,
+  uploadSingle('image'),
+  async (req: ExtendedRequest, res: Response) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json(errorResponse('Nenhuma imagem foi enviada'));
+      }
+
+      const imageUrl = `/uploads/${req.file.filename}`;
+      return res.json(successResponse({ url: imageUrl }));
+    } catch (error) {
+      console.error('Erro no upload:', error);
+      return res.status(500).json(errorResponse('Erro ao fazer upload da imagem'));
     }
-
-    const imageUrl = `/uploads/images/${req.file.filename}`;
-
-    res.json(successResponse({
-      filename: req.file.filename,
-      originalName: req.file.originalname,
-      size: req.file.size,
-      url: imageUrl
-    }, 'Imagem enviada com sucesso'));
-
-  } catch (error) {
-    console.error('Erro no upload:', error);
-    res.status(500).json(errorResponse('Erro interno do servidor'));
   }
-});
+);
 
-// Listar posts do feed
-router.get('/', authenticateToken, async (req, res) => {
-  try {
-    const limit = req.query.limit ? parseInt(req.query.limit as string) : 10;
-    const posts = await feedService.listPosts(limit);
-    res.json(successResponse(posts, 'Posts obtidos com sucesso'));
-  } catch (error) {
-    console.error('Erro ao buscar posts:', error);
-    res.status(500).json(errorResponse('Erro interno do servidor'));
+// Listar posts
+router.get(
+  '/',
+  authenticateToken,
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 10;
+      
+      const posts = await feedService.getPosts(page, limit);
+      return res.json(successResponse(posts));
+    } catch (error) {
+      console.error('Erro ao listar posts:', error);
+      return res.status(500).json(errorResponse('Erro ao listar posts'));
+    }
   }
-});
+);
 
-// Criar novo post
-router.post('/', authenticateToken, async (req, res) => {
-  try {
-    const { tipo, titulo, conteudo, imagem_url } = req.body;
-    const autor_id = req.user.id;
-    const autor_nome = req.user.name;
+// Criar post
+router.post(
+  '/',
+  authenticateToken,
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const { tipo, titulo, conteudo, imagem_url } = req.body;
+      const autor_id = req.user?.id;
+      const autor_nome = req.user?.nome || 'Usuário';
 
-    const post = await feedService.createPost({
-      tipo,
-      titulo,
-      conteudo,
-      autor_id,
-      autor_nome,
-      imagem_url
-    });
+      const post = await feedService.createPost({
+        tipo,
+        titulo,
+        conteudo,
+        autor_id,
+        autor_nome,
+        imagem_url,
+        ativo: true,
+        curtidas: 0,
+        comentarios: 0
+      });
 
-    res.status(201).json(successResponse(post, 'Post criado com sucesso'));
-  } catch (error: any) {
-    console.error('Erro ao criar post:', error);
-    res.status(error.status || 500).json(errorResponse(error.message));
+      return res.status(201).json(successResponse(post));
+    } catch (error) {
+      console.error('Erro ao criar post:', error);
+      return res.status(500).json(errorResponse('Erro ao criar post'));
+    }
   }
-});
+);
 
 // Curtir post
-router.post('/:id/curtir', authenticateToken, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const result = await feedService.likePost(parseInt(id));
-    res.json(successResponse(result, 'Post curtido'));
-  } catch (error: any) {
-    console.error('Erro ao curtir post:', error);
-    if (error.message === 'Post não encontrado') {
-      res.status(404).json(errorResponse(error.message));
-    } else {
-      res.status(500).json(errorResponse('Erro interno do servidor'));
+router.post(
+  '/:id/curtir',
+  authenticateToken,
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user?.id;
+
+      const post = await feedService.likePost(parseInt(id), userId as string);
+      return res.json(successResponse(post));
+    } catch (error) {
+      console.error('Erro ao curtir post:', error);
+      return res.status(500).json(errorResponse('Erro ao curtir post'));
     }
   }
-});
+);
 
 // Compartilhar post
-router.post('/:id/compartilhar', authenticateToken, async (req, res) => {
-  try {
-    const { id } = req.params;
-    res.json(successResponse({ shared: true, post_id: parseInt(id) }, 'Post compartilhado'));
-  } catch (error) {
-    console.error('Erro ao compartilhar post:', error);
-    res.status(500).json(errorResponse('Erro interno do servidor'));
+router.post(
+  '/:id/compartilhar',
+  authenticateToken,
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user?.id;
+
+      await feedService.sharePost(parseInt(id), userId as string);
+      return res.json(successResponse({ message: 'Post compartilhado com sucesso' }));
+    } catch (error) {
+      console.error('Erro ao compartilhar post:', error);
+      return res.status(500).json(errorResponse('Erro ao compartilhar post'));
+    }
   }
-});
+);
 
 // Estatísticas do feed
-router.get('/stats/summary', authenticateToken, async (req, res) => {
-  try {
-    const stats = await feedService.getFeedStats();
-    res.json(successResponse(stats, 'Estatísticas obtidas'));
-  } catch (error) {
-    console.error('Erro ao buscar estatísticas:', error);
-    res.status(500).json(errorResponse('Erro interno do servidor'));
+router.get(
+  '/stats/summary',
+  authenticateToken,
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const stats = await feedService.getStats();
+      return res.json(successResponse(stats));
+    } catch (error) {
+      console.error('Erro ao obter estatísticas:', error);
+      return res.status(500).json(errorResponse('Erro ao obter estatísticas'));
+    }
   }
-});
-
-// ====== ROTAS DE COMENTÁRIOS ======
+);
 
 // Listar comentários de um post
-router.get('/:postId/comentarios', authenticateToken, async (req, res) => {
-  try {
-    const { postId } = req.params;
-    const comments = await feedService.listComments(parseInt(postId));
-    res.json(successResponse(comments, 'Comentários obtidos'));
-  } catch (error) {
-    console.error('Erro ao buscar comentários:', error);
-    res.status(500).json(errorResponse('Erro interno do servidor'));
-  }
-});
-
-// Criar novo comentário
-router.post('/:postId/comentarios', authenticateToken, async (req, res) => {
-  try {
-    const { postId } = req.params;
-    const { conteudo } = req.body;
-    const autorId = req.user.id;
-    const autorNome = req.user.name;
-    const autorFoto = req.user.profile_photo;
-
-    const comment = await feedService.createComment({
-      post_id: parseInt(postId),
-      autor_id: autorId,
-      autor_nome: autorNome,
-      autor_foto: autorFoto,
-      conteudo
-    });
-
-    res.status(201).json(successResponse(comment, 'Comentário criado'));
-  } catch (error: any) {
-    console.error('Erro ao criar comentário:', error);
-    res.status(error.status || 500).json(errorResponse(error.message));
-  }
-});
-
-// ====== ROTAS DE EDIÇÃO ======
-
-// Editar post
-router.put('/:postId', authenticateToken, async (req, res) => {
-  try {
-    const { postId } = req.params;
-    const { tipo, titulo, conteudo, imagem_url } = req.body;
-    const userId = req.user.id;
-    const userRole = req.user.role;
-
-    const post = await feedService.updatePost(
-      parseInt(postId),
-      { tipo, titulo, conteudo, imagem_url },
-      userId,
-      userRole
-    );
-
-    res.json(successResponse(post, 'Post atualizado com sucesso'));
-  } catch (error: any) {
-    console.error('Erro ao editar post:', error);
-    if (error.message === 'Post não encontrado') {
-      res.status(404).json(errorResponse(error.message));
-    } else if (error.message === 'Sem permissão para editar este post') {
-      res.status(403).json(errorResponse(error.message));
-    } else {
-      res.status(500).json(errorResponse('Erro interno do servidor'));
+router.get(
+  '/:postId/comentarios',
+  authenticateToken,
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const { postId } = req.params;
+      const comentarios = await feedService.getComments(parseInt(postId));
+      return res.json(successResponse(comentarios));
+    } catch (error) {
+      console.error('Erro ao listar comentários:', error);
+      return res.status(500).json(errorResponse('Erro ao listar comentários'));
     }
   }
-});
+);
 
-// ====== ROTAS DE EXCLUSÃO ======
+// Adicionar comentário
+router.post(
+  '/:postId/comentarios',
+  authenticateToken,
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const { postId } = req.params;
+      const { conteudo } = req.body;
+      const autorId = req.user?.id;
+      const autorNome = req.user?.nome || 'Usuário';
+      const autorFoto = req.user?.avatar_url;
 
-// Excluir post (soft delete)
-router.delete('/:postId', authenticateToken, async (req, res) => {
-  try {
-    const { postId } = req.params;
-    const userId = req.user.id;
-    const userRole = req.user.role;
+      const comment = await feedService.createComment({
+        post_id: parseInt(postId),
+        autor_id: autorId,
+        autor_nome: autorNome,
+        autor_foto: autorFoto,
+        conteudo,
+        ativo: true
+      });
 
-    await feedService.deletePost(parseInt(postId), userId, userRole);
-    res.json(successResponse(null, 'Post excluído com sucesso'));
-  } catch (error: any) {
-    console.error('Erro ao excluir post:', error);
-    if (error.message === 'Post não encontrado') {
-      res.status(404).json(errorResponse(error.message));
-    } else if (error.message === 'Sem permissão para excluir este post') {
-      res.status(403).json(errorResponse(error.message));
-    } else {
-      res.status(500).json(errorResponse('Erro interno do servidor'));
+      return res.status(201).json(successResponse(comment));
+    } catch (error) {
+      console.error('Erro ao adicionar comentário:', error);
+      return res.status(500).json(errorResponse('Erro ao adicionar comentário'));
     }
   }
-});
+);
+
+// Deletar post (soft delete)
+router.delete(
+  '/:id',
+  authenticateToken,
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user?.id;
+
+      await feedService.deletePost(parseInt(id), userId as string);
+      return res.json(successResponse({ message: 'Post removido com sucesso' }));
+    } catch (error) {
+      console.error('Erro ao deletar post:', error);
+      return res.status(500).json(errorResponse('Erro ao deletar post'));
+    }
+  }
+);
 
 export default router;

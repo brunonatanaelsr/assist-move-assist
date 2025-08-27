@@ -4,7 +4,7 @@ import { logger } from '../services/logger';
 
 dotenv.config();
 
-const pool = new Pool({
+export const pool = new Pool({
   host: process.env.POSTGRES_HOST || 'localhost',
   port: parseInt(process.env.POSTGRES_PORT || '5432'),
   database: process.env.POSTGRES_DB || 'movemarias',
@@ -131,3 +131,26 @@ if (process.env.NODE_ENV !== 'test') {
 }
 
 export default pool;
+
+// Helper para facilitar queries parametrizadas com tipos
+export const query = async <T = any>(text: string, params?: any[]): Promise<T[]> => {
+  const result = await executeQuery(text, params);
+  return result?.rows || [];
+};
+
+// Helper para gerenciar transações
+export const transaction = async <T>(callback: (client: any) => Promise<T>): Promise<T> => {
+  const client = await pool.connect();
+  
+  try {
+    await client.query('BEGIN');
+    const result = await callback(client);
+    await client.query('COMMIT');
+    return result;
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+};
