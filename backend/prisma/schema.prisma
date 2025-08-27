@@ -1,0 +1,78 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Enums
+enum ReportType {
+  DASHBOARD
+  PROJECT
+  FORM
+  REGIONAL
+}
+
+enum ChartType {
+  LINE
+  BAR
+  PIE
+  DOUGHNUT
+}
+
+enum ReportScheduleFrequency {
+  DAILY
+  WEEKLY
+  MONTHLY
+}
+
+// Modelos
+model ReportTemplate {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String?
+  type        ReportType
+  filters     Json     @default("{}")
+  metrics     String[]
+  charts      Json     @default("{}")
+  schedule    Json?
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+  
+  // Relações
+  created_by    User     @relation("CreatedReportTemplates", fields: [created_by_id], references: [id])
+  created_by_id Int
+  updated_by    User     @relation("UpdatedReportTemplates", fields: [updated_by_id], references: [id])
+  updated_by_id Int
+  
+  executions ReportExecution[]
+}
+
+model ReportExecution {
+  id             Int      @id @default(autoincrement())
+  template       ReportTemplate @relation(fields: [template_id], references: [id])
+  template_id    Int
+  status         String
+  error_message  String?
+  execution_time Int?
+  output_format  String
+  output_url     String?
+  created_at     DateTime @default(now())
+  
+  // Relações
+  created_by    User     @relation(fields: [created_by_id], references: [id])
+  created_by_id Int
+}
+
+// Modelo User existente atualizado
+model User {
+  id        Int      @id @default(autoincrement())
+  // ... outros campos existentes ...
+
+  // Relações de relatórios
+  created_report_templates ReportTemplate[] @relation("CreatedReportTemplates")
+  updated_report_templates ReportTemplate[] @relation("UpdatedReportTemplates")
+  report_executions       ReportExecution[]
+}
