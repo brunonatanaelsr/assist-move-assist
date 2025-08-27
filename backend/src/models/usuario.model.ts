@@ -1,17 +1,23 @@
 export interface Usuario {
     id: number;
     email: string;
-    senha?: string; // opcional ao retornar dados
     nome: string;
-    papel: 'admin' | 'coordenador' | 'atendente' | 'usuario';
+    perfil: 'admin' | 'coordenador' | 'atendente' | 'usuario';
+    senha_hash: string;
     avatar_url?: string;
+    cpf?: string;
+    telefone?: string;
+    ativo: boolean;
     ultimo_login?: Date;
-    criado_em: Date;
-    atualizado_em: Date;
+    created_at: Date;
+    updated_at: Date;
+    deleted_at?: Date;
 }
 
-export interface UsuarioCreateInput extends Omit<Usuario, 'id' | 'criado_em' | 'atualizado_em' | 'ultimo_login'> {
-    senha: string; // obrigatório na criação
+export interface CreateUsuarioDTO extends Omit<Usuario, 'id' | 'created_at' | 'updated_at' | 'deleted_at' | 'senha_hash'> {
+    senha: string; // senha em texto plano para criação
 }
 
-export interface UsuarioUpdateInput extends Partial<Omit<Usuario, 'id' | 'criado_em' | 'atualizado_em'>> {}
+export interface UpdateUsuarioDTO extends Partial<Omit<Usuario, 'id' | 'created_at' | 'updated_at' | 'deleted_at' | 'senha_hash'>> {
+    senha?: string; // senha em texto plano opcional para atualização
+}

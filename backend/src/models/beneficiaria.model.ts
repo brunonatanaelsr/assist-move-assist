@@ -1,5 +1,6 @@
-export interface Beneficiaria {
-    id: number;
+import { BaseEntity } from '../repositories/base.repository';
+
+export interface Beneficiaria extends BaseEntity {
     nome: string;
     cpf: string;
     rg?: string;
@@ -18,11 +19,9 @@ export interface Beneficiaria {
     situacao_moradia?: string;
     status: 'ativa' | 'inativa' | 'pendente' | 'desistente';
     observacoes?: string;
-    criado_em: Date;
-    atualizado_em: Date;
     usuario_id?: number;
 }
 
-export interface BeneficiariaCreateInput extends Omit<Beneficiaria, 'id' | 'criado_em' | 'atualizado_em'> {}
+export interface CreateBeneficiariaDTO extends Omit<Beneficiaria, 'id' | 'created_at' | 'updated_at' | 'deleted_at'> {}
 
-export interface BeneficiariaUpdateInput extends Partial<Omit<Beneficiaria, 'id' | 'criado_em' | 'atualizado_em' | 'cpf'>> {}
+export interface UpdateBeneficiariaDTO extends Partial<Omit<Beneficiaria, 'id' | 'created_at' | 'updated_at' | 'deleted_at' | 'cpf'>> {}

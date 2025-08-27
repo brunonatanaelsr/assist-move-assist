@@ -1,125 +1,220 @@
-import { pool, query } from '@/config/database';
-import { Beneficiaria, BeneficiariaCreateInput, BeneficiariaUpdateInput } from '@/models/beneficiaria.model';
+// Arquivo temporário para o conteúdo correto
+import { BaseRepository } from './base.repository';
+import { Beneficiaria, CreateBeneficiariaDTO, UpdateBeneficiariaDTO } from '../models/beneficiaria.model';
+import { query } from '../config/database';
+import { logger } from '../services/logger';
 
-export class BeneficiariaRepository {
-    async findById(id: number): Promise<Beneficiaria | null> {
-        const result = await query(
-            'SELECT * FROM beneficiarias WHERE id = $1',
-            [id]
-        );
-        return result.rows[0] || null;
+interface EstatisticasBeneficiarias {
+    total: number;
+    porStatus: { [key: string]: number };
+    porCidade: { [key: string]: number };
+    porEstado: { [key: string]: number };
+    mediaIdade: number;
+}
+
+export class BeneficiariaRepository extends BaseRepository<Beneficiaria> {
+    constructor() {
+        super('beneficiarias', true); // Habilitamos soft delete
     }
 
-    async findByCPF(cpf: string): Promise<Beneficiaria | null> {
-        const result = await query(
-            'SELECT * FROM beneficiarias WHERE cpf = $1',
-            [cpf]
-        );
-        return result.rows[0] || null;
-    }
-
-    async findAll(filters: {
-        status?: string,
-        nome?: string,
-        offset?: number,
-        limit?: number
-    } = {}): Promise<{ data: Beneficiaria[], total: number }> {
-        let whereClause = 'WHERE 1=1';
-        const values: any[] = [];
-        let paramCount = 1;
-
-        if (filters.status) {
-            whereClause += ` AND status = $${paramCount}`;
-            values.push(filters.status);
-            paramCount += 1;
-        }
-
-        if (filters.nome) {
-            whereClause += ` AND nome ILIKE $${paramCount}`;
-            values.push(`%${filters.nome}%`);
-            paramCount += 1;
-        }
-
-        const limitClause = filters.limit ? ` LIMIT $${paramCount}` : '';
-        if (filters.limit) {
-            values.push(filters.limit);
-            paramCount += 1;
-        }
-
-        const offsetClause = filters.offset ? ` OFFSET $${paramCount}` : '';
-        if (filters.offset) {
-            values.push(filters.offset);
-        }
-
-        const [dataResult, countResult] = await Promise.all([
-            query(
-                `SELECT * FROM beneficiarias ${whereClause} ORDER BY nome ${limitClause} ${offsetClause}`,
-                values
-            ),
-            query(
-                `SELECT COUNT(*) FROM beneficiarias ${whereClause}`,
-                values.slice(0, -2) // Remove limit e offset
-            )
-        ]);
-
-        return {
-            data: dataResult.rows,
-            total: parseInt(countResult.rows[0].count)
-        };
-    }
-
-    async create(data: BeneficiariaCreateInput): Promise<Beneficiaria> {
-        const result = await query(
-            `INSERT INTO beneficiarias (
-                nome, cpf, rg, data_nascimento, telefone, telefone_emergencia,
-                email, endereco, cidade, estado, cep, escolaridade,
-                estado_civil, numero_filhos, renda_familiar, situacao_moradia,
-                status, observacoes, usuario_id
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
-            RETURNING *`,
-            [
-                data.nome, data.cpf, data.rg, data.data_nascimento, data.telefone,
-                data.telefone_emergencia, data.email, data.endereco, data.cidade,
-                data.estado, data.cep, data.escolaridade, data.estado_civil,
-                data.numero_filhos, data.renda_familiar, data.situacao_moradia,
-                data.status, data.observacoes, data.usuario_id
-            ]
-        );
-        return result.rows[0];
-    }
-
-    async update(id: number, data: BeneficiariaUpdateInput): Promise<Beneficiaria | null> {
-        const updates: string[] = [];
-        const values: any[] = [];
-        let paramCount = 1;
-
-        Object.keys(data).forEach((key) => {
-            if (data[key as keyof BeneficiariaUpdateInput] !== undefined) {
-                updates.push(`${key} = $${paramCount}`);
-                values.push(data[key as keyof BeneficiariaUpdateInput]);
-                paramCount += 1;
+    // Método para criar uma nova beneficiária com validações
+    async create(data: CreateBeneficiariaDTO): Promise<Beneficiaria> {
+        try {
+            // Verifica se já existe uma beneficiária com o mesmo CPF
+            const existingBeneficiaria = await this.findByCPF(data.cpf);
+            if (existingBeneficiaria) {
+                throw new Error('Já existe uma beneficiária cadastrada com este CPF');
             }
-        });
 
-        if (updates.length === 0) return null;
-
-        values.push(id);
-        const result = await query(
-            `UPDATE beneficiarias 
-             SET ${updates.join(', ')}
-             WHERE id = $${paramCount}
-             RETURNING *`,
-            values
-        );
-
-        return result.rows[0] || null;
+            return super.create(data);
+        } catch (error) {
+            logger.error('Erro ao criar beneficiária:', error);
+            throw error;
+        }
     }
 
-    async delete(id: number): Promise<boolean> {
-        const result = await query(
-            'DELETE FROM beneficiarias WHERE id = $1 RETURNING id',
-            [id]
-        );
-        return result.rowCount > 0;
+    // Método para buscar por CPF
+    async findByCPF(cpf: string): Promise<Beneficiaria | null> {
+        const sql = `
+            SELECT * FROM ${this.tableName}
+            WHERE cpf = $1 AND deleted_at IS NULL
+        `;
+
+        try {
+            const result = await query<Beneficiaria>(sql, [cpf]);
+            return result[0] || null;
+        } catch (error) {
+            logger.error('Erro ao buscar beneficiária por CPF:', error);
+            throw error;
+        }
+    }
+
+    // Método para buscar por status
+    async findByStatus(status: Beneficiaria['status']): Promise<Beneficiaria[]> {
+        const sql = `
+            SELECT * FROM ${this.tableName}
+            WHERE status = $1 AND deleted_at IS NULL
+            ORDER BY nome
+        `;
+
+        try {
+            return await query<Beneficiaria>(sql, [status]);
+        } catch (error) {
+            logger.error('Erro ao buscar beneficiárias por status:', error);
+            throw error;
+        }
+    }
+
+    // Método para busca avançada
+    async search(params: {
+        nome?: string;
+        cpf?: string;
+        cidade?: string;
+        estado?: string;
+        status?: Beneficiaria['status'];
+        dataInicio?: Date;
+        dataFim?: Date;
+    }): Promise<Beneficiaria[]> {
+        let conditions: string[] = ['deleted_at IS NULL'];
+        const values: any[] = [];
+        let paramCount = 1;
+
+        if (params.nome) {
+            conditions.push(`nome ILIKE $${paramCount}`);
+            values.push(`%${params.nome}%`);
+            paramCount++;
+        }
+
+        if (params.cpf) {
+            conditions.push(`cpf LIKE $${paramCount}`);
+            values.push(`%${params.cpf.replace(/\D/g, '')}%`);
+            paramCount++;
+        }
+
+        if (params.cidade) {
+            conditions.push(`cidade ILIKE $${paramCount}`);
+            values.push(`%${params.cidade}%`);
+            paramCount++;
+        }
+
+        if (params.estado) {
+            conditions.push(`estado = $${paramCount}`);
+            values.push(params.estado.toUpperCase());
+            paramCount++;
+        }
+
+        if (params.status) {
+            conditions.push(`status = $${paramCount}`);
+            values.push(params.status);
+            paramCount++;
+        }
+
+        if (params.dataInicio) {
+            conditions.push(`data_nascimento >= $${paramCount}`);
+            values.push(params.dataInicio);
+            paramCount++;
+        }
+
+        if (params.dataFim) {
+            conditions.push(`data_nascimento <= $${paramCount}`);
+            values.push(params.dataFim);
+            paramCount++;
+        }
+
+        const sql = `
+            SELECT * FROM ${this.tableName}
+            WHERE ${conditions.join(' AND ')}
+            ORDER BY nome
+            LIMIT 100
+        `;
+
+        try {
+            return await query<Beneficiaria>(sql, values);
+        } catch (error) {
+            logger.error('Erro na busca avançada de beneficiárias:', error);
+            throw error;
+        }
+    }
+
+    // Método para buscar beneficiárias por usuário responsável
+    async findByUsuario(usuarioId: number): Promise<Beneficiaria[]> {
+        const sql = `
+            SELECT * FROM ${this.tableName}
+            WHERE usuario_id = $1 AND deleted_at IS NULL
+            ORDER BY nome
+        `;
+
+        try {
+            return await query<Beneficiaria>(sql, [usuarioId]);
+        } catch (error) {
+            logger.error('Erro ao buscar beneficiárias por usuário:', error);
+            throw error;
+        }
+    }
+
+    // Método para estatísticas
+    async getEstatisticas(): Promise<EstatisticasBeneficiarias> {
+        const sql = `
+            WITH estatisticas AS (
+                SELECT 
+                    COUNT(*) as total,
+                    status,
+                    cidade,
+                    estado,
+                    AVG(EXTRACT(YEAR FROM age(data_nascimento))) as media_idade,
+                    COUNT(*) FILTER (WHERE status = 'ativa') as ativas,
+                    COUNT(*) FILTER (WHERE status = 'inativa') as inativas,
+                    COUNT(*) FILTER (WHERE status = 'pendente') as pendentes,
+                    COUNT(*) FILTER (WHERE status = 'desistente') as desistentes
+                FROM ${this.tableName}
+                WHERE deleted_at IS NULL
+                GROUP BY status, cidade, estado
+            )
+            SELECT 
+                SUM(total) as total,
+                JSON_AGG(DISTINCT jsonb_build_object(
+                    'status', status,
+                    'total', COUNT(*)
+                )) as por_status,
+                JSON_AGG(DISTINCT jsonb_build_object(
+                    'cidade', cidade,
+                    'total', COUNT(*)
+                )) as por_cidade,
+                JSON_AGG(DISTINCT jsonb_build_object(
+                    'estado', estado,
+                    'total', COUNT(*)
+                )) as por_estado,
+                AVG(media_idade) as media_idade
+            FROM estatisticas;
+        `;
+
+        try {
+            const result = await query<any>(sql);
+            const data = result[0];
+
+            return {
+                total: parseInt(data.total) || 0,
+                porStatus: data.por_status?.reduce((acc: any, curr: any) => {
+                    acc[curr.status] = curr.total;
+                    return acc;
+                }, {}) || {},
+                porCidade: data.por_cidade?.reduce((acc: any, curr: any) => {
+                    if (curr.cidade) {
+                        acc[curr.cidade] = curr.total;
+                    }
+                    return acc;
+                }, {}) || {},
+                porEstado: data.por_estado?.reduce((acc: any, curr: any) => {
+                    if (curr.estado) {
+                        acc[curr.estado] = curr.total;
+                    }
+                    return acc;
+                }, {}) || {},
+                mediaIdade: parseFloat(data.media_idade) || 0
+            };
+        } catch (error) {
+            logger.error('Erro ao obter estatísticas das beneficiárias:', error);
+            throw error;
+        }
     }
 }
