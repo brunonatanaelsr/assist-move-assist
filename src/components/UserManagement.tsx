@@ -14,7 +14,7 @@ import {
 import { UserOutlined, LockOutlined, PhoneOutlined } from '@ant-design/icons';
 import { useForm } from 'antd/lib/form/Form';
 import { UserFormData, PAPEIS, PapelSistema } from '../types/usuarios';
-import { supabase } from '../lib/supabaseClient';
+
 
 const { Option } = Select;
 
@@ -33,7 +33,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({ onRefresh }) => 
   const loadUsers = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      
         .from('profiles')
         .select('*')
         .order('data_criacao', { ascending: false });
@@ -59,7 +59,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({ onRefresh }) => 
       
       if (editingUser) {
         // Atualizar usuário existente
-        const { error } = await supabase
+        
           .from('profiles')
           .update({
             nome: values.nome,
@@ -74,7 +74,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({ onRefresh }) => 
         message.success('Usuário atualizado com sucesso');
       } else {
         // Criar novo usuário
-        const { data: authData, error: authError } = await supabase.auth.signUp({
+        
           email: values.email,
           password: values.senha!
         });
@@ -82,7 +82,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({ onRefresh }) => 
         if (authError) throw authError;
 
         if (authData.user) {
-          const { error: profileError } = await supabase
+          
             .from('profiles')
             .insert({
               id: authData.user.id,
@@ -114,7 +114,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({ onRefresh }) => 
   // Manipular desativação de usuário
   const handleToggleActive = async (user: any) => {
     try {
-      const { error } = await supabase
+      
         .from('profiles')
         .update({ 
           ativo: !user.ativo,

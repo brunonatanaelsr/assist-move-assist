@@ -17,7 +17,7 @@ export interface LogContext {
 
 class Logger {
   private isDevelopment = import.meta.env.DEV;
-  private apiUrl = import.meta.env.VITE_SUPABASE_URL;
+  private apiUrl = import.meta.env.VITE_API_URL;
 
   private async sendToMonitoring(
     level: keyof LogLevel,

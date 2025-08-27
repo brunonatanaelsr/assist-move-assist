@@ -106,8 +106,8 @@ export default function EditarPerfil() {
     setUploadingImage(true);
 
     try {
-      // Em produção, fazer upload para o storage (Supabase Storage)
-      // Por agora, vamos simular com URL local
+      // Simular com URL local por enquanto
+      // TODO: Implementar upload para o servidor
       const reader = new FileReader();
       reader.onload = (e) => {
         const imageUrl = e.target?.result as string;

@@ -7,7 +7,7 @@ import {
   Tabs
 } from 'antd';
 import { MODULOS, ModuloSistema, UserPermission } from '../types/usuarios';
-import { supabase } from '../lib/supabaseClient';
+
 
 const { TabPane } = Tabs;
 
@@ -27,7 +27,7 @@ export const PermissionManagement: React.FC<PermissionManagementProps> = ({
   const loadPermissions = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      
         .from('user_permissions')
         .select('*')
         .eq('user_id', userId);
@@ -78,7 +78,7 @@ export const PermissionManagement: React.FC<PermissionManagementProps> = ({
           : p
       );
 
-      const { error } = await supabase
+      
         .from('user_permissions')
         .upsert({
           user_id: userId,

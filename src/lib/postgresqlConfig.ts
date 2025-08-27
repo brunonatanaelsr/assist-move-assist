@@ -1,4 +1,4 @@
-// Configuração global para migração do Supabase para PostgreSQL
+// Configuração global do PostgreSQL
 export const usePostgreSQLConfig = () => {
   // Sempre usar PostgreSQL - sem modo dummy
   const isPostgreSQLMode = true;
