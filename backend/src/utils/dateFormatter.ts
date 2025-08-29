@@ -1,3 +1,5 @@
+import { logger } from '../services/logger';
+
 /**
  * Formata uma data para o formato ISO (YYYY-MM-DD)
  * @param date - Data para formatar
@@ -9,10 +11,11 @@ export const formatDateToISO = (date: Date | string | null): string | null => {
   try {
     const dateObj = new Date(date);
     if (isNaN(dateObj.getTime())) return null;
-    
-    return dateObj.toISOString().split('T')[0];
+
+    const [datePart] = dateObj.toISOString().split('T');
+    return datePart ?? null;
   } catch (error) {
-    console.error('Erro ao formatar data para ISO:', error);
+    logger.error('Erro ao formatar data para ISO', { error });
     return null;
   }
 };
@@ -31,7 +34,7 @@ export const formatDateToBR = (date: Date | string | null): string | null => {
     
     return dateObj.toLocaleDateString('pt-BR');
   } catch (error) {
-    console.error('Erro ao formatar data para BR:', error);
+    logger.error('Erro ao formatar data para BR', { error });
     return null;
   }
 };
@@ -42,17 +45,19 @@ export const formatDateToBR = (date: Date | string | null): string | null => {
  * @param dateFields - Campos que contêm datas
  * @returns Objeto com datas formatadas
  */
-export const formatObjectDates = (obj: Record<string, any>, dateFields: string[] = []): Record<string, any> => {
+export const formatObjectDates = <T extends Record<string, unknown>>(obj: T, dateFields: (keyof T)[] = []): T => {
   if (!obj || typeof obj !== 'object') return obj;
-  
-  const formattedObj = { ...obj };
-  
-  dateFields.forEach(field => {
-    if (formattedObj[field]) {
-      formattedObj[field] = formatDateToISO(formattedObj[field]);
+
+  const formattedObj = { ...obj } as T;
+
+  (dateFields as string[]).forEach(field => {
+    if (formattedObj[field as keyof T]) {
+      formattedObj[field as keyof T] = formatDateToISO(
+        formattedObj[field as keyof T] as unknown as Date | string | null
+      ) as T[keyof T];
     }
   });
-  
+
   return formattedObj;
 };
 
@@ -62,9 +67,9 @@ export const formatObjectDates = (obj: Record<string, any>, dateFields: string[]
  * @param dateFields - Campos que contêm datas
  * @returns Array com datas formatadas
  */
-export const formatArrayDates = (array: Record<string, any>[], dateFields: string[] = []): Record<string, any>[] => {
+export const formatArrayDates = <T extends Record<string, unknown>>(array: T[], dateFields: (keyof T)[] = []): T[] => {
   if (!Array.isArray(array)) return array;
-  
+
   return array.map(obj => formatObjectDates(obj, dateFields));
 };
 

@@ -91,4 +91,5 @@ process.on('SIGTERM', () => {
   });
 });
 
+export { app };
 export default app;
