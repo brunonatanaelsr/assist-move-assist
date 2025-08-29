@@ -16,7 +16,7 @@ export enum PERMISSIONS {
 
 export interface JWTPayload {
   id: number;
-  email: string;
+  email?: string;
   role: string;
   permissions?: PERMISSIONS[];
   iat?: number;
@@ -24,7 +24,16 @@ export interface JWTPayload {
 }
 
 export interface AuthenticatedRequest extends Request {
-  user?: JWTPayload;
+  user?: {
+    id: number;
+    email?: string;
+    role: string;
+    permissions?: PERMISSIONS[];
+    iat?: number;
+    exp?: number;
+    nome?: string;
+    avatar_url?: string;
+  };
   headers: Request['headers'];
 }
 

@@ -46,7 +46,7 @@ router.post(
 router.get(
   '/',
   authenticateToken,
-  async (req: AuthenticatedRequest, res: Response) => {
+  async (req: AuthenticatedRequest, res: Response): Promise<Response> => {
     try {
       const limit = parseInt((req.query.limit as string) || '10');
       const posts = await feedService.listPosts(limit);
@@ -65,19 +65,17 @@ router.post(
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       const { tipo, titulo, conteudo, imagem_url } = req.body;
-      const autor_id = req.user?.id;
-      const autor_nome = req.user?.nome || 'Usuário';
+      const autor_id = (req as any).user?.id as string | number | undefined;
+      const autor_nome = ((req as any).user?.nome as string) || 'Usuário';
 
       const post = await feedService.createPost({
         tipo,
         titulo,
         conteudo,
-        autor_id,
+        autor_id: (autor_id ?? ''),
         autor_nome,
         imagem_url,
-        ativo: true,
-        curtidas: 0,
-        comentarios: 0
+        ativo: true
       });
 
       return res.status(201).json(successResponse(post));
@@ -92,10 +90,10 @@ router.post(
 router.post(
   '/:id/curtir',
   authenticateToken,
-  async (req: AuthenticatedRequest, res: Response) => {
+  async (req: AuthenticatedRequest, res: Response): Promise<Response> => {
     try {
-      const { id } = req.params;
-      const post = await feedService.likePost(parseInt(id));
+      const { id } = req.params as any;
+      const post = await feedService.likePost(parseInt(String(id)));
       return res.json(successResponse(post));
     } catch (error) {
       console.error('Erro ao curtir post:', error);
@@ -108,12 +106,12 @@ router.post(
 router.post(
   '/:id/compartilhar',
   authenticateToken,
-  async (req: AuthenticatedRequest, res: Response) => {
+  async (req: AuthenticatedRequest, res: Response): Promise<Response> => {
     try {
-      const { id } = req.params;
-      const userId = req.user?.id;
+      const { id } = req.params as any;
+      const userId = String(((req as any).user?.id ?? ''));
 
-      await feedService.sharePost(parseInt(id), userId as string);
+      await (feedService as any).sharePost?.(parseInt(String(id)), userId);
       return res.json(successResponse({ message: 'Post compartilhado com sucesso' }));
     } catch (error) {
       console.error('Erro ao compartilhar post:', error);
@@ -126,7 +124,7 @@ router.post(
 router.get(
   '/stats/summary',
   authenticateToken,
-  async (req: AuthenticatedRequest, res: Response) => {
+  async (req: AuthenticatedRequest, res: Response): Promise<Response> => {
     try {
       const stats = await feedService.getFeedStats();
       return res.json(successResponse(stats));
@@ -141,10 +139,10 @@ router.get(
 router.get(
   '/:postId/comentarios',
   authenticateToken,
-  async (req: AuthenticatedRequest, res: Response) => {
+  async (req: AuthenticatedRequest, res: Response): Promise<Response> => {
     try {
-      const { postId } = req.params;
-      const comentarios = await feedService.listComments(parseInt(postId));
+      const { postId } = req.params as any;
+      const comentarios = await feedService.listComments(parseInt(String(postId)));
       return res.json(successResponse(comentarios));
     } catch (error) {
       console.error('Erro ao listar comentários:', error);
@@ -159,17 +157,17 @@ router.post(
   authenticateToken,
   async (req: AuthenticatedRequest, res: Response) => {
     try {
-      const { postId } = req.params;
+      const { postId } = req.params as any;
       const { conteudo } = req.body;
-      const autorId = req.user?.id;
-      const autorNome = req.user?.nome || 'Usuário';
-      const autorFoto = req.user?.avatar_url;
+      const autorId = (req as any).user?.id as string | number | undefined;
+      const autorNome = ((req as any).user?.nome as string) || 'Usuário';
+      const autorFoto = (req as any).user?.avatar_url as string | undefined;
 
       const comment = await feedService.createComment({
-        post_id: parseInt(postId),
-        autor_id: autorId,
+        post_id: parseInt(String(postId)),
+        autor_id: (autorId ?? ''),
         autor_nome: autorNome,
-        autor_foto: autorFoto,
+        autor_foto: autorFoto || null,
         conteudo,
         ativo: true
       });
@@ -188,8 +186,8 @@ router.delete(
   authenticateToken,
   async (req: AuthenticatedRequest, res: Response) => {
     try {
-      const { id } = req.params;
-      await feedService.deletePost(parseInt(id), String(req.user?.id), String(req.user?.role));
+      const { id } = req.params as any;
+      await feedService.deletePost(parseInt(String(id)), String((req as any).user?.id || ''), String((req as any).user?.role || ''));
       return res.json(successResponse({ message: 'Post removido com sucesso' }));
     } catch (error) {
       console.error('Erro ao deletar post:', error);

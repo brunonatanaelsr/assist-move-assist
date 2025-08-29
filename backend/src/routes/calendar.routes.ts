@@ -1,12 +1,12 @@
 import { Router } from 'express';
-import { authenticateToken, AuthenticatedRequest } from '../middleware/auth';
+import { authenticateToken } from '../middleware/auth';
 import { pool } from '../config/database';
 import { successResponse, errorResponse } from '../utils/responseFormatter';
 
 const router = Router();
 
 // GET /calendar/events
-router.get('/events', authenticateToken, async (req: AuthenticatedRequest, res) => {
+router.get('/events', authenticateToken, async (req, res): Promise<void> => {
   try {
     const { startDate, endDate } = req.query as any;
     const where: string[] = [];
@@ -18,28 +18,32 @@ router.get('/events', authenticateToken, async (req: AuthenticatedRequest, res) 
     const whereClause = where.length ? 'WHERE ' + where.join(' AND ') : '';
     const result = await pool.query(`SELECT * FROM calendar_events ${whereClause} ORDER BY start ASC`, params);
     res.json(result.rows);
+    return;
   } catch (error) {
     res.status(500).json(errorResponse('Erro ao listar eventos'));
+    return;
   }
 });
 
 // GET /calendar/events/:id
-router.get('/events/:id', authenticateToken, async (req, res) => {
+router.get('/events/:id', authenticateToken, async (req, res): Promise<void> => {
   try {
     const { id } = req.params as any;
     const result = await pool.query('SELECT * FROM calendar_events WHERE id = $1', [id]);
-    if (result.rowCount === 0) return res.status(404).json(errorResponse('Evento não encontrado'));
+    if (result.rowCount === 0) { res.status(404).json(errorResponse('Evento não encontrado')); return; }
     res.json(result.rows[0]);
+    return;
   } catch (error) {
     res.status(500).json(errorResponse('Erro ao obter evento'));
+    return;
   }
 });
 
 // POST /calendar/events
-router.post('/events', authenticateToken, async (req: AuthenticatedRequest, res) => {
+router.post('/events', authenticateToken, async (req, res): Promise<void> => {
   try {
     const { title, description, start, end, allDay, location, type, status } = req.body || {};
-    const createdBy = Number(req.user!.id);
+    const createdBy = Number((req as any).user!.id);
     const result = await pool.query(
       `INSERT INTO calendar_events (title, description, start, "end", all_day, location, type, status, created_by)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
@@ -47,13 +51,15 @@ router.post('/events', authenticateToken, async (req: AuthenticatedRequest, res)
       [title, description || null, start, end, !!allDay, location || null, type || 'OUTRO', status || 'AGENDADO', createdBy]
     );
     res.status(201).json(result.rows[0]);
+    return;
   } catch (error) {
     res.status(500).json(errorResponse('Erro ao criar evento'));
+    return;
   }
 });
 
 // PUT /calendar/events/:id
-router.put('/events/:id', authenticateToken, async (req, res) => {
+router.put('/events/:id', authenticateToken, async (req, res): Promise<void> => {
   try {
     const { id } = req.params as any;
     const { title, description, start, end, allDay, location, type, status } = req.body || {};
@@ -71,26 +77,30 @@ router.put('/events/:id', authenticateToken, async (req, res) => {
        RETURNING *`,
       [id, title || null, description || null, start || null, end || null, allDay === undefined ? null : !!allDay, location || null, type || null, status || null]
     );
-    if (result.rowCount === 0) return res.status(404).json(errorResponse('Evento não encontrado'));
+    if (result.rowCount === 0) { res.status(404).json(errorResponse('Evento não encontrado')); return; }
     res.json(result.rows[0]);
+    return;
   } catch (error) {
     res.status(500).json(errorResponse('Erro ao atualizar evento'));
+    return;
   }
 });
 
 // DELETE /calendar/events/:id
-router.delete('/events/:id', authenticateToken, async (req, res) => {
+router.delete('/events/:id', authenticateToken, async (req, res): Promise<void> => {
   try {
     const { id } = req.params as any;
     await pool.query('DELETE FROM calendar_events WHERE id = $1', [id]);
     res.status(204).end();
+    return;
   } catch (error) {
     res.status(500).json(errorResponse('Erro ao excluir evento'));
+    return;
   }
 });
 
 // POST /calendar/events/recurring
-router.post('/events/recurring', authenticateToken, async (req, res) => {
+router.post('/events/recurring', authenticateToken, async (req, res): Promise<void> => {
   try {
     const { event, recurrence } = req.body || {};
     // Implementação simplificada: cria apenas um evento base
@@ -98,16 +108,18 @@ router.post('/events/recurring', authenticateToken, async (req, res) => {
       `INSERT INTO calendar_events (title, description, start, "end", all_day, location, type, status, created_by)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
        RETURNING *`,
-      [event?.title, event?.description || null, event?.start, event?.end, !!event?.allDay, event?.location || null, event?.type || 'OUTRO', event?.status || 'AGENDADO', req.user!.id]
+      [event?.title, event?.description || null, event?.start, event?.end, !!event?.allDay, event?.location || null, event?.type || 'OUTRO', event?.status || 'AGENDADO', (req as any).user!.id]
     );
     res.status(201).json([created.rows[0]]);
+    return;
   } catch (error) {
     res.status(500).json(errorResponse('Erro ao criar eventos recorrentes'));
+    return;
   }
 });
 
 // PUT /calendar/events/:eventId/participants/:participantId
-router.put('/events/:eventId/participants/:participantId', authenticateToken, async (req, res) => {
+router.put('/events/:eventId/participants/:participantId', authenticateToken, async (req, res): Promise<void> => {
   try {
     const { eventId, participantId } = req.params as any;
     const { status } = req.body || {};
@@ -118,13 +130,15 @@ router.put('/events/:eventId/participants/:participantId', authenticateToken, as
       [eventId, participantId, status || 'TENTATIVE']
     );
     res.json(successResponse({ eventId, participantId, status: status || 'TENTATIVE' }));
+    return;
   } catch (error) {
     res.status(500).json(errorResponse('Erro ao atualizar participante'));
+    return;
   }
 });
 
 // PUT /calendar/events/:eventId/attendance/:participantId
-router.put('/events/:eventId/attendance/:participantId', authenticateToken, async (req, res) => {
+router.put('/events/:eventId/attendance/:participantId', authenticateToken, async (req, res): Promise<void> => {
   try {
     const { eventId, participantId } = req.params as any;
     const { attended } = req.body || {};
@@ -135,14 +149,16 @@ router.put('/events/:eventId/attendance/:participantId', authenticateToken, asyn
       [eventId, participantId, !!attended]
     );
     res.json(successResponse({ eventId, participantId, attended: !!attended }));
+    return;
   } catch (error) {
     res.status(500).json(errorResponse('Erro ao atualizar presença'));
+    return;
   }
 });
 
 export default router;
 // GET /calendar/stats
-router.get('/stats', authenticateToken, async (_req: AuthenticatedRequest, res) => {
+router.get('/stats', authenticateToken, async (_req, res): Promise<void> => {
   try {
     const total = await pool.query('SELECT COUNT(*)::int as c FROM calendar_events');
     const upcoming = await pool.query('SELECT COUNT(*)::int as c FROM calendar_events WHERE start >= NOW()');
@@ -159,7 +175,9 @@ router.get('/stats', authenticateToken, async (_req: AuthenticatedRequest, res) 
       attendance_rate: 0
     };
     res.json(stats);
+    return;
   } catch (error) {
     res.status(500).json(errorResponse('Erro ao obter estatísticas'));
+    return;
   }
 });

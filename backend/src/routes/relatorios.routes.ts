@@ -240,23 +240,25 @@ export default router;
 // ========== TEMPLATES DE RELATÓRIO ==========
 
 // GET /relatorios/templates - listar templates
-router.get('/templates', authenticateToken, requireGestor, async (_req, res) => {
+router.get('/templates', authenticateToken, requireGestor, async (_req, res): Promise<void> => {
   try {
     const result = await pool.query('SELECT * FROM report_templates ORDER BY updated_at DESC');
     res.json(successResponse(result.rows));
   } catch (error) {
     console.error('Erro ao listar templates:', error);
     res.status(500).json(errorResponse('Erro ao listar templates'));
+    return;
   }
 });
 
 // POST /relatorios/templates - criar template
-router.post('/templates', authenticateToken, requireGestor, async (req, res) => {
+router.post('/templates', authenticateToken, requireGestor, async (req, res): Promise<void> => {
   try {
     const { name, description, type = 'DASHBOARD', metrics = [], schedule = {} } = req.body || {};
 
     if (!name || typeof name !== 'string') {
-      return res.status(400).json(errorResponse('Campo "name" é obrigatório'));
+      res.status(400).json(errorResponse('Campo "name" é obrigatório'));
+      return;
     }
 
     const result = await pool.query(
@@ -267,14 +269,16 @@ router.post('/templates', authenticateToken, requireGestor, async (req, res) => 
     );
 
     res.status(201).json(successResponse(result.rows[0]));
+    return;
   } catch (error) {
     console.error('Erro ao criar template:', error);
     res.status(500).json(errorResponse('Erro ao criar template'));
+    return;
   }
 });
 
 // PUT /relatorios/templates/:id - atualizar template
-router.put('/templates/:id', authenticateToken, requireGestor, async (req, res) => {
+router.put('/templates/:id', authenticateToken, requireGestor, async (req, res): Promise<void> => {
   try {
     const { id } = req.params as { id: string };
     const { name, description, type, metrics, schedule } = req.body || {};
@@ -294,40 +298,47 @@ router.put('/templates/:id', authenticateToken, requireGestor, async (req, res) 
     );
 
     if (result.rowCount === 0) {
-      return res.status(404).json(errorResponse('Template não encontrado'));
+      res.status(404).json(errorResponse('Template não encontrado'));
+      return;
     }
 
     res.json(successResponse(result.rows[0]));
+    return;
   } catch (error) {
     console.error('Erro ao atualizar template:', error);
     res.status(500).json(errorResponse('Erro ao atualizar template'));
+    return;
   }
 });
 
 // DELETE /relatorios/templates/:id - remover template
-router.delete('/templates/:id', authenticateToken, requireGestor, async (req, res) => {
+router.delete('/templates/:id', authenticateToken, requireGestor, async (req, res): Promise<void> => {
   try {
     const { id } = req.params as { id: string };
     const result = await pool.query('DELETE FROM report_templates WHERE id = $1', [id]);
     if (result.rowCount === 0) {
-      return res.status(404).json(errorResponse('Template não encontrado'));
+      res.status(404).json(errorResponse('Template não encontrado'));
+      return;
     }
     res.json(successResponse({ message: 'Template removido' }));
+    return;
   } catch (error) {
     console.error('Erro ao remover template:', error);
     res.status(500).json(errorResponse('Erro ao remover template'));
+    return;
   }
 });
 
 // POST /relatorios/export/:id - exportar relatório a partir do template
-router.post('/export/:id', authenticateToken, requireGestor, async (req, res) => {
+router.post('/export/:id', authenticateToken, requireGestor, async (req, res): Promise<void> => {
   try {
     const { id } = req.params as { id: string };
     const { format = 'pdf' } = req.body || {};
 
     const tpl = await pool.query('SELECT * FROM report_templates WHERE id = $1', [id]);
     if (tpl.rowCount === 0) {
-      return res.status(404).json(errorResponse('Template não encontrado'));
+      res.status(404).json(errorResponse('Template não encontrado'));
+      return;
     }
     const template = tpl.rows[0];
 
@@ -355,7 +366,8 @@ router.post('/export/:id', authenticateToken, requireGestor, async (req, res) =>
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       res.setHeader('Content-Disposition', `attachment; filename="relatorio_${template.name}.xlsx"`);
       await workbook.xlsx.write(res);
-      return res.end();
+      res.end();
+      return;
     }
 
     if (format === 'csv') {
@@ -368,7 +380,8 @@ router.post('/export/:id', authenticateToken, requireGestor, async (req, res) =>
       const csv = stringify(records);
       res.setHeader('Content-Type', 'text/csv');
       res.setHeader('Content-Disposition', `attachment; filename="relatorio_${template.name}.csv"`);
-      return res.send(csv);
+      res.send(csv);
+      return;
     }
 
     // PDF (default)
@@ -395,5 +408,6 @@ router.post('/export/:id', authenticateToken, requireGestor, async (req, res) =>
   } catch (error) {
     console.error('Erro ao exportar relatório:', error);
     res.status(500).json(errorResponse('Erro ao exportar relatório'));
+    return;
   }
 });

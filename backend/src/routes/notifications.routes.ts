@@ -6,7 +6,7 @@ import { successResponse, errorResponse } from '../utils/responseFormatter';
 const router = Router();
 
 // GET /notifications
-router.get('/', authenticateToken, async (req: AuthenticatedRequest, res) => {
+router.get('/', authenticateToken, async (req: AuthenticatedRequest, res): Promise<void> => {
   try {
     const userId = Number(req.user!.id);
     const { read, type, page = '1', limit = '20' } = req.query as any;
@@ -29,24 +29,28 @@ router.get('/', authenticateToken, async (req: AuthenticatedRequest, res) => {
       [...params, l, (p - 1) * l]
     );
     res.json(successResponse(result.rows));
+    return;
   } catch (error) {
     res.status(500).json(errorResponse('Erro ao listar notificações'));
+    return;
   }
 });
 
 // GET /notifications/unread/count
-router.get('/unread/count', authenticateToken, async (req: AuthenticatedRequest, res) => {
+router.get('/unread/count', authenticateToken, async (req: AuthenticatedRequest, res): Promise<void> => {
   try {
     const userId = Number(req.user!.id);
     const result = await pool.query('SELECT COUNT(*)::int as count FROM notifications WHERE user_id = $1 AND read = false', [userId]);
     res.json({ count: result.rows[0].count });
+    return;
   } catch (error) {
     res.status(500).json(errorResponse('Erro ao contar notificações'));
+    return;
   }
 });
 
 // PATCH /notifications/:id
-router.patch('/:id', authenticateToken, async (req: AuthenticatedRequest, res) => {
+router.patch('/:id', authenticateToken, async (req: AuthenticatedRequest, res): Promise<void> => {
   try {
     const userId = Number(req.user!.id);
     const { id } = req.params as any;
@@ -55,37 +59,43 @@ router.patch('/:id', authenticateToken, async (req: AuthenticatedRequest, res) =
       `UPDATE notifications SET read = COALESCE($1, read), read_at = CASE WHEN $1 = true THEN NOW() ELSE read_at END WHERE id = $2 AND user_id = $3 RETURNING *`,
       [read, id, userId]
     );
-    if (result.rowCount === 0) return res.status(404).json(errorResponse('Notificação não encontrada'));
+    if (result.rowCount === 0) { res.status(404).json(errorResponse('Notificação não encontrada')); return; }
     res.json(successResponse(result.rows[0]));
+    return;
   } catch (error) {
     res.status(500).json(errorResponse('Erro ao atualizar notificação'));
+    return;
   }
 });
 
 // POST /notifications/mark-all-read
-router.post('/mark-all-read', authenticateToken, async (req: AuthenticatedRequest, res) => {
+router.post('/mark-all-read', authenticateToken, async (req: AuthenticatedRequest, res): Promise<void> => {
   try {
     const userId = Number(req.user!.id);
     await pool.query('UPDATE notifications SET read = true, read_at = NOW() WHERE user_id = $1 AND read = false', [userId]);
     res.json(successResponse({ message: 'Todas notificações marcadas como lidas' }));
+    return;
   } catch (error) {
     res.status(500).json(errorResponse('Erro ao marcar todas como lidas'));
+    return;
   }
 });
 
 // GET /notifications/preferences
-router.get('/preferences', authenticateToken, async (req: AuthenticatedRequest, res) => {
+router.get('/preferences', authenticateToken, async (req: AuthenticatedRequest, res): Promise<void> => {
   try {
     const userId = Number(req.user!.id);
     const result = await pool.query('SELECT * FROM notification_preferences WHERE user_id = $1', [userId]);
     res.json(result.rows[0] || {});
+    return;
   } catch (error) {
     res.status(500).json(errorResponse('Erro ao obter preferências'));
+    return;
   }
 });
 
 // PUT /notifications/preferences
-router.put('/preferences', authenticateToken, async (req: AuthenticatedRequest, res) => {
+router.put('/preferences', authenticateToken, async (req: AuthenticatedRequest, res): Promise<void> => {
   try {
     const userId = Number(req.user!.id);
     const fields = req.body || {};
@@ -119,17 +129,20 @@ router.put('/preferences', authenticateToken, async (req: AuthenticatedRequest, 
       ]
     );
     res.json(successResponse(result.rows[0]));
+    return;
   } catch (error) {
     res.status(500).json(errorResponse('Erro ao atualizar preferências'));
+    return;
   }
 });
 
 // POST /notifications - criar notificação manual
-router.post('/', authenticateToken, async (req: AuthenticatedRequest, res) => {
+router.post('/', authenticateToken, async (req: AuthenticatedRequest, res): Promise<void> => {
   try {
     const { user_id, title, message, type = 'info', action_url, data } = req.body || {};
     if (!user_id || !title || !message) {
-      return res.status(400).json(errorResponse('user_id, title e message são obrigatórios'));
+      res.status(400).json(errorResponse('user_id, title e message são obrigatórios'));
+      return;
     }
     const result = await pool.query(
       `INSERT INTO notifications (user_id, title, message, type, action_url, data)
@@ -138,10 +151,11 @@ router.post('/', authenticateToken, async (req: AuthenticatedRequest, res) => {
       [user_id, title, message, type, action_url || null, JSON.stringify(data || {})]
     );
     res.status(201).json(successResponse(result.rows[0]));
+    return;
   } catch (error) {
     res.status(500).json(errorResponse('Erro ao criar notificação'));
+    return;
   }
 });
 
 export default router;
-

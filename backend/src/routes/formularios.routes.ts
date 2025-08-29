@@ -6,7 +6,7 @@ import { successResponse, errorResponse } from '../utils/responseFormatter';
 const router = Router();
 
 // ANAMNESE SOCIAL
-router.post('/anamnese', authenticateToken, async (req: AuthenticatedRequest, res) => {
+router.post('/anamnese', authenticateToken, async (req: AuthenticatedRequest, res): Promise<void> => {
   try {
     const { beneficiaria_id, dados } = req.body || {};
     const createdBy = Number(req.user!.id);
@@ -16,36 +16,42 @@ router.post('/anamnese', authenticateToken, async (req: AuthenticatedRequest, re
       [beneficiaria_id, JSON.stringify(dados || {}), createdBy]
     );
     res.status(201).json(successResponse(result.rows[0]));
+    return;
   } catch (error) {
     res.status(500).json(errorResponse('Erro ao criar anamnese'));
+    return;
   }
 });
 
-router.get('/anamnese/:id', authenticateToken, async (req, res) => {
+router.get('/anamnese/:id', authenticateToken, async (req, res): Promise<void> => {
   try {
     const { id } = req.params as any;
     const result = await pool.query('SELECT * FROM anamnese_social WHERE id = $1', [id]);
-    if (result.rowCount === 0) return res.status(404).json(errorResponse('Anamnese não encontrada'));
+    if (result.rowCount === 0) { res.status(404).json(errorResponse('Anamnese não encontrada')); return; }
     res.json(successResponse(result.rows[0]));
+    return;
   } catch (error) {
     res.status(500).json(errorResponse('Erro ao obter anamnese'));
+    return;
   }
 });
 
-router.put('/anamnese/:id', authenticateToken, async (req, res) => {
+router.put('/anamnese/:id', authenticateToken, async (req, res): Promise<void> => {
   try {
     const { id } = req.params as any;
     const { dados } = req.body || {};
     const result = await pool.query('UPDATE anamnese_social SET dados = COALESCE($2::jsonb, dados) WHERE id = $1 RETURNING *', [id, JSON.stringify(dados || null)]);
-    if (result.rowCount === 0) return res.status(404).json(errorResponse('Anamnese não encontrada'));
+    if (result.rowCount === 0) { res.status(404).json(errorResponse('Anamnese não encontrada')); return; }
     res.json(successResponse(result.rows[0]));
+    return;
   } catch (error) {
     res.status(500).json(errorResponse('Erro ao atualizar anamnese'));
+    return;
   }
 });
 
 // FICHA DE EVOLUÇÃO
-router.post('/ficha-evolucao', authenticateToken, async (req: AuthenticatedRequest, res) => {
+router.post('/ficha-evolucao', authenticateToken, async (req: AuthenticatedRequest, res): Promise<void> => {
   try {
     const { beneficiaria_id, dados } = req.body || {};
     const createdBy = Number(req.user!.id);
@@ -55,46 +61,54 @@ router.post('/ficha-evolucao', authenticateToken, async (req: AuthenticatedReque
       [beneficiaria_id, JSON.stringify(dados || {}), createdBy]
     );
     res.status(201).json(successResponse(result.rows[0]));
+    return;
   } catch (error) {
     res.status(500).json(errorResponse('Erro ao criar ficha de evolução'));
+    return;
   }
 });
 
-router.get('/ficha-evolucao/:id', authenticateToken, async (req, res) => {
+router.get('/ficha-evolucao/:id', authenticateToken, async (req, res): Promise<void> => {
   try {
     const { id } = req.params as any;
     const result = await pool.query('SELECT * FROM ficha_evolucao WHERE id = $1', [id]);
-    if (result.rowCount === 0) return res.status(404).json(errorResponse('Ficha não encontrada'));
+    if (result.rowCount === 0) { res.status(404).json(errorResponse('Ficha não encontrada')); return; }
     res.json(successResponse(result.rows[0]));
+    return;
   } catch (error) {
     res.status(500).json(errorResponse('Erro ao obter ficha'));
+    return;
   }
 });
 
-router.get('/ficha-evolucao/beneficiaria/:beneficiariaId', authenticateToken, async (req, res) => {
+router.get('/ficha-evolucao/beneficiaria/:beneficiariaId', authenticateToken, async (req, res): Promise<void> => {
   try {
     const { beneficiariaId } = req.params as any;
     const result = await pool.query('SELECT * FROM ficha_evolucao WHERE beneficiaria_id = $1 ORDER BY created_at DESC', [beneficiariaId]);
     res.json(successResponse(result.rows));
+    return;
   } catch (error) {
     res.status(500).json(errorResponse('Erro ao listar fichas'));
+    return;
   }
 });
 
-router.put('/ficha-evolucao/:id', authenticateToken, async (req, res) => {
+router.put('/ficha-evolucao/:id', authenticateToken, async (req, res): Promise<void> => {
   try {
     const { id } = req.params as any;
     const { dados } = req.body || {};
     const result = await pool.query('UPDATE ficha_evolucao SET dados = COALESCE($2::jsonb, dados) WHERE id = $1 RETURNING *', [id, JSON.stringify(dados || null)]);
-    if (result.rowCount === 0) return res.status(404).json(errorResponse('Ficha não encontrada'));
+    if (result.rowCount === 0) { res.status(404).json(errorResponse('Ficha não encontrada')); return; }
     res.json(successResponse(result.rows[0]));
+    return;
   } catch (error) {
     res.status(500).json(errorResponse('Erro ao atualizar ficha'));
+    return;
   }
 });
 
 // TERMOS DE CONSENTIMENTO
-router.post('/termos-consentimento', authenticateToken, async (req: AuthenticatedRequest, res) => {
+router.post('/termos-consentimento', authenticateToken, async (req: AuthenticatedRequest, res): Promise<void> => {
   try {
     const { beneficiaria_id, dados } = req.body || {};
     const createdBy = Number(req.user!.id);
@@ -104,40 +118,47 @@ router.post('/termos-consentimento', authenticateToken, async (req: Authenticate
       [beneficiaria_id, JSON.stringify(dados || {}), createdBy]
     );
     res.status(201).json(successResponse(result.rows[0]));
+    return;
   } catch (error) {
     res.status(500).json(errorResponse('Erro ao criar termo'));
+    return;
   }
 });
 
-router.get('/termos-consentimento/:id', authenticateToken, async (req, res) => {
+router.get('/termos-consentimento/:id', authenticateToken, async (req, res): Promise<void> => {
   try {
     const { id } = req.params as any;
     const result = await pool.query('SELECT * FROM termos_consentimento WHERE id = $1', [id]);
-    if (result.rowCount === 0) return res.status(404).json(errorResponse('Termo não encontrado'));
+    if (result.rowCount === 0) { res.status(404).json(errorResponse('Termo não encontrado')); return; }
     res.json(successResponse(result.rows[0]));
+    return;
   } catch (error) {
     res.status(500).json(errorResponse('Erro ao obter termo'));
+    return;
   }
 });
 
-router.put('/termos-consentimento/:id', authenticateToken, async (req, res) => {
+router.put('/termos-consentimento/:id', authenticateToken, async (req, res): Promise<void> => {
   try {
     const { id } = req.params as any;
     const { dados } = req.body || {};
     const result = await pool.query('UPDATE termos_consentimento SET dados = COALESCE($2::jsonb, dados) WHERE id = $1 RETURNING *', [id, JSON.stringify(dados || null)]);
-    if (result.rowCount === 0) return res.status(404).json(errorResponse('Termo não encontrado'));
+    if (result.rowCount === 0) { res.status(404).json(errorResponse('Termo não encontrado')); return; }
     res.json(successResponse(result.rows[0]));
+    return;
   } catch (error) {
     res.status(500).json(errorResponse('Erro ao atualizar termo'));
+    return;
   }
 });
 
 // VISÃO HOLÍSTICA
-router.post('/visao-holistica', authenticateToken, async (req: AuthenticatedRequest, res) => {
+router.post('/visao-holistica', authenticateToken, async (req: AuthenticatedRequest, res): Promise<void> => {
   try {
     const { beneficiaria_id, ...dados } = (req.body || {}) as any;
     if (!beneficiaria_id) {
-      return res.status(400).json(errorResponse('beneficiaria_id é obrigatório'));
+      res.status(400).json(errorResponse('beneficiaria_id é obrigatório'));
+      return;
     }
 
     const createdBy = Number(req.user!.id);
@@ -147,23 +168,27 @@ router.post('/visao-holistica', authenticateToken, async (req: AuthenticatedRequ
       [beneficiaria_id, JSON.stringify(dados || {}), createdBy]
     );
     res.status(201).json(successResponse(result.rows[0]));
+    return;
   } catch (error) {
     res.status(500).json(errorResponse('Erro ao criar visão holística'));
+    return;
   }
 });
 
-router.get('/visao-holistica/:id', authenticateToken, async (req, res) => {
+router.get('/visao-holistica/:id', authenticateToken, async (req, res): Promise<void> => {
   try {
     const { id } = req.params as any;
     const result = await pool.query('SELECT * FROM visao_holistica WHERE id = $1', [id]);
-    if (result.rowCount === 0) return res.status(404).json(errorResponse('Registro não encontrado'));
+    if (result.rowCount === 0) { res.status(404).json(errorResponse('Registro não encontrado')); return; }
     res.json(successResponse(result.rows[0]));
+    return;
   } catch (error) {
     res.status(500).json(errorResponse('Erro ao obter visão holística'));
+    return;
   }
 });
 
-router.get('/visao-holistica/beneficiaria/:beneficiariaId', authenticateToken, async (req, res) => {
+router.get('/visao-holistica/beneficiaria/:beneficiariaId', authenticateToken, async (req, res): Promise<void> => {
   try {
     const { beneficiariaId } = req.params as any;
     const result = await pool.query(
@@ -171,12 +196,14 @@ router.get('/visao-holistica/beneficiaria/:beneficiariaId', authenticateToken, a
       [beneficiariaId]
     );
     res.json(successResponse(result.rows));
+    return;
   } catch (error) {
     res.status(500).json(errorResponse('Erro ao listar visões holísticas'));
+    return;
   }
 });
 
-router.put('/visao-holistica/:id', authenticateToken, async (req, res) => {
+router.put('/visao-holistica/:id', authenticateToken, async (req, res): Promise<void> => {
   try {
     const { id } = req.params as any;
     const { dados } = (req.body || {}) as any;
@@ -187,10 +214,12 @@ router.put('/visao-holistica/:id', authenticateToken, async (req, res) => {
       'UPDATE visao_holistica SET dados = COALESCE($2::jsonb, dados) WHERE id = $1 RETURNING *',
       [id, JSON.stringify(payload || null)]
     );
-    if (result.rowCount === 0) return res.status(404).json(errorResponse('Registro não encontrado'));
+    if (result.rowCount === 0) { res.status(404).json(errorResponse('Registro não encontrado')); return; }
     res.json(successResponse(result.rows[0]));
+    return;
   } catch (error) {
     res.status(500).json(errorResponse('Erro ao atualizar visão holística'));
+    return;
   }
 });
 

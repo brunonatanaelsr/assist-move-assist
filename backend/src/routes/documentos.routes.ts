@@ -26,7 +26,7 @@ router.get('/:beneficiariaId', authenticateToken, async (req: AuthenticatedReque
 });
 
 // POST /documentos/:beneficiariaId/upload - upload de documento
-router.post('/:beneficiariaId/upload', authenticateToken, uploadAnySingle('file'), async (req: AuthenticatedRequest & { file?: Express.Multer.File }, res) => {
+router.post('/:beneficiariaId/upload', authenticateToken, uploadAnySingle('file'), async (req: AuthenticatedRequest & { file?: Express.Multer.File }, res): Promise<void> => {
   try {
     const { beneficiariaId } = req.params as any;
     const { tipo, categoria, metadata } = req.body || {};
@@ -47,13 +47,15 @@ router.post('/:beneficiariaId/upload', authenticateToken, uploadAnySingle('file'
       [beneficiariaId, file.originalname, finalPath, file.size, file.mimetype, tipo || null, categoria || null, userId, JSON.stringify(metadata || {})]
     );
     res.status(201).json(result.rows[0]);
+    return;
   } catch (error) {
     res.status(500).json(errorResponse('Erro ao fazer upload'));
+    return;
   }
 });
 
 // PUT /documentos/:documentoId - nova versão
-router.put('/:documentoId', authenticateToken, uploadAnySingle('file'), async (req: AuthenticatedRequest & { file?: Express.Multer.File }, res) => {
+router.put('/:documentoId', authenticateToken, uploadAnySingle('file'), async (req: AuthenticatedRequest & { file?: Express.Multer.File }, res): Promise<void> => {
   try {
     const { documentoId } = req.params as any;
     const { motivoModificacao, metadata } = req.body || {};
@@ -61,7 +63,7 @@ router.put('/:documentoId', authenticateToken, uploadAnySingle('file'), async (r
     const userId = Number(req.user!.id);
 
     const doc = await pool.query('SELECT * FROM documentos WHERE id = $1', [documentoId]);
-    if (doc.rowCount === 0) return res.status(404).json(errorResponse('Documento não encontrado'));
+    if (doc.rowCount === 0) { res.status(404).json(errorResponse('Documento não encontrado')); return; }
 
     const uploadsRoot = path.resolve(process.cwd(), 'uploads');
     const dest = path.join(uploadsRoot, String(doc.rows[0].beneficiaria_id));
@@ -81,23 +83,27 @@ router.put('/:documentoId', authenticateToken, uploadAnySingle('file'), async (r
     // atualiza caminho atual no documentos
     await pool.query('UPDATE documentos SET caminho_arquivo = $1, tamanho = $2, mime_type = $3 WHERE id = $4', [finalPath, file.size, file.mimetype, documentoId]);
     res.json(successResponse({ id: documentoId, numero_versao: numero }));
+    return;
   } catch (error) {
     res.status(500).json(errorResponse('Erro ao versionar documento'));
+    return;
   }
 });
 
 // GET /documentos/:documentoId/download
-router.get('/:documentoId/download', authenticateToken, async (req: AuthenticatedRequest, res) => {
+router.get('/:documentoId/download', authenticateToken, async (req: AuthenticatedRequest, res): Promise<void> => {
   try {
     const { documentoId } = req.params as any;
     const result = await pool.query('SELECT nome_arquivo, caminho_arquivo, mime_type FROM documentos WHERE id = $1', [documentoId]);
-    if (result.rowCount === 0) return res.status(404).json(errorResponse('Documento não encontrado'));
+    if (result.rowCount === 0) { res.status(404).json(errorResponse('Documento não encontrado')); return; }
     const { nome_arquivo, caminho_arquivo, mime_type } = result.rows[0];
     res.setHeader('Content-Type', mime_type || 'application/octet-stream');
     res.setHeader('Content-Disposition', `attachment; filename="${nome_arquivo}"`);
     res.sendFile(path.resolve(caminho_arquivo));
+    return;
   } catch (error) {
     res.status(500).json(errorResponse('Erro no download'));
+    return;
   }
 });
 

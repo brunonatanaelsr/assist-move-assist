@@ -17,6 +17,20 @@ export class FeedService {
     this.redis = redis;
   }
 
+  async sharePost(postId: number, userId: string): Promise<void> {
+    try {
+      // Opcional: registrar compartilhamento em tabela separada no futuro
+      await this.pool.query(
+        `UPDATE feed_posts SET data_atualizacao = CURRENT_TIMESTAMP WHERE id = $1`,
+        [postId]
+      );
+      // Invalidar cache de posts
+      await this.redis.del('feed:posts');
+    } catch (error) {
+      console.error('Erro ao compartilhar post:', error);
+    }
+  }
+
   private async getCacheKey(key: string) {
     try {
       const data = await this.redis.get(`feed:${key}`);
@@ -203,7 +217,7 @@ export class FeedService {
         validatedData.autor_id,
         validatedData.autor_nome || 'Usuário',
         validatedData.autor_foto,
-        validatedData.conteudo.trim()
+        (validatedData.conteudo || '').trim()
       ]);
 
       // Atualizar contador no post

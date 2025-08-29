@@ -9,17 +9,19 @@ const router = Router();
 const sseClients = new Map<number, Response>();
 
 // GET /mensagens/usuarios - lista usuários para conversar
-router.get('/usuarios', authenticateToken, async (_req: AuthenticatedRequest, res) => {
+router.get('/usuarios', authenticateToken, async (_req: AuthenticatedRequest, res): Promise<void> => {
   try {
     const result = await pool.query('SELECT id, nome, email, papel as role FROM usuarios WHERE ativo = true ORDER BY nome');
     res.json(result.rows);
+    return;
   } catch (error) {
     res.status(500).json(errorResponse('Erro ao listar usuários'));
+    return;
   }
 });
 
 // GET /mensagens/conversas - últimas conversas do usuário
-router.get('/conversas', authenticateToken, async (req: AuthenticatedRequest, res) => {
+router.get('/conversas', authenticateToken, async (req: AuthenticatedRequest, res): Promise<void> => {
   try {
     const userId = Number(req.user!.id);
     const result = await pool.query(
@@ -30,13 +32,15 @@ router.get('/conversas', authenticateToken, async (req: AuthenticatedRequest, re
       [userId]
     );
     res.json(successResponse(result.rows));
+    return;
   } catch (error) {
     res.status(500).json(errorResponse('Erro ao listar conversas'));
+    return;
   }
 });
 
 // GET /mensagens/conversa/:usuarioId - thread entre usuário e :usuarioId
-router.get('/conversa/:usuarioId', authenticateToken, async (req: AuthenticatedRequest, res) => {
+router.get('/conversa/:usuarioId', authenticateToken, async (req: AuthenticatedRequest, res): Promise<void> => {
   try {
     const userId = Number(req.user!.id);
     const { usuarioId } = req.params as any;
@@ -50,17 +54,19 @@ router.get('/conversa/:usuarioId', authenticateToken, async (req: AuthenticatedR
       [userId, usuarioId]
     );
     res.json(successResponse(result.rows));
+    return;
   } catch (error) {
     res.status(500).json(errorResponse('Erro ao obter conversa'));
+    return;
   }
 });
 
 // POST /mensagens/enviar - enviar mensagem
-router.post('/enviar', authenticateToken, async (req: AuthenticatedRequest, res) => {
+router.post('/enviar', authenticateToken, async (req: AuthenticatedRequest, res): Promise<void> => {
   try {
     const autorId = Number(req.user!.id);
     const { destinatario_id, conteudo } = req.body || {};
-    if (!destinatario_id || !conteudo) return res.status(400).json(errorResponse('destinatario_id e conteudo são obrigatórios'));
+    if (!destinatario_id || !conteudo) { res.status(400).json(errorResponse('destinatario_id e conteudo são obrigatórios')); return; }
     const result = await pool.query(
       `INSERT INTO mensagens_usuario (autor_id, destinatario_id, conteudo)
        VALUES ($1,$2,$3) RETURNING *`,
@@ -70,36 +76,42 @@ router.post('/enviar', authenticateToken, async (req: AuthenticatedRequest, res)
     const client = sseClients.get(Number(destinatario_id));
     if (client) client.write(`data: ${JSON.stringify(result.rows[0])}\n\n`);
     res.status(201).json(successResponse(result.rows[0]));
+    return;
   } catch (error) {
     res.status(500).json(errorResponse('Erro ao enviar mensagem'));
+    return;
   }
 });
 
 // PATCH /mensagens/:id/lida
-router.patch('/:id/lida', authenticateToken, async (req: AuthenticatedRequest, res) => {
+router.patch('/:id/lida', authenticateToken, async (req: AuthenticatedRequest, res): Promise<void> => {
   try {
     const { id } = req.params as any;
     const { lida } = req.body || {};
     await pool.query('UPDATE mensagens_usuario SET lida = COALESCE($1, lida) WHERE id = $2', [lida === undefined ? true : !!lida, id]);
     res.json(successResponse({ id, lida: lida === undefined ? true : !!lida }));
+    return;
   } catch (error) {
     res.status(500).json(errorResponse('Erro ao marcar mensagem como lida'));
+    return;
   }
 });
 
 // DELETE /mensagens/:id
-router.delete('/:id', authenticateToken, async (req: AuthenticatedRequest, res) => {
+router.delete('/:id', authenticateToken, async (req: AuthenticatedRequest, res): Promise<void> => {
   try {
     const { id } = req.params as any;
     await pool.query('UPDATE mensagens_usuario SET ativo = false WHERE id = $1', [id]);
     res.status(204).end();
+    return;
   } catch (error) {
     res.status(500).json(errorResponse('Erro ao excluir mensagem'));
+    return;
   }
 });
 
 // GET /mensagens/stream - SSE
-router.get('/stream', authenticateToken, async (req: AuthenticatedRequest, res) => {
+router.get('/stream', authenticateToken, async (req: AuthenticatedRequest, res): Promise<void> => {
   const userId = Number(req.user!.id);
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
@@ -114,7 +126,7 @@ router.get('/stream', authenticateToken, async (req: AuthenticatedRequest, res) 
     clearInterval(interval);
     sseClients.delete(userId);
   });
+  return;
 });
 
 export default router;
-

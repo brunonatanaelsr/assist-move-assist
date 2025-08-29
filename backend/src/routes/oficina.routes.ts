@@ -45,7 +45,7 @@ router.get('/', async (req, res): Promise<void> => {
 // Obter oficina específica
 router.get('/:id', async (req, res): Promise<void> => {
   try {
-    const id = parseInt(req.params.id);
+    const id = parseInt(String(req.params.id));
     const oficina = await oficinaService.buscarOficina(id);
     
     res.json(successResponse(oficina, "Oficina carregada com sucesso"));
@@ -71,7 +71,7 @@ router.post('/', authenticateToken, requireGestor, async (req, res): Promise<voi
       res.status(401).json(errorResponse('Não autenticado'));
       return;
     }
-    const oficina = await oficinaService.criarOficina(req.body, Number(user.id));
+    const oficina = await oficinaService.criarOficina(req.body, String(user.id));
     res.status(201).json(successResponse(oficina, "Oficina criada com sucesso"));
     return;
   } catch (error: any) {
@@ -95,7 +95,7 @@ router.post('/', authenticateToken, requireGestor, async (req, res): Promise<voi
 // Atualizar oficina
 router.put('/:id', authenticateToken, requireGestor, async (req, res): Promise<void> => {
   try {
-    const id = parseInt(req.params.id);
+    const id = parseInt(String(req.params.id));
     const user = (req as any).user;
     if (!user) {
       res.status(401).json(errorResponse('Não autenticado'));
@@ -104,8 +104,8 @@ router.put('/:id', authenticateToken, requireGestor, async (req, res): Promise<v
     const oficina = await oficinaService.atualizarOficina(
       id, 
       req.body,
-      Number(user.id),
-      String(user.role)
+      String(user?.id ?? ''),
+      String(user?.role ?? '')
     );
     
     res.json(successResponse(oficina, "Oficina atualizada com sucesso"));
@@ -141,13 +141,13 @@ router.put('/:id', authenticateToken, requireGestor, async (req, res): Promise<v
 // Excluir oficina (soft delete)
 router.delete('/:id', authenticateToken, requireGestor, async (req, res): Promise<void> => {
   try {
-    const id = parseInt(req.params.id);
+    const id = parseInt(String(req.params.id));
     const user = (req as any).user;
     if (!user) {
       res.status(401).json(errorResponse('Não autenticado'));
       return;
     }
-    await oficinaService.excluirOficina(id, Number(user.id), String(user.role));
+    await oficinaService.excluirOficina(id, String(user?.id ?? ''), String(user?.role ?? ''));
     
     res.json(successResponse(null, "Oficina excluída com sucesso"));
     return;
@@ -172,7 +172,7 @@ router.delete('/:id', authenticateToken, requireGestor, async (req, res): Promis
 // Obter participantes de uma oficina
 router.get('/:id/participantes', authenticateToken, async (req, res): Promise<void> => {
   try {
-    const id = parseInt(req.params.id);
+    const id = parseInt(String(req.params.id));
     const participantes = await oficinaService.listarParticipantes(id);
     
     res.json(successResponse(participantes, "Participantes carregados com sucesso"));

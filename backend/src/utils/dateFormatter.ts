@@ -60,20 +60,18 @@ export const formatDateToBR = (date: Date | string | null): string | null => {
  * @param dateFields - Campos que contêm datas
  * @returns Objeto com datas formatadas
  */
-export const formatObjectDates = <T extends Record<string, unknown>>(obj: T, dateFields: (keyof T)[] = []): T => {
-  if (!obj || typeof obj !== 'object') return obj;
+export const formatObjectDates = <T>(obj: T, dateFields: (keyof any)[] = []): T => {
+  if (!obj || typeof obj !== 'object') return obj as T;
 
-  const formattedObj = { ...obj } as T;
+  const formattedObj: any = { ...(obj as any) };
 
-  (dateFields as string[]).forEach(field => {
-    if (formattedObj[field as keyof T]) {
-      formattedObj[field as keyof T] = formatDateToISO(
-        formattedObj[field as keyof T] as unknown as Date | string | null
-      ) as T[keyof T];
+  (dateFields as string[]).forEach((field) => {
+    if (formattedObj[field] !== undefined) {
+      formattedObj[field] = formatDateToISO(formattedObj[field] as any);
     }
   });
 
-  return formattedObj;
+  return formattedObj as T;
 };
 
 /**
@@ -82,10 +80,9 @@ export const formatObjectDates = <T extends Record<string, unknown>>(obj: T, dat
  * @param dateFields - Campos que contêm datas
  * @returns Array com datas formatadas
  */
-export const formatArrayDates = <T extends Record<string, unknown>>(array: T[], dateFields: (keyof T)[] = []): T[] => {
-  if (!Array.isArray(array)) return array;
-
-  return array.map(obj => formatObjectDates(obj, dateFields));
+export const formatArrayDates = <T>(array: T[], dateFields: (keyof any)[] = []): T[] => {
+  if (!Array.isArray(array)) return array as T[];
+  return array.map((obj) => formatObjectDates(obj, dateFields));
 };
 
 /**
