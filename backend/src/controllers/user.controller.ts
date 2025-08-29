@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { loggerService } from '../services/logger.service';
+import { loggerService } from '../services/logger';
 
 class UserController {
   async create(req: Request, res: Response) {

@@ -10,8 +10,7 @@ import dotenv from 'dotenv';
 
 import apiRoutes from './routes/api';
 import { WebSocketServer } from './websocket/server';
-import { FeedService } from './services/FeedService';
-import { createFeedRoutes } from './routes/feed';
+import feedRoutes from './routes/feed.routes';
 import { errorHandler } from './middleware/errorHandler';
 import { logger } from './services/logger';
 import { pool } from './config/database';
@@ -24,9 +23,6 @@ const server = createServer(app);
 
 // Inicializar WebSocket
 const webSocketServer = new WebSocketServer(server, pool);
-
-// Inicializar serviços
-const feedService = new FeedService(pool, webSocketServer);
 
 // Middleware de segurança
 app.use(helmet());
@@ -67,7 +63,7 @@ app.get('/health', (req, res) => {
 
 // Rotas
 app.use('/api', apiRoutes);
-app.use('/api/feed', createFeedRoutes(feedService));
+app.use('/api/feed', feedRoutes);
 
 // Error handling
 app.use(errorHandler);
