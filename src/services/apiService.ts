@@ -8,7 +8,7 @@ import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 // Em desenvolvimento, usar o proxy do Vite. Em produção, usar URL completa
 const API_URL = '/api';
 
-interface ApiResponse<T = any> {
+export interface ApiResponse<T = any> {
   success: boolean;
   data?: T;
   message?: string;

@@ -58,49 +58,45 @@ Sistema de gestão para institutos sociais que auxilia no acompanhamento de bene
    ```
 5. **Execute o projeto**
    ```bash
-   # Terminal 1 (Frontend)
-   npm run dev
+   # Terminal 1 (Infra: Postgres e Redis)
+   docker-compose up -d
    
    # Terminal 2 (Backend)
    cd backend
-   npm run dev
+   cp .env.example .env   # se ainda não existir
+   npm run migrate        # aplica migrações (usa POSTGRES_* do .env)
+   npm run dev            # inicia API em http://localhost:3000
+   
+   # Terminal 3 (Frontend)
+   npm run dev            # inicia em http://localhost:8080 com proxy para /api
    ```
-   Frontend: [http://localhost:5173](http://localhost:5173)
-   Backend: [http://localhost:3001](http://localhost:3001)
+   Frontend: [http://localhost:8080](http://localhost:8080)
+   Backend: [http://localhost:3000](http://localhost:3000)
 
 ## Scripts Úteis
 ```bash
-npm run dev          # Servidor de desenvolvimento
-npm run build        # Build de produção
-npm run preview      # Preview do build
-npm run lint         # Linter ESLint
-npm run type-check   # Verificação de tipos TypeScript
-npm test             # Executar testes
-npm run test:coverage # Testes com coverage
-npm run test:e2e     # Testes E2E
+npm run dev           # Servidor de desenvolvimento (frontend:8080, proxy /api → 3000)
+npm run build         # Build de produção
+npm run preview       # Preview do build
+npm run lint          # Linter ESLint
+npm run type-check    # Verificação de tipos TypeScript
+npm test              # Executar testes (frontend)
+npm run test:backend  # Testes backend (rodar dentro de /backend)
+npm run test:e2e      # Testes E2E (Playwright)
 ```
 
 ## Testes
 
 ### Unitários
-Execute todos os testes de unidade do frontend e backend:
-
-```bash
-npm test
-```
-
-Para testar apenas o frontend ou backend:
-
-```bash
-npm run test:frontend
-npm run test:backend
-```
+- Frontend: `npm run test:frontend`
+- Backend: `cd backend && npm test`
 
 ### E2E
-Os testes end-to-end usam Playwright e requerem build prévio do frontend:
+Os testes end-to-end usam Playwright e requerem build prévio do frontend e API rodando em 3000:
 
 ```bash
 npm run build
+npm run dev # em outro terminal, ou use o webServer do Playwright
 npm run test:e2e
 ```
 

@@ -1,6 +1,6 @@
 import { Plus, FileText, Trash2, Download } from "lucide-react";
 import { useAuth } from '@/hooks/usePostgreSQLAuth';
-import { ApiResponse, apiService } from '@/services/api.service';
+import apiService, { ApiResponse } from '@/services/apiService';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";

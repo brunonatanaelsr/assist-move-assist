@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { FilterParams, DashboardMetrics, ProjectMetrics, FormMetrics, RegionalMetrics, ReportTemplate, ExportFormat } from '../types/report';
-import api from '../services/api';
+import { api } from '../services/api';
 
 const REPORTS_CACHE_KEY = 'reports';
 
