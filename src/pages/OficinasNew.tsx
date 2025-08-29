@@ -12,6 +12,8 @@ import { Plus, Users, Calendar, Clock, MapPin, Edit, Trash2, AlertCircle, CheckC
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { apiFetch } from '@/lib/api';
+import { oficinasService } from '@/services/oficinas.service';
+import { Download } from 'lucide-react';
 
 // Interface com tipos mais específicos para as datas e status
 interface Oficina {
@@ -253,6 +255,24 @@ export default function OficinasNew() {
     });
     setEditingOficina(null);
     setError(null);
+  };
+
+  const baixarRelatorio = async (oficinaId: number, formato: 'pdf' | 'excel' = 'pdf') => {
+    try {
+      const data = await oficinasService.gerarRelatorioPresencas(oficinaId, formato);
+      const blob = new Blob([data], { type: formato === 'pdf' ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `relatorio_presencas_oficina_${oficinaId}.${formato === 'pdf' ? 'pdf' : 'xlsx'}`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Erro ao baixar relatório de presenças:', error);
+      setError('Erro ao gerar relatório de presenças');
+    }
   };
 
   const getStatusColor = (status: string, vagas_total: number, vagas_ocupadas: number = 0) => {
@@ -529,6 +549,22 @@ export default function OficinasNew() {
                     </CardDescription>
                   </div>
                   <div className="flex gap-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => baixarRelatorio(oficina.id, 'pdf')}
+                      title="Baixar relatório de presenças (PDF)"
+                    >
+                      <Download className="h-4 w-4" /> PDF
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => baixarRelatorio(oficina.id, 'excel')}
+                      title="Baixar relatório de presenças (Excel)"
+                    >
+                      <Download className="h-4 w-4" /> XLSX
+                    </Button>
                     <Button
                       variant="outline"
                       size="sm"
