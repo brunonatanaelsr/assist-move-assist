@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/hooks/usePostgreSQLAuth';
 import { useToast } from '@/components/ui/use-toast';
+import apiService from '@/services/apiService';
 
 interface ProfileData {
   nome_completo: string;
@@ -106,23 +107,23 @@ export default function EditarPerfil() {
     setUploadingImage(true);
 
     try {
-      // Simular com URL local por enquanto
-      // TODO: Implementar upload para o servidor
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const imageUrl = e.target?.result as string;
+      const response = await apiService.uploadImage(file);
+
+      if (response.success && response.data) {
+        const imageUrl = `http://localhost:3000${response.data.url}`;
         setProfileData(prev => ({ ...prev, foto_url: imageUrl }));
         toast({
           title: "Sucesso",
-          description: "Imagem carregada com sucesso!"
+          description: "Imagem carregada com sucesso!",
         });
-      };
-      reader.readAsDataURL(file);
+      } else {
+        throw new Error(response.message || 'Erro no upload da imagem.');
+      }
     } catch (error) {
       toast({
         title: "Erro",
         description: "Não foi possível carregar a imagem.",
-        variant: "destructive"
+        variant: "destructive",
       });
     } finally {
       setUploadingImage(false);
