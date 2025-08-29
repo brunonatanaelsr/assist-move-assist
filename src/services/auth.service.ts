@@ -17,7 +17,7 @@ export interface LoginCredentials {
   password: string;
 }
 
-class AuthService {
+export class AuthService {
   private static instance: AuthService;
   private readonly baseURL: string;
 

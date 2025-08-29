@@ -2,11 +2,18 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Move Marias Design System - Inspired by logo colors (magenta/pink and purple/blue) */
+/* ==========================================================================
+   Move Marias Design System
+   - Paleta inspirada no logo (magenta/rosa e roxo/azul)
+   - Tokens em HSL para uso com Tailwind via hsl(var(--token))
+   - Suporte a modo claro/escuro com a classe .dark no <html> ou <body>
+   ========================================================================== */
 
 @layer base {
   :root {
-    /* Background and surface colors */
+    color-scheme: light;
+
+    /* Background & Surface */
     --background: 330 15% 98%;
     --foreground: 260 25% 15%;
 
@@ -16,41 +23,38 @@
     --popover: 0 0% 100%;
     --popover-foreground: 260 25% 15%;
 
-    /* Primary brand colors - Deep purple from logo */
+    /* Brand */
     --primary: 260 80% 50%;
     --primary-foreground: 0 0% 100%;
     --primary-hover: 260 80% 43%;
     --primary-light: 260 80% 90%;
 
-    /* Secondary colors - Magenta/pink from logo */
+    /* Secondary */
     --secondary: 320 85% 70%;
     --secondary-foreground: 0 0% 100%;
     --secondary-hover: 320 85% 63%;
 
-    /* Accent colors - Bright pink from logo */
+    /* Accent */
     --accent: 330 90% 65%;
     --accent-foreground: 0 0% 100%;
     --accent-strong: 330 90% 55%;
 
-    /* Success colors - Soft green */
+    /* Feedback */
     --success: 145 65% 45%;
     --success-foreground: 0 0% 100%;
     --success-light: 145 65% 85%;
 
-    /* Warning colors */
     --warning: 38 92% 60%;
     --warning-foreground: 0 0% 100%;
     --warning-light: 38 92% 85%;
 
-    /* Muted colors */
-    --muted: 210 15% 92%;
-    --muted-foreground: 215 15% 45%;
-
-    /* Destructive colors */
     --destructive: 0 75% 55%;
     --destructive-foreground: 0 0% 100%;
 
-    /* Border and input colors */
+    /* Muted & Lines */
+    --muted: 210 15% 92%;
+    --muted-foreground: 215 15% 45%;
+
     --border: 215 15% 85%;
     --input: 215 15% 90%;
     --ring: 212 78% 45%;
@@ -58,7 +62,7 @@
     /* Radius */
     --radius: 0.75rem;
 
-    /* Sidebar colors */
+    /* Sidebar */
     --sidebar-background: 330 15% 96%;
     --sidebar-foreground: 260 25% 25%;
     --sidebar-primary: 260 80% 50%;
@@ -68,24 +72,26 @@
     --sidebar-border: 330 15% 82%;
     --sidebar-ring: 260 80% 50%;
 
-    /* Gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(260, 80%, 50%), hsl(320, 85%, 70%));
-    --gradient-secondary: linear-gradient(135deg, hsl(320, 85%, 75%), hsl(330, 90%, 80%));
-    --gradient-hero: linear-gradient(135deg, hsl(260, 80%, 50%), hsl(320, 85%, 65%));
-    --gradient-card: linear-gradient(145deg, hsl(0, 0%, 100%), hsl(330, 15%, 96%));
+    /* Gradients (usando valores fixos para consistência entre temas) */
+    --gradient-primary: linear-gradient(135deg, hsl(260 80% 50%), hsl(320 85% 70%));
+    --gradient-secondary: linear-gradient(135deg, hsl(320 85% 75%), hsl(330 90% 80%));
+    --gradient-hero: linear-gradient(135deg, hsl(260 80% 50%), hsl(320 85% 65%));
+    --gradient-card: linear-gradient(145deg, hsl(0 0% 100%), hsl(330 15% 96%));
 
-    /* Shadows */
-    --shadow-soft: 0 2px 10px hsl(215, 25%, 15%, 0.08);
-    --shadow-medium: 0 4px 20px hsl(215, 25%, 15%, 0.12);
-    --shadow-strong: 0 8px 30px hsl(215, 25%, 15%, 0.16);
-    --shadow-primary: 0 4px 20px hsl(212, 78%, 45%, 0.25);
+    /* Shadows (corrigido para sintaxe hsl com alpha via slash) */
+    --shadow-soft: 0 2px 10px hsl(215 25% 15% / 0.08);
+    --shadow-medium: 0 4px 20px hsl(215 25% 15% / 0.12);
+    --shadow-strong: 0 8px 30px hsl(215 25% 15% / 0.16);
+    --shadow-primary: 0 4px 20px hsl(212 78% 45% / 0.25);
 
-    /* Transitions */
+    /* Motion */
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     --transition-fast: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   .dark {
+    color-scheme: dark;
+
     --background: 215 25% 8%;
     --foreground: 210 20% 92%;
 
@@ -135,15 +141,15 @@
     --sidebar-border: 215 25% 15%;
     --sidebar-ring: 212 78% 55%;
 
-    --gradient-primary: linear-gradient(135deg, hsl(212, 78%, 55%), hsl(212, 78%, 45%));
-    --gradient-secondary: linear-gradient(135deg, hsl(180, 25%, 25%), hsl(180, 25%, 20%));
-    --gradient-hero: linear-gradient(135deg, hsl(212, 78%, 55%), hsl(180, 25%, 35%));
-    --gradient-card: linear-gradient(145deg, hsl(215, 25%, 10%), hsl(215, 25%, 8%));
+    --gradient-primary: linear-gradient(135deg, hsl(212 78% 55%), hsl(212 78% 45%));
+    --gradient-secondary: linear-gradient(135deg, hsl(180 25% 25%), hsl(180 25% 20%));
+    --gradient-hero: linear-gradient(135deg, hsl(212 78% 55%), hsl(180 25% 35%));
+    --gradient-card: linear-gradient(145deg, hsl(215 25% 10%), hsl(215 25% 8%));
 
-    --shadow-soft: 0 2px 10px hsl(0, 0%, 0%, 0.25);
-    --shadow-medium: 0 4px 20px hsl(0, 0%, 0%, 0.35);
-    --shadow-strong: 0 8px 30px hsl(0, 0%, 0%, 0.45);
-    --shadow-primary: 0 4px 20px hsl(212, 78%, 25%, 0.4);
+    --shadow-soft: 0 2px 10px hsl(0 0% 0% / 0.25);
+    --shadow-medium: 0 4px 20px hsl(0 0% 0% / 0.35);
+    --shadow-strong: 0 8px 30px hsl(0 0% 0% / 0.45);
+    --shadow-primary: 0 4px 20px hsl(212 78% 25% / 0.40);
   }
 }
 
@@ -152,7 +158,97 @@
     @apply border-border;
   }
 
-  body {
+  html, body {
     @apply bg-background text-foreground;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
+
+  /* Seleção de texto combinando com a paleta */
+  ::selection {
+    background: hsl(var(--accent));
+    color: hsl(var(--accent-foreground));
+  }
+
+  /* Acessibilidade: foco visível */
+  :focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px hsl(var(--ring) / 0.35);
+    border-radius: calc(var(--radius) / 2);
+  }
+
+  /* Reduzir animações quando preferido */
+  @media (prefers-reduced-motion: reduce) {
+    * {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+/* ==========================================================================
+   Components (exemplos rápidos usando os tokens)
+   ========================================================================== */
+@layer components {
+  .card {
+    @apply bg-card text-card-foreground rounded-xl border shadow;
+    box-shadow: var(--shadow-soft);
+    transition: var(--transition-smooth);
+  }
+
+  .card:hover {
+    box-shadow: var(--shadow-medium);
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center px-4 py-2 font-medium rounded-lg;
+    background-color: hsl(var(--primary));
+    color: hsl(var(--primary-foreground));
+    transition: var(--transition-fast);
+  }
+
+  .btn-primary:hover {
+    background-color: hsl(var(--primary-hover));
+    box-shadow: var(--shadow-primary);
+  }
+
+  .badge-accent {
+    @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium;
+    background-color: hsl(var(--accent));
+    color: hsl(var(--accent-foreground));
+  }
+
+  .sidebar-surface {
+    background-color: hsl(var(--sidebar-background));
+    color: hsl(var(--sidebar-foreground));
+    border-right: 1px solid hsl(var(--sidebar-border));
+  }
+}
+
+/* ==========================================================================
+   Utilities (atalhos úteis para gradientes/sombras/radius)
+   ========================================================================== */
+@layer utilities {
+  .bg-gradient-primary {
+    background-image: var(--gradient-primary);
+  }
+  .bg-gradient-secondary {
+    background-image: var(--gradient-secondary);
+  }
+  .bg-gradient-hero {
+    background-image: var(--gradient-hero);
+  }
+  .bg-gradient-card {
+    background-image: var(--gradient-card);
+  }
+
+  .shadow-soft { box-shadow: var(--shadow-soft); }
+  .shadow-medium { box-shadow: var(--shadow-medium); }
+  .shadow-strong { box-shadow: var(--shadow-strong); }
+  .shadow-primary { box-shadow: var(--shadow-primary); }
+
+  .rounded-system { border-radius: var(--radius); }
 }

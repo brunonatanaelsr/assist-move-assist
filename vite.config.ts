@@ -1,14 +1,14 @@
-import { defineConfig, loadEnv } from 'vite';
-import react from '@vitejs/plugin-react';
-import { resolve } from 'path';
-import { componentTagger } from 'lovable-tagger';
+import { defineConfig, loadEnv } from "vite";
+import react from "@vitejs/plugin-react-swc";
+import { resolve } from "path";
+import { componentTagger } from "lovable-tagger";
 
 export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, process.cwd(), '');
+  const env = loadEnv(mode, process.cwd(), "");
   return {
     plugins: [
       react(),
-      mode === 'development' && componentTagger(),
+      mode === "development" && componentTagger(),
     ].filter(Boolean),
     define: {
       'import.meta.env.VITE_API_BASE_URL': JSON.stringify(env.VITE_API_BASE_URL),
