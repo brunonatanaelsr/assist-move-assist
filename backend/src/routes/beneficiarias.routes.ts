@@ -1,5 +1,4 @@
 import { Router, Request, Response, NextFunction } from 'express';
-import { Pool } from 'pg';
 import { BeneficiariasRepository } from '../repositories/BeneficiariasRepository';
 import { authenticateToken, PERMISSIONS, requirePermissions, AuthenticatedRequest, requireProfissional } from '../middleware/auth';
 import { successResponse, errorResponse } from '../utils/responseFormatter';
@@ -8,15 +7,7 @@ import { formatObjectDates } from '../utils/dateFormatter';
 import { AppError } from '../utils/AppError';
 import { loggerService } from '../services/logger';
 import { db } from '../services/db';
-
-// Configuração do PostgreSQL
-const pool = new Pool({
-  host: process.env.POSTGRES_HOST || 'localhost',
-  port: parseInt(process.env.POSTGRES_PORT || '5432'),
-  database: process.env.POSTGRES_DB || 'movemarias',
-  user: process.env.POSTGRES_USER || 'movemarias_user',
-  password: process.env.POSTGRES_PASSWORD || 'movemarias_password_2025',
-});
+import { pool } from '../config/database';
 
 // Interface para requisições autenticadas com parâmetros e corpo
 interface ExtendedRequest extends Request {
