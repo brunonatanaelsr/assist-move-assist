@@ -20,6 +20,13 @@ if [ -z "$POSTGRES_HOST" ] || [ -z "$POSTGRES_PORT" ] || [ -z "$POSTGRES_DB" ] |
   exit 1
 fi
 
+# Fallback quando psql não está disponível
+if ! command -v psql >/dev/null 2>&1; then
+  echo -e "${YELLOW}psql não encontrado. Usando runner Node (scripts/migrate-node.js).${NC}"
+  node scripts/migrate-node.js
+  exit $?
+fi
+
 # Diretório das migrações
 MIGRATIONS_DIR="src/database/migrations"
 
