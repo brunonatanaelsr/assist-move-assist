@@ -20,8 +20,9 @@ import { Button } from '../ui/button';
 import { Textarea } from '../ui/textarea';
 import { Checkbox } from '../ui/checkbox';
 import { ScrollArea } from '../ui/scroll-area';
-import { useRegistrarPresenca } from '@/hooks/useOficinas';
+import { useMarcarPresenca } from '@/hooks/useOficinas';
 import { Oficina } from '@/types/shared';
+import { format } from 'date-fns';
 
 const presencaSchema = z.object({
   beneficiaria_id: z.number(),
@@ -53,13 +54,13 @@ export function PresencaForm({
   beneficiarias,
   presencas = []
 }: PresencaFormProps) {
-  const { mutateAsync: registrarPresenca } = useRegistrarPresenca();
+  const { mutateAsync: registrarPresenca } = useMarcarPresenca(oficina.id);
 
   const handlePresencaChange = async (beneficiariaId: number, presente: boolean) => {
     try {
       await registrarPresenca({
-        oficinaId: oficina.id,
         beneficiariaId,
+        data: format(new Date(oficina.data_oficina), 'yyyy-MM-dd'),
         presente
       });
     } catch (error) {
