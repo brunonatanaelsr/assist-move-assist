@@ -56,7 +56,7 @@ export default function EditarPerfil() {
   const [activeSection, setActiveSection] = useState<'info' | 'password' | 'preferences'>('info');
   
   const [profileData, setProfileData] = useState<ProfileData>({
-    nome_completo: profile?.nome_completo || '',
+    nome_completo: (profile as any)?.nome_completo || (profile as any)?.nome || '',
     email: profile?.email || '',
     telefone: profile?.telefone || '',
     cargo: profile?.cargo || '',

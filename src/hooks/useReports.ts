@@ -10,7 +10,7 @@ export function useReports() {
   const getDashboardMetrics = (filters?: FilterParams) => {
     return useQuery({
       queryKey: [REPORTS_CACHE_KEY, 'dashboard', filters],
-      queryFn: () => api.get<DashboardMetrics>('/reports/dashboard', { params: filters }),
+      queryFn: () => api.get<DashboardMetrics>('/relatorios/dashboard', { params: filters }),
       staleTime: 5 * 60 * 1000, // 5 minutos
     });
   };
@@ -18,7 +18,7 @@ export function useReports() {
   const getProjectMetrics = (projectId: number, filters?: FilterParams) => {
     return useQuery({
       queryKey: [REPORTS_CACHE_KEY, 'project', projectId, filters],
-      queryFn: () => api.get<ProjectMetrics>(`/reports/projects/${projectId}`, { params: filters }),
+      queryFn: () => api.get<ProjectMetrics>(`/relatorios/projetos/${projectId}`, { params: filters }),
       staleTime: 5 * 60 * 1000,
     });
   };
@@ -26,7 +26,7 @@ export function useReports() {
   const getFormMetrics = (formId: number, filters?: FilterParams) => {
     return useQuery({
       queryKey: [REPORTS_CACHE_KEY, 'form', formId, filters],
-      queryFn: () => api.get<FormMetrics>(`/reports/forms/${formId}`, { params: filters }),
+      queryFn: () => api.get<FormMetrics>(`/relatorios/formularios/${formId}`, { params: filters }),
       staleTime: 5 * 60 * 1000,
     });
   };
@@ -34,7 +34,7 @@ export function useReports() {
   const getRegionalMetrics = (filters?: FilterParams) => {
     return useQuery({
       queryKey: [REPORTS_CACHE_KEY, 'regional', filters],
-      queryFn: () => api.get<RegionalMetrics[]>('/reports/regional', { params: filters }),
+      queryFn: () => api.get<RegionalMetrics[]>('/relatorios/regional', { params: filters }),
       staleTime: 5 * 60 * 1000,
     });
   };
@@ -42,14 +42,14 @@ export function useReports() {
   const getTemplates = () => {
     return useQuery({
       queryKey: [REPORTS_CACHE_KEY, 'templates'],
-      queryFn: () => api.get<ReportTemplate[]>('/reports/templates'),
+      queryFn: () => api.get<ReportTemplate[]>('/relatorios/templates'),
       staleTime: 30 * 60 * 1000, // 30 minutos
     });
   };
 
   const createTemplate = useMutation({
     mutationFn: (template: Omit<ReportTemplate, 'id' | 'created_at' | 'updated_at'>) =>
-      api.post<ReportTemplate>('/reports/templates', template),
+      api.post<ReportTemplate>('/relatorios/templates', template),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [REPORTS_CACHE_KEY, 'templates'] });
     },
@@ -57,21 +57,21 @@ export function useReports() {
 
   const updateTemplate = useMutation({
     mutationFn: ({ id, ...template }: Partial<ReportTemplate> & { id: number }) =>
-      api.put<ReportTemplate>(`/reports/templates/${id}`, template),
+      api.put<ReportTemplate>(`/relatorios/templates/${id}`, template),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [REPORTS_CACHE_KEY, 'templates'] });
     },
   });
 
   const deleteTemplate = useMutation({
-    mutationFn: (id: number) => api.delete(`/reports/templates/${id}`),
+    mutationFn: (id: number) => api.delete(`/relatorios/templates/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [REPORTS_CACHE_KEY, 'templates'] });
     },
   });
 
   const exportReport = async (templateId: number, format: ExportFormat) => {
-    const response = await api.post(`/reports/export/${templateId}`, format, {
+    const response = await api.post(`/relatorios/export/${templateId}`, format, {
       responseType: 'blob'
     });
     

@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { Select } from './ui/select';
+// Substitui Select avançado por <select> nativo para simplificar
 import {
   Dialog,
   DialogContent,
@@ -82,22 +82,30 @@ export function UploadDocumento({ beneficiariaId, tiposDocumento, categorias }: 
             />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
-            <Select
+            <select
+              className="col-span-4 border rounded p-2 text-sm"
               value={tipo}
-              onValueChange={setTipo}
-              placeholder="Selecione o tipo"
+              onChange={(e) => setTipo(e.target.value)}
               required
-              options={tiposDocumento}
-            />
+            >
+              <option value="" disabled>Selecione o tipo</option>
+              {tiposDocumento.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
-            <Select
+            <select
+              className="col-span-4 border rounded p-2 text-sm"
               value={categoria}
-              onValueChange={setCategoria}
-              placeholder="Selecione a categoria"
+              onChange={(e) => setCategoria(e.target.value)}
               required
-              options={categorias}
-            />
+            >
+              <option value="" disabled>Selecione a categoria</option>
+              {categorias.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
           </div>
           <DialogFooter>
             <Button type="submit" disabled={isUploading || !selectedFile || !tipo || !categoria}>

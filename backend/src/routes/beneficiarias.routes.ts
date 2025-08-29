@@ -1,6 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { BeneficiariasRepository } from '../repositories/BeneficiariasRepository';
-import { authenticateToken, PERMISSIONS, requirePermissions, AuthenticatedRequest, requireProfissional } from '../middleware/auth';
+import { authenticateToken, AuthenticatedRequest, requireProfissional } from '../middleware/auth';
 import { successResponse, errorResponse } from '../utils/responseFormatter';
 import { catchAsync } from '../middleware/errorHandler';
 import { formatObjectDates } from '../utils/dateFormatter';
@@ -21,11 +21,29 @@ interface ExtendedRequest extends Request {
 const router = Router();
 const beneficiariasRepository = new BeneficiariasRepository(pool);
 
+// GET / - Listar beneficiárias (paginado)
+router.get(
+  '/',
+  authenticateToken,
+  async (req: ExtendedRequest, res: Response) => {
+    try {
+      const page = parseInt((req.query.page as string) || '1', 10);
+      const limit = parseInt((req.query.limit as string) || '50', 10);
+
+      const result = await beneficiariasRepository.listarAtivas(page, limit);
+
+      res.json(successResponse(result.data));
+    } catch (error) {
+      loggerService.error('List beneficiarias error:', error);
+      res.status(500).json(errorResponse('Erro ao listar beneficiárias'));
+    }
+  }
+);
+
 // GET /:id - Buscar beneficiária por ID
 router.get(
   '/:id',
   authenticateToken,
-  requirePermissions([PERMISSIONS.READ_BENEFICIARIA]),
   async (req: ExtendedRequest, res: Response) => {
     try {
       const { id } = req.params;

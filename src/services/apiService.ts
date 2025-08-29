@@ -27,6 +27,7 @@ class ApiService {
     this.api = axios.create({
       baseURL: API_URL,
       timeout: 10000,
+      withCredentials: true, // envia cookies httpOnly
       headers: {
         'Content-Type': 'application/json',
       },
@@ -35,9 +36,11 @@ class ApiService {
     // Interceptor para adicionar token em todas as requisições
     this.api.interceptors.request.use(
       (config) => {
-        const token = localStorage.getItem('token');
-        if (token) {
+        const token = localStorage.getItem('token') || localStorage.getItem('auth_token');
+        if (token && token !== 'undefined') {
           config.headers.Authorization = `Bearer ${token}`;
+        } else if (config.headers && 'Authorization' in config.headers) {
+          delete (config.headers as any).Authorization;
         }
         
         console.log(`API Request: ${config.method?.toUpperCase()} ${config.url}`);

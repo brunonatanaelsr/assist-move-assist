@@ -44,10 +44,11 @@ router.use((req, res, next) => {
   next();
 });
 
+const isProduction = process.env.NODE_ENV === 'production';
 const COOKIE_OPTIONS = {
   httpOnly: true,
-  secure: true,
-  sameSite: 'strict' as const,
+  secure: isProduction, // em dev, permitir cookies sem HTTPS
+  sameSite: (isProduction ? 'strict' : 'lax') as const,
   maxAge: 24 * 60 * 60 * 1000, // 1 dia
 };
 
@@ -82,6 +83,38 @@ router.post('/login', async (req: RequestWithBody<LoginRequestBody>, res: Respon
     res.status(500).json({
       error: 'Erro interno do servidor'
     });
+  }
+});
+
+// POST /auth/logout
+router.post('/logout', async (_req, res: Response) => {
+  try {
+    res.clearCookie('auth_token', {
+      ...COOKIE_OPTIONS,
+      // limpar funciona melhor sem sameSite muito restrito em dev
+      sameSite: isProduction ? 'strict' : 'lax',
+    } as any);
+    res.json({ message: 'Logout realizado com sucesso' });
+  } catch (error) {
+    loggerService.error('Erro no endpoint de logout:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
+// POST /auth/refresh - renova token baseado no cookie/header válidos
+router.post('/refresh', authenticateToken, async (req: any, res: Response) => {
+  try {
+    const payload = {
+      id: Number(req.user!.id),
+      email: String(req.user!.email),
+      role: String(req.user!.role),
+    };
+    const token = authService.generateToken(payload);
+    res.cookie('auth_token', token, COOKIE_OPTIONS);
+    res.json({ message: 'Token renovado', user: payload });
+  } catch (error) {
+    loggerService.error('Erro ao renovar token:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
   }
 });
 

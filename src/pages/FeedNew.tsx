@@ -706,12 +706,12 @@ export default function Feed() {
   // Verificar se o usuário pode editar/excluir um post
   const canModifyPost = (post: Post) => {
     // 1. Autor do post pode sempre editar/excluir seus próprios posts
-    if (String(post.autor_id) === profile?.id) {
+    if (String(post.autor_id) === String((profile as any)?.id)) {
       return true;
     }
     
     // 2. Apenas superadmin pode editar/excluir posts de outros usuários
-    if (user?.role === 'superadmin') {
+    if ((user as any)?.papel === 'superadmin') {
       return true;
     }
     
@@ -756,12 +756,12 @@ export default function Feed() {
           <div>
             <div className="flex items-center gap-3">
               <h1 className="text-2xl font-bold text-gray-900">Feed da Comunidade</h1>
-              {user?.role === 'superadmin' && (
+              {(user as any)?.papel === 'superadmin' && (
                 <Badge variant="destructive" className="text-xs">
                   Super Admin - Todas as Permissões
                 </Badge>
               )}
-              {user?.role === 'admin' && (
+              {(user as any)?.papel === 'admin' && (
                 <Badge variant="secondary" className="text-xs">
                   Admin - Permissões Limitadas
                 </Badge>
@@ -769,10 +769,10 @@ export default function Feed() {
             </div>
             <p className="text-gray-600">
               Acompanhe as últimas novidades e conquistas
-              {user?.role === 'superadmin' && (
+              {(user as any)?.papel === 'superadmin' && (
                 <span className="ml-2 text-blue-600 text-sm">• Você pode editar/excluir qualquer post</span>
               )}
-              {user?.role === 'admin' && (
+              {(user as any)?.papel === 'admin' && (
                 <span className="ml-2 text-amber-600 text-sm">• Você pode editar/excluir apenas seus posts</span>
               )}
             </p>

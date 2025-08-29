@@ -14,17 +14,17 @@ import {
   useMediaQuery
 } from '@mui/material';
 import {
-  Dashboard as DashboardIcon,
-  Assessment as ReportsIcon,
-  Group as BeneficiariasIcon,
+  LayoutDashboard as DashboardIcon,
+  BarChart as ReportsIcon,
+  Users as BeneficiariasIcon,
   Folder as ProjectsIcon,
-  Assignment as FormsIcon,
-  Notifications as NotificationsIcon,
+  FileText as FormsIcon,
+  Bell as NotificationsIcon,
   Settings as SettingsIcon,
-  ExpandLess,
-  ExpandMore,
+  ChevronUp as ExpandLess,
+  ChevronDown as ExpandMore,
   Menu as MenuIcon
-} from '@mui/icons-material';
+} from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 
 const DRAWER_WIDTH = 240;
@@ -100,7 +100,7 @@ export default function Sidebar() {
       <List>
         {menuItems.map((item) => {
           // Verificar permissões
-          if (item.roles && !item.roles.includes(user?.role)) {
+          if (item.roles && !item.roles.includes((user as any)?.papel || (user as any)?.role)) {
             return null;
           }
 

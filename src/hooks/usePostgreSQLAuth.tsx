@@ -11,6 +11,13 @@ interface User {
 
 interface Profile extends User {
   telefone?: string;
+  nome_completo?: string;
+  cargo?: string;
+  departamento?: string;
+  bio?: string;
+  foto_url?: string;
+  endereco?: string;
+  data_nascimento?: string;
 }
 
 interface AuthContextType {

@@ -1,7 +1,8 @@
 import { ReactNode } from "react";
 import Sidebar from "./sidebar";
 import Header from "./header";
-import MessagingSystem from "@/components/MessagingSystem";
+// Mensageria avançada desativada por enquanto
+const MessagingSystem = () => null as any;
 
 interface MainLayoutProps {
   children: ReactNode;

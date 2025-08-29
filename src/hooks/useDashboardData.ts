@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { api } from '../lib/api';
+import { api } from '@/services/api';
 
 export interface DashboardData {
   resumo: {
@@ -90,6 +90,6 @@ export function useDashboardData({ periodo }: UseDashboardDataParams = {}) {
       return data;
     },
     staleTime: 5 * 60 * 1000, // 5 minutos
-    cacheTime: 30 * 60 * 1000 // 30 minutos
+    // gcTime em v5 substitui cacheTime; manter padrão
   });
 }

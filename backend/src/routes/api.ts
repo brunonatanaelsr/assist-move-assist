@@ -26,20 +26,20 @@ import dashboardRoutes from './dashboard.routes';
 // Rotas de declarações (temporariamente desabilitado)
 const declaracoesRoutes = createRouterInstance();
 
-// Rotas de documentos (temporariamente desabilitado)
-const documentosRoutes = createRouterInstance();
+// Rotas de documentos
+import documentosRoutes from './documentos.routes';
 
 // Rotas de feed
 import feedRoutes from './feed.routes';
 
-// Rotas de formulários (temporariamente desabilitado)
-const formulariosRoutes = createRouterInstance();
+// Rotas de formulários
+import formulariosRoutes from './formularios.routes';
 
 // Rotas de health check
 import healthRoutes from './health.routes';
 
-// Rotas de mensagens (temporariamente desabilitado)
-const mensagensRoutes = createRouterInstance();
+// Rotas de mensagens
+import mensagensRoutes from './mensagens.routes';
 
 // Rotas de oficinas
 import oficinasRoutes from './oficina.routes';
@@ -52,6 +52,10 @@ import projetosRoutes from './projeto.routes';
 
 // Rotas de relatórios
 import relatoriosRoutes from './relatorios.routes';
+// Rotas de notificações
+import notificationsRoutes from './notifications.routes';
+// Rotas de calendário
+import calendarRoutes from './calendar.routes';
 
 // ========== CONFIGURAÇÃO DO ROUTER ==========
 const router = createRouterInstance();
@@ -115,6 +119,8 @@ router.use('/oficinas', oficinasRoutes);
 // 4. Rotas de conteúdo e comunicação
 router.use('/feed', feedRoutes);
 router.use('/mensagens', mensagensRoutes);
+router.use('/notifications', notificationsRoutes);
+router.use('/calendar', calendarRoutes);
 
 // 5. Rotas de formulários e documentos
 router.use('/formularios', formulariosRoutes);

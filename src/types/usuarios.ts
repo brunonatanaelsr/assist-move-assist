@@ -3,7 +3,7 @@ import { User } from './auth';
 export interface UserFormData {
   nome: string;
   email: string;
-  papel: User['papel'];
+  role: User['role'];
   telefone?: string;
   senha?: string; // opcional para edição
 }

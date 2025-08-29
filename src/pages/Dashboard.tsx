@@ -93,6 +93,8 @@ export default function Dashboard() {
         const beneficiarias = fallbackResponse.data || [];
         setStats({
           totalBeneficiarias: beneficiarias.length,
+          beneficiariasAtivas: 0,
+          beneficiariasInativas: 0,
           formularios: 0,
           atendimentosMes: 0,
           engajamento: "0%"

@@ -1,25 +1,21 @@
 import React from 'react';
-import { Layout, Breadcrumb } from 'antd';
 import { Link } from 'react-router-dom';
-import { FormulariosList } from '../components/FormulariosList';
-
-const { Content } = Layout;
+// Página desativada até implementarmos a API de formulários
+const Placeholder = () => (
+  <div className="p-6 text-muted-foreground">Módulo de formulários em atualização.</div>
+);
 
 export const FormulariosPage: React.FC = () => {
   return (
-    <Layout>
-      <Content style={{ padding: '0 24px' }}>
-        <Breadcrumb style={{ margin: '16px 0' }}>
-          <Breadcrumb.Item>
-            <Link to="/">Início</Link>
-          </Breadcrumb.Item>
-          <Breadcrumb.Item>Formulários</Breadcrumb.Item>
-        </Breadcrumb>
-        
-        <div style={{ padding: 24, minHeight: 360, background: '#fff' }}>
-          <FormulariosList />
-        </div>
-      </Content>
-    </Layout>
+    <div className="p-6">
+      <nav className="text-sm text-muted-foreground mb-4">
+        <Link to="/" className="hover:underline">Início</Link>
+        <span> / </span>
+        <span>Formulários</span>
+      </nav>
+      <div className="rounded-md border bg-background">
+        <Placeholder />
+      </div>
+    </div>
   );
 };

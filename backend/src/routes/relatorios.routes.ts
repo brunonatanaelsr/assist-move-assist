@@ -5,6 +5,9 @@ const authenticateToken = auth.authenticateToken;
 const requireGestor = auth.requireGestor || ((_req: any, _res: any, next: any) => next());
 import { formatArrayDates } from '../utils/dateFormatter';
 import { pool } from '../config/database';
+import PDFDocument = require('pdfkit');
+import ExcelJS = require('exceljs');
+import { stringify } from 'csv-stringify/sync';
 
 const router = express.Router();
 
@@ -233,3 +236,164 @@ router.get('/consolidado', authenticateToken, requireGestor, async (req, res) =>
 });
 
 export default router;
+
+// ========== TEMPLATES DE RELATÓRIO ==========
+
+// GET /relatorios/templates - listar templates
+router.get('/templates', authenticateToken, requireGestor, async (_req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM report_templates ORDER BY updated_at DESC');
+    res.json(successResponse(result.rows));
+  } catch (error) {
+    console.error('Erro ao listar templates:', error);
+    res.status(500).json(errorResponse('Erro ao listar templates'));
+  }
+});
+
+// POST /relatorios/templates - criar template
+router.post('/templates', authenticateToken, requireGestor, async (req, res) => {
+  try {
+    const { name, description, type = 'DASHBOARD', metrics = [], schedule = {} } = req.body || {};
+
+    if (!name || typeof name !== 'string') {
+      return res.status(400).json(errorResponse('Campo "name" é obrigatório'));
+    }
+
+    const result = await pool.query(
+      `INSERT INTO report_templates (name, description, type, metrics, schedule)
+       VALUES ($1, $2, $3, $4::jsonb, $5::jsonb)
+       RETURNING *`,
+      [name, description || null, type, JSON.stringify(metrics), JSON.stringify(schedule)]
+    );
+
+    res.status(201).json(successResponse(result.rows[0]));
+  } catch (error) {
+    console.error('Erro ao criar template:', error);
+    res.status(500).json(errorResponse('Erro ao criar template'));
+  }
+});
+
+// PUT /relatorios/templates/:id - atualizar template
+router.put('/templates/:id', authenticateToken, requireGestor, async (req, res) => {
+  try {
+    const { id } = req.params as { id: string };
+    const { name, description, type, metrics, schedule } = req.body || {};
+
+    const result = await pool.query(
+      `UPDATE report_templates 
+       SET 
+         name = COALESCE($2, name),
+         description = COALESCE($3, description),
+         type = COALESCE($4, type),
+         metrics = COALESCE($5::jsonb, metrics),
+         schedule = COALESCE($6::jsonb, schedule),
+         updated_at = NOW()
+       WHERE id = $1
+       RETURNING *`,
+      [id, name || null, description || null, type || null, metrics ? JSON.stringify(metrics) : null, schedule ? JSON.stringify(schedule) : null]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json(errorResponse('Template não encontrado'));
+    }
+
+    res.json(successResponse(result.rows[0]));
+  } catch (error) {
+    console.error('Erro ao atualizar template:', error);
+    res.status(500).json(errorResponse('Erro ao atualizar template'));
+  }
+});
+
+// DELETE /relatorios/templates/:id - remover template
+router.delete('/templates/:id', authenticateToken, requireGestor, async (req, res) => {
+  try {
+    const { id } = req.params as { id: string };
+    const result = await pool.query('DELETE FROM report_templates WHERE id = $1', [id]);
+    if (result.rowCount === 0) {
+      return res.status(404).json(errorResponse('Template não encontrado'));
+    }
+    res.json(successResponse({ message: 'Template removido' }));
+  } catch (error) {
+    console.error('Erro ao remover template:', error);
+    res.status(500).json(errorResponse('Erro ao remover template'));
+  }
+});
+
+// POST /relatorios/export/:id - exportar relatório a partir do template
+router.post('/export/:id', authenticateToken, requireGestor, async (req, res) => {
+  try {
+    const { id } = req.params as { id: string };
+    const { format = 'pdf' } = req.body || {};
+
+    const tpl = await pool.query('SELECT * FROM report_templates WHERE id = $1', [id]);
+    if (tpl.rowCount === 0) {
+      return res.status(404).json(errorResponse('Template não encontrado'));
+    }
+    const template = tpl.rows[0];
+
+    // Dados simples de exemplo: KPIs gerais
+    const kpis = await pool.query(`
+      SELECT
+        (SELECT COUNT(*) FROM beneficiarias WHERE ativo = true) as total_beneficiarias,
+        (SELECT COUNT(*) FROM oficinas WHERE ativo = true) as total_oficinas,
+        (SELECT COUNT(*) FROM projetos WHERE ativo = true) as total_projetos
+    `);
+    const data = kpis.rows[0];
+
+    if (format === 'xlsx') {
+      const workbook = new ExcelJS.Workbook();
+      const sheet = workbook.addWorksheet('Relatório');
+      sheet.columns = [
+        { header: 'Métrica', key: 'metric', width: 30 },
+        { header: 'Valor', key: 'value', width: 20 },
+      ];
+      sheet.addRow({ metric: 'Template', value: template.name });
+      sheet.addRow({ metric: 'Beneficiárias', value: data.total_beneficiarias });
+      sheet.addRow({ metric: 'Oficinas', value: data.total_oficinas });
+      sheet.addRow({ metric: 'Projetos', value: data.total_projetos });
+
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', `attachment; filename="relatorio_${template.name}.xlsx"`);
+      await workbook.xlsx.write(res);
+      return res.end();
+    }
+
+    if (format === 'csv') {
+      const records = [
+        ['Template', template.name],
+        ['Beneficiarias', data.total_beneficiarias],
+        ['Oficinas', data.total_oficinas],
+        ['Projetos', data.total_projetos],
+      ];
+      const csv = stringify(records);
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename="relatorio_${template.name}.csv"`);
+      return res.send(csv);
+    }
+
+    // PDF (default)
+    const doc = new (PDFDocument as any)({ size: 'A4', margin: 50 });
+    const chunks: Buffer[] = [];
+    doc.on('data', (chunk: Buffer) => chunks.push(chunk));
+    doc.on('end', () => {
+      const pdfBuffer = Buffer.concat(chunks);
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="relatorio_${template.name}.pdf"`);
+      res.send(pdfBuffer);
+    });
+
+    doc.fontSize(18).text(`Relatório: ${template.name}`, { underline: true });
+    doc.moveDown();
+    doc.fontSize(12).text(`Descrição: ${template.description || 'N/A'}`);
+    doc.text(`Tipo: ${template.type}`);
+    doc.moveDown();
+    doc.text('KPIs Gerais:');
+    doc.text(`- Beneficiárias: ${data.total_beneficiarias}`);
+    doc.text(`- Oficinas: ${data.total_oficinas}`);
+    doc.text(`- Projetos: ${data.total_projetos}`);
+    doc.end();
+  } catch (error) {
+    console.error('Erro ao exportar relatório:', error);
+    res.status(500).json(errorResponse('Erro ao exportar relatório'));
+  }
+});

@@ -34,7 +34,11 @@ export class AuthService {
 
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
     try {
-      const response = await axios.post<AuthResponse>(`${this.baseURL}/login`, credentials);
+      const response = await axios.post<AuthResponse>(
+        `${this.baseURL}/login`,
+        credentials,
+        { withCredentials: true }
+      );
       return response.data;
     } catch (error) {
       if (axios.isAxiosError(error)) {
@@ -46,7 +50,7 @@ export class AuthService {
 
   async logout(): Promise<void> {
     try {
-      await axios.post(`${this.baseURL}/logout`);
+      await axios.post(`${this.baseURL}/logout`, undefined, { withCredentials: true });
       // Limpar token e dados do usuário localmente
       localStorage.removeItem('auth_token');
       localStorage.removeItem('user');
@@ -57,7 +61,7 @@ export class AuthService {
 
   async refreshToken(): Promise<string> {
     try {
-      const response = await axios.post<{ token: string }>(`${this.baseURL}/refresh-token`);
+      const response = await axios.post<{ token: string }>(`${this.baseURL}/refresh-token`, undefined, { withCredentials: true });
       return response.data.token;
     } catch (error) {
       throw new Error('Erro ao renovar token');

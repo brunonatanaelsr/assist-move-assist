@@ -26,10 +26,11 @@ const EditarBeneficiaria = lazy(() => import("@/pages/EditarBeneficiaria"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
 const Analytics = lazy(() => import("@/pages/Analytics"));
 const OficinasNew = lazy(() => import("@/pages/OficinasNew"));
-const ParticipantesProjeto = lazy(() => import("@/pages/ParticipantesProjeto"));
+const ParticipantesProjeto = () => null as any; // módulo legado desativado
+const CalendarPage = lazy(() => import("@/pages/CalendarPage"));
 const Configuracoes = lazy(() => import("@/pages/Configuracoes"));
 const EditarPerfil = lazy(() => import("@/components/EditarPerfil"));
-const ChatInterno = lazy(() => import("@/pages/ChatInterno"));
+const ChatInterno = () => null as any; // módulo legado desativado
 const Atividades = lazy(() => import("@/pages/Atividades"));
 const FeedNew = lazy(() => import("@/pages/FeedNew"));
 const ProjetosNew = lazy(() => import("@/pages/ProjetosNew"));
@@ -108,6 +109,7 @@ const App = () => (
                   </Route>
                   <Route path="chat-interno" element={<ChatInterno />} />
                   <Route path="atividades" element={<Atividades />} />
+                  <Route path="calendar" element={<CalendarPage />} />
                   <Route path="feed" element={<FeedNew />} />
                   <Route path="projetos" element={<ProjetosNew />} />
                   <Route path="relatorios" element={<Relatorios />} />

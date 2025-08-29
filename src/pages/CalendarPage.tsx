@@ -1,285 +1,146 @@
-import { useState, useCallback } from 'react';
-import {
-  Box,
-  Paper,
-  Button,
-  IconButton,
-  Typography,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  Grid,
-  Chip,
-  Tooltip
-} from '@mui/material';
-import {
-  ChevronLeft,
-  ChevronRight,
-  Add as AddIcon,
-  ViewDay,
-  ViewWeek,
-  ViewMonth,
-  ViewAgenda
-} from '@mui/icons-material';
-import { Calendar, luxonLocalizer } from 'react-big-calendar';
-import { DateTime } from 'luxon';
-import { useCalendar } from '../hooks/useCalendar';
-import { CalendarEvent, CalendarView, CalendarFilter } from '../types/calendar';
-import EventDialog from './EventDialog';
-import CalendarFilters from './CalendarFilters';
-import CalendarStats from './CalendarStats';
+import { useEffect, useMemo, useState } from 'react';
+import { Calendar, dayjsLocalizer, View } from 'react-big-calendar';
+import dayjs from 'dayjs';
+import 'dayjs/locale/pt-br';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { CalendarEvent } from '@/types/calendar';
+import { useCalendar } from '@/hooks/useCalendar';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
 
-const localizer = luxonLocalizer(DateTime);
-
-const viewOptions: CalendarView['type'][] = ['month', 'week', 'day', 'agenda'];
+dayjs.locale('pt-br');
+const localizer = dayjsLocalizer(dayjs);
 
 export default function CalendarPage() {
-  const [view, setView] = useState<CalendarView['type']>('month');
-  const [currentDate, setCurrentDate] = useState(DateTime.now().toISO());
+  const [view, setView] = useState<View>('month');
+  const [date, setDate] = useState<Date>(new Date());
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [showStats, setShowStats] = useState(false);
-  const [filters, setFilters] = useState<CalendarFilter>({
-    startDate: DateTime.now().startOf('month').toISO(),
-    endDate: DateTime.now().endOf('month').toISO()
-  });
+  const [open, setOpen] = useState(false);
+  const [title, setTitle] = useState('');
 
-  const {
-    getEvents,
-    getStats,
-    createEvent,
-    updateEvent,
-    deleteEvent
-  } = useCalendar();
+  const unit = (v: View): any => (v === 'agenda' ? 'month' : (v === 'work_week' ? 'week' : (v as any)));
+  const startOf = useMemo(() => (dayjs(date) as any).startOf(unit(view)).toDate(), [date, view]);
+  const endOf = useMemo(() => (dayjs(date) as any).endOf(unit(view)).toDate(), [date, view]);
 
-  const { data: events = [], isLoading } = getEvents(filters);
+  const filters = useMemo(() => ({
+    startDate: startOf.toISOString(),
+    endDate: endOf.toISOString(),
+  }), [startOf, endOf]);
+
+  const { getEvents, getStats, createEvent, updateEvent, deleteEvent } = useCalendar();
+  const { data: events = [] } = getEvents(filters);
   const { data: stats } = getStats(filters.startDate, filters.endDate);
 
-  const handleViewChange = (newView: CalendarView['type']) => {
-    setView(newView);
-    const date = DateTime.fromISO(currentDate);
-    
-    let start, end;
-    switch (newView) {
-      case 'month':
-        start = date.startOf('month');
-        end = date.endOf('month');
-        break;
-      case 'week':
-        start = date.startOf('week');
-        end = date.endOf('week');
-        break;
-      case 'day':
-        start = date.startOf('day');
-        end = date.endOf('day');
-        break;
-      default:
-        start = date.startOf('month');
-        end = date.endOf('month');
-    }
+  const rbcEvents = (events || []).map((e: any) => ({
+    ...e,
+    start: new Date(e.start || e.data_inicio || e.inicio),
+    end: new Date(e.end || e.data_fim || e.fim),
+    title: e.title || e.titulo,
+  }));
 
-    setFilters(prev => ({
-      ...prev,
-      startDate: start.toISO(),
-      endDate: end.toISO()
-    }));
-  };
-
-  const handleNavigate = (action: 'PREV' | 'NEXT' | 'TODAY') => {
-    const date = DateTime.fromISO(currentDate);
-    let newDate;
-
-    switch (action) {
-      case 'PREV':
-        newDate = date.minus({ [view]: 1 });
-        break;
-      case 'NEXT':
-        newDate = date.plus({ [view]: 1 });
-        break;
-      case 'TODAY':
-        newDate = DateTime.now();
-        break;
-      default:
-        newDate = date;
-    }
-
-    setCurrentDate(newDate.toISO());
-    handleViewChange(view);
-  };
-
-  const handleEventClick = (event: CalendarEvent) => {
-    setSelectedEvent(event);
-    setIsDialogOpen(true);
-  };
-
-  const handleCreateEvent = () => {
+  const onSelectSlot = ({ start, end }: { start: Date; end: Date }) => {
     setSelectedEvent(null);
-    setIsDialogOpen(true);
+    setTitle('');
+    setOpen(true);
   };
 
-  const handleSaveEvent = async (event: Partial<CalendarEvent>) => {
-    try {
-      if (selectedEvent) {
-        await updateEvent.mutateAsync({ id: selectedEvent.id, ...event });
-      } else {
-        await createEvent.mutateAsync(event as Omit<CalendarEvent, 'id' | 'created_at' | 'updated_at'>);
-      }
-      setIsDialogOpen(false);
-    } catch (error) {
-      console.error('Erro ao salvar evento:', error);
+  const onSelectEvent = (e: any) => {
+    setSelectedEvent({
+      id: e.id,
+      title: e.title,
+      description: e.description,
+      start: e.start?.toISOString?.() || e.start,
+      end: e.end?.toISOString?.() || e.end,
+      allDay: !!e.all_day || !!e.allDay,
+      location: e.location,
+      type: e.type || 'OUTRO',
+      status: e.status || 'AGENDADO',
+      organizer_id: 0,
+      created_at: '',
+      updated_at: ''
+    } as CalendarEvent);
+    setTitle(e.title || '');
+    setOpen(true);
+  };
+
+  const handleSave = async () => {
+    if (selectedEvent) {
+      await updateEvent.mutateAsync({ id: selectedEvent.id, title });
+    } else {
+      const start = dayjs(date).hour(9).minute(0).toISOString();
+      const end = dayjs(date).hour(10).minute(0).toISOString();
+      await createEvent.mutateAsync({ title, start, end, allDay: false, type: 'OUTRO', status: 'AGENDADO' } as any);
+    }
+    setOpen(false);
+  };
+
+  const handleDelete = async () => {
+    if (selectedEvent?.id) {
+      await deleteEvent.mutateAsync(selectedEvent.id);
+      setOpen(false);
     }
   };
 
-  const handleDeleteEvent = async (id: number) => {
-    if (window.confirm('Tem certeza que deseja excluir este evento?')) {
-      try {
-        await deleteEvent.mutateAsync(id);
-        setIsDialogOpen(false);
-      } catch (error) {
-        console.error('Erro ao excluir evento:', error);
-      }
-    }
-  };
-
-  const eventStyleGetter = useCallback((event: CalendarEvent) => {
-    let backgroundColor = '#1976d2';  // default blue
-
-    switch (event.type) {
-      case 'OFICINA':
-        backgroundColor = '#2e7d32';  // green
-        break;
-      case 'REUNIAO':
-        backgroundColor = '#ed6c02';  // orange
-        break;
-      case 'ATIVIDADE':
-        backgroundColor = '#9c27b0';  // purple
-        break;
-    }
-
-    if (event.status === 'CANCELADO') {
-      backgroundColor = '#d32f2f';  // red
-    }
-
-    return {
-      style: {
-        backgroundColor,
-        borderRadius: '4px',
-        opacity: event.status === 'CANCELADO' ? 0.6 : 1,
-        border: 'none',
-        color: 'white'
-      }
-    };
-  }, []);
+  useEffect(() => {
+    // trigger refetch by changing filters (already in deps)
+  }, [date, view]);
 
   return (
-    <Box p={3}>
-      <Paper sx={{ p: 2, mb: 3 }}>
-        <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-          <Box display="flex" alignItems="center" gap={1}>
-            <IconButton onClick={() => handleNavigate('PREV')}>
-              <ChevronLeft />
-            </IconButton>
-            <IconButton onClick={() => handleNavigate('NEXT')}>
-              <ChevronRight />
-            </IconButton>
-            <Button onClick={() => handleNavigate('TODAY')}>Hoje</Button>
-            <Typography variant="h6">
-              {DateTime.fromISO(currentDate).toLocaleString({
-                month: 'long',
-                year: 'numeric'
-              })}
-            </Typography>
-          </Box>
-          
-          <Box display="flex" alignItems="center" gap={1}>
-            <IconButton
-              onClick={() => handleViewChange('day')}
-              color={view === 'day' ? 'primary' : 'default'}
-            >
-              <ViewDay />
-            </IconButton>
-            <IconButton
-              onClick={() => handleViewChange('week')}
-              color={view === 'week' ? 'primary' : 'default'}
-            >
-              <ViewWeek />
-            </IconButton>
-            <IconButton
-              onClick={() => handleViewChange('month')}
-              color={view === 'month' ? 'primary' : 'default'}
-            >
-              <ViewMonth />
-            </IconButton>
-            <IconButton
-              onClick={() => handleViewChange('agenda')}
-              color={view === 'agenda' ? 'primary' : 'default'}
-            >
-              <ViewAgenda />
-            </IconButton>
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={handleCreateEvent}
-            >
-              Novo Evento
-            </Button>
-          </Box>
-        </Box>
-
-        <Box display="flex" gap={2}>
-          <Box flex={1}>
+    <div className="space-y-4 p-4">
+      <Card>
+        <CardHeader>
+          <CardTitle>Agenda</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center gap-2 mb-2">
+            <Button variant="outline" onClick={() => setDate((dayjs(date) as any).subtract(1, unit(view)).toDate())}>Anterior</Button>
+            <Button variant="outline" onClick={() => setDate(new Date())}>Hoje</Button>
+            <Button variant="outline" onClick={() => setDate((dayjs(date) as any).add(1, unit(view)).toDate())}>Próximo</Button>
+            <div className="ml-auto flex gap-1">
+              <Button variant={view==='month'?'default':'outline'} onClick={() => setView('month')}>Mês</Button>
+              <Button variant={view==='week'?'default':'outline'} onClick={() => setView('week')}>Semana</Button>
+              <Button variant={view==='day'?'default':'outline'} onClick={() => setView('day')}>Dia</Button>
+              <Button variant={view==='agenda'?'default':'outline'} onClick={() => setView('agenda')}>Agenda</Button>
+            </div>
+          </div>
+          <div className="h-[70vh]">
             <Calendar
               localizer={localizer}
-              events={events}
+              events={rbcEvents}
               startAccessor="start"
               endAccessor="end"
-              style={{ height: 'calc(100vh - 250px)' }}
+              views={['month','week','day','agenda']}
               view={view}
-              onView={(newView: CalendarView['type']) => handleViewChange(newView)}
-              onSelectEvent={handleEventClick}
-              eventPropGetter={eventStyleGetter}
-              messages={{
-                today: 'Hoje',
-                previous: 'Anterior',
-                next: 'Próximo',
-                month: 'Mês',
-                week: 'Semana',
-                day: 'Dia',
-                agenda: 'Agenda',
-                date: 'Data',
-                time: 'Hora',
-                event: 'Evento',
-                noEventsInRange: 'Não há eventos neste período'
-              }}
+              onView={(v) => setView(v as View)}
+              date={date}
+              onNavigate={(d) => setDate(d)}
+              selectable
+              onSelectSlot={onSelectSlot as any}
+              onSelectEvent={onSelectEvent as any}
+              popup
             />
-          </Box>
-          
-          {showStats && (
-            <Box width="300px">
-              <CalendarStats stats={stats} />
-            </Box>
-          )}
-        </Box>
-      </Paper>
+          </div>
+        </CardContent>
+      </Card>
 
-      <CalendarFilters
-        filters={filters}
-        onChange={setFilters}
-      />
-
-      <EventDialog
-        open={isDialogOpen}
-        onClose={() => setIsDialogOpen(false)}
-        event={selectedEvent}
-        onSave={handleSaveEvent}
-        onDelete={selectedEvent ? () => handleDeleteEvent(selectedEvent.id) : undefined}
-      />
-    </Box>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{selectedEvent ? 'Editar Evento' : 'Novo Evento'}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <label className="text-sm">Título</label>
+              <Input value={title} onChange={(e)=>setTitle(e.target.value)} />
+            </div>
+            <div className="flex gap-2 justify-end">
+              {selectedEvent && <Button variant="destructive" onClick={handleDelete}>Excluir</Button>}
+              <Button onClick={handleSave} disabled={!title.trim()}>Salvar</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }

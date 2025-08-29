@@ -33,7 +33,7 @@ const fileFilter = (req: Request, file: Express.Multer.File, cb: multer.FileFilt
   }
 };
 
-// Configuração do multer
+// Configuração do multer (imagens)
 const upload = multer({
   storage,
   fileFilter,
@@ -51,6 +51,17 @@ export const uploadMultiple = (fieldName: string, maxCount: number = 5) => uploa
 
 // Middleware para campos múltiplos
 export const uploadFields = (fields: { name: string; maxCount: number }[]) => upload.fields(fields);
+
+// Configuração para aceitar arquivos genéricos (ex.: PDF)
+const uploadAny = multer({
+  storage,
+  limits: {
+    fileSize: 20 * 1024 * 1024, // até 20MB para documentos
+    files: 5
+  }
+});
+
+export const uploadAnySingle = (fieldName: string) => uploadAny.single(fieldName);
 
 // Função para excluir arquivo
 export const deleteFile = async (filename: string): Promise<void> => {

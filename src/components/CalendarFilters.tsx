@@ -12,7 +12,10 @@ import {
   TextField
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
-import { DateTime } from 'luxon';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
+import dayjs, { Dayjs } from 'dayjs';
+import 'dayjs/locale/pt-br';
 import { CalendarFilter } from '../types/calendar';
 
 interface CalendarFiltersProps {
@@ -31,18 +34,17 @@ export default function CalendarFilters({
     });
   };
 
-  const handleDateChange = (field: 'startDate' | 'endDate', value: DateTime | null) => {
-    if (value) {
-      handleChange(field, value.toISO());
-    }
+  const handleDateChange = (field: 'startDate' | 'endDate', value: Dayjs | null) => {
+    handleChange(field, value ? value.toISOString() : null);
   };
 
   return (
     <Paper sx={{ p: 2, mb: 2 }}>
       <Box display="flex" gap={2} flexWrap="wrap">
+        <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="pt-br">
         <DatePicker
           label="Data Inicial"
-          value={DateTime.fromISO(filters.startDate)}
+          value={filters.startDate ? dayjs(filters.startDate) : null}
           onChange={(newValue) => handleDateChange('startDate', newValue)}
           slotProps={{
             textField: {
@@ -54,7 +56,7 @@ export default function CalendarFilters({
 
         <DatePicker
           label="Data Final"
-          value={DateTime.fromISO(filters.endDate)}
+          value={filters.endDate ? dayjs(filters.endDate) : null}
           onChange={(newValue) => handleDateChange('endDate', newValue)}
           slotProps={{
             textField: {
@@ -63,6 +65,7 @@ export default function CalendarFilters({
             }
           }}
         />
+        </LocalizationProvider>
 
         <FormControl size="small" sx={{ minWidth: 200 }}>
           <InputLabel>Tipos</InputLabel>
@@ -119,8 +122,8 @@ export default function CalendarFilters({
         <Button
           variant="outlined"
           onClick={() => onChange({
-            startDate: DateTime.now().startOf('month').toISO(),
-            endDate: DateTime.now().endOf('month').toISO()
+            startDate: dayjs().startOf('month').toISOString(),
+            endDate: dayjs().endOf('month').toISOString()
           })}
         >
           Limpar Filtros

@@ -138,7 +138,8 @@ export const api = {
 
   async testConnection(): Promise<ApiResponse> {
     try {
-      return await apiFetch<ApiResponse>(`${API_BASE_URL}/test-db`, {
+      // Usa rota existente no backend
+      return await apiFetch<ApiResponse>(`${API_BASE_URL}/health/db`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -285,7 +286,7 @@ export const api = {
   // Visão Holística
   async saveVisaoHolistica(data: any): Promise<ApiResponse<any>> {
     try {
-      return await apiFetch<ApiResponse<any>>(`${API_BASE_URL}/visao-holistica`, {
+      return await apiFetch<ApiResponse<any>>(`${API_BASE_URL}/formularios/visao-holistica`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

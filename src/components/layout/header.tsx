@@ -12,7 +12,8 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/hooks/usePostgreSQLAuth";
 import { Badge } from "@/components/ui/badge";
-import NotificationCenterSimple from "@/components/NotificationCenterSimple";
+// Centro de notificações simplificado pode ser adicionado depois
+const NotificationCenterSimple = () => null as any;
 
 export default function Header() {
   const { profile, signOut } = useAuth();

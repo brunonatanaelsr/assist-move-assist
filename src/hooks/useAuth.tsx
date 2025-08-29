@@ -41,9 +41,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       setLoading(true);
       const response = await authService.login({ email, password });
-      localStorage.setItem("auth_token", response.token);
-      localStorage.setItem("user", JSON.stringify(response.user));
-      setUser(response.user);
+      // Em dev, backend envia cookie httpOnly e pode não retornar token no corpo
+      if ((response as any)?.token) {
+        localStorage.setItem('auth_token', (response as any).token);
+        localStorage.setItem('token', (response as any).token); // unifica com outros clientes
+      }
+      if ((response as any)?.user) {
+        localStorage.setItem('user', JSON.stringify((response as any).user));
+        setUser((response as any).user);
+      }
       return {};
     } catch (error) {
       return { error: error as Error };

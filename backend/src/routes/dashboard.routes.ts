@@ -112,6 +112,25 @@ router.get('/recent-activities', authenticateToken, async (req: AuthenticatedReq
   }
 });
 
+// Alias: GET /dashboard/activities → recent-activities
+router.get('/activities', authenticateToken, async (req: AuthenticatedRequest, res: express.Response) => {
+  // Delegate to recent-activities handler
+  (req as any).query.limit = (req.query.limit as any) || '10';
+  const handler = router.stack.find((l: any) => l.route && l.route.path === '/recent-activities' && l.route.methods.get);
+  if (handler) return handler.handle_request(req, res, () => {});
+  res.json({ activities: [] });
+});
+
+// GET /dashboard/tasks - tarefas pendentes (stub simples)
+router.get('/tasks', authenticateToken, async (_req: AuthenticatedRequest, res: express.Response) => {
+  try {
+    // Implementação simples: retornar array vazio por enquanto
+    res.json({ tasks: [] });
+  } catch (error) {
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
 // GET /dashboard/notifications - Notificações do usuário
 router.get('/notifications', authenticateToken, async (req: AuthenticatedRequest, res: express.Response) => {
   try {

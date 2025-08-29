@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '../lib/api';
+import { api } from '@/services/api';
 import { toast } from '../components/ui/use-toast';
 
 interface Documento {
@@ -66,7 +66,7 @@ export function useDocumentos(beneficiariaId: number) {
       }).then(res => res.data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['documentos', beneficiariaId]);
+      queryClient.invalidateQueries({ queryKey: ['documentos', beneficiariaId] });
       toast({
         title: 'Sucesso!',
         description: 'Documento enviado com sucesso.',
@@ -95,7 +95,7 @@ export function useDocumentos(beneficiariaId: number) {
       }).then(res => res.data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['documentos', beneficiariaId]);
+      queryClient.invalidateQueries({ queryKey: ['documentos', beneficiariaId] });
       toast({
         title: 'Sucesso!',
         description: 'Documento atualizado com sucesso.',
@@ -114,7 +114,7 @@ export function useDocumentos(beneficiariaId: number) {
     mutationFn: (documentoId: number) =>
       api.delete(`/documentos/${documentoId}`).then(res => res.data),
     onSuccess: () => {
-      queryClient.invalidateQueries(['documentos', beneficiariaId]);
+      queryClient.invalidateQueries({ queryKey: ['documentos', beneficiariaId] });
       toast({
         title: 'Sucesso!',
         description: 'Documento excluído com sucesso.',
@@ -161,11 +161,11 @@ export function useDocumentos(beneficiariaId: number) {
     documentos,
     isLoading,
     upload: uploadMutation.mutate,
-    isUploading: uploadMutation.isLoading,
+    isUploading: (uploadMutation as any).isPending ?? (uploadMutation as any).isLoading,
     atualizar: atualizarMutation.mutate,
-    isAtualizando: atualizarMutation.isLoading,
+    isAtualizando: (atualizarMutation as any).isPending ?? (atualizarMutation as any).isLoading,
     excluir: excluirMutation.mutate,
-    isExcluindo: excluirMutation.isLoading,
+    isExcluindo: (excluirMutation as any).isPending ?? (excluirMutation as any).isLoading,
     download: downloadDocumento,
     versoes,
     loadingVersoes

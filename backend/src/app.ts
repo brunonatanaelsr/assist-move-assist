@@ -83,7 +83,17 @@ app.use('*', (req, res) => {
   res.status(404).json({ error: 'Endpoint não encontrado' });
 });
 
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3000;
+
+// Trata erro de porta em uso com mensagem amigável
+server.on('error', (err: any) => {
+  if (err && err.code === 'EADDRINUSE') {
+    logger.error(`A porta ${PORT} já está em uso. Feche o processo que está usando a porta ou defina outra porta com PORT=xxxx.`);
+  } else {
+    logger.error('Erro ao iniciar o servidor:', err);
+  }
+  process.exit(1);
+});
 
 server.listen(PORT, () => {
   logger.info(`🚀 Servidor rodando na porta ${PORT}`);

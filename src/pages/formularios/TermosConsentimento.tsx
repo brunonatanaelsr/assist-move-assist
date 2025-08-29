@@ -86,7 +86,7 @@ export default function TermosConsentimento() {
 
   const carregarTermosExistentes = async () => {
     try {
-      const response = await apiFetch(`/api/termos-consentimento/${id}`);
+      const response = await apiFetch(`/api/formularios/termos-consentimento/${id}`);
       if (response.success) {
         setTermosExistentes(response.data);
       }
@@ -103,7 +103,7 @@ export default function TermosConsentimento() {
 
     try {
       setLoading(true);
-      const response = await apiFetch('/api/termos-consentimento', {
+      const response = await apiFetch('/api/formularios/termos-consentimento', {
         method: 'POST',
         body: JSON.stringify({
           ...termoData,
@@ -134,34 +134,12 @@ export default function TermosConsentimento() {
     }
   };
 
-  const gerarPDF = async (termoId: number) => {
-    try {
-      const response = await apiFetch(`/api/termos-consentimento/${termoId}/pdf`);
-      if (response.success) {
-        window.open(response.data.url, '_blank');
-      }
-    } catch (error) {
-      console.error('Erro ao gerar PDF:', error);
-    }
+  const gerarPDF = async (_termoId: number) => {
+    alert('Geração de PDF não disponível no momento. Use exportação em Relatórios.');
   };
 
-  const revogarTermo = async (termoId: number) => {
-    if (!confirm('Deseja realmente revogar este termo de consentimento?')) {
-      return;
-    }
-
-    try {
-      const response = await apiFetch(`/api/termos-consentimento/${termoId}/revogar`, {
-        method: 'PUT'
-      });
-
-      if (response.success) {
-        alert('Termo revogado com sucesso!');
-        carregarTermosExistentes();
-      }
-    } catch (error) {
-      console.error('Erro ao revogar termo:', error);
-    }
+  const revogarTermo = async (_termoId: number) => {
+    alert('Revogação ainda não implementada.');
   };
 
   const generatePAEDI = (beneficiaria: any) => {
