@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { AnyZodObject, ZodError } from 'zod';
+import { z, ZodError } from 'zod';
 import { logger } from '../config/logger';
 
 interface ExtendedRequest extends Request {
@@ -14,7 +14,7 @@ interface TypedResponse extends Response {
     json(data: any): this;
 }
 
-export const validateRequest = (schema: AnyZodObject) => {
+export const validateRequest = (schema: z.ZodTypeAny) => {
     return async (req: ExtendedRequest, res: TypedResponse, next: NextFunction): Promise<void> => {
         try {
             await schema.parseAsync({
@@ -27,21 +27,21 @@ export const validateRequest = (schema: AnyZodObject) => {
             if (err instanceof ZodError) {
                 logger.warn('Validation error:', {
                     path: req.path,
-                    errors: err.errors
+                    errors: err.issues
                 });
                 
                 res.status(400).json({
                     success: false,
                     message: 'Erro de validação',
-                    errors: err.errors.map((error) => ({
-                        path: error.path.join('.'),
-                        message: error.message
+                    errors: err.issues.map((issue) => ({
+                        path: issue.path.join('.'),
+                        message: issue.message
                     }))
                 });
                 return;
             }
             
-            logger.error('Unexpected validation error:', err);
+            logger.error('Unexpected validation error:', err as any);
             res.status(500).json({
                 success: false,
                 message: 'Erro interno do servidor'

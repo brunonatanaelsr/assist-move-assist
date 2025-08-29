@@ -1,14 +1,21 @@
-import { Prisma } from '@prisma/client';
+// Substitui dependência do Prisma por um tipo JSON local
+export type JSONValue =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: JSONValue }
+  | JSONValue[];
 
 export interface ReportTemplate {
   id: number;
   name: string;
   description?: string;
   type: string;
-  filters: Prisma.JsonValue;
+  filters: JSONValue;
   metrics: string[];
-  charts: Prisma.JsonValue;
-  schedule?: Prisma.JsonValue;
+  charts: JSONValue;
+  schedule?: JSONValue;
   created_at: Date;
   updated_at: Date;
 }

@@ -19,137 +19,174 @@ const redis = new Redis({
 const oficinaService = new OficinaService(pool, redis);
 
 // Listar oficinas (público)
-router.get('/', async (req, res) => {
+router.get('/', async (req, res): Promise<void> => {
   try {
     const filters = oficinaFilterSchema.parse(req.query);
     const result = await oficinaService.listarOficinas(filters);
     
     res.json(successResponse(
-      result.data,
-      "Oficinas carregadas com sucesso",
-      { pagination: result.pagination }
+      { items: result.data, pagination: result.pagination },
+      "Oficinas carregadas com sucesso"
     ));
+    return;
   } catch (error: any) {
     console.error("Get oficinas error:", error);
 
     if (error.name === 'ZodError') {
-      return res.status(400).json(errorResponse("Parâmetros de filtro inválidos"));
+      res.status(400).json(errorResponse("Parâmetros de filtro inválidos"));
+      return;
     }
 
     res.status(500).json(errorResponse("Erro ao buscar oficinas"));
+    return;
   }
 });
 
 // Obter oficina específica
-router.get('/:id', async (req, res) => {
+router.get('/:id', async (req, res): Promise<void> => {
   try {
     const id = parseInt(req.params.id);
     const oficina = await oficinaService.buscarOficina(id);
     
     res.json(successResponse(oficina, "Oficina carregada com sucesso"));
+    return;
   } catch (error: any) {
     console.error("Get oficina error:", error);
 
     if (error.message === "Oficina não encontrada") {
-      return res.status(404).json(errorResponse(error.message));
+      res.status(404).json(errorResponse(error.message));
+      return;
     }
 
     res.status(500).json(errorResponse("Erro ao buscar oficina"));
+    return;
   }
 });
 
 // Criar oficina
-router.post('/', authenticateToken, requireGestor, async (req, res) => {
+router.post('/', authenticateToken, requireGestor, async (req, res): Promise<void> => {
   try {
-    const oficina = await oficinaService.criarOficina(req.body, req.user.id);
+    const user = (req as any).user;
+    if (!user) {
+      res.status(401).json(errorResponse('Não autenticado'));
+      return;
+    }
+    const oficina = await oficinaService.criarOficina(req.body, Number(user.id));
     res.status(201).json(successResponse(oficina, "Oficina criada com sucesso"));
+    return;
   } catch (error: any) {
     console.error("Create oficina error:", error);
 
     if (error.name === 'ZodError') {
-      return res.status(400).json(errorResponse("Dados inválidos para criar oficina"));
+      res.status(400).json(errorResponse("Dados inválidos para criar oficina"));
+      return;
     }
 
     if (error.message === "Projeto não encontrado") {
-      return res.status(400).json(errorResponse(error.message));
+      res.status(400).json(errorResponse(error.message));
+      return;
     }
 
     res.status(500).json(errorResponse("Erro ao criar oficina"));
+    return;
   }
 });
 
 // Atualizar oficina
-router.put('/:id', authenticateToken, requireGestor, async (req, res) => {
+router.put('/:id', authenticateToken, requireGestor, async (req, res): Promise<void> => {
   try {
     const id = parseInt(req.params.id);
+    const user = (req as any).user;
+    if (!user) {
+      res.status(401).json(errorResponse('Não autenticado'));
+      return;
+    }
     const oficina = await oficinaService.atualizarOficina(
       id, 
       req.body,
-      req.user.id,
-      req.user.role
+      Number(user.id),
+      String(user.role)
     );
     
     res.json(successResponse(oficina, "Oficina atualizada com sucesso"));
+    return;
   } catch (error: any) {
     console.error("Update oficina error:", error);
 
     if (error.name === 'ZodError') {
-      return res.status(400).json(errorResponse("Dados inválidos para atualizar oficina"));
+      res.status(400).json(errorResponse("Dados inválidos para atualizar oficina"));
+      return;
     }
 
     if (error.message === "Oficina não encontrada") {
-      return res.status(404).json(errorResponse(error.message));
+      res.status(404).json(errorResponse(error.message));
+      return;
     }
 
     if (error.message === "Projeto não encontrado") {
-      return res.status(400).json(errorResponse(error.message));
+      res.status(400).json(errorResponse(error.message));
+      return;
     }
 
     if (error.message === "Sem permissão para editar esta oficina") {
-      return res.status(403).json(errorResponse(error.message));
+      res.status(403).json(errorResponse(error.message));
+      return;
     }
 
     res.status(500).json(errorResponse("Erro ao atualizar oficina"));
+    return;
   }
 });
 
 // Excluir oficina (soft delete)
-router.delete('/:id', authenticateToken, requireGestor, async (req, res) => {
+router.delete('/:id', authenticateToken, requireGestor, async (req, res): Promise<void> => {
   try {
     const id = parseInt(req.params.id);
-    await oficinaService.excluirOficina(id, req.user.id, req.user.role);
+    const user = (req as any).user;
+    if (!user) {
+      res.status(401).json(errorResponse('Não autenticado'));
+      return;
+    }
+    await oficinaService.excluirOficina(id, Number(user.id), String(user.role));
     
     res.json(successResponse(null, "Oficina excluída com sucesso"));
+    return;
   } catch (error: any) {
     console.error("Delete oficina error:", error);
 
     if (error.message === "Oficina não encontrada") {
-      return res.status(404).json(errorResponse(error.message));
+      res.status(404).json(errorResponse(error.message));
+      return;
     }
 
     if (error.message === "Sem permissão para excluir esta oficina") {
-      return res.status(403).json(errorResponse(error.message));
+      res.status(403).json(errorResponse(error.message));
+      return;
     }
 
     res.status(500).json(errorResponse("Erro ao excluir oficina"));
+    return;
   }
 });
 
 // Obter participantes de uma oficina
-router.get('/:id/participantes', authenticateToken, async (req, res) => {
+router.get('/:id/participantes', authenticateToken, async (req, res): Promise<void> => {
   try {
     const id = parseInt(req.params.id);
     const participantes = await oficinaService.listarParticipantes(id);
     
     res.json(successResponse(participantes, "Participantes carregados com sucesso"));
+    return;
   } catch (error: any) {
     console.error("Get participantes error:", error);
 
     if (error.message === "Oficina não encontrada") {
-      return res.status(404).json(errorResponse(error.message));
+      res.status(404).json(errorResponse(error.message));
+      return;
     }
 
     res.status(500).json(errorResponse("Erro ao buscar participantes"));
+    return;
   }
 });
 

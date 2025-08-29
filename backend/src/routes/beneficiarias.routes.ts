@@ -1,6 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { BeneficiariasRepository } from '../repositories/BeneficiariasRepository';
-import { authenticateToken, AuthenticatedRequest, requireProfissional } from '../middleware/auth';
+import { authenticateToken, requireProfissional } from '../middleware/auth';
 import { successResponse, errorResponse } from '../utils/responseFormatter';
 import { catchAsync } from '../middleware/errorHandler';
 import { formatObjectDates } from '../utils/dateFormatter';
@@ -10,13 +10,7 @@ import { db } from '../services/db';
 import { pool } from '../config/database';
 
 // Interface para requisições autenticadas com parâmetros e corpo
-interface ExtendedRequest extends Request {
-  user?: {
-    id: string;
-    email: string;
-    role: string;
-  };
-}
+type ExtendedRequest = Request;
 
 const router = Router();
 const beneficiariasRepository = new BeneficiariasRepository(pool);
@@ -25,7 +19,7 @@ const beneficiariasRepository = new BeneficiariasRepository(pool);
 router.get(
   '/',
   authenticateToken,
-  async (req: ExtendedRequest, res: Response) => {
+  async (req: ExtendedRequest, res: Response): Promise<void> => {
     try {
       const page = parseInt((req.query.page as string) || '1', 10);
       const limit = parseInt((req.query.limit as string) || '50', 10);
@@ -33,9 +27,11 @@ router.get(
       const result = await beneficiariasRepository.listarAtivas(page, limit);
 
       res.json(successResponse(result.data));
+      return;
     } catch (error) {
       loggerService.error('List beneficiarias error:', error);
       res.status(500).json(errorResponse('Erro ao listar beneficiárias'));
+      return;
     }
   }
 );
@@ -44,7 +40,7 @@ router.get(
 router.get(
   '/:id',
   authenticateToken,
-  async (req: ExtendedRequest, res: Response) => {
+  async (req: ExtendedRequest, res: Response): Promise<void> => {
     try {
       const { id } = req.params;
       const beneficiaria = await beneficiariasRepository.findById(Number(id));
@@ -61,12 +57,15 @@ router.get(
       ]);
       
       res.json(successResponse(beneficiariaFormatada));
+      return;
     } catch (error) {
       if (error instanceof AppError) {
         res.status(error.statusCode).json(errorResponse(error.message));
+        return;
       } else {
         loggerService.error("Get beneficiaria error:", error);
         res.status(500).json(errorResponse("Erro ao buscar beneficiária"));
+        return;
       }
     }
   }
@@ -77,7 +76,7 @@ router.post(
   '/',
   authenticateToken,
   requireProfissional,
-  async (req: ExtendedRequest, res: Response) => {
+  async (req: ExtendedRequest, res: Response): Promise<void> => {
     try {
       const {
         nome_completo,
@@ -119,17 +118,20 @@ router.post(
 
       const beneficiaria = await beneficiariasRepository.create(beneficiariaData as any);
       
-      loggerService.audit('BENEFICIARIA_CREATED', req.user?.id, {
+      loggerService.audit('BENEFICIARIA_CREATED', (req as any).user?.id, {
         beneficiaria_id: beneficiaria.id
       });
 
       res.status(201).json(successResponse(beneficiaria));
+      return;
     } catch (error) {
       if (error instanceof AppError) {
         res.status(error.statusCode).json(errorResponse(error.message));
+        return;
       } else {
         loggerService.error("Create beneficiaria error:", error);
         res.status(500).json(errorResponse("Erro ao criar beneficiária"));
+        return;
       }
     }
   }
@@ -140,7 +142,7 @@ router.put(
   '/:id',
   authenticateToken,
   requireProfissional,
-  async (req: ExtendedRequest, res: Response) => {
+  async (req: ExtendedRequest, res: Response): Promise<void> => {
     try {
       const { id } = req.params;
       const updateData = req.body;
@@ -162,22 +164,25 @@ router.put(
 
       // Adicionar campos de auditoria
       updateData.data_atualizacao = new Date();
-      updateData.atualizado_por = req.user?.id;
+      updateData.atualizado_por = (req as any).user?.id;
 
       const beneficiaria = await beneficiariasRepository.update(Number(id), updateData as any);
 
-      loggerService.audit('BENEFICIARIA_UPDATED', req.user?.id, {
+      loggerService.audit('BENEFICIARIA_UPDATED', (req as any).user?.id, {
         beneficiaria_id: id,
         changes: updateData
       });
 
       res.json(successResponse(beneficiaria));
+      return;
     } catch (error) {
       if (error instanceof AppError) {
         res.status(error.statusCode).json(errorResponse(error.message));
+        return;
       } else {
         loggerService.error("Update beneficiaria error:", error);
         res.status(500).json(errorResponse("Erro ao atualizar beneficiária"));
+        return;
       }
     }
   }
@@ -188,7 +193,7 @@ router.delete(
   '/:id',
   authenticateToken,
   requireProfissional,
-  async (req: ExtendedRequest, res: Response) => {
+  async (req: ExtendedRequest, res: Response): Promise<void> => {
     try {
       const { id } = req.params;
 
@@ -202,17 +207,20 @@ router.delete(
       // Marcar como inativa
       await beneficiariasRepository.softDelete(Number(id));
 
-      loggerService.audit('BENEFICIARIA_DELETED', req.user?.id, {
+      loggerService.audit('BENEFICIARIA_DELETED', (req as any).user?.id, {
         beneficiaria_id: id
       });
 
       res.json(successResponse({ message: 'Beneficiária removida com sucesso' }));
+      return;
     } catch (error) {
       if (error instanceof AppError) {
         res.status(error.statusCode).json(errorResponse(error.message));
+        return;
       } else {
         loggerService.error("Delete beneficiaria error:", error);
         res.status(500).json(errorResponse("Erro ao remover beneficiária"));
+        return;
       }
     }
   }

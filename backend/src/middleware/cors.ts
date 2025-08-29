@@ -16,7 +16,7 @@ const allowedOrigins = [
 ];
 
 export const corsMiddleware = cors({
-  origin: (origin, callback) => {
+  origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
     // Permitir requisições sem origin (ex: mobile apps, Postman)
     if (!origin) {
       return callback(null, true);

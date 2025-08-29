@@ -31,8 +31,9 @@ export const checkLoginBlock = async (req: any, res: any, next: any) => {
       [email]
     );
 
-    if (blocked.length > 0 && blocked[0].blocked_until > new Date()) {
-      const remainingTime = Math.ceil((blocked[0].blocked_until - new Date()) / 1000 / 60);
+    if (blocked.length > 0 && new Date(blocked[0].blocked_until) > new Date()) {
+      const remainingMs = new Date(blocked[0].blocked_until).getTime() - Date.now();
+      const remainingTime = Math.ceil(remainingMs / 1000 / 60);
       return res.status(429).json({
         error: `Conta temporariamente bloqueada. Tente novamente em ${remainingTime} minutos.`
       });

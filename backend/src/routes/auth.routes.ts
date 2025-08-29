@@ -1,6 +1,6 @@
 import express from 'express';
 import type { Response } from 'express';
-import { authenticateToken, AuthenticatedRequest } from '../middleware/auth';
+import { authenticateToken } from '../middleware/auth';
 import { loggerService } from '../services/logger';
 import { authService } from '../services';
 
@@ -12,7 +12,7 @@ interface RequestWithBody<T = any> {
   };
 }
 
-type AuthRequestWithBody<T> = AuthenticatedRequest & { body: T };
+type AuthRequestWithBody<T> = express.Request & { body: T; user?: any };
 
 interface LoginRequestBody {
   email: string;
@@ -48,28 +48,30 @@ const isProduction = process.env.NODE_ENV === 'production';
 const COOKIE_OPTIONS = {
   httpOnly: true,
   secure: isProduction, // em dev, permitir cookies sem HTTPS
-  sameSite: (isProduction ? 'strict' : 'lax') as const,
+  sameSite: (isProduction ? 'strict' : 'lax') as 'strict' | 'lax',
   maxAge: 24 * 60 * 60 * 1000, // 1 dia
 };
 
 // POST /auth/login
-router.post('/login', async (req: RequestWithBody<LoginRequestBody>, res: Response) => {
+router.post('/login', async (req: RequestWithBody<LoginRequestBody>, res: Response): Promise<void> => {
   try {
     const { email, password } = req.body;
 
     if (!email || !password) {
-      return res.status(400).json({
+      res.status(400).json({
         error: 'Email e senha são obrigatórios'
       });
+      return;
     }
 
     const ipAddress = req.ip || req.connection?.remoteAddress || 'unknown';
     const result = await authService.login(email, password, ipAddress);
 
     if (!result) {
-      return res.status(401).json({
+      res.status(401).json({
         error: 'Credenciais inválidas'
       });
+      return;
     }
 
     res.cookie('auth_token', result.token, COOKIE_OPTIONS);
@@ -78,16 +80,18 @@ router.post('/login', async (req: RequestWithBody<LoginRequestBody>, res: Respon
       message: 'Login realizado com sucesso',
       user: result.user
     });
+    return;
   } catch (error) {
     loggerService.error('Erro no endpoint de login:', error);
     res.status(500).json({
       error: 'Erro interno do servidor'
     });
+    return;
   }
 });
 
 // POST /auth/logout
-router.post('/logout', async (_req, res: Response) => {
+router.post('/logout', async (_req, res: Response): Promise<void> => {
   try {
     res.clearCookie('auth_token', {
       ...COOKIE_OPTIONS,
@@ -95,14 +99,16 @@ router.post('/logout', async (_req, res: Response) => {
       sameSite: isProduction ? 'strict' : 'lax',
     } as any);
     res.json({ message: 'Logout realizado com sucesso' });
+    return;
   } catch (error) {
     loggerService.error('Erro no endpoint de logout:', error);
     res.status(500).json({ error: 'Erro interno do servidor' });
+    return;
   }
 });
 
 // POST /auth/refresh - renova token baseado no cookie/header válidos
-router.post('/refresh', authenticateToken, async (req: any, res: Response) => {
+router.post('/refresh', authenticateToken, async (req: any, res: Response): Promise<void> => {
   try {
     const payload = {
       id: Number(req.user!.id),
@@ -112,36 +118,41 @@ router.post('/refresh', authenticateToken, async (req: any, res: Response) => {
     const token = authService.generateToken(payload);
     res.cookie('auth_token', token, COOKIE_OPTIONS);
     res.json({ message: 'Token renovado', user: payload });
+    return;
   } catch (error) {
     loggerService.error('Erro ao renovar token:', error);
     res.status(500).json({ error: 'Erro interno do servidor' });
+    return;
   }
 });
 
 // POST /auth/register
-router.post('/register', async (req: RequestWithBody<RegisterRequestBody>, res: Response) => {
+router.post('/register', async (req: RequestWithBody<RegisterRequestBody>, res: Response): Promise<void> => {
   try {
     const { email, password, nome_completo, role } = req.body;
 
     if (!email || !password || !nome_completo) {
-      return res.status(400).json({
+      res.status(400).json({
         error: 'Email, senha e nome completo são obrigatórios'
       });
+      return;
     }
 
     // Validação de formato de email
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      return res.status(400).json({
+      res.status(400).json({
         error: 'Formato de email inválido'
       });
+      return;
     }
 
     // Validação de senha
     if (password.length < 6) {
-      return res.status(400).json({
+      res.status(400).json({
         error: 'Senha deve ter pelo menos 6 caracteres'
       });
+      return;
     }
 
     const result = await authService.register({
@@ -157,45 +168,51 @@ router.post('/register', async (req: RequestWithBody<RegisterRequestBody>, res: 
       message: 'Usuário registrado com sucesso',
       user: result.user
     });
+    return;
   } catch (error: any) {
     loggerService.error('Erro no endpoint de registro:', error);
     
     if (error.message === 'Email já está em uso') {
-      return res.status(409).json({
+      res.status(409).json({
         error: error.message
       });
+      return;
     }
 
     res.status(500).json({
       error: 'Erro interno do servidor'
     });
+    return;
   }
 });
 
 // GET /auth/profile
-router.get('/profile', authenticateToken, async (req: AuthenticatedRequest, res: express.Response) => {
+router.get('/profile', authenticateToken, async (req: express.Request, res: express.Response): Promise<void> => {
   try {
     const profile = await authService.getProfile(Number(req.user!.id));
 
     if (!profile) {
-      return res.status(404).json({
+      res.status(404).json({
         error: 'Perfil não encontrado'
       });
+      return;
     }
 
     res.json({
       user: profile
     });
+    return;
   } catch (error) {
     loggerService.error('Erro ao buscar perfil:', error);
     res.status(500).json({
       error: 'Erro interno do servidor'
     });
+    return;
   }
 });
 
 // PUT /auth/profile
-router.put('/profile', authenticateToken, async (req: AuthRequestWithBody<UpdateProfileBody>, res: Response) => {
+router.put('/profile', authenticateToken, async (req: AuthRequestWithBody<UpdateProfileBody>, res: Response): Promise<void> => {
   try {
     const { nome_completo, avatar_url } = req.body;
 
@@ -208,29 +225,33 @@ router.put('/profile', authenticateToken, async (req: AuthRequestWithBody<Update
       message: 'Perfil atualizado com sucesso',
       user: updatedUser
     });
+    return;
   } catch (error: any) {
     loggerService.error('Erro ao atualizar perfil:', error);
     res.status(400).json({
       error: error.message || 'Erro ao atualizar perfil'
     });
+    return;
   }
 });
 
 // POST /auth/change-password
-router.post('/change-password', authenticateToken, async (req: AuthRequestWithBody<ChangePasswordBody>, res: Response) => {
+router.post('/change-password', authenticateToken, async (req: AuthRequestWithBody<ChangePasswordBody>, res: Response): Promise<void> => {
   try {
     const { currentPassword, newPassword } = req.body;
 
     if (!currentPassword || !newPassword) {
-      return res.status(400).json({
+      res.status(400).json({
         error: 'Senha atual e nova senha são obrigatórias'
       });
+      return;
     }
 
     if (newPassword.length < 6) {
-      return res.status(400).json({
+      res.status(400).json({
         error: 'Nova senha deve ter pelo menos 6 caracteres'
       });
+      return;
     }
 
     await authService.changePassword(Number(req.user!.id), currentPassword, newPassword);
@@ -238,37 +259,42 @@ router.post('/change-password', authenticateToken, async (req: AuthRequestWithBo
     res.json({
       message: 'Senha alterada com sucesso'
     });
+    return;
   } catch (error: any) {
     loggerService.error('Erro ao alterar senha:', error);
     
     if (error.message === 'Senha atual incorreta' || error.message === 'Usuário não encontrado') {
-      return res.status(400).json({
+      res.status(400).json({
         error: error.message
       });
+      return;
     }
 
     res.status(500).json({
       error: 'Erro interno do servidor'
     });
+    return;
   }
 });
 
 // POST /auth/refresh-token
-router.post('/refresh-token', authenticateToken, async (req: AuthenticatedRequest, res: express.Response) => {
+router.post('/refresh-token', authenticateToken, async (req: express.Request, res: express.Response): Promise<void> => {
   try {
     // Gerar novo token com as informações atuais do usuário
-    const newToken = authService.generateToken({ id: Number(req.user!.id), email: req.user!.email, role: req.user!.role });
+    const newToken = authService.generateToken({ id: Number((req as any).user!.id), email: String((req as any).user!.email || ''), role: String((req as any).user!.role) });
 
     res.cookie('auth_token', newToken, COOKIE_OPTIONS);
 
     res.json({
       message: 'Token renovado com sucesso'
     });
+    return;
   } catch (error) {
     loggerService.error('Erro ao renovar token:', error);
     res.status(500).json({
       error: 'Erro interno do servidor'
     });
+    return;
   }
 });
 

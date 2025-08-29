@@ -1,17 +1,18 @@
-import { Response, NextFunction } from 'express';
-import { PERMISSIONS, AuthenticatedRequest } from './auth';
+import { Request, Response, NextFunction } from 'express';
+import { PERMISSIONS } from './auth';
 import { db } from '../services/db';
 
 export function requirePermissions(permissions: PERMISSIONS[]) {
-  return async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = req.user;
+      const user = (req as any).user;
       
       if (!user) {
-        return res.status(401).json({ 
+        res.status(401).json({ 
           success: false, 
           message: 'Não autenticado' 
         });
+        return;
       }
 
       // Verificar permissões do usuário
@@ -24,19 +25,20 @@ export function requirePermissions(permissions: PERMISSIONS[]) {
       );
 
       const hasPermission = permissions.every(permission =>
-        userPermissions.rows.some(row => row.permission_name === permission)
+        (userPermissions as any[]).some((row: any) => row.permission_name === permission)
       );
 
       if (!hasPermission) {
-        return res.status(403).json({
+        res.status(403).json({
           success: false,
           message: 'Sem permissão para acessar este recurso'
         });
+        return;
       }
 
-      next();
+      return next();
     } catch (error) {
-      next(error);
+      return next(error as any);
     }
   };
 }

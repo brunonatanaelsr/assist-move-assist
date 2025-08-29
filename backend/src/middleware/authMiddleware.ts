@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { z } from 'zod';
-import logger from '../config/logger';
+import { logger } from '../config/logger';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
@@ -16,15 +16,16 @@ const tokenSchema = z.object({
 
 export type JWTPayload = z.infer<typeof tokenSchema>;
 
-export const auth = async (req: Request, res: Response, next: NextFunction) => {
+export const auth = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const token = req.headers.authorization?.replace('Bearer ', '');
 
     if (!token) {
-      return res.status(401).json({ 
+      res.status(401).json({ 
         success: false, 
         message: 'Token não fornecido' 
       });
+      return;
     }
 
     try {
@@ -36,40 +37,44 @@ export const auth = async (req: Request, res: Response, next: NextFunction) => {
       next();
     } catch (error) {
       if (error instanceof z.ZodError) {
-        logger.error('Token validation failed:', error.errors);
-        return res.status(401).json({ 
+        logger.error('Token validation failed:', error.issues);
+        res.status(401).json({ 
           success: false, 
           message: 'Token inválido',
-          errors: error.errors
+          errors: error.issues
         });
+        return;
       }
       
       if (error instanceof jwt.JsonWebTokenError) {
         logger.error('JWT verification failed:', error.message);
-        return res.status(401).json({ 
+        res.status(401).json({ 
           success: false, 
           message: 'Token inválido ou expirado' 
         });
+        return;
       }
       
       throw error;
     }
   } catch (error) {
-    logger.error('Auth middleware error:', error);
-    return res.status(500).json({ 
+    logger.error('Auth middleware error:', error as any);
+    res.status(500).json({ 
       success: false, 
       message: 'Erro interno do servidor' 
     });
+    return;
   }
 };
 
 // Middleware para verificar permissões de admin
-export const requireAdmin = (req: Request, res: Response, next: NextFunction) => {
+export const requireAdmin = (req: Request, res: Response, next: NextFunction): void => {
   if (req.user?.role !== 'admin') {
-    return res.status(403).json({ 
+    res.status(403).json({ 
       success: false, 
       message: 'Acesso negado. Requer permissões de administrador.' 
     });
+    return;
   }
   next();
 };

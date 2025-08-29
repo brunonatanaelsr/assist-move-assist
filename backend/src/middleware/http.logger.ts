@@ -1,30 +1,15 @@
-import type { Request as ExpressRequest, Response as ExpressResponse, NextFunction } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import { loggerService } from '../services/logger';
 
-interface Request extends ExpressRequest {
-  method: string;
-  originalUrl: string;
-  ip: string;
-  get(name: string): string | undefined;
-}
-
-interface Response extends ExpressResponse {
-  statusCode: number;
-  on(event: string, listener: () => void): this;
-}
-
-type Next = (error?: any) => void;
-
-export function httpLogger(req: Request, res: Response, next: Next) {
+export function httpLogger(req: Request, res: Response, next: NextFunction) {
   const start = Date.now();
 
   // Log ao receber a requisição
-  loggerService.setContext('HTTP');
   loggerService.info(`Incoming ${req.method} request to ${req.originalUrl}`, {
     method: req.method,
     url: req.originalUrl,
     ip: req.ip,
-    userAgent: req.get('user-agent'),
+    userAgent: req.get('user-agent') || undefined,
   });
 
   // Log ao finalizar a requisição
@@ -32,13 +17,13 @@ export function httpLogger(req: Request, res: Response, next: Next) {
     const duration = Date.now() - start;
     const logLevel = res.statusCode >= 400 ? 'error' : 'info';
 
-    loggerService[logLevel](`${req.method} ${req.originalUrl} completed`, {
+    (loggerService as any)[logLevel](`${req.method} ${req.originalUrl} completed`, {
       method: req.method,
       url: req.originalUrl,
       statusCode: res.statusCode,
       duration: `${duration}ms`,
       ip: req.ip,
-      userAgent: req.get('user-agent'),
+      userAgent: req.get('user-agent') || undefined,
     });
 
     // Log de performance se a requisição demorar mais que 1 segundo

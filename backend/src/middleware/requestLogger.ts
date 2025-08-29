@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { Pool } from 'pg';
-import { loggerService } from '../services/logger.service';
+import { loggerService } from '../services/logger';
 
 export const requestLogger = (
   req: Request,

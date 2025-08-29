@@ -1,7 +1,7 @@
 import { Pool } from 'pg';
 import Redis from 'ioredis';
 import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
+import jwt, { SignOptions } from 'jsonwebtoken';
 
 export interface TokenPayload {
   id: number;
@@ -41,7 +41,8 @@ export class AuthService {
   }
 
   generateToken(payload: TokenPayload): string {
-    return jwt.sign(payload, this.JWT_SECRET, { expiresIn: this.JWT_EXPIRY });
+    const options: SignOptions = { expiresIn: this.JWT_EXPIRY as any };
+    return jwt.sign(payload, this.JWT_SECRET, options);
   }
 
   async login(email: string, password: string, ipAddress: string): Promise<AuthResponse> {

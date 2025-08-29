@@ -20,10 +20,11 @@ export const validateRequest = (schema: z.ZodSchema) => {
       return next();
     } catch (error) {
       // Se houver erro de validação, retornar erro 400
+      const zerr = error as z.ZodError;
       return res.status(400).json({
         success: false,
         message: 'Erro de validação',
-        errors: error.errors,
+        errors: zerr.issues,
       });
     }
   };

@@ -79,7 +79,7 @@ export class FeedService {
       `, [
         validatedData.tipo,
         validatedData.titulo,
-        validatedData.conteudo,
+        validatedData.conteudo || '',
         validatedData.autor_id,
         validatedData.autor_nome || 'Usuário',
         validatedData.imagem_url

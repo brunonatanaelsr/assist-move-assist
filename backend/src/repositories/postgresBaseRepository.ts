@@ -1,4 +1,4 @@
-import { Pool, QueryResult } from 'pg';
+import { Pool, PoolClient, QueryResult } from 'pg';
 import { BaseRepository } from './interfaces/baseRepository';
 import { DatabaseError, NotFoundError } from '../utils/errors';
 
@@ -179,7 +179,7 @@ export abstract class PostgresBaseRepository<T> implements BaseRepository<T> {
   }
 
   protected async executeTransaction<R>(
-    callback: (client: Pool) => Promise<R>
+    callback: (client: PoolClient) => Promise<R>
   ): Promise<R> {
     const client = await this.pool.connect();
     try {

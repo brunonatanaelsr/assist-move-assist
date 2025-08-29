@@ -1,11 +1,11 @@
-import jwt from 'jsonwebtoken';
+import jwt, { SignOptions } from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { Request, Response, NextFunction } from 'express';
 import { db } from '../services/db';
 import { loggerService } from '../services/logger';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
+const SIGN_OPTIONS: SignOptions = { expiresIn: (process.env.JWT_EXPIRES_IN || '24h') as any };
 
 export enum PERMISSIONS {
   READ_BENEFICIARIA = 'beneficiarias.ler',
@@ -15,7 +15,7 @@ export enum PERMISSIONS {
 }
 
 export interface JWTPayload {
-  id: string;
+  id: number;
   email: string;
   role: string;
   permissions?: PERMISSIONS[];
@@ -41,7 +41,7 @@ export class AuthService {
 
   // Gerar token JWT
   static generateToken(payload: Omit<JWTPayload, 'iat' | 'exp'>): string {
-    return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+    return jwt.sign(payload, JWT_SECRET, SIGN_OPTIONS);
   }
 
   // Verificar token JWT
@@ -58,12 +58,12 @@ export class AuthService {
         [email]
       );
 
-      if (!users.rows || users.rows.length === 0) {
+      if (!users || users.length === 0) {
         loggerService.audit('LOGIN_FAILED', undefined, { email, reason: 'user_not_found' });
         return null;
       }
 
-      const user = users.rows[0];
+      const user = users[0];
 
       // Verificar senha
       if (!user.senha_hash || !(await this.verifyPassword(password, user.senha_hash))) {
@@ -116,7 +116,7 @@ export class AuthService {
         [userData.email]
       );
 
-      if (existingUsers.rows && existingUsers.rows.length > 0) {
+      if (existingUsers && existingUsers.length > 0) {
         throw new Error('Email já está em uso');
       }
 
@@ -137,7 +137,7 @@ export class AuthService {
         ]
       );
 
-      const user = result.rows[0];
+      const user = result[0];
 
       // Gerar token
       const token = this.generateToken({
@@ -170,7 +170,7 @@ export class AuthService {
       [userId]
     );
 
-    return result.rows[0] || null;
+    return result[0] || null;
   }
 
   // Atualizar perfil
@@ -207,7 +207,7 @@ export class AuthService {
     `;
 
     const result = await db.query(query, values);
-    const updatedUser = result.rows[0];
+    const updatedUser = result[0];
     
     loggerService.audit('PROFILE_UPDATED', userId, updates);
 
@@ -221,11 +221,11 @@ export class AuthService {
       [userId]
     );
 
-    if (!result.rows || result.rows.length === 0) {
+    if (!result || result.length === 0) {
       throw new Error('Usuário não encontrado');
     }
 
-    const user = result.rows[0];
+    const user = result[0];
 
     // Verificar senha atual
     if (!user.password_hash || !(await this.verifyPassword(currentPassword, user.password_hash))) {
@@ -247,7 +247,7 @@ export class AuthService {
 }
 
 // Middleware de autenticação
-export const authenticateToken = (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+export const authenticateToken = (req: Request, res: Response, next: NextFunction) => {
   const authHeader = req.headers['authorization'];
 
   let token: string | undefined;
@@ -258,7 +258,8 @@ export const authenticateToken = (req: AuthenticatedRequest, res: Response, next
     const cookies: string[] = cookieHeader.split(';').map((c: string) => c.trim());
     const authCookie = cookies.find((c: string) => c.startsWith('auth_token='));
     if (authCookie) {
-      token = decodeURIComponent(authCookie.split('=')[1]);
+      const parts = authCookie.split('=');
+      token = decodeURIComponent(String(parts.length > 1 ? parts[1] : ''));
     }
   }
 
@@ -273,17 +274,18 @@ export const authenticateToken = (req: AuthenticatedRequest, res: Response, next
 
   try {
     const decoded = AuthService.verifyToken(token);
-    req.user = decoded;
-    next();
+    (req as any).user = decoded;
+    return next();
   } catch (error) {
-    loggerService.audit('INVALID_TOKEN', undefined, { token: token.substring(0, 20) + '...' });
+    const preview = token ? token.substring(0, 20) + '...' : 'undefined';
+    loggerService.audit('INVALID_TOKEN', undefined, { token: preview });
     return res.status(403).json({ error: 'Token inválido' });
   }
 };
 
 // Middleware para verificar permissões
 export const requirePermissions = (requiredPermissions: PERMISSIONS[]) => {
-  return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  return (req: Request, res: Response, next: NextFunction) => {
     if (!req.user) {
       return res.status(401).json({
         success: false,
@@ -291,7 +293,7 @@ export const requirePermissions = (requiredPermissions: PERMISSIONS[]) => {
       });
     }
 
-    const userPermissions = req.user.permissions || [];
+    const userPermissions = (req.user as any)?.permissions || [];
     const hasPermission = requiredPermissions.every(permission =>
       userPermissions.includes(permission)
     );
@@ -305,28 +307,28 @@ export const requirePermissions = (requiredPermissions: PERMISSIONS[]) => {
       });
     }
 
-    next();
+    return next();
   };
 };
 
 // Middleware de autorização por role
 export const requireRole = (roles: string | string[]) => {
-  return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  return (req: Request, res: Response, next: NextFunction) => {
     if (!req.user) {
       return res.status(401).json({ error: 'Usuário não autenticado' });
     }
 
     const allowedRoles = Array.isArray(roles) ? roles : [roles];
     
-    if (!allowedRoles.includes(req.user.role)) {
-      loggerService.audit('ACCESS_DENIED', req.user.id, { 
+    if (!allowedRoles.includes((req.user as any).role)) {
+      loggerService.audit('ACCESS_DENIED', (req.user as any).id, { 
         required_roles: allowedRoles, 
-        user_role: req.user.role 
+        user_role: (req.user as any).role 
       });
       return res.status(403).json({ error: 'Acesso negado' });
     }
 
-    next();
+    return next();
   };
 };
 
