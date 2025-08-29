@@ -74,6 +74,32 @@ export const api = {
     }
   },
 
+  // Dashboard
+  dashboard: {
+    async getStats(): Promise<any> {
+      try {
+        return await apiFetch<any>(`${API_BASE_URL}/dashboard/stats`, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+        });
+      } catch (error: any) {
+        return { success: false, message: error.message };
+      }
+    },
+
+    async getRecentActivities(limit = 10): Promise<any> {
+      try {
+        const url = `${API_BASE_URL}/dashboard/recent-activities?limit=${limit}`;
+        return await apiFetch<any>(url, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+        });
+      } catch (error: any) {
+        return { success: false, message: error.message };
+      }
+    },
+  },
+
   async getBeneficiarias(): Promise<ApiResponse> {
     try {
       return await apiFetch<ApiResponse>(`${API_BASE_URL}/beneficiarias`, {

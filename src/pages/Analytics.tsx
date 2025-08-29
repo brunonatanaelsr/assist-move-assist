@@ -1,16 +1,49 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { api } from '@/lib/api';
 
 const Analytics = () => {
-  const mockData = [
-    { name: 'Janeiro', beneficiarias: 45, atividades: 120 },
-    { name: 'Fevereiro', beneficiarias: 52, atividades: 135 },
-    { name: 'Março', beneficiarias: 61, atividades: 142 },
-    { name: 'Abril', beneficiarias: 58, atividades: 138 },
-    { name: 'Maio', beneficiarias: 67, atividades: 155 },
-    { name: 'Junho', beneficiarias: 72, atividades: 168 },
-  ];
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    totalBeneficiarias: 0,
+    activeBeneficiarias: 0,
+    totalAnamneses: 0,
+    totalDeclaracoes: 0,
+  });
+  const [chartData, setChartData] = useState<{ name: string; beneficiarias: number }[]>([]);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        setLoading(true);
+        const data = await api.dashboard.getStats();
+
+        if (data) {
+          setStats({
+            totalBeneficiarias: Number(data.totalBeneficiarias || 0),
+            activeBeneficiarias: Number(data.activeBeneficiarias || 0),
+            totalAnamneses: Number(data.totalAnamneses || 0),
+            totalDeclaracoes: Number(data.totalDeclaracoes || 0),
+          });
+
+          const monthly = Array.isArray(data.monthlyRegistrations) ? data.monthlyRegistrations : [];
+          const mapped = monthly.map((item: any) => {
+            const d = new Date(item.month);
+            const name = d.toLocaleDateString('pt-BR', { month: 'short' });
+            return { name, beneficiarias: Number(item.count || 0) };
+          });
+          setChartData(mapped);
+        }
+      } catch (err) {
+        console.error('Falha ao carregar estatísticas', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    load();
+  }, []);
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -24,8 +57,8 @@ const Analytics = () => {
             <CardTitle className="text-sm font-medium">Total Beneficiárias</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">247</div>
-            <p className="text-xs text-muted-foreground">+12% em relação ao mês anterior</p>
+            <div className="text-2xl font-bold">{stats.totalBeneficiarias}</div>
+            <p className="text-xs text-muted-foreground">Contagem total no banco</p>
           </CardContent>
         </Card>
 
@@ -34,28 +67,28 @@ const Analytics = () => {
             <CardTitle className="text-sm font-medium">Atividades Realizadas</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">168</div>
-            <p className="text-xs text-muted-foreground">+8% em relação ao mês anterior</p>
+            <div className="text-2xl font-bold">{stats.totalAnamneses}</div>
+            <p className="text-xs text-muted-foreground">Total de anamneses</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Taxa de Participação</CardTitle>
+            <CardTitle className="text-sm font-medium">Beneficiárias Ativas</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">85%</div>
-            <p className="text-xs text-muted-foreground">+2% em relação ao mês anterior</p>
+            <div className="text-2xl font-bold">{stats.activeBeneficiarias}</div>
+            <p className="text-xs text-muted-foreground">Status 'ativa'</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Projetos Ativos</CardTitle>
+            <CardTitle className="text-sm font-medium">Declarações</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">12</div>
-            <p className="text-xs text-muted-foreground">+1 novo projeto este mês</p>
+            <div className="text-2xl font-bold">{stats.totalDeclaracoes}</div>
+            <p className="text-xs text-muted-foreground">Registros em banco</p>
           </CardContent>
         </Card>
       </div>
@@ -63,19 +96,22 @@ const Analytics = () => {
       <Card>
         <CardHeader>
           <CardTitle>Evolução Mensal</CardTitle>
-          <CardDescription>Beneficiárias e atividades por mês</CardDescription>
+          <CardDescription>Beneficiárias por mês (dados reais)</CardDescription>
         </CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={400}>
-            <BarChart data={mockData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" />
-              <YAxis />
-              <Tooltip />
-              <Bar dataKey="beneficiarias" fill="hsl(var(--primary))" />
-              <Bar dataKey="atividades" fill="hsl(var(--secondary))" />
-            </BarChart>
-          </ResponsiveContainer>
+          {loading ? (
+            <div className="h-[400px] w-full animate-pulse bg-muted rounded" />
+          ) : (
+            <ResponsiveContainer width="100%" height={400}>
+              <BarChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" />
+                <YAxis />
+                <Tooltip />
+                <Bar dataKey="beneficiarias" fill="hsl(var(--primary))" />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
         </CardContent>
       </Card>
     </div>
@@ -83,3 +119,4 @@ const Analytics = () => {
 };
 
 export default Analytics;
+

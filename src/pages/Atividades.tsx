@@ -29,76 +29,51 @@ export default function Atividades() {
   const loadActivities = async () => {
     try {
       setLoading(true);
-      
-      // Get beneficiarias from PostgreSQL API
-      const response = await api.getBeneficiarias();
-      const beneficiarias = response.success ? response.data : [];
-      
-      // Get recent beneficiarias (last 10)
-      const recentBeneficiarias = beneficiarias.slice(-10).reverse();
 
-      const allActivities: Activity[] = [];
+      const data = await api.dashboard.getRecentActivities(20);
+      const source: any[] = Array.isArray(data?.activities) ? data.activities : [];
 
-      // Add recent beneficiarias
-      recentBeneficiarias?.forEach((beneficiaria, index) => {
-        allActivities.push({
-          id: `beneficiaria-${index}-${beneficiaria.created_at || new Date().toISOString()}`,
-          type: "Cadastro",
-          description: `${beneficiaria.nome_completo} foi cadastrada no sistema`,
-          time: formatDateTime(beneficiaria.created_at || new Date().toISOString()),
-          icon: Users,
-          status: "completed"
-        });
+      const mapped: Activity[] = source.map((item, idx) => {
+        const typeRaw = String(item.type || '').toLowerCase();
+        let typeLabel = 'Outros';
+        let icon: any = FileText;
+
+        if (typeRaw.includes('beneficiaria')) {
+          typeLabel = 'Cadastro';
+          icon = Users;
+        } else if (typeRaw.includes('anamnese')) {
+          typeLabel = 'Formulário';
+          icon = FileText;
+        } else if (typeRaw.includes('declaracao') || typeRaw.includes('declaração')) {
+          typeLabel = 'Atendimento';
+          icon = Calendar;
+        }
+
+        const createdAt = item.created_at || item.createdAt || new Date().toISOString();
+        const description = item.description || item.event || 'Atividade registrada';
+
+        return {
+          id: `${typeRaw}-${idx}-${createdAt}`,
+          type: typeLabel,
+          description,
+          time: formatDateTime(createdAt),
+          icon,
+          status: 'completed'
+        } as Activity;
       });
 
-      // Mock recent forms activities
-      recentBeneficiarias.slice(0, 3).forEach((beneficiaria, index) => {
-        allActivities.push({
-          id: `form-${index}-${Date.now()}`,
-          type: "Formulário",
-          description: `Anamnese Social - ${beneficiaria.nome_completo}`,
-          time: formatDateTime(new Date(Date.now() - 1000 * 60 * 60 * (index + 1)).toISOString()),
-          icon: FileText,
-          status: "completed"
-        });
-      });
+      // Ordena por data
+      mapped.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
 
-      // Mock recent declarations
-      recentBeneficiarias.slice(0, 2).forEach((beneficiaria, index) => {
-        allActivities.push({
-          id: `declaration-${index}-${Date.now()}`,
-          type: "Atendimento",
-          description: `Declaração de comparecimento - ${beneficiaria.nome_completo}`,
-          time: formatDateTime(new Date(Date.now() - 1000 * 60 * 60 * (index + 3)).toISOString()),
-          icon: Calendar,
-          status: "completed"
-        });
-      });
+      // Aplica filtro
+      const filtered = filter === 'todas'
+        ? mapped
+        : mapped.filter(a => a.type.toLowerCase() === filter.toLowerCase());
 
-      // Mock recent evolutions
-      recentBeneficiarias.slice(0, 2).forEach((beneficiaria, index) => {
-        allActivities.push({
-          id: `evolution-${index}-${Date.now()}`,
-          type: "Evolução",
-          description: `Ficha de evolução - ${beneficiaria.nome_completo}`,
-          time: formatDateTime(new Date(Date.now() - 1000 * 60 * 60 * (index + 5)).toISOString()),
-          icon: FileText,
-          status: "completed"
-        });
-      });
-
-      // Sort by most recent
-      allActivities.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
-      
-      // Apply filter
-      const filteredActivities = filter === "todas" 
-        ? allActivities 
-        : allActivities.filter(activity => activity.type.toLowerCase() === filter.toLowerCase());
-
-      setActivities(filteredActivities);
-      
+      setActivities(filtered);
     } catch (error) {
       console.error('Erro ao carregar atividades:', error);
+      setActivities([]);
     } finally {
       setLoading(false);
     }
