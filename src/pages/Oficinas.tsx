@@ -1,5 +1,12 @@
 import { useState } from 'react';
-import { useOficinas, useCreateOficina, useUpdateOficina, useDeleteOficina } from '@/hooks/useOficinas';
+import {
+  useOficinas,
+  useCreateOficina,
+  useUpdateOficina,
+  useDeleteOficina,
+  useOficinaParticipantes,
+  useOficinaPresencas
+} from '@/hooks/useOficinas';
 import { OficinaCard } from '@/components/oficinas/OficinaCard';
 import { OficinaModal } from '@/components/oficinas/OficinaModal';
 import { PresencaForm } from '@/components/oficinas/PresencaForm';
@@ -48,6 +55,14 @@ export default function OficinasPage() {
   const updateMutation = useUpdateOficina();
   const deleteMutation = useDeleteOficina();
   const { toast } = useToast();
+
+  const selectedOficinaId = presencaModal.oficina?.id;
+  const presencaData = presencaModal.oficina
+    ? format(new Date(presencaModal.oficina.data_oficina), 'yyyy-MM-dd')
+    : undefined;
+
+  const { data: participantes } = useOficinaParticipantes(selectedOficinaId ?? 0);
+  const { data: presencas } = useOficinaPresencas(selectedOficinaId ?? 0, presencaData);
 
   const oficinas = oficinasList?.data?.filter(oficina =>
     !filters.search ||
@@ -156,8 +171,10 @@ export default function OficinasPage() {
           open={presencaModal.open}
           onOpenChange={open => setPresencaModal({ open })}
           oficina={presencaModal.oficina}
-          beneficiarias={[]} // TODO: Passar lista de beneficiárias
-          presencas={[]} // TODO: Passar lista de presenças
+          beneficiarias={
+            participantes?.map(p => ({ id: p.id, nome: p.nome_completo })) || []
+          }
+          presencas={presencas || []}
         />
       )}
     </div>
