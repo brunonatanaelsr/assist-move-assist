@@ -24,7 +24,7 @@ interface Oficina {
   horario_inicio: string; // HH:mm
   horario_fim: string; // HH:mm
   local?: string | null;
-  vagas_totais: number;
+  vagas_total: number;
   vagas_ocupadas?: number;
   status: 'ativa' | 'inativa' | 'pausada' | 'concluida';
   ativo: boolean;
@@ -70,7 +70,7 @@ export default function OficinasNew() {
     horario_inicio: '',
     horario_fim: '',
     local: '',
-    vagas_totais: 20,
+    vagas_total: 20,
     status: 'ativa' as 'ativa' | 'inativa' | 'pausada' | 'concluida',
     projeto_id: '',
     dias_semana: ''
@@ -128,7 +128,7 @@ export default function OficinasNew() {
       return;
     }
 
-    const vagasTotais = parseInt(formData.vagas_totais.toString());
+    const vagasTotais = parseInt(formData.vagas_total.toString());
     if (isNaN(vagasTotais) || vagasTotais <= 0) {
       setError('O número de vagas deve ser maior que zero');
       return;
@@ -158,7 +158,7 @@ export default function OficinasNew() {
         horario_inicio: formData.horario_inicio,
         horario_fim: formData.horario_fim,
         local: formData.local?.trim() || null,
-        vagas_totais: vagasTotais,
+        vagas_total: vagasTotais,
         projeto_id: (formData.projeto_id && formData.projeto_id !== 'none') ? parseInt(formData.projeto_id) : null,
         status: formData.status || 'ativa',
         dias_semana: formData.dias_semana?.trim() || null
@@ -205,7 +205,7 @@ export default function OficinasNew() {
       horario_inicio: oficina.horario_inicio,
       horario_fim: oficina.horario_fim,
       local: oficina.local || '',
-      vagas_totais: oficina.vagas_totais,
+      vagas_total: oficina.vagas_total,
       status: oficina.status || 'ativa',
       projeto_id: oficina.projeto_id?.toString() || 'none',
       dias_semana: oficina.dias_semana || ''
@@ -246,7 +246,7 @@ export default function OficinasNew() {
       horario_inicio: '',
       horario_fim: '',
       local: '',
-      vagas_totais: 20,
+      vagas_total: 20,
       status: 'ativa',
       projeto_id: 'none',
       dias_semana: ''
@@ -255,23 +255,23 @@ export default function OficinasNew() {
     setError(null);
   };
 
-  const getStatusColor = (status: string, vagas_totais: number, vagas_ocupadas: number = 0) => {
+  const getStatusColor = (status: string, vagas_total: number, vagas_ocupadas: number = 0) => {
     if (status === 'inativa' || status === 'pausada') return 'bg-red-100 text-red-800';
     if (status === 'concluida') return 'bg-primary/10 text-primary';
-    if (vagas_ocupadas >= vagas_totais) return 'bg-orange-100 text-orange-800';
+    if (vagas_ocupadas >= vagas_total) return 'bg-orange-100 text-orange-800';
     return 'bg-green-100 text-green-800';
   };
 
-  const getStatusText = (status: string, vagas_totais: number, vagas_ocupadas: number = 0) => {
+  const getStatusText = (status: string, vagas_total: number, vagas_ocupadas: number = 0) => {
     if (status === 'inativa') return 'Inativa';
     if (status === 'pausada') return 'Pausada';
     if (status === 'concluida') return 'Concluída';
-    if (status === 'ativa' && vagas_ocupadas >= vagas_totais) return 'Lotada';
+    if (status === 'ativa' && vagas_ocupadas >= vagas_total) return 'Lotada';
     return 'Ativa';
   };
 
-  const getVagasDisponiveis = (vagas_totais: number, vagas_ocupadas: number = 0) => {
-    return Math.max(0, vagas_totais - vagas_ocupadas);
+  const getVagasDisponiveis = (vagas_total: number, vagas_ocupadas: number = 0) => {
+    return Math.max(0, vagas_total - vagas_ocupadas);
   };
 
   return (
@@ -422,13 +422,13 @@ export default function OficinasNew() {
                   </div>
 
                   <div>
-                    <Label htmlFor="vagas_totais">Vagas Totais *</Label>
+                  <Label htmlFor="vagas_total">Vagas Totais *</Label>
                     <Input
-                      id="vagas_totais"
+                      id="vagas_total"
                       type="number"
                       min="1"
-                      value={formData.vagas_totais}
-                      onChange={(e) => setFormData({ ...formData, vagas_totais: parseInt(e.target.value) })}
+                      value={formData.vagas_total}
+                      onChange={(e) => setFormData({ ...formData, vagas_total: parseInt(e.target.value) })}
                       required
                     />
                   </div>
@@ -549,13 +549,13 @@ export default function OficinasNew() {
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <Badge className={getStatusColor(oficina.status, oficina.vagas_totais, oficina.vagas_ocupadas || 0)}>
-                    {getStatusText(oficina.status, oficina.vagas_totais, oficina.vagas_ocupadas || 0)}
+                  <Badge className={getStatusColor(oficina.status, oficina.vagas_total, oficina.vagas_ocupadas || 0)}>
+                    {getStatusText(oficina.status, oficina.vagas_total, oficina.vagas_ocupadas || 0)}
                   </Badge>
                   <div className="flex items-center gap-1 text-sm text-muted-foreground">
                     <Users className="h-4 w-4" />
                     <span>
-                      {oficina.vagas_ocupadas || 0}/{oficina.vagas_totais} vagas
+                      {oficina.vagas_ocupadas || 0}/{oficina.vagas_total} vagas
                     </span>
                   </div>
                 </div>
@@ -604,18 +604,18 @@ export default function OficinasNew() {
                 <div className="space-y-1">
                   <div className="flex justify-between text-xs text-muted-foreground">
                     <span>Ocupação</span>
-                    <span>{Math.round(((oficina.vagas_ocupadas || 0) / oficina.vagas_totais) * 100)}%</span>
+                    <span>{Math.round(((oficina.vagas_ocupadas || 0) / oficina.vagas_total) * 100)}%</span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
                     <div 
                       className="bg-primary h-2 rounded-full transition-all" 
                       style={{ 
-                        width: `${Math.min(((oficina.vagas_ocupadas || 0) / oficina.vagas_totais) * 100, 100)}%` 
+                        width: `${Math.min(((oficina.vagas_ocupadas || 0) / oficina.vagas_total) * 100, 100)}%` 
                       }}
                     ></div>
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    {getVagasDisponiveis(oficina.vagas_totais, oficina.vagas_ocupadas)} vagas disponíveis
+                    {getVagasDisponiveis(oficina.vagas_total, oficina.vagas_ocupadas)} vagas disponíveis
                   </div>
                 </div>
               </CardContent>

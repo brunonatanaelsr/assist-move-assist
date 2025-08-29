@@ -72,9 +72,8 @@ router.get('/recent-activities', authenticateToken, async (req: express.Request,
           b.id,
           b.nome_completo,
           b.created_at,
-          p.nome_completo as created_by_name
+          NULL::text as created_by_name
         FROM beneficiarias b
-        LEFT JOIN profiles p ON b.created_by = p.id
         ORDER BY b.created_at DESC
         LIMIT $1
       `, [Number(limit)]);
@@ -86,10 +85,10 @@ router.get('/recent-activities', authenticateToken, async (req: express.Request,
           a.id,
           b.nome_completo as beneficiaria_nome,
           a.created_at,
-          p.nome_completo as created_by_name
+          u.nome as created_by_name
         FROM anamneses_social a
         LEFT JOIN beneficiarias b ON a.beneficiaria_id = b.id
-        LEFT JOIN profiles p ON a.created_by = p.id
+        LEFT JOIN usuarios u ON a.created_by = u.id
         ORDER BY a.created_at DESC
         LIMIT $1
       `, [Number(limit)]);

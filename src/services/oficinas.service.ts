@@ -10,7 +10,7 @@ export interface Oficina {
   horario_inicio: string;
   horario_fim: string;
   local?: string | null;
-  vagas_totais: number;
+  vagas_total: number;
   vagas_ocupadas?: number;
   status: 'ativa' | 'inativa' | 'pausada' | 'concluida';
   ativo: boolean;
@@ -33,7 +33,7 @@ export interface CreateOficinaDTO {
   horario_inicio: string;
   horario_fim: string;
   local?: string;
-  vagas_totais: number;
+  vagas_total: number;
   status?: 'ativa' | 'inativa' | 'pausada' | 'concluida';
   projeto_id?: number;
   dias_semana?: string;
@@ -88,7 +88,7 @@ export const oficinasService = {
 
   // Atualizar oficina existente
   atualizar: async (id: number, data: UpdateOficinaDTO) => {
-    const response = await api.patch(`/oficinas/${id}`, data);
+    const response = await api.put(`/oficinas/${id}`, data);
     return response.data;
   },
 

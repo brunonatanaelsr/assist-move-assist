@@ -63,9 +63,9 @@ router.get('/oficinas', authenticateToken, requireGestor, async (req, res) => {
         COUNT(CASE WHEN o.status = 'em_andamento' THEN 1 END) as em_andamento,
         COUNT(CASE WHEN o.status = 'planejada' THEN 1 END) as planejadas,
         COUNT(CASE WHEN o.status = 'cancelada' THEN 1 END) as canceladas,
-        AVG(o.vagas_totais) as media_vagas,
-        SUM(o.vagas_preenchidas) as total_participantes,
-        ROUND(AVG(o.vagas_preenchidas::float / o.vagas_totais * 100), 2) as taxa_ocupacao
+        AVG(o.vagas_total) as media_vagas,
+        0 as total_participantes,
+        0 as taxa_ocupacao
       FROM oficinas o
       ${whereClause}
     `, params);

@@ -1,4 +1,4 @@
-est{
+{
   "nome": "Teste Formulário Oficina",
   "descricao": "Testando se o formulário está funcionando",
   "instrutor": "Instrutor Teste",
@@ -7,7 +7,7 @@ est{
   "horario_inicio": "14:00",
   "horario_fim": "16:00",
   "local": "Sala de Teste",
-  "vagas_totais": 15,
+  "vagas_total": 15,
   "status": "ativa",
   "projeto_id": 7
 }

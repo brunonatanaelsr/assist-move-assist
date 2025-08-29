@@ -71,6 +71,70 @@ router.get(
   }
 );
 
+// GET /:id/resumo - Resumo consolidado da beneficiária
+router.get(
+  '/:id/resumo',
+  authenticateToken,
+  async (req: ExtendedRequest, res: Response): Promise<void> => {
+    try {
+      const { id } = req.params as any;
+
+      const info = await pool.query(
+        'SELECT id, nome_completo, status, created_at, updated_at FROM beneficiarias WHERE id = $1 AND deleted_at IS NULL',
+        [id]
+      );
+      if (info.rowCount === 0) {
+        throw new AppError('Beneficiária não encontrada', 404);
+      }
+
+      const [anamnese, ficha, termos, visao, genericos, atend, parts] = await Promise.all([
+        pool.query('SELECT COUNT(*)::int AS c FROM anamnese_social WHERE beneficiaria_id = $1', [id]),
+        pool.query('SELECT COUNT(*)::int AS c FROM ficha_evolucao WHERE beneficiaria_id = $1', [id]),
+        pool.query('SELECT COUNT(*)::int AS c FROM termos_consentimento WHERE beneficiaria_id = $1', [id]),
+        pool.query('SELECT COUNT(*)::int AS c FROM visao_holistica WHERE beneficiaria_id = $1', [id]),
+        pool.query('SELECT COUNT(*)::int AS c FROM formularios WHERE beneficiaria_id = $1', [id]),
+        pool.query('SELECT COUNT(*)::int AS c, MAX(data_atendimento) AS ultimo FROM historico_atendimentos WHERE beneficiaria_id = $1', [id]),
+        pool.query('SELECT COUNT(*)::int AS c FROM participacoes WHERE beneficiaria_id = $1 AND ativo = true', [id])
+      ]);
+
+      const resumo = {
+        beneficiaria: info.rows[0],
+        formularios: {
+          total:
+            anamnese.rows[0].c +
+            ficha.rows[0].c +
+            termos.rows[0].c +
+            visao.rows[0].c +
+            genericos.rows[0].c,
+          anamnese: anamnese.rows[0].c,
+          ficha_evolucao: ficha.rows[0].c,
+          termos: termos.rows[0].c,
+          visao_holistica: visao.rows[0].c,
+          genericos: genericos.rows[0].c
+        },
+        atendimentos: {
+          total: atend.rows[0].c,
+          ultimo_atendimento: atend.rows[0].ultimo
+        },
+        participacoes: {
+          total_ativas: parts.rows[0].c
+        }
+      };
+
+      res.json(successResponse(resumo));
+      return;
+    } catch (error) {
+      if (error instanceof AppError) {
+        res.status(error.statusCode).json(errorResponse(error.message));
+        return;
+      }
+      loggerService.error('Resumo beneficiaria error:', error);
+      res.status(500).json(errorResponse('Erro ao obter resumo da beneficiária'));
+      return;
+    }
+  }
+);
+
 // POST / - Criar nova beneficiária
 router.post(
   '/',
