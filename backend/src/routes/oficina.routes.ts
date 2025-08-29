@@ -6,6 +6,8 @@ import { successResponse, errorResponse } from '../utils/responseFormatter';
 import { oficinaFilterSchema, createOficinaSchema, updateOficinaSchema } from '../validators/oficina.validator';
 import { pool } from '../config/database';
 import { OficinaRepository } from '../repositories/OficinaRepository';
+import PDFDocument = require('pdfkit');
+import ExcelJS = require('exceljs');
 
 const router = express.Router();
 
@@ -394,6 +396,159 @@ router.post('/verificar-conflito', authenticateToken, async (req, res): Promise<
   } catch (error: any) {
     console.error('Verificar conflito error:', error);
     res.status(500).json(errorResponse('Erro ao verificar conflito'));
+    return;
+  }
+});
+
+// Horários disponíveis para uma data específica (intervalos de 30 min)
+router.get('/horarios-disponiveis', authenticateToken, async (req, res): Promise<void> => {
+  try {
+    const data = String(req.query.data || '');
+    if (!data || !/^\d{4}-\d{2}-\d{2}$/.test(data)) {
+      res.status(400).json(errorResponse('Parâmetro "data" (YYYY-MM-DD) é obrigatório'));
+      return;
+    }
+
+    // Buscar janelas ocupadas neste dia
+    const ocupadas = await pool.query(
+      `SELECT id, nome, horario_inicio, horario_fim, data_inicio, data_fim, dias_semana
+       FROM oficinas o
+       WHERE o.ativo = true
+         AND o.data_inicio <= $1
+         AND (o.data_fim IS NULL OR o.data_fim >= $1)`,
+      [data]
+    );
+
+    // Geração de slots de 30min entre 08:00 e 20:00
+    const startMinutes = 8 * 60; // 08:00
+    const endMinutes = 20 * 60; // 20:00
+    const step = 30; // 30 minutos
+
+    const toHM = (total: number) => {
+      const h = Math.floor(total / 60);
+      const m = total % 60;
+      return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+    };
+
+    const busyRanges = ocupadas.rows.map((r: any) => ({
+      inicio: parseInt(String(r.horario_inicio).split(':')[0], 10) * 60 + parseInt(String(r.horario_inicio).split(':')[1], 10),
+      fim: parseInt(String(r.horario_fim).split(':')[0], 10) * 60 + parseInt(String(r.horario_fim).split(':')[1], 10),
+      nome: r.nome
+    })).filter(r => !isNaN(r.inicio) && !isNaN(r.fim));
+
+    const disponiveis: string[] = [];
+    for (let t = startMinutes; t + step <= endMinutes; t += step) {
+      const slotInicio = t;
+      const slotFim = t + step;
+      const overlap = busyRanges.some((b) => !(slotFim <= b.inicio || slotInicio >= b.fim));
+      if (!overlap) {
+        disponiveis.push(`${toHM(slotInicio)}-${toHM(slotFim)}`);
+      }
+    }
+
+    res.json(successResponse({ date: data, disponiveis, ocupados: ocupadas.rows }));
+    return;
+  } catch (error: any) {
+    console.error('Horários disponíveis error:', error);
+    res.status(500).json(errorResponse('Erro ao calcular horários disponíveis'));
+    return;
+  }
+});
+
+// Relatório de presenças (PDF/Excel)
+router.get('/:id/relatorio-presencas', authenticateToken, async (req, res): Promise<void> => {
+  try {
+    const id = parseInt(String(req.params.id));
+    const formato = String(req.query.formato || 'pdf').toLowerCase();
+
+    const oficina = await pool.query(
+      `SELECT id, nome, instrutor, data_inicio, data_fim, horario_inicio, horario_fim, local, projeto_id
+       FROM oficinas WHERE id = $1`,
+      [id]
+    );
+    if (oficina.rowCount === 0) {
+      res.status(404).json(errorResponse('Oficina não encontrada'));
+      return;
+    }
+    const of = oficina.rows[0];
+
+    // Participantes: por projeto da oficina
+    const participantes = await pool.query(
+      `SELECT b.id, b.nome_completo
+       FROM participacoes p
+       JOIN beneficiarias b ON b.id = p.beneficiaria_id
+       WHERE p.projeto_id = $1 AND p.ativo = true
+       ORDER BY b.nome_completo`,
+      [of.projeto_id]
+    );
+
+    // Presenças
+    const presencas = await pool.query(
+      `SELECT beneficiaria_id, presente, data_registro
+       FROM oficina_presencas WHERE oficina_id = $1
+       ORDER BY data_registro ASC`,
+      [id]
+    );
+
+    // Agregar presenças por beneficiária
+    const map = new Map<number, { nome: string; presentes: number; faltas: number; total: number }>();
+    for (const p of participantes.rows) {
+      map.set(p.id, { nome: p.nome_completo, presentes: 0, faltas: 0, total: 0 });
+    }
+    for (const r of presencas.rows) {
+      if (!map.has(r.beneficiaria_id)) continue;
+      const entry = map.get(r.beneficiaria_id)!;
+      entry.total += 1;
+      if (r.presente) entry.presentes += 1; else entry.faltas += 1;
+    }
+    const linhas = Array.from(map.entries()).map(([idb, v]) => ({ id: idb, ...v }));
+
+    if (formato === 'xlsx' || formato === 'excel') {
+      const workbook = new ExcelJS.Workbook();
+      const sheet = workbook.addWorksheet('Presenças');
+      sheet.columns = [
+        { header: 'Beneficiária', key: 'nome', width: 40 },
+        { header: 'Presentes', key: 'presentes', width: 12 },
+        { header: 'Faltas', key: 'faltas', width: 10 },
+        { header: 'Total Registros', key: 'total', width: 16 }
+      ];
+      sheet.addRow(['Oficina', of.nome, 'Instrutor', of.instrutor || '' ]);
+      sheet.addRow(['Data', String(of.data_inicio || ''), 'Horário', `${of.horario_inicio || ''}-${of.horario_fim || ''}` ]);
+      sheet.addRow([]);
+      linhas.forEach(l => sheet.addRow({ nome: l.nome, presentes: l.presentes, faltas: l.faltas, total: l.total }));
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', `attachment; filename="relatorio_presencas_oficina_${of.nome}.xlsx"`);
+      await workbook.xlsx.write(res);
+      res.end();
+      return;
+    }
+
+    // PDF default
+    const doc = new (PDFDocument as any)({ size: 'A4', margin: 50 });
+    const chunks: Buffer[] = [];
+    doc.on('data', (c: Buffer) => chunks.push(c));
+    doc.on('end', () => {
+      const pdf = Buffer.concat(chunks);
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="relatorio_presencas_oficina_${of.nome}.pdf"`);
+      res.send(pdf);
+    });
+
+    doc.fontSize(18).text(`Relatório de Presenças - ${of.nome}`, { underline: true });
+    doc.moveDown();
+    doc.fontSize(12).text(`Instrutor: ${of.instrutor || 'N/A'}`);
+    doc.text(`Data: ${String(of.data_inicio || '')}`);
+    doc.text(`Horário: ${of.horario_inicio || ''} - ${of.horario_fim || ''}`);
+    doc.moveDown();
+    doc.text('Participantes:');
+    doc.moveDown(0.5);
+    linhas.forEach((l, idx) => {
+      doc.text(`${idx + 1}. ${l.nome} - Presentes: ${l.presentes} | Faltas: ${l.faltas} | Total: ${l.total}`);
+    });
+    doc.end();
+  } catch (error: any) {
+    console.error('Relatório presenças error:', error);
+    res.status(500).json(errorResponse('Erro ao gerar relatório de presenças'));
     return;
   }
 });
