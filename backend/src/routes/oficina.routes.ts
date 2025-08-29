@@ -1,29 +1,14 @@
 import express from 'express';
-import { Pool } from 'pg';
 import Redis from 'ioredis';
 import { OficinaService } from '../services/oficina.service';
 import { authenticateToken, requireGestor } from '../middleware/auth';
 import { successResponse, errorResponse } from '../utils/responseFormatter';
 import { oficinaFilterSchema, createOficinaSchema, updateOficinaSchema } from '../validators/oficina.validator';
+import { pool } from '../config/database';
 
 const router = express.Router();
 
-// Inicialização do pool e redis
-const pool = new Pool({
-  host: process.env.POSTGRES_HOST || 'localhost',
-  port: parseInt(process.env.POSTGRES_PORT || '5432'),
-  database: process.env.POSTGRES_DB || 'movemarias',
-  user: process.env.POSTGRES_USER || 'postgres',
-  password: process.env.POSTGRES_PASSWORD || '15002031',
-  max: 20,
-  min: 2,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 5000,
-  ssl: process.env.NODE_ENV === 'production' ? { 
-    rejectUnauthorized: false 
-  } : false,
-});
-
+// Inicialização do Redis
 const redis = new Redis({
   host: process.env.REDIS_HOST || 'localhost',
   port: parseInt(process.env.REDIS_PORT || '6379'),
