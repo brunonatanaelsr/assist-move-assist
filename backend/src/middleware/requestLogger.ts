@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { Pool } from 'pg';
+import { loggerService } from '../services/logger.service';
 
 export const requestLogger = (
   req: Request,
@@ -14,7 +15,7 @@ export const requestLogger = (
     const duration = Date.now() - start;
     const { statusCode } = res;
 
-    console.log({
+    loggerService.info('Request log', {
       timestamp: new Date().toISOString(),
       method,
       path,
@@ -35,7 +36,7 @@ export const requestLogger = (
         ) VALUES ($1, $2, $3, $4, $5, $6, NOW())`,
         [method, path, statusCode, duration, ip, headers['user-agent']]
       ).catch(err => {
-        console.error('Error saving request log:', err);
+        loggerService.error('Error saving request log', { error: err });
       });
     }
   });
