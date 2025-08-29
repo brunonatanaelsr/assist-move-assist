@@ -1,5 +1,5 @@
 import express from 'express';
-import type { Request, Response } from 'express';
+import type { Response } from 'express';
 import { authenticateToken, AuthenticatedRequest } from '../middleware/auth';
 import { loggerService } from '../services/logger';
 import { authService } from '../services';
@@ -11,6 +11,8 @@ interface RequestWithBody<T = any> {
     remoteAddress?: string;
   };
 }
+
+type AuthRequestWithBody<T> = AuthenticatedRequest & { body: T };
 
 interface LoginRequestBody {
   email: string;
