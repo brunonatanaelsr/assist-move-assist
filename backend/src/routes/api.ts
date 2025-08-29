@@ -45,7 +45,7 @@ import mensagensRoutes from './mensagens.routes';
 import oficinasRoutes from './oficina.routes';
 
 // Rotas de participações
-// import participacoesRoutes from './participacao.routes';
+import participacoesRoutes from './participacao.routes';
 
 // Rotas de projetos
 import projetosRoutes from './projeto.routes';
@@ -114,7 +114,7 @@ router.use('/auth', authRoutes);
 router.use('/beneficiarias', beneficiariasRoutes);
 router.use('/projetos', projetosRoutes);
 router.use('/oficinas', oficinasRoutes);
-// router.use('/participacoes', participacoesRoutes);
+router.use('/participacoes', participacoesRoutes);
 
 // 4. Rotas de conteúdo e comunicação
 router.use('/feed', feedRoutes);

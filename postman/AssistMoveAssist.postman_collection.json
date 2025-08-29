@@ -1,0 +1,106 @@
+{
+  "info": {
+    "name": "Assist Move Assist API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "assist-move-assist-collection"
+  },
+  "item": [
+    {
+      "name": "Health",
+      "request": {"method": "GET", "url": "{{baseUrl}}/health"}
+    },
+    {
+      "name": "Auth Login",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+              "// Capturar cookie auth_token para próximas requisições",
+              "const cookies = pm.response.headers.get('Set-Cookie') || '';",
+              "const c = cookies.split(',').find(x => x.includes('auth_token='));",
+              "if (c) { pm.environment.set('auth_cookie', c.split(';')[0]); }"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{"key": "Content-Type", "value": "application/json"}],
+        "body": {"mode": "raw", "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}"},
+        "url": "{{baseUrl}}/api/auth/login"
+      }
+    },
+    {
+      "name": "Listar Beneficiárias",
+      "request": {
+        "method": "GET",
+        "header": [{"key": "Cookie", "value": "{{auth_cookie}}"}],
+        "url": "{{baseUrl}}/api/beneficiarias"
+      }
+    },
+    {
+      "name": "Criar Beneficiária",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"},
+          {"key": "Cookie", "value": "{{auth_cookie}}"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"nome_completo\": \"Postman Teste\",\n  \"cpf\": \"111.222.333-44\",\n  \"data_nascimento\": \"1990-01-01\",\n  \"endereco\": \"Rua X, 123\",\n  \"telefone\": \"(11) 99999-0000\",\n  \"email\": \"postman@example.com\",\n  \"status\": \"ativa\"\n}"
+        },
+        "url": "{{baseUrl}}/api/beneficiarias"
+      }
+    },
+    {
+      "name": "Formulários - Anamnese (POST)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"},
+          {"key": "Cookie", "value": "{{auth_cookie}}"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"beneficiaria_id\": {{beneficiariaId}},\n  \"dados\": { \"origem\": \"postman\" }\n}"
+        },
+        "url": "{{baseUrl}}/api/formularios/anamnese"
+      }
+    },
+    {
+      "name": "Formulários - Ficha Evolução (POST)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"},
+          {"key": "Cookie", "value": "{{auth_cookie}}"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"beneficiaria_id\": {{beneficiariaId}},\n  \"dados\": { \"etapa\": 1 }\n}"
+        },
+        "url": "{{baseUrl}}/api/formularios/ficha-evolucao"
+      }
+    },
+    {
+      "name": "Formulários - Visão Holística (POST)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"},
+          {"key": "Cookie", "value": "{{auth_cookie}}"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"beneficiaria_id\": {{beneficiariaId}},\n  \"data_avaliacao\": \"2025-08-29\"\n}"
+        },
+        "url": "{{baseUrl}}/api/formularios/visao-holistica"
+      }
+    }
+  ]
+}
+

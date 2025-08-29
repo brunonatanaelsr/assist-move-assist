@@ -49,9 +49,9 @@ export const listarParticipacoes = async (req: CustomRequest & Request, res: Cus
       beneficiaria_id: beneficiaria_id ? Number(beneficiaria_id) : undefined,
       projeto_id: projeto_id ? Number(projeto_id) : undefined,
       oficina_id: oficina_id ? Number(oficina_id) : undefined,
-      status: status?.toString(),
-      data_inicio: data_inicio?.toString(),
-      data_fim: data_fim?.toString(),
+      status: status ? (status as any) : undefined,
+      data_inicio: data_inicio ? new Date(data_inicio) : undefined,
+      data_fim: data_fim ? new Date(data_fim) : undefined,
       search: search?.toString()
     };
 

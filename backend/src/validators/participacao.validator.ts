@@ -61,7 +61,7 @@ export const updateParticipacaoSchema = participacaoSchema
 
 // Schema para filtros de listagem
 export const participacaoFilterSchema = z.object({
-  beneficiaria_id: z.string().optional(),
+  beneficiaria_id: z.coerce.number().optional(),
   projeto_id: z.coerce.number().optional(),
   oficina_id: z.coerce.number().optional(),
   status: participacaoSchema.shape.status.optional(),

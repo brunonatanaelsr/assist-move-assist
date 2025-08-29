@@ -9,6 +9,7 @@
     "start": "node dist/app.js",
     "migrate": "bash scripts/migrate.sh",
     "migrate:node": "node scripts/migrate-node.js",
+    "smoke": "node scripts/smoke-tests.js",
     "seed": "node scripts/create-initial-data.js",
     "test": "jest",
     "test:watch": "jest --watch",

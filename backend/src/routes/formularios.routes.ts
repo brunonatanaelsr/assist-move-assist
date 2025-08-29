@@ -175,6 +175,54 @@ router.post('/visao-holistica', authenticateToken, async (req: AuthenticatedRequ
   }
 });
 
+// RODA DA VIDA (genérico via tabela formularios)
+router.post('/roda-vida', authenticateToken, async (req: AuthenticatedRequest, res): Promise<void> => {
+  try {
+    const { beneficiaria_id, dados } = req.body || {};
+    const createdBy = Number(req.user!.id);
+    const result = await pool.query(
+      `INSERT INTO formularios (tipo, beneficiaria_id, dados, status, usuario_id)
+       VALUES ('roda_vida', $1, $2::jsonb, 'completo', $3) RETURNING *`,
+      [beneficiaria_id, JSON.stringify(dados || {}), createdBy]
+    );
+    res.status(201).json(successResponse(result.rows[0]));
+    return;
+  } catch (error) {
+    res.status(500).json(errorResponse('Erro ao criar Roda da Vida'));
+    return;
+  }
+});
+
+router.get('/roda-vida/:id', authenticateToken, async (req, res): Promise<void> => {
+  try {
+    const { id } = req.params as any;
+    const result = await pool.query('SELECT * FROM formularios WHERE id = $1 AND tipo = $2', [id, 'roda_vida']);
+    if (result.rowCount === 0) { res.status(404).json(errorResponse('Roda da Vida não encontrada')); return; }
+    res.json(successResponse(result.rows[0]));
+    return;
+  } catch (error) {
+    res.status(500).json(errorResponse('Erro ao obter Roda da Vida'));
+    return;
+  }
+});
+
+router.put('/roda-vida/:id', authenticateToken, async (req, res): Promise<void> => {
+  try {
+    const { id } = req.params as any;
+    const { dados } = req.body || {};
+    const result = await pool.query(
+      'UPDATE formularios SET dados = COALESCE($2::jsonb, dados), updated_at = NOW() WHERE id = $1 AND tipo = $3 RETURNING *',
+      [id, JSON.stringify(dados || null), 'roda_vida']
+    );
+    if (result.rowCount === 0) { res.status(404).json(errorResponse('Roda da Vida não encontrada')); return; }
+    res.json(successResponse(result.rows[0]));
+    return;
+  } catch (error) {
+    res.status(500).json(errorResponse('Erro ao atualizar Roda da Vida'));
+    return;
+  }
+});
+
 router.get('/visao-holistica/:id', authenticateToken, async (req, res): Promise<void> => {
   try {
     const { id } = req.params as any;
