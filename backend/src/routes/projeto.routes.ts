@@ -16,7 +16,7 @@ router.get('/', async (req, res): Promise<void> => {
   try {
     const filters = projetoFilterSchema.parse(req.query);
     const result = await projetoService.listarProjetos(filters);
-    res.json(successResponse({ items: result.data, pagination: result.pagination }, 'Projetos carregados com sucesso'));
+    res.json(successResponse(result.data, 'Projetos carregados com sucesso'));
     return;
   } catch (error: any) {
     if (error.name === 'ZodError') { res.status(400).json(errorResponse('Parâmetros inválidos')); return; }

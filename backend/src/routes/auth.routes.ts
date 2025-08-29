@@ -78,6 +78,7 @@ router.post('/login', async (req: RequestWithBody<LoginRequestBody>, res: Respon
 
     res.json({
       message: 'Login realizado com sucesso',
+      token: result.token,
       user: result.user
     });
     return;
@@ -315,3 +316,16 @@ router.post('/logout', async (req: express.Request, res: express.Response) => {
 });
 
 export default router;
+// GET /auth/me - alias para profile
+router.get('/me', authenticateToken, async (req: express.Request, res: express.Response): Promise<void> => {
+  try {
+    const profile = await authService.getProfile(Number((req as any).user!.id));
+    if (!profile) { res.status(404).json({ error: 'Perfil não encontrado' }); return; }
+    res.json({ user: profile });
+    return;
+  } catch (error) {
+    loggerService.error('Erro ao buscar /auth/me:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+    return;
+  }
+});

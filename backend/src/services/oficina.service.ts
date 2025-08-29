@@ -136,7 +136,8 @@ export class OficinaService {
 
       const result = await this.pool.query(query, [...params, limit, offset]);
 
-      const oficinas = formatArrayDates(result.rows, ['data_inicio', 'data_fim', 'data_criacao', 'data_atualizacao']);
+      const oficinasRaw = formatArrayDates(result.rows, ['data_inicio', 'data_fim', 'data_criacao', 'data_atualizacao']) as any[];
+      const oficinas = oficinasRaw.map((o: any) => ({ ...o, vagas_totais: o.vagas_total }));
       const total = result.rows.length > 0 ? parseInt(result.rows[0].total_count) : 0;
 
       const response = {
@@ -186,7 +187,8 @@ export class OficinaService {
         throw new Error('Oficina não encontrada');
       }
 
-      const oficina = formatObjectDates(result.rows[0], ['data_inicio', 'data_fim', 'data_criacao', 'data_atualizacao']);
+      const oficinaObj = formatObjectDates(result.rows[0], ['data_inicio', 'data_fim', 'data_criacao', 'data_atualizacao']) as any;
+      const oficina = { ...oficinaObj, vagas_totais: oficinaObj.vagas_total };
 
       // Armazenar no cache
       await this.setCacheKey(`detail:${id}`, oficina);
@@ -198,10 +200,15 @@ export class OficinaService {
     }
   }
 
-  async criarOficina(data: CreateOficinaDTO, userId: string): Promise<Oficina> {
+  async criarOficina(data: CreateOficinaDTO | any, userId: string): Promise<Oficina> {
     try {
+      // Normalizar campos do frontend (vagas_totais -> vagas_total)
+      const normalizedInput: any = { ...data, responsavel_id: userId };
+      if (normalizedInput.vagas_total === undefined && normalizedInput.vagas_totais !== undefined) {
+        normalizedInput.vagas_total = Number(normalizedInput.vagas_totais);
+      }
       // Validar dados
-      const validatedData = createOficinaSchema.parse({ ...data, responsavel_id: userId });
+      const validatedData = createOficinaSchema.parse(normalizedInput);
 
       // Verificar se o projeto existe (se fornecido)
       if (validatedData.projeto_id) {
@@ -238,7 +245,8 @@ export class OficinaService {
         validatedData.status || 'ativa'
       ]);
 
-      const oficina = formatObjectDates(result.rows[0], ['data_inicio', 'data_fim', 'data_criacao', 'data_atualizacao']);
+      const oficinaObj = formatObjectDates(result.rows[0], ['data_inicio', 'data_fim', 'data_criacao', 'data_atualizacao']) as any;
+      const oficina = { ...oficinaObj, vagas_totais: oficinaObj.vagas_total };
 
       // Invalidar cache
       await this.invalidateCache(['list:*']);
@@ -250,10 +258,16 @@ export class OficinaService {
     }
   }
 
-  async atualizarOficina(id: number, data: UpdateOficinaDTO, userId: string, userRole: string): Promise<Oficina> {
+  async atualizarOficina(id: number, data: UpdateOficinaDTO | any, userId: string, userRole: string): Promise<Oficina> {
     try {
+      // Normalizar campos (vagas_totais -> vagas_total)
+      const normalized: any = { ...data };
+      if (normalized.vagas_total === undefined && normalized.vagas_totais !== undefined) {
+        normalized.vagas_total = Number(normalized.vagas_totais);
+        delete normalized.vagas_totais;
+      }
       // Validar dados
-      const validatedData = updateOficinaSchema.parse(data);
+      const validatedData = updateOficinaSchema.parse(normalized);
 
       // Verificar se a oficina existe e se o usuário tem permissão
       const oficinaCheck = await this.pool.query(
@@ -298,7 +312,8 @@ export class OficinaService {
       `;
 
       const result = await this.pool.query(query, [...queryParams, id]);
-      const oficina = formatObjectDates(result.rows[0], ['data_inicio', 'data_fim', 'data_criacao', 'data_atualizacao']);
+      const oficinaObj = formatObjectDates(result.rows[0], ['data_inicio', 'data_fim', 'data_criacao', 'data_atualizacao']) as any;
+      const oficina = { ...oficinaObj, vagas_totais: oficinaObj.vagas_total };
 
       // Invalidar cache
       await this.invalidateCache(['list:*', `detail:${id}`]);

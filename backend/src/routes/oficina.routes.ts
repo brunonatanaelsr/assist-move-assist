@@ -25,7 +25,7 @@ router.get('/', async (req, res): Promise<void> => {
     const result = await oficinaService.listarOficinas(filters);
     
     res.json(successResponse(
-      { items: result.data, pagination: result.pagination },
+      result.data,
       "Oficinas carregadas com sucesso"
     ));
     return;

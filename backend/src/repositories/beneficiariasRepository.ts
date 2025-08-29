@@ -143,6 +143,16 @@ export class BeneficiariasRepository extends PostgresBaseRepository<Beneficiaria
     observacao?: string
   ): Promise<Beneficiaria> {
     return this.executeTransaction(async (client) => {
+      // Buscar status anterior com lock
+      const prev = await client.query(
+        `SELECT status FROM beneficiarias WHERE id = $1 AND deleted_at IS NULL FOR UPDATE`,
+        [id]
+      );
+      if (prev.rowCount === 0) {
+        throw new NotFoundError(`Beneficiária não encontrada com ID: ${id}`);
+      }
+      const statusAnterior: string = prev.rows[0].status;
+
       const result = await client.query(
         `UPDATE beneficiarias
          SET 
@@ -158,17 +168,11 @@ export class BeneficiariasRepository extends PostgresBaseRepository<Beneficiaria
         [status, observacao, id]
       );
 
-      if (result.rowCount === 0) {
-        throw new NotFoundError(`Beneficiária não encontrada com ID: ${id}`);
-      }
-
       await client.query(
         `INSERT INTO historico_status_beneficiaria
          (beneficiaria_id, status_anterior, status_novo, observacao)
-         VALUES ($1, 
-           (SELECT status FROM beneficiarias WHERE id = $1),
-           $2, $3)`,
-        [id, status, observacao]
+         VALUES ($1, $2, $3, $4)`,
+        [id, statusAnterior, status, observacao]
       );
 
       return result.rows[0];
