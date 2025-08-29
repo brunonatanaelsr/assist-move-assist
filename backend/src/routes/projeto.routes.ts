@@ -1,37 +1,71 @@
-import { Router } from 'express';
-import {
-  listarProjetos,
-  buscarProjeto,
-  criarProjeto,
-  atualizarProjeto,
-  excluirProjeto
-} from '../controllers/projeto.controller';
-import { validateRequest } from '../middleware/validateRequest';
-import {
-  createProjetoSchema,
-  updateProjetoSchema,
-  projetoFilterSchema
-} from '../validators/projeto.validator';
+import express from 'express';
+import Redis from 'ioredis';
 import { authenticateToken, requireGestor } from '../middleware/auth';
+import { successResponse, errorResponse } from '../utils/responseFormatter';
+import { createProjetoSchema, updateProjetoSchema, projetoFilterSchema } from '../validators/projeto.validator';
+import { ProjetoService } from '../services/projeto.service';
+import { pool } from '../config/database';
 
-const router = Router();
+const router = express.Router();
+const redis = new Redis({ host: process.env.REDIS_HOST || 'localhost', port: parseInt(process.env.REDIS_PORT || '6379') });
+const projetoService = new ProjetoService(pool, redis);
 
-// Todas as rotas exigem autenticação
 router.use(authenticateToken);
 
-// Listar projetos com filtros
-router.get('/', validateRequest(projetoFilterSchema), listarProjetos);
+router.get('/', async (req, res) => {
+  try {
+    const filters = projetoFilterSchema.parse(req.query);
+    const result = await projetoService.listarProjetos(filters);
+    res.json(successResponse(result.data, 'Projetos carregados com sucesso', { pagination: result.pagination }));
+  } catch (error: any) {
+    if (error.name === 'ZodError') return res.status(400).json(errorResponse('Parâmetros inválidos'));
+    res.status(500).json(errorResponse('Erro ao buscar projetos'));
+  }
+});
 
-// Buscar projeto por ID
-router.get('/:id', buscarProjeto);
+router.get('/:id', async (req, res) => {
+  try {
+    const projeto = await projetoService.buscarProjeto(Number(req.params.id));
+    res.json(successResponse(projeto, 'Projeto carregado com sucesso'));
+  } catch (error: any) {
+    if (error.message === 'Projeto não encontrado') return res.status(404).json(errorResponse(error.message));
+    res.status(500).json(errorResponse('Erro ao buscar projeto'));
+  }
+});
 
-// Criar projeto (requer gestor)
-router.post('/', requireGestor, validateRequest(createProjetoSchema), criarProjeto);
+router.post('/', requireGestor, async (req, res) => {
+  try {
+    const data = createProjetoSchema.parse({ ...req.body, responsavel_id: Number(req.user.id) });
+    const projeto = await projetoService.criarProjeto(data);
+    res.status(201).json(successResponse(projeto, 'Projeto criado com sucesso'));
+  } catch (error: any) {
+    if (error.name === 'ZodError') return res.status(400).json(errorResponse('Dados inválidos'));
+    res.status(500).json(errorResponse('Erro ao criar projeto'));
+  }
+});
 
-// Atualizar projeto (requer gestor)
-router.put('/:id', requireGestor, validateRequest(updateProjetoSchema), atualizarProjeto);
+router.put('/:id', requireGestor, async (req, res) => {
+  try {
+    const data = updateProjetoSchema.parse(req.body);
+    const projeto = await projetoService.atualizarProjeto(Number(req.params.id), data);
+    res.json(successResponse(projeto, 'Projeto atualizado com sucesso'));
+  } catch (error: any) {
+    if (error.name === 'ZodError') return res.status(400).json(errorResponse('Dados inválidos'));
+    if (error.message === 'Projeto não encontrado') return res.status(404).json(errorResponse(error.message));
+    res.status(500).json(errorResponse('Erro ao atualizar projeto'));
+  }
+});
 
-// Excluir projeto (requer gestor)
-router.delete('/:id', requireGestor, excluirProjeto);
+router.delete('/:id', requireGestor, async (req, res) => {
+  try {
+    await projetoService.excluirProjeto(Number(req.params.id));
+    res.json(successResponse(null, 'Projeto removido com sucesso'));
+  } catch (error: any) {
+    if (error.message.includes('não encontrado') || error.message.includes('oficinas ativas')) {
+      return res.status(400).json(errorResponse(error.message));
+    }
+    res.status(500).json(errorResponse('Erro ao excluir projeto'));
+  }
+});
 
 export default router;

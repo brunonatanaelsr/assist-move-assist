@@ -6,6 +6,10 @@ module.exports = {
     '**/__tests__/**/*.ts',
     '**/?(*.)+(spec|test).ts'
   ],
+  testPathIgnorePatterns: [
+    '<rootDir>/src/__tests__/integration/',
+    '<rootDir>/tests/'
+  ],
   transform: {
     '^.+\\.ts$': 'ts-jest',
   },

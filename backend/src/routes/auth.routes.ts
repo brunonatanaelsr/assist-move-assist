@@ -62,8 +62,8 @@ router.post('/login', async (req: RequestWithBody<LoginRequestBody>, res: Respon
       });
     }
 
-    const ipAddress = req.ip || req.connection.remoteAddress || 'unknown';
-    const result = await authService.login({ email, password }, ipAddress);
+    const ipAddress = req.ip || req.connection?.remoteAddress || 'unknown';
+    const result = await authService.login(email, password, ipAddress);
 
     if (!result) {
       return res.status(401).json({
@@ -142,7 +142,7 @@ router.post('/register', async (req: RequestWithBody<RegisterRequestBody>, res: 
 // GET /auth/profile
 router.get('/profile', authenticateToken, async (req: AuthenticatedRequest, res: express.Response) => {
   try {
-    const profile = await authService.getProfile(req.user!.id);
+    const profile = await authService.getProfile(Number(req.user!.id));
 
     if (!profile) {
       return res.status(404).json({
@@ -166,7 +166,7 @@ router.put('/profile', authenticateToken, async (req: AuthRequestWithBody<Update
   try {
     const { nome_completo, avatar_url } = req.body;
 
-    const updatedUser = await authService.updateProfile(req.user!.id, {
+    const updatedUser = await authService.updateProfile(Number(req.user!.id), {
       nome_completo,
       avatar_url
     });
@@ -200,7 +200,7 @@ router.post('/change-password', authenticateToken, async (req: AuthRequestWithBo
       });
     }
 
-    await authService.changePassword(req.user!.id, currentPassword, newPassword);
+    await authService.changePassword(Number(req.user!.id), currentPassword, newPassword);
 
     res.json({
       message: 'Senha alterada com sucesso'
@@ -224,11 +224,7 @@ router.post('/change-password', authenticateToken, async (req: AuthRequestWithBo
 router.post('/refresh-token', authenticateToken, async (req: AuthenticatedRequest, res: express.Response) => {
   try {
     // Gerar novo token com as informações atuais do usuário
-    const newToken = authService.generateToken({
-      id: req.user!.id,
-      email: req.user!.email,
-      role: req.user!.role
-    });
+    const newToken = authService.generateToken({ id: Number(req.user!.id), email: req.user!.email, role: req.user!.role });
 
     res.cookie('auth_token', newToken, COOKIE_OPTIONS);
 

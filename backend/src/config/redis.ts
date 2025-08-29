@@ -13,11 +13,11 @@ const redis = new IORedis({
   },
 });
 
-redis.addListener('error', (err: Error) => {
+redis.on('error', (err: Error) => {
   console.error('Redis connection error:', err);
 });
 
-redis.addListener('connect', () => {
+redis.on('connect', () => {
   console.log('Redis connection established');
 });
 

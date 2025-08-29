@@ -1,30 +1,9 @@
-import express, { Request as ExpressRequest, Response as ExpressResponse } from 'express';
-import type { NextFunction as ExpressNextFunction } from 'express';
-type NextFunction = ExpressNextFunction & (() => void);
+import express, { Request as ExpressRequest, Response as ExpressResponse, NextFunction } from 'express';
 import { createRouterInstance } from '../utils/router';
 import rateLimit from 'express-rate-limit';
 
 // Types auxiliares
-interface Request extends ExpressRequest {
-  connection: { remoteAddress: string };
-  method: string;
-  originalUrl: string;
-  ip?: string;
-  get(name: string): string | undefined;
-  headers: {
-    'x-request-id'?: string;
-    [key: string]: string | string[] | undefined;
-  };
-  body: any;
-  query: any;
-  params: any;
-}
-
-interface Response extends ExpressResponse {
-  setHeader(name: string, value: string): this;
-  status(code: number): this;
-  json(body: any): this;
-}
+// Usamos os tipos nativos do Express para evitar conflitos
 
 // ========== IMPORTAÇÃO DAS ROTAS ==========
 // Priorizando versões TypeScript quando disponíveis, com fallback para JavaScript
@@ -66,7 +45,7 @@ const mensagensRoutes = createRouterInstance();
 import oficinasRoutes from './oficina.routes';
 
 // Rotas de participações
-import participacoesRoutes from './participacao.routes';
+// import participacoesRoutes from './participacao.routes';
 
 // Rotas de projetos
 import projetosRoutes from './projeto.routes';
@@ -98,7 +77,7 @@ router.use('/health', healthRoutes); // Health check sem rate limit
 router.use(limiter); // Rate limit para todas as outras rotas
 
 // Middleware de logging de requisições
-router.use((req: Request, res: Response, next: NextFunction) => {
+router.use((req: ExpressRequest, res: ExpressResponse, next: NextFunction) => {
   const timestamp = new Date().toISOString();
   const method = req.method;
   const url = req.originalUrl;
@@ -110,7 +89,7 @@ router.use((req: Request, res: Response, next: NextFunction) => {
 });
 
 // Middleware para adicionar headers de segurança
-router.use((req: Request, res: Response, next: NextFunction) => {
+router.use((req: ExpressRequest, res: ExpressResponse, next: NextFunction) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('X-XSS-Protection', '1; mode=block');
@@ -131,7 +110,7 @@ router.use('/auth', authRoutes);
 router.use('/beneficiarias', beneficiariasRoutes);
 router.use('/projetos', projetosRoutes);
 router.use('/oficinas', oficinasRoutes);
-router.use('/participacoes', participacoesRoutes);
+// router.use('/participacoes', participacoesRoutes);
 
 // 4. Rotas de conteúdo e comunicação
 router.use('/feed', feedRoutes);
@@ -149,7 +128,7 @@ router.use('/auditoria', auditoriaRoutes);
 router.use('/configuracoes', configuracoesRoutes);
 
 // ========== ROTA RAIZ DA API ==========
-router.get('/', (req: Request, res: Response) => {
+router.get('/', (req: ExpressRequest, res: ExpressResponse) => {
   res.json({
     name: 'Move Marias API',
     version: '1.0.0',
@@ -194,7 +173,7 @@ router.get('/', (req: Request, res: Response) => {
 });
 
 // ========== MIDDLEWARE PARA ROTAS NÃO ENCONTRADAS (404) ==========
-router.use('*', (req: Request, res: Response) => {
+router.use('*', (req: ExpressRequest, res: ExpressResponse) => {
   const method = req.method;
   const path = req.originalUrl;
   
@@ -223,7 +202,7 @@ router.use('*', (req: Request, res: Response) => {
 });
 
 // ========== MIDDLEWARE GLOBAL DE TRATAMENTO DE ERROS ==========
-router.use((error: any, req: Request, res: Response, next: NextFunction) => {
+router.use((error: any, req: ExpressRequest, res: ExpressResponse, next: NextFunction) => {
   // Log detalhado do erro
   const errorInfo = {
     message: error.message,

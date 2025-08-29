@@ -29,10 +29,25 @@ export const formatDateToBR = (date: Date | string | null): string | null => {
   if (!date) return null;
   
   try {
-    const dateObj = new Date(date);
+    let dateObj: Date;
+
+    // Evita problemas de fuso horário para strings no formato YYYY-MM-DD
+    if (typeof date === 'string') {
+      const match = date.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (match) {
+        const [, y, m, d] = match;
+        // Cria a data em UTC para preservar o dia informado
+        dateObj = new Date(Date.UTC(Number(y), Number(m) - 1, Number(d)));
+      } else {
+        dateObj = new Date(date);
+      }
+    } else {
+      dateObj = new Date(date);
+    }
+
     if (isNaN(dateObj.getTime())) return null;
-    
-    return dateObj.toLocaleDateString('pt-BR');
+    // Usa timezone UTC para garantir consistência independente do ambiente
+    return dateObj.toLocaleDateString('pt-BR', { timeZone: 'UTC' });
   } catch (error) {
     logger.error('Erro ao formatar data para BR', { error });
     return null;

@@ -21,7 +21,7 @@ if [ -z "$POSTGRES_HOST" ] || [ -z "$POSTGRES_PORT" ] || [ -z "$POSTGRES_DB" ] |
 fi
 
 # Diretório das migrações
-MIGRATIONS_DIR="database/migrations"
+MIGRATIONS_DIR="src/database/migrations"
 
 # Função para executar um arquivo SQL
 run_migration() {

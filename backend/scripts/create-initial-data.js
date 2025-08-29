@@ -6,8 +6,8 @@ const pool = new Pool({
   host: process.env.POSTGRES_HOST || 'localhost',
   port: parseInt(process.env.POSTGRES_PORT || '5432'),
   database: process.env.POSTGRES_DB || 'movemarias',
-  user: process.env.POSTGRES_USER || 'movemarias_user',
-  password: process.env.POSTGRES_PASSWORD || 'movemarias_password_2025',
+  user: process.env.POSTGRES_USER || 'postgres',
+  password: process.env.POSTGRES_PASSWORD || 'postgres',
 });
 
 async function createInitialUsers() {
@@ -19,19 +19,18 @@ async function createInitialUsers() {
     const adminPasswordHash = await bcrypt.hash('movemarias123', 12);
 
     // Criar superadmin
-    const superadminQuery = `
-      INSERT INTO usuarios (nome, email, senha_hash, papel) 
-      VALUES ($1, $2, $3, $4)
-      ON CONFLICT (email) 
-      DO UPDATE SET 
-        senha_hash = $3,
-        papel = $4,
-        ativo = true,
+    const upsertUser = `
+      INSERT INTO usuarios (nome, email, senha_hash, papel, ativo, data_criacao, data_atualizacao)
+      VALUES ($1, $2, $3, $4, true, NOW(), NOW())
+      ON CONFLICT (email) DO UPDATE SET
+        senha_hash = EXCLUDED.senha_hash,
+        papel = EXCLUDED.papel,
+        ativo = TRUE,
         data_atualizacao = NOW()
       RETURNING id, nome, email, papel;
     `;
 
-    const superadminResult = await pool.query(superadminQuery, [
+    const superadminResult = await pool.query(upsertUser, [
       'Bruno Superadmin',
       'bruno@move.com',
       brunoPasswordHash,
@@ -41,7 +40,7 @@ async function createInitialUsers() {
     console.log('✅ Superadmin criado:', superadminResult.rows[0]);
 
     // Criar admin
-    const adminResult = await pool.query(superadminQuery, [
+    const adminResult = await pool.query(upsertUser, [
       'Admin Move Marias',
       'admin@movemarias.com',
       adminPasswordHash,
@@ -51,31 +50,20 @@ async function createInitialUsers() {
     console.log('✅ Admin criado:', adminResult.rows[0]);
 
     // Verificar se beneficiárias já existem
-    const beneficiariasCheck = await pool.query('SELECT COUNT(*) FROM beneficiarias');
-    const beneficiariasCount = parseInt(beneficiariasCheck.rows[0].count);
-
-    if (beneficiariasCount === 0) {
-      console.log('📝 Criando beneficiárias de exemplo...');
-
-      const beneficiariasQuery = `
-        INSERT INTO beneficiarias (nome_completo, cpf, contato1, endereco, programa_servico) 
-        VALUES 
-        ('Maria Silva Santos', '123.456.789-00', '(11) 99999-1111', 'Rua das Flores, 123 - São Paulo, SP', 'Capacitação Profissional'),
-        ('Ana Paula Oliveira', '987.654.321-00', '(11) 99999-2222', 'Av. Principal, 456 - São Paulo, SP', 'Apoio Psicológico'),
-        ('Joana Ferreira Lima', '456.789.123-00', '(11) 99999-3333', 'Rua da Esperança, 789 - São Paulo, SP', 'Oficinas Culturais')
-        ON CONFLICT (cpf) DO NOTHING
-        RETURNING id, nome_completo;
-      `;
-
-      const beneficiariasResult = await pool.query(beneficiariasQuery);
-      console.log('✅ Beneficiárias criadas:', beneficiariasResult.rows.length);
-    }
+    await pool.query(`
+      INSERT INTO beneficiarias (nome_completo, cpf, data_nascimento, telefone, endereco, status)
+      VALUES 
+        ('Maria Silva Santos', '123.456.789-00', '1990-01-01', '(11) 99999-1111', 'Rua das Flores, 123 - São Paulo, SP', 'ativa'),
+        ('Ana Paula Oliveira', '987.654.321-00', '1991-02-02', '(11) 99999-2222', 'Av. Principal, 456 - São Paulo, SP', 'ativa'),
+        ('Joana Ferreira Lima', '456.789.123-00', '1992-03-03', '(11) 99999-3333', 'Rua da Esperança, 789 - São Paulo, SP', 'ativa')
+      ON CONFLICT (cpf) DO NOTHING;
+    `);
 
     // Verificar estatísticas finais
     const stats = await pool.query(`
       SELECT 
         (SELECT COUNT(*) FROM usuarios WHERE ativo = true) as usuarios,
-        (SELECT COUNT(*) FROM beneficiarias WHERE ativo = true) as beneficiarias
+        (SELECT COUNT(*) FROM beneficiarias WHERE deleted_at IS NULL) as beneficiarias
     `);
 
     console.log('📊 Estatísticas finais:');

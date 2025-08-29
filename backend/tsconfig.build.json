@@ -10,9 +10,36 @@
     "**/*.test.ts",
     "**/*.test.js",
     "**/*.spec.ts",
-    "**/*.spec.js"
+    "**/*.spec.js",
+    "src/__tests__/**",
+    "src/controllers/**",
+    "src/jobs/**",
+    "src/websocket/**",
+    "src/services/RelatorioService.ts",
+    "src/services/reportsService.ts",
+    "src/services/EmailService.ts",
+    "src/types/report.ts",
+    "src/config/security.ts",
+    "src/config/upload.ts"
   ],
   "include": [
-    "src/**/*"
+    "src/app.ts",
+    "src/routes/api.ts",
+    "src/routes/auth.routes.ts",
+    "src/routes/beneficiarias.routes.ts",
+    "src/routes/oficina.routes.ts",
+    "src/routes/projeto.routes.ts",
+    "src/routes/feed.routes.ts",
+    "src/services/auth.service.ts",
+    "src/services/oficina.service.ts",
+    "src/services/projeto.service.ts",
+    "src/services/feed.service.ts",
+    "src/services/logger.ts",
+    "src/config/database.ts",
+    "src/config/redis.ts",
+    "src/utils/**/*.ts",
+    "src/validators/**/*.ts",
+    "src/types/**/*.d.ts",
+    "src/middleware/**/*.ts"
   ]
 }

@@ -9,6 +9,7 @@
     "build:dev": "vite build --mode development",
     "lint": "eslint backend/src/utils/dateFormatter.ts src/components/__tests__/ui-components.test.tsx",
     "preview": "vite preview",
+    "type-check": "tsc -b --noEmit",
     "test": "npm run test:frontend",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",

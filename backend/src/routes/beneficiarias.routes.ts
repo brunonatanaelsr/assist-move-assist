@@ -29,7 +29,7 @@ router.get(
   async (req: ExtendedRequest, res: Response) => {
     try {
       const { id } = req.params;
-      const beneficiaria = await beneficiariasRepository.buscarPorId(Number(id));
+      const beneficiaria = await beneficiariasRepository.findById(Number(id));
       
       if (!beneficiaria) {
         throw new AppError('Beneficiária não encontrada', 404);
@@ -62,7 +62,7 @@ router.post(
   async (req: ExtendedRequest, res: Response) => {
     try {
       const {
-        nome,
+        nome_completo,
         cpf,
         data_nascimento,
         endereco,
@@ -70,15 +70,14 @@ router.post(
         email,
         estado_civil,
         escolaridade,
-        profissao,
         renda_familiar,
-        num_filhos,
+        num_dependentes,
         status,
         observacoes
       } = req.body;
 
       // Validar CPF único
-      const existingBeneficiaria = await beneficiariasRepository.buscarPorCPF(cpf);
+      const existingBeneficiaria = await beneficiariasRepository.findByCPF(cpf);
 
       if (existingBeneficiaria) {
         throw new AppError('CPF já cadastrado', 400);
@@ -86,7 +85,7 @@ router.post(
 
       // Preparar dados para inserção
       const beneficiariaData = {
-        nome,
+        nome_completo,
         cpf,
         data_nascimento,
         endereco,
@@ -94,18 +93,13 @@ router.post(
         email,
         estado_civil,
         escolaridade,
-        profissao,
         renda_familiar,
-        num_filhos,
+        num_dependentes,
         status,
-        observacoes,
-        criado_por: req.user?.id,
-        data_criacao: new Date(),
-        atualizado_por: req.user?.id,
-        data_atualizacao: new Date()
+        observacoes
       };
 
-      const beneficiaria = await beneficiariasRepository.criar(beneficiariaData);
+      const beneficiaria = await beneficiariasRepository.create(beneficiariaData as any);
       
       loggerService.audit('BENEFICIARIA_CREATED', req.user?.id, {
         beneficiaria_id: beneficiaria.id
@@ -134,7 +128,7 @@ router.put(
       const updateData = req.body;
 
       // Validar se beneficiária existe
-      const existingBeneficiaria = await beneficiariasRepository.buscarPorId(Number(id));
+      const existingBeneficiaria = await beneficiariasRepository.findById(Number(id));
 
       if (!existingBeneficiaria) {
         throw new AppError('Beneficiária não encontrada', 404);
@@ -142,7 +136,7 @@ router.put(
 
       // Validar CPF único se estiver sendo atualizado
       if (updateData.cpf && updateData.cpf !== existingBeneficiaria.cpf) {
-        const cpfExists = await beneficiariasRepository.buscarPorCPF(updateData.cpf);
+        const cpfExists = await beneficiariasRepository.findByCPF(updateData.cpf);
         if (cpfExists && cpfExists.id !== Number(id)) {
           throw new AppError('CPF já cadastrado para outra beneficiária', 400);
         }
@@ -152,7 +146,7 @@ router.put(
       updateData.data_atualizacao = new Date();
       updateData.atualizado_por = req.user?.id;
 
-      const beneficiaria = await beneficiariasRepository.atualizar(Number(id), updateData);
+      const beneficiaria = await beneficiariasRepository.update(Number(id), updateData as any);
 
       loggerService.audit('BENEFICIARIA_UPDATED', req.user?.id, {
         beneficiaria_id: id,
@@ -181,14 +175,14 @@ router.delete(
       const { id } = req.params;
 
       // Validar se beneficiária existe
-      const existingBeneficiaria = await beneficiariasRepository.buscarPorId(Number(id));
+      const existingBeneficiaria = await beneficiariasRepository.findById(Number(id));
 
       if (!existingBeneficiaria) {
         throw new AppError('Beneficiária não encontrada', 404);
       }
 
       // Marcar como inativa
-      await beneficiariasRepository.inativar(Number(id), req.user?.id);
+      await beneficiariasRepository.softDelete(Number(id));
 
       loggerService.audit('BENEFICIARIA_DELETED', req.user?.id, {
         beneficiaria_id: id

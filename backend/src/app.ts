@@ -9,7 +9,8 @@ import { createServer } from 'http';
 import dotenv from 'dotenv';
 
 import apiRoutes from './routes/api';
-import { WebSocketServer } from './websocket/server';
+// WebSocket opcional em runtime
+let webSocketServer: any = null;
 import feedRoutes from './routes/feed.routes';
 import { errorHandler } from './middleware/errorHandler';
 import { logger } from './services/logger';
@@ -21,8 +22,15 @@ dotenv.config();
 const app: Express = express();
 const server = createServer(app);
 
-// Inicializar WebSocket
-const webSocketServer = new WebSocketServer(server, pool);
+if (process.env.ENABLE_WS === 'true') {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { WebSocketServer } = require('./websocket/server');
+    webSocketServer = new WebSocketServer(server, pool);
+  } catch (err) {
+    logger.warn('WebSocket não inicializado: módulo indisponível');
+  }
+}
 
 // Middleware de segurança
 app.use(helmet());
@@ -84,7 +92,9 @@ server.listen(PORT, () => {
 // Graceful shutdown
 process.on('SIGTERM', () => {
   logger.info('Recebido SIGTERM, fechando servidor...');
-  webSocketServer.stop();
+  if (webSocketServer?.stop) {
+    webSocketServer.stop();
+  }
   server.close(() => {
     logger.info('Servidor fechado.');
     process.exit(0);

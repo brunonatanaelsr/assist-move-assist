@@ -12,6 +12,14 @@ dist
 dist-ssr
 *.local
 
+# Test artifacts
+playwright-report/
+coverage/
+
+# Editor/OS backups
+*.bak
+*.new
+
 # Environment variables
 .env
 .env.prod

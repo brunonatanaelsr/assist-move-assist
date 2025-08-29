@@ -48,10 +48,8 @@ router.get(
   authenticateToken,
   async (req: AuthenticatedRequest, res: Response) => {
     try {
-      const page = parseInt(req.query.page as string) || 1;
-      const limit = parseInt(req.query.limit as string) || 10;
-      
-      const posts = await feedService.getPosts(page, limit);
+      const limit = parseInt((req.query.limit as string) || '10');
+      const posts = await feedService.listPosts(limit);
       return res.json(successResponse(posts));
     } catch (error) {
       console.error('Erro ao listar posts:', error);
@@ -97,9 +95,7 @@ router.post(
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       const { id } = req.params;
-      const userId = req.user?.id;
-
-      const post = await feedService.likePost(parseInt(id), userId as string);
+      const post = await feedService.likePost(parseInt(id));
       return res.json(successResponse(post));
     } catch (error) {
       console.error('Erro ao curtir post:', error);
@@ -132,7 +128,7 @@ router.get(
   authenticateToken,
   async (req: AuthenticatedRequest, res: Response) => {
     try {
-      const stats = await feedService.getStats();
+      const stats = await feedService.getFeedStats();
       return res.json(successResponse(stats));
     } catch (error) {
       console.error('Erro ao obter estatísticas:', error);
@@ -148,7 +144,7 @@ router.get(
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       const { postId } = req.params;
-      const comentarios = await feedService.getComments(parseInt(postId));
+      const comentarios = await feedService.listComments(parseInt(postId));
       return res.json(successResponse(comentarios));
     } catch (error) {
       console.error('Erro ao listar comentários:', error);
@@ -193,9 +189,7 @@ router.delete(
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       const { id } = req.params;
-      const userId = req.user?.id;
-
-      await feedService.deletePost(parseInt(id), userId as string);
+      await feedService.deletePost(parseInt(id), String(req.user?.id), String(req.user?.role));
       return res.json(successResponse({ message: 'Post removido com sucesso' }));
     } catch (error) {
       console.error('Erro ao deletar post:', error);

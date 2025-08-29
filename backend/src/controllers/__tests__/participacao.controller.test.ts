@@ -5,11 +5,11 @@ import {
   excluirParticipacao,
   registrarPresenca,
   emitirCertificado
-} from '../controllers/participacao.controller';
-import { ParticipacaoService } from '../services/participacao.service';
+} from '../participacao.controller';
+import { ParticipacaoService } from '../../services/participacao.service';
 
 // Mock do ParticipacaoService
-jest.mock('../services/participacao.service');
+jest.mock('../../services/participacao.service');
 
 describe('ParticipacaoController', () => {
   let mockReq: any;

@@ -2,11 +2,11 @@ import supertest from 'supertest';
 import express from 'express';
 import { Pool } from 'pg';
 import Redis from 'ioredis';
-import feedRoutes from '../routes/feed.routes';
+import feedRoutes from '../feed.routes';
 
 jest.mock('pg');
 jest.mock('ioredis');
-jest.mock('../middleware/auth', () => ({
+jest.mock('../../middleware/auth', () => ({
   authenticateToken: (req: any, res: any, next: any) => {
     req.user = { id: '123', name: 'Test User', role: 'user' };
     next();

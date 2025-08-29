@@ -4,11 +4,11 @@ import {
   criarProjeto,
   atualizarProjeto,
   excluirProjeto
-} from '../controllers/projeto.controller';
-import { ProjetoService } from '../services/projeto.service';
+} from '../projeto.controller';
+import { ProjetoService } from '../../services/projeto.service';
 
 // Mock do ProjetoService
-jest.mock('../services/projeto.service');
+jest.mock('../../services/projeto.service');
 
 describe('ProjetoController', () => {
   let mockReq: any;
