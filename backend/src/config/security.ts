@@ -6,7 +6,7 @@ import { rateLimit } from 'express-rate-limit';
 import { sanitize } from 'express-mongo-sanitize';
 import xss from 'xss-clean';
 import hpp from 'hpp';
-import { loggerService } from '../services/logger.service';
+import { loggerService } from '../services/logger';
 
 // Configuração base do CORS
 const corsOptions = {

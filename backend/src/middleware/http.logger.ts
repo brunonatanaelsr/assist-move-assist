@@ -1,5 +1,5 @@
 import type { Request as ExpressRequest, Response as ExpressResponse, NextFunction } from 'express';
-import { loggerService } from '../services/logger.service';
+import { loggerService } from '../services/logger';
 
 interface Request extends ExpressRequest {
   method: string;
