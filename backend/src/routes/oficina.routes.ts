@@ -5,6 +5,7 @@ import { authenticateToken, requireGestor } from '../middleware/auth';
 import { successResponse, errorResponse } from '../utils/responseFormatter';
 import { oficinaFilterSchema, createOficinaSchema, updateOficinaSchema } from '../validators/oficina.validator';
 import { pool } from '../config/database';
+import { OficinaRepository } from '../repositories/OficinaRepository';
 
 const router = express.Router();
 
@@ -17,6 +18,7 @@ const redis = new Redis({
 });
 
 const oficinaService = new OficinaService(pool, redis);
+const oficinaRepository = new OficinaRepository();
 
 // Listar oficinas (público)
 router.get('/', async (req, res): Promise<void> => {
@@ -186,6 +188,212 @@ router.get('/:id/participantes', authenticateToken, async (req, res): Promise<vo
     }
 
     res.status(500).json(errorResponse("Erro ao buscar participantes"));
+    return;
+  }
+});
+
+// Adicionar participante à oficina (mapeia para participação no projeto da oficina)
+router.post('/:id/participantes', authenticateToken, requireGestor, async (req, res): Promise<void> => {
+  try {
+    const oficinaId = parseInt(String(req.params.id));
+    const { beneficiaria_id, observacoes } = req.body || {};
+    if (!beneficiaria_id) {
+      res.status(400).json(errorResponse('beneficiaria_id é obrigatório'));
+      return;
+    }
+
+    // Descobrir projeto da oficina
+    const of = await pool.query('SELECT projeto_id FROM oficinas WHERE id = $1 AND ativo = true', [oficinaId]);
+    if (of.rowCount === 0) { res.status(404).json(errorResponse('Oficina não encontrada')); return; }
+    const projetoId = of.rows[0].projeto_id;
+    if (!projetoId) { res.status(400).json(errorResponse('Oficina não está vinculada a um projeto')); return; }
+
+    // Verificar se já existe participação ativa
+    const exists = await pool.query(
+      'SELECT id FROM participacoes WHERE beneficiaria_id = $1 AND projeto_id = $2 AND ativo = true',
+      [beneficiaria_id, projetoId]
+    );
+    if (exists.rowCount > 0) {
+      res.status(409).json(errorResponse('Beneficiária já participa deste projeto'));
+      return;
+    }
+
+    const created = await pool.query(
+      `INSERT INTO participacoes (beneficiaria_id, projeto_id, status, observacoes)
+       VALUES ($1,$2,'inscrita',$3) RETURNING *`,
+      [beneficiaria_id, projetoId, observacoes || null]
+    );
+
+    res.status(201).json(successResponse(created.rows[0], 'Participante adicionada com sucesso'));
+    return;
+  } catch (error: any) {
+    console.error('Add participante error:', error);
+    res.status(500).json(errorResponse('Erro ao adicionar participante'));
+    return;
+  }
+});
+
+// Remover participante da oficina (soft delete da participação no projeto)
+router.delete('/:id/participantes/:beneficiariaId', authenticateToken, requireGestor, async (req, res): Promise<void> => {
+  try {
+    const oficinaId = parseInt(String(req.params.id));
+    const beneficiariaId = parseInt(String(req.params.beneficiariaId));
+
+    // Descobrir projeto da oficina
+    const of = await pool.query('SELECT projeto_id FROM oficinas WHERE id = $1 AND ativo = true', [oficinaId]);
+    if (of.rowCount === 0) { res.status(404).json(errorResponse('Oficina não encontrada')); return; }
+    const projetoId = of.rows[0].projeto_id;
+
+    const part = await pool.query(
+      'SELECT id FROM participacoes WHERE beneficiaria_id = $1 AND projeto_id = $2 AND ativo = true',
+      [beneficiariaId, projetoId]
+    );
+    if (part.rowCount === 0) { res.status(404).json(errorResponse('Participação não encontrada')); return; }
+
+    await pool.query('UPDATE participacoes SET ativo = false, data_atualizacao = NOW() WHERE id = $1', [part.rows[0].id]);
+    res.json(successResponse({ message: 'Participante removida com sucesso' }));
+    return;
+  } catch (error: any) {
+    console.error('Remove participante error:', error);
+    res.status(500).json(errorResponse('Erro ao remover participante'));
+    return;
+  }
+});
+
+// Registrar presença em uma oficina para uma beneficiária
+router.post('/:id/presencas', authenticateToken, async (req, res): Promise<void> => {
+  try {
+    const oficinaId = parseInt(String(req.params.id));
+    const { beneficiaria_id, presente, observacoes, data } = req.body || {};
+    if (!beneficiaria_id || typeof presente !== 'boolean') {
+      res.status(400).json(errorResponse('beneficiaria_id e presente (boolean) são obrigatórios'));
+      return;
+    }
+
+    // Usa repositório para upsert; se data for fornecida, ajusta depois
+    const registro = await oficinaRepository.registrarPresenca(oficinaId, Number(beneficiaria_id), !!presente, observacoes);
+
+    if (data) {
+      // Atualiza data_registro explicitamente, se enviada
+      await pool.query(
+        'UPDATE oficina_presencas SET data_registro = $1 WHERE oficina_id = $2 AND beneficiaria_id = $3',
+        [data, oficinaId, beneficiaria_id]
+      );
+    }
+
+    res.status(201).json(successResponse(registro, 'Presença registrada'));
+    return;
+  } catch (error: any) {
+    console.error('Registrar presença error:', error);
+    res.status(500).json(errorResponse('Erro ao registrar presença'));
+    return;
+  }
+});
+
+// Listar presenças de uma oficina (opcionalmente filtrar por data YYYY-MM-DD)
+router.get('/:id/presencas', authenticateToken, async (req, res): Promise<void> => {
+  try {
+    const oficinaId = parseInt(String(req.params.id));
+    const data = (req.query.data as string) || '';
+
+    let query = `
+      SELECT p.*, b.nome_completo as beneficiaria_nome
+      FROM oficina_presencas p
+      JOIN beneficiarias b ON b.id = p.beneficiaria_id
+      WHERE p.oficina_id = $1
+    `;
+    const params: any[] = [oficinaId];
+    if (data) {
+      query += ' AND DATE(p.data_registro) = $2';
+      params.push(data);
+    }
+    query += ' ORDER BY p.data_registro DESC, beneficiaria_nome';
+
+    const result = await pool.query(query, params);
+    res.json(successResponse(result.rows));
+    return;
+  } catch (error: any) {
+    console.error('Listar presenças error:', error);
+    res.status(500).json(errorResponse('Erro ao listar presenças'));
+    return;
+  }
+});
+
+// Resumo da oficina
+router.get('/:id/resumo', authenticateToken, async (req, res): Promise<void> => {
+  try {
+    const oficinaId = parseInt(String(req.params.id));
+
+    const oficina = await pool.query('SELECT id, projeto_id, vagas_total FROM oficinas WHERE id = $1 AND ativo = true', [oficinaId]);
+    if (oficina.rowCount === 0) { res.status(404).json(errorResponse('Oficina não encontrada')); return; }
+    const projetoId = oficina.rows[0].projeto_id;
+
+    const [participantes, presencas, presentes] = await Promise.all([
+      pool.query('SELECT COUNT(DISTINCT beneficiaria_id)::int as c FROM participacoes WHERE projeto_id = $1 AND ativo = true', [projetoId]),
+      pool.query('SELECT COUNT(*)::int as c FROM oficina_presencas WHERE oficina_id = $1', [oficinaId]),
+      pool.query('SELECT COUNT(*)::int as c FROM oficina_presencas WHERE oficina_id = $1 AND presente = true', [oficinaId]),
+    ]);
+
+    const totalParticipantes = participantes.rows[0].c || 0;
+    const totalPresencas = presencas.rows[0].c || 0;
+    const totalPresentes = presentes.rows[0].c || 0;
+    const taxaMediaPresenca = totalPresencas > 0 ? Math.round((totalPresentes / totalPresencas) * 100) : 0;
+
+    res.json(successResponse({
+      total_participantes: totalParticipantes,
+      total_presencas: totalPresencas,
+      taxa_media_presenca: taxaMediaPresenca,
+      vagas_total: oficina.rows[0].vagas_total
+    }));
+    return;
+  } catch (error: any) {
+    console.error('Resumo oficina error:', error);
+    res.status(500).json(errorResponse('Erro ao obter resumo da oficina'));
+    return;
+  }
+});
+
+// Verificar conflito de horários
+router.post('/verificar-conflito', authenticateToken, async (req, res): Promise<void> => {
+  try {
+    const { data_inicio, data_fim, horario_inicio, horario_fim, dias_semana, excluir_oficina_id } = req.body || {};
+    if (!data_inicio || !horario_inicio || !horario_fim) {
+      res.status(400).json(errorResponse('data_inicio, horario_inicio e horario_fim são obrigatórios'));
+      return;
+    }
+
+    const params: any[] = [data_inicio, data_fim || data_inicio, horario_inicio, horario_fim];
+    let idx = 5;
+    let where = `
+      o.ativo = true
+      AND (
+        (o.data_inicio <= $2 AND (o.data_fim IS NULL OR o.data_fim >= $1))
+      )
+      AND NOT ($4 <= o.horario_inicio OR $3 >= o.horario_fim)
+    `;
+
+    if (dias_semana) {
+      where += ` AND (o.dias_semana IS NULL OR o.dias_semana ILIKE $${idx++})`;
+      params.push(`%${dias_semana}%`);
+    }
+    if (excluir_oficina_id) {
+      where += ` AND o.id <> $${idx++}`;
+      params.push(excluir_oficina_id);
+    }
+
+    const result = await pool.query(
+      `SELECT id, nome, data_inicio, data_fim, horario_inicio, horario_fim, local
+       FROM oficinas o
+       WHERE ${where}
+       LIMIT 20`,
+      params
+    );
+
+    res.json(successResponse({ conflito: result.rowCount > 0, conflitos: result.rows }));
+    return;
+  } catch (error: any) {
+    console.error('Verificar conflito error:', error);
+    res.status(500).json(errorResponse('Erro ao verificar conflito'));
     return;
   }
 });
