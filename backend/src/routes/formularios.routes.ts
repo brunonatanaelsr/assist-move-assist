@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { authenticateToken, AuthenticatedRequest } from '../middleware/auth';
 import { pool } from '../config/database';
 import { successResponse, errorResponse } from '../utils/responseFormatter';
-import { renderFormPdf } from '../services/formsExport.service';
+import { renderFormPdf, renderAnamnesePdf, renderFichaEvolucaoPdf, renderTermosPdf, renderVisaoHolisticaPdf } from '../services/formsExport.service';
 
 const router = Router();
 
@@ -33,6 +33,21 @@ router.get('/anamnese/:id', authenticateToken, async (req, res): Promise<void> =
     return;
   } catch (error) {
     res.status(500).json(errorResponse('Erro ao obter anamnese'));
+    return;
+  }
+});
+router.get('/anamnese/:id/pdf', authenticateToken, async (req, res): Promise<void> => {
+  try {
+    const { id } = req.params as any;
+    const result = await pool.query('SELECT id, beneficiaria_id, dados, created_at FROM anamnese_social WHERE id = $1', [id]);
+    if (result.rowCount === 0) { res.status(404).json(errorResponse('Anamnese não encontrada')); return; }
+    const pdf = await renderAnamnesePdf(result.rows[0]);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="anamnese_${id}.pdf"`);
+    res.send(pdf);
+    return;
+  } catch (error) {
+    res.status(500).json(errorResponse('Erro ao exportar anamnese'));
     return;
   }
 });
@@ -78,6 +93,21 @@ router.get('/ficha-evolucao/:id', authenticateToken, async (req, res): Promise<v
     return;
   } catch (error) {
     res.status(500).json(errorResponse('Erro ao obter ficha'));
+    return;
+  }
+});
+router.get('/ficha-evolucao/:id/pdf', authenticateToken, async (req, res): Promise<void> => {
+  try {
+    const { id } = req.params as any;
+    const result = await pool.query('SELECT id, beneficiaria_id, dados, created_at FROM ficha_evolucao WHERE id = $1', [id]);
+    if (result.rowCount === 0) { res.status(404).json(errorResponse('Ficha não encontrada')); return; }
+    const pdf = await renderFichaEvolucaoPdf(result.rows[0]);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="ficha_evolucao_${id}.pdf"`);
+    res.send(pdf);
+    return;
+  } catch (error) {
+    res.status(500).json(errorResponse('Erro ao exportar ficha'));
     return;
   }
 });
@@ -135,6 +165,21 @@ router.get('/termos-consentimento/:id', authenticateToken, async (req, res): Pro
     return;
   } catch (error) {
     res.status(500).json(errorResponse('Erro ao obter termo'));
+    return;
+  }
+});
+router.get('/termos-consentimento/:id/pdf', authenticateToken, async (req, res): Promise<void> => {
+  try {
+    const { id } = req.params as any;
+    const result = await pool.query('SELECT id, beneficiaria_id, dados, created_at FROM termos_consentimento WHERE id = $1', [id]);
+    if (result.rowCount === 0) { res.status(404).json(errorResponse('Termo não encontrado')); return; }
+    const pdf = await renderTermosPdf(result.rows[0]);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="termo_${id}.pdf"`);
+    res.send(pdf);
+    return;
+  } catch (error) {
+    res.status(500).json(errorResponse('Erro ao exportar termo'));
     return;
   }
 });
@@ -233,6 +278,39 @@ router.get('/visao-holistica/:id', authenticateToken, async (req, res): Promise<
     return;
   } catch (error) {
     res.status(500).json(errorResponse('Erro ao obter visão holística'));
+    return;
+  }
+});
+router.get('/visao-holistica/:id/pdf', authenticateToken, async (req, res): Promise<void> => {
+  try {
+    const { id } = req.params as any;
+    const result = await pool.query('SELECT id, beneficiaria_id, dados, created_at FROM visao_holistica WHERE id = $1', [id]);
+    if (result.rowCount === 0) { res.status(404).json(errorResponse('Registro não encontrado')); return; }
+    const pdf = await renderVisaoHolisticaPdf(result.rows[0]);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="visao_holistica_${id}.pdf"`);
+    res.send(pdf);
+    return;
+  } catch (error) {
+    res.status(500).json(errorResponse('Erro ao exportar visão holística'));
+    return;
+  }
+});
+
+// Série temporal da Ficha de Evolução por beneficiária
+router.get('/ficha-evolucao/beneficiaria/:beneficiariaId/series', authenticateToken, async (req: AuthenticatedRequest, res): Promise<void> => {
+  try {
+    const { beneficiariaId } = req.params as any;
+    const result = await pool.query(
+      `SELECT to_char(created_at, 'YYYY-MM') as mes, COUNT(*)::int as total
+       FROM ficha_evolucao WHERE beneficiaria_id = $1
+       GROUP BY 1 ORDER BY 1`,
+      [beneficiariaId]
+    );
+    res.json(successResponse({ data: result.rows }));
+    return;
+  } catch (error) {
+    res.status(500).json(errorResponse('Erro ao obter série de evolução'));
     return;
   }
 });
