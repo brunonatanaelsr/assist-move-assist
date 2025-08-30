@@ -174,7 +174,7 @@ router.delete('/:id', authenticateToken, requireGestor, async (req, res): Promis
 });
 
 // Obter participantes de uma oficina
-router.get('/:id/participantes', authenticateToken, async (req, res): Promise<void> => {
+router.get('/:id/participantes', authenticateToken, authorize('oficinas.participantes.ver'), async (req, res): Promise<void> => {
   try {
     const id = parseInt(String(req.params.id));
     const participantes = await oficinaService.listarParticipantes(id);
@@ -195,7 +195,7 @@ router.get('/:id/participantes', authenticateToken, async (req, res): Promise<vo
 });
 
 // Adicionar participante à oficina (mapeia para participação no projeto da oficina)
-router.post('/:id/participantes', authenticateToken, requireGestor, async (req, res): Promise<void> => {
+router.post('/:id/participantes', authenticateToken, requireGestor, authorize('oficinas.participantes.adicionar'), async (req, res): Promise<void> => {
   try {
     const oficinaId = parseInt(String(req.params.id));
     const { beneficiaria_id, observacoes } = req.body || {};
@@ -236,7 +236,7 @@ router.post('/:id/participantes', authenticateToken, requireGestor, async (req, 
 });
 
 // Remover participante da oficina (soft delete da participação no projeto)
-router.delete('/:id/participantes/:beneficiariaId', authenticateToken, requireGestor, async (req, res): Promise<void> => {
+router.delete('/:id/participantes/:beneficiariaId', authenticateToken, requireGestor, authorize('oficinas.participantes.remover'), async (req, res): Promise<void> => {
   try {
     const oficinaId = parseInt(String(req.params.id));
     const beneficiariaId = parseInt(String(req.params.beneficiariaId));
@@ -263,7 +263,7 @@ router.delete('/:id/participantes/:beneficiariaId', authenticateToken, requireGe
 });
 
 // Registrar presença em uma oficina para uma beneficiária
-router.post('/:id/presencas', authenticateToken, async (req, res): Promise<void> => {
+router.post('/:id/presencas', authenticateToken, authorize('oficinas.presencas.registrar'), async (req, res): Promise<void> => {
   try {
     const oficinaId = parseInt(String(req.params.id));
     const { beneficiaria_id, presente, observacoes, data } = req.body || {};
@@ -293,7 +293,7 @@ router.post('/:id/presencas', authenticateToken, async (req, res): Promise<void>
 });
 
 // Listar presenças de uma oficina (opcionalmente filtrar por data YYYY-MM-DD)
-router.get('/:id/presencas', authenticateToken, async (req, res): Promise<void> => {
+router.get('/:id/presencas', authenticateToken, authorize('oficinas.presencas.listar'), async (req, res): Promise<void> => {
   try {
     const oficinaId = parseInt(String(req.params.id));
     const data = (req.query.data as string) || '';
@@ -460,7 +460,7 @@ router.get('/horarios-disponiveis', authenticateToken, async (req, res): Promise
 });
 
 // Relatório de presenças (PDF/Excel)
-router.get('/:id/relatorio-presencas', authenticateToken, async (req, res): Promise<void> => {
+router.get('/:id/relatorio-presencas', authenticateToken, authorize('oficinas.relatorio.exportar'), async (req, res): Promise<void> => {
   try {
     const id = parseInt(String(req.params.id));
     const formato = String(req.query.formato || 'pdf').toLowerCase();

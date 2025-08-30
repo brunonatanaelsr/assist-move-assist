@@ -4,6 +4,7 @@ import { Request, Response, NextFunction } from 'express';
 import { db } from '../services/db';
 import { loggerService } from '../services/logger';
 import { pool } from '../config/database';
+import redisClient from '../lib/redis';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 const SIGN_OPTIONS: SignOptions = { expiresIn: (process.env.JWT_EXPIRES_IN || '24h') as any };
@@ -364,13 +365,31 @@ export const authorize = (required: string | string[]) => {
       // Superadmin tem acesso total
       if (role === 'superadmin' || role === 'super_admin') return next();
 
-      const [rp, up] = await Promise.all([
-        pool.query('SELECT permission FROM role_permissions WHERE role = $1', [role]),
-        pool.query('SELECT permission FROM user_permissions WHERE user_id = $1', [(req.user as any).id])
-      ]);
-      const perms: string[] = [
-        ...new Set([...(rp.rows||[]).map((r:any)=>r.permission), ...(up.rows||[]).map((r:any)=>r.permission)])
-      ];
+      // Cache keys
+      const roleKey = `perms:role:${role}`;
+      const userKey = `perms:user:${(req.user as any).id}`;
+      let rolePerms: string[] | null = null;
+      let userPerms: string[] | null = null;
+      try {
+        const [rjson, ujson] = await Promise.all([
+          redisClient.get(roleKey),
+          redisClient.get(userKey)
+        ]);
+        rolePerms = rjson ? JSON.parse(rjson) : null;
+        userPerms = ujson ? JSON.parse(ujson) : null;
+      } catch {}
+
+      if (!rolePerms) {
+        const rp = await pool.query('SELECT permission FROM role_permissions WHERE role = $1', [role]);
+        rolePerms = (rp.rows || []).map((r:any)=>r.permission);
+        try { await redisClient.setex(roleKey, 300, JSON.stringify(rolePerms)); } catch {}
+      }
+      if (!userPerms) {
+        const up = await pool.query('SELECT permission FROM user_permissions WHERE user_id = $1', [(req.user as any).id]);
+        userPerms = (up.rows || []).map((r:any)=>r.permission);
+        try { await redisClient.setex(userKey, 300, JSON.stringify(userPerms)); } catch {}
+      }
+      const perms: string[] = [...new Set([...(rolePerms||[]), ...(userPerms||[])])];
       const ok = requiredPerms.every((p) => perms.includes(p));
       if (!ok) {
         loggerService.audit('ACCESS_DENIED', (req.user as any).id, { role, required: requiredPerms, have: perms });
