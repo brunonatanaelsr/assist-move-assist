@@ -62,6 +62,9 @@ router.put('/usuarios/:id', authenticateToken, authorize('users.manage'), async 
   try {
     const { id } = req.params as any;
     const { nome, papel, ativo, cargo, departamento, bio, telefone, avatar_url } = req.body || {};
+    // Capturar papel antigo
+    const prev = await pool.query('SELECT papel FROM usuarios WHERE id = $1', [id]);
+    const oldRole = prev.rows[0]?.papel || null;
     const r = await pool.query(
       `UPDATE usuarios SET 
          nome = COALESCE($2,nome),
@@ -77,6 +80,14 @@ router.put('/usuarios/:id', authenticateToken, authorize('users.manage'), async 
       [id, nome, papel, ativo, cargo, departamento, bio, telefone, avatar_url]
     );
     if (r.rowCount === 0) { res.status(404).json(errorResponse('Usuário não encontrado')); return; }
+    // Invalida cache de permissões do usuário
+    try { await redis.del(`perms:user:${id}`); } catch {}
+    // Se papel mudou, invalida cache do papel novo e antigo
+    const newRole = r.rows[0].papel;
+    if (newRole && newRole !== oldRole) {
+      try { await redis.del(`perms:role:${newRole}`); } catch {}
+      if (oldRole) { try { await redis.del(`perms:role:${oldRole}`); } catch {} }
+    }
     res.json(successResponse(r.rows[0]));
     return;
   } catch {

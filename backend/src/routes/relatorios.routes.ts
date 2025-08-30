@@ -12,7 +12,7 @@ import { stringify } from 'csv-stringify/sync';
 const router = express.Router();
 
 // Relatório geral de beneficiárias
-router.get('/beneficiarias', authenticateToken, requireGestor, async (req, res) => {
+router.get('/beneficiarias', authenticateToken, requireGestor, auth.authorize('relatorios.beneficiarias.gerar'), async (req, res) => {
   try {
     const { data_inicio, data_fim } = req.query;
     let whereClause = 'WHERE b.ativo = true';
@@ -45,7 +45,7 @@ router.get('/beneficiarias', authenticateToken, requireGestor, async (req, res) 
 });
 
 // Relatório de oficinas
-router.get('/oficinas', authenticateToken, requireGestor, async (req, res) => {
+router.get('/oficinas', authenticateToken, requireGestor, auth.authorize('relatorios.oficinas.gerar'), async (req, res) => {
   try {
     const { data_inicio, data_fim } = req.query;
     let whereClause = 'WHERE o.ativo = true';
@@ -134,7 +134,7 @@ router.get('/projetos', authenticateToken, requireGestor, auth.authorize('projet
 });
 
 // Relatório de participação
-router.get('/participacao', authenticateToken, requireGestor, async (req, res) => {
+router.get('/participacao', authenticateToken, requireGestor, auth.authorize('relatorios.participacao.gerar'), async (req, res) => {
   try {
     const { data_inicio, data_fim } = req.query;
     let whereClause = 'WHERE p.ativo = true';
@@ -175,7 +175,7 @@ router.get('/participacao', authenticateToken, requireGestor, async (req, res) =
 });
 
 // Relatório consolidado
-router.get('/consolidado', authenticateToken, requireGestor, async (req, res) => {
+router.get('/consolidado', authenticateToken, requireGestor, auth.authorize('relatorios.consolidado.gerar'), async (req, res) => {
   try {
     const { periodo = 'mensal' } = req.query;
     
