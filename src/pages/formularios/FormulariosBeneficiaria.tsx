@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import apiService from '@/services/apiService';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Link } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
@@ -108,6 +109,9 @@ export default function FormulariosBeneficiaria() {
             <Input placeholder="Buscar no conteúdo" value={search} onChange={e => setSearch(e.target.value)} className="max-w-sm" />
             <div className="flex-1" />
             <Button variant="outline" onClick={load} disabled={loading}>{loading ? 'Atualizando...' : 'Atualizar'}</Button>
+            <Button asChild>
+              <Link to={`/beneficiarias/${beneficiariaId}/formularios/evolucao`}>Ver evolução</Link>
+            </Button>
           </div>
 
           <div className="grid gap-2">
@@ -133,4 +137,3 @@ export default function FormulariosBeneficiaria() {
     </div>
   );
 }
-

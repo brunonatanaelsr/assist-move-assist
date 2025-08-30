@@ -482,6 +482,11 @@ class ApiService {
     const response = await this.api.get(`/formularios/${tipo}/${id}/pdf`, { responseType: 'blob' });
     return response.data as Blob;
   }
+
+  // Séries de evolução (ficha_evolucao)
+  async getFichaEvolucaoSeries(beneficiariaId: number): Promise<ApiResponse<any>> {
+    return this.get(`/formularios/ficha-evolucao/beneficiaria/${beneficiariaId}/series`);
+  }
 }
 
 export const apiService = new ApiService();
