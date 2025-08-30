@@ -97,7 +97,7 @@ router.get('/oficinas', authenticateToken, requireGestor, async (req, res) => {
 });
 
 // Relatório de projetos
-router.get('/projetos', authenticateToken, requireGestor, async (req, res) => {
+router.get('/projetos', authenticateToken, requireGestor, auth.authorize('projetos.relatorio.gerar'), async (req, res) => {
   try {
     const { data_inicio, data_fim } = req.query;
     let whereClause = 'WHERE p.ativo = true';
