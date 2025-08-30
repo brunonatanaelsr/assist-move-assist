@@ -62,27 +62,53 @@ export default Configuracoes;
 function UsuariosTab() {
   const [users, setUsers] = useState<any[]>([]);
   const [form, setForm] = useState({ email: '', password: '', nome: '', papel: 'user' });
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [total, setTotal] = useState(0);
+  const [openPermUser, setOpenPermUser] = useState<number | null>(null);
+  const [allPerms, setAllPerms] = useState<any[]>([]);
+  const [userPerms, setUserPerms] = useState<Record<number, string[]>>({});
   const load = async () => {
-    const r = await apiService.listUsers();
-    if (r.success && r.data) setUsers(r.data);
+    const r = await apiService.listUsers({ search, page, limit });
+    if (r.success && r.data) {
+      setUsers(r.data.data || []);
+      setTotal(r.data.pagination?.total || 0);
+    }
   };
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [search, page, limit]);
+  useEffect(() => { (async()=>{ const p = await apiService.listPermissions(); if (p.success && p.data) setAllPerms(p.data as any); })(); }, []);
   const create = async () => {
     if (!form.email || !form.password || !form.nome) return;
     await apiService.createUser(form as any);
     setForm({ email: '', password: '', nome: '', papel: 'user' });
-    await load();
+    setPage(1); await load();
   };
   const update = async (u: any, patch: any) => { await apiService.updateUser(u.id, patch); await load(); };
+  const togglePerm = async (u: any, perm: string) => {
+    const current = userPerms[u.id] || (await apiService.getUserPermissions(u.id)).data || [];
+    const next = current.includes(perm) ? current.filter((p:string)=>p!==perm) : [...current, perm];
+    await apiService.setUserPermissions(u.id, next);
+    setUserPerms(prev => ({ ...prev, [u.id]: next }));
+  };
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-2">
         <Input placeholder="Nome" value={form.nome} onChange={e=>setForm({...form, nome: e.target.value})} />
         <Input placeholder="Email" value={form.email} onChange={e=>setForm({...form, email: e.target.value})} />
         <Input placeholder="Senha" value={form.password} onChange={e=>setForm({...form, password: e.target.value})} />
         <Input placeholder="Papel" value={form.papel} onChange={e=>setForm({...form, papel: e.target.value})} />
+        <Button onClick={create}>Criar usuário</Button>
       </div>
-      <Button onClick={create}>Criar usuário</Button>
+      <div className="flex items-center gap-2">
+        <Input placeholder="Buscar por nome/email" value={search} onChange={e=>{ setPage(1); setSearch(e.target.value); }} />
+        <div className="flex-1" />
+        <select className="border rounded px-2 py-1" value={limit} onChange={e=>{ setPage(1); setLimit(parseInt(e.target.value)); }}>
+          <option value={10}>10</option>
+          <option value={20}>20</option>
+          <option value={50}>50</option>
+        </select>
+      </div>
       <div className="space-y-2">
         {users.map(u => (
           <div key={u.id} className="flex items-center gap-2 border rounded p-2">
@@ -93,8 +119,28 @@ function UsuariosTab() {
             <Input className="w-28" placeholder="papel" defaultValue={u.papel} onBlur={e=>update(u,{ papel: e.target.value })} />
             <Button variant="outline" onClick={()=>update(u,{ ativo: !u.ativo })}>{u.ativo? 'Desativar':'Ativar'}</Button>
             <Button variant="outline" onClick={()=>apiService.resetUserPassword(u.id,'123456')}>Reset senha</Button>
+            <Button variant="outline" onClick={async()=>{ if (openPermUser===u.id) { setOpenPermUser(null); } else { const gp = await apiService.getUserPermissions(u.id); setUserPerms(prev=>({ ...prev, [u.id]: gp.data || [] })); setOpenPermUser(u.id); } }}>Permissões</Button>
           </div>
         ))}
+        {openPermUser && (
+          <div className="border rounded p-3">
+            <div className="text-sm font-semibold mb-2">Permissões do usuário {openPermUser}</div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+              {allPerms.map((p:any)=>(
+                <label key={p.name} className="flex items-center gap-2 border rounded p-2">
+                  <input type="checkbox" checked={(userPerms[openPermUser]||[]).includes(p.name)} onChange={()=>togglePerm({ id: openPermUser }, p.name)} />
+                  <span className="font-medium">{p.name}</span>
+                  <span className="text-xs text-muted-foreground">{p.description}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+      <div className="flex items-center justify-end gap-2">
+        <Button variant="outline" disabled={page<=1} onClick={()=>setPage(p=>Math.max(1,p-1))}>Anterior</Button>
+        <span className="text-sm text-muted-foreground">Página {page} de {Math.max(1, Math.ceil(total/limit))}</span>
+        <Button variant="outline" disabled={page>=Math.ceil(total/limit)} onClick={()=>setPage(p=>p+1)}>Próxima</Button>
       </div>
     </div>
   );

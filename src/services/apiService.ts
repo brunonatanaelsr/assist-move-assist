@@ -393,7 +393,7 @@ class ApiService {
   }
 
   // Configurações: usuários, papéis, permissões
-  async listUsers(): Promise<ApiResponse<any[]>> { return this.get('/configuracoes/usuarios'); }
+  async listUsers(params?: any): Promise<ApiResponse<any>> { return this.get('/configuracoes/usuarios', { params }); }
   async createUser(data: { email: string; password: string; nome: string; papel?: string }): Promise<ApiResponse<any>> {
     return this.post('/configuracoes/usuarios', data);
   }
@@ -511,6 +511,14 @@ class ApiService {
   // Séries de evolução (ficha_evolucao)
   async getFichaEvolucaoSeries(beneficiariaId: number): Promise<ApiResponse<any>> {
     return this.get(`/formularios/ficha-evolucao/beneficiaria/${beneficiariaId}/series`);
+  }
+
+  // Permissões por usuário
+  async getUserPermissions(userId: number): Promise<ApiResponse<string[]>> {
+    return this.get(`/configuracoes/usuarios/${userId}/permissions`);
+  }
+  async setUserPermissions(userId: number, permissions: string[]): Promise<ApiResponse<any>> {
+    return this.put(`/configuracoes/usuarios/${userId}/permissions`, { permissions });
   }
 }
 

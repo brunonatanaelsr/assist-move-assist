@@ -9,8 +9,28 @@ const router = Router();
 // Usuários
 router.get('/usuarios', authenticateToken, authorize('users.manage'), async (_req, res) => {
   try {
-    const r = await pool.query(`SELECT id, email, nome, papel, ativo, avatar_url, cargo, departamento, bio, telefone, data_criacao FROM usuarios ORDER BY id ASC`);
-    res.json(successResponse(r.rows));
+    const limit = parseInt(String((_req.query as any).limit || '20'), 10);
+    const page = parseInt(String((_req.query as any).page || '1'), 10);
+    const search = String((_req.query as any).search || '').trim();
+    const where: string[] = [];
+    const params: any[] = [];
+    let idx = 1;
+    if (search) {
+      where.push(`(email ILIKE $${idx} OR nome ILIKE $${idx})`);
+      params.push(`%${search}%`);
+      idx++;
+    }
+    const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+    const offset = (Math.max(1, page) - 1) * Math.max(1, limit);
+    const sql = `SELECT id, email, nome, papel, ativo, avatar_url, cargo, departamento, bio, telefone, data_criacao,
+                        COUNT(*) OVER() as total_count
+                 FROM usuarios ${whereSql}
+                 ORDER BY id ASC
+                 LIMIT $${idx} OFFSET $${idx+1}`;
+    params.push(limit, offset);
+    const r = await pool.query(sql, params);
+    const total = parseInt(r.rows[0]?.total_count || '0', 10);
+    res.json(successResponse({ data: r.rows, pagination: { page, limit, total } }));
     return;
   } catch (e) {
     res.status(500).json(errorResponse('Erro ao listar usuários'));
@@ -147,3 +167,33 @@ router.put('/roles/:role/permissions', authenticateToken, authorize('roles.manag
 });
 
 export default router;
+
+// ---- Permissões por usuário ----
+router.get('/usuarios/:id/permissions', authenticateToken, authorize('users.manage'), async (req: AuthenticatedRequest, res) => {
+  try {
+    const { id } = req.params as any;
+    const r = await pool.query('SELECT permission FROM user_permissions WHERE user_id = $1', [id]);
+    res.json(successResponse(r.rows.map((x:any)=>x.permission)));
+    return;
+  } catch {
+    res.status(500).json(errorResponse('Erro ao obter permissões do usuário'));
+    return;
+  }
+});
+
+router.put('/usuarios/:id/permissions', authenticateToken, authorize('users.manage'), async (req: AuthenticatedRequest, res) => {
+  try {
+    const { id } = req.params as any;
+    const { permissions } = req.body || {};
+    if (!Array.isArray(permissions)) { res.status(400).json(errorResponse('permissions deve ser array')); return; }
+    await pool.query('DELETE FROM user_permissions WHERE user_id = $1', [id]);
+    for (const p of permissions) {
+      await pool.query('INSERT INTO user_permissions (user_id, permission) VALUES ($1,$2) ON CONFLICT DO NOTHING', [id, p]);
+    }
+    res.json(successResponse({ id, permissions }));
+    return;
+  } catch {
+    res.status(500).json(errorResponse('Erro ao atualizar permissões do usuário'));
+    return;
+  }
+});

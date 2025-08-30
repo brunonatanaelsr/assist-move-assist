@@ -1,6 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { BeneficiariasRepository } from '../repositories/BeneficiariasRepository';
-import { authenticateToken, requireProfissional } from '../middleware/auth';
+import { authenticateToken, requireProfissional, authorize } from '../middleware/auth';
 import { successResponse, errorResponse } from '../utils/responseFormatter';
 import { catchAsync } from '../middleware/errorHandler';
 import { formatObjectDates } from '../utils/dateFormatter';
@@ -19,6 +19,7 @@ const beneficiariasRepository = new BeneficiariasRepository(pool);
 router.get(
   '/',
   authenticateToken,
+  authorize('beneficiarias.ler'),
   async (req: ExtendedRequest, res: Response): Promise<void> => {
     try {
       const page = parseInt((req.query.page as string) || '1', 10);
@@ -40,6 +41,7 @@ router.get(
 router.get(
   '/:id',
   authenticateToken,
+  authorize('beneficiarias.ler'),
   async (req: ExtendedRequest, res: Response): Promise<void> => {
     try {
       const { id } = req.params;
@@ -140,6 +142,7 @@ router.post(
   '/',
   authenticateToken,
   requireProfissional,
+  authorize('beneficiarias.criar'),
   async (req: ExtendedRequest, res: Response): Promise<void> => {
     try {
       const {
@@ -206,6 +209,7 @@ router.put(
   '/:id',
   authenticateToken,
   requireProfissional,
+  authorize('beneficiarias.editar'),
   async (req: ExtendedRequest, res: Response): Promise<void> => {
     try {
       const { id } = req.params;
@@ -257,6 +261,7 @@ router.delete(
   '/:id',
   authenticateToken,
   requireProfissional,
+  authorize('beneficiarias.excluir'),
   async (req: ExtendedRequest, res: Response): Promise<void> => {
     try {
       const { id } = req.params;
