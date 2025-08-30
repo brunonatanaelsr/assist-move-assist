@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { authenticateToken, AuthenticatedRequest } from '../middleware/auth';
+import { authenticateToken, AuthenticatedRequest, authorize } from '../middleware/auth';
 import { pool } from '../config/database';
 import { successResponse, errorResponse } from '../utils/responseFormatter';
 import bcrypt from 'bcryptjs';
@@ -7,7 +7,7 @@ import bcrypt from 'bcryptjs';
 const router = Router();
 
 // Usuários
-router.get('/usuarios', authenticateToken, async (_req, res) => {
+router.get('/usuarios', authenticateToken, authorize('users.manage'), async (_req, res) => {
   try {
     const r = await pool.query(`SELECT id, email, nome, papel, ativo, avatar_url, cargo, departamento, bio, telefone, data_criacao FROM usuarios ORDER BY id ASC`);
     res.json(successResponse(r.rows));
@@ -18,7 +18,7 @@ router.get('/usuarios', authenticateToken, async (_req, res) => {
   }
 });
 
-router.post('/usuarios', authenticateToken, async (req: AuthenticatedRequest, res) => {
+router.post('/usuarios', authenticateToken, authorize('users.manage'), async (req: AuthenticatedRequest, res) => {
   try {
     const { email, password, nome, papel } = req.body || {};
     if (!email || !password || !nome) { res.status(400).json(errorResponse('email, password e nome são obrigatórios')); return; }
@@ -37,7 +37,7 @@ router.post('/usuarios', authenticateToken, async (req: AuthenticatedRequest, re
   }
 });
 
-router.put('/usuarios/:id', authenticateToken, async (req: AuthenticatedRequest, res) => {
+router.put('/usuarios/:id', authenticateToken, authorize('users.manage'), async (req: AuthenticatedRequest, res) => {
   try {
     const { id } = req.params as any;
     const { nome, papel, ativo, cargo, departamento, bio, telefone, avatar_url } = req.body || {};
@@ -64,7 +64,7 @@ router.put('/usuarios/:id', authenticateToken, async (req: AuthenticatedRequest,
   }
 });
 
-router.post('/usuarios/:id/reset-password', authenticateToken, async (req: AuthenticatedRequest, res) => {
+router.post('/usuarios/:id/reset-password', authenticateToken, authorize('users.manage'), async (req: AuthenticatedRequest, res) => {
   try {
     const { id } = req.params as any;
     const { newPassword } = req.body || {};
@@ -80,7 +80,7 @@ router.post('/usuarios/:id/reset-password', authenticateToken, async (req: Authe
 });
 
 // Permissões e papéis
-router.get('/permissions', authenticateToken, async (_req, res) => {
+router.get('/permissions', authenticateToken, authorize('roles.manage'), async (_req, res) => {
   try {
     const r = await pool.query('SELECT name, description FROM permissions ORDER BY name');
     res.json(successResponse(r.rows));
@@ -91,7 +91,7 @@ router.get('/permissions', authenticateToken, async (_req, res) => {
   }
 });
 
-router.post('/permissions', authenticateToken, async (req: AuthenticatedRequest, res) => {
+router.post('/permissions', authenticateToken, authorize('roles.manage'), async (req: AuthenticatedRequest, res) => {
   try {
     const { name, description } = req.body || {};
     if (!name) { res.status(400).json(errorResponse('name é obrigatório')); return; }
@@ -104,7 +104,7 @@ router.post('/permissions', authenticateToken, async (req: AuthenticatedRequest,
   }
 });
 
-router.get('/roles', authenticateToken, async (_req, res) => {
+router.get('/roles', authenticateToken, authorize('roles.manage'), async (_req, res) => {
   try {
     const a = await pool.query('SELECT DISTINCT papel as role FROM usuarios');
     const b = await pool.query('SELECT DISTINCT role FROM role_permissions');
@@ -117,7 +117,7 @@ router.get('/roles', authenticateToken, async (_req, res) => {
   }
 });
 
-router.get('/roles/:role/permissions', authenticateToken, async (req: AuthenticatedRequest, res) => {
+router.get('/roles/:role/permissions', authenticateToken, authorize('roles.manage'), async (req: AuthenticatedRequest, res) => {
   try {
     const { role } = req.params as any;
     const r = await pool.query('SELECT permission FROM role_permissions WHERE role = $1 ORDER BY permission', [role]);
@@ -129,7 +129,7 @@ router.get('/roles/:role/permissions', authenticateToken, async (req: Authentica
   }
 });
 
-router.put('/roles/:role/permissions', authenticateToken, async (req: AuthenticatedRequest, res) => {
+router.put('/roles/:role/permissions', authenticateToken, authorize('roles.manage'), async (req: AuthenticatedRequest, res) => {
   try {
     const { role } = req.params as any;
     const { permissions } = req.body || {};
@@ -147,4 +147,3 @@ router.put('/roles/:role/permissions', authenticateToken, async (req: Authentica
 });
 
 export default router;
-

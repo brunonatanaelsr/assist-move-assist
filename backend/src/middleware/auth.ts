@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import { Request, Response, NextFunction } from 'express';
 import { db } from '../services/db';
 import { loggerService } from '../services/logger';
+import { pool } from '../config/database';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 const SIGN_OPTIONS: SignOptions = { expiresIn: (process.env.JWT_EXPIRES_IN || '24h') as any };
@@ -349,3 +350,30 @@ export const requireAdmin = requireRole('admin');
 
 // Middleware para gestores
 export const requireGestor = requireRole('gestor');
+
+// RBAC baseado em role_permissions (DB)
+export const authorize = (required: string | string[]) => {
+  const requiredPerms = Array.isArray(required) ? required : [required];
+  return async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ error: 'Usuário não autenticado' });
+      }
+      const role = String((req.user as any).role || '').toLowerCase();
+      if (!role) return res.status(403).json({ error: 'Sem papel associado' });
+      // Superadmin tem acesso total
+      if (role === 'superadmin' || role === 'super_admin') return next();
+
+      const result = await pool.query('SELECT permission FROM role_permissions WHERE role = $1', [role]);
+      const perms: string[] = (result.rows || []).map((r: any) => r.permission);
+      const ok = requiredPerms.every((p) => perms.includes(p));
+      if (!ok) {
+        loggerService.audit('ACCESS_DENIED', (req.user as any).id, { role, required: requiredPerms, have: perms });
+        return res.status(403).json({ error: 'Permissão negada', required: requiredPerms });
+      }
+      return next();
+    } catch (e) {
+      return res.status(500).json({ error: 'Erro ao verificar permissões' });
+    }
+  };
+};
