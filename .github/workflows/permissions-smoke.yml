@@ -67,3 +67,11 @@ jobs:
         run: |
           cd backend
           npm run smoke:config
+      - name: Run reports smoke
+        env:
+          API_BASE: http://localhost:3000/api
+          SUPER_EMAIL: bruno@move.com
+          SUPER_PASS: 15002031
+        run: |
+          cd backend
+          npm run smoke:reports

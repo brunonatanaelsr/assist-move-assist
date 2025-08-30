@@ -16,9 +16,9 @@
     "security-check": "node scripts/security-check.js",
     "precommit": "npm run security-check",
     "smoke:chat": "node scripts/smoke-chat.js",
-    "smoke:chat:offline": "node scripts/smoke-chat-offline.js"
-    ,
-    "smoke:config": "node scripts/smoke-config.js"
+    "smoke:chat:offline": "node scripts/smoke-chat-offline.js",
+    "smoke:config": "node scripts/smoke-config.js",
+    "smoke:reports": "node scripts/smoke-reports.js"
   },
   "dependencies": {
     "@types/exceljs": "^1.3.2",

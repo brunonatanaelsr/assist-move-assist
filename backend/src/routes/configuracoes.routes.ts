@@ -140,6 +140,11 @@ router.post('/permissions', authenticateToken, authorize('roles.manage'), async 
     const { name, description } = req.body || {};
     if (!name) { res.status(400).json(errorResponse('name é obrigatório')); return; }
     await pool.query('INSERT INTO permissions (name, description) VALUES ($1,$2) ON CONFLICT DO NOTHING', [name, description || null]);
+    // Invalida todos os caches de papel, pois lista de permissions mudou
+    try {
+      const keys = await (redis as any).keys('perms:role:*');
+      if (keys && keys.length) { await (redis as any).del(...keys); }
+    } catch {}
     res.status(201).json(successResponse({ name, description }));
     return;
   } catch {
