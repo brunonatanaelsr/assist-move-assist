@@ -102,8 +102,20 @@ router.post('/usuarios/:id/reset-password', authenticateToken, authorize('users.
 // Permissões e papéis
 router.get('/permissions', authenticateToken, authorize('roles.manage'), async (_req, res) => {
   try {
-    const r = await pool.query('SELECT name, description FROM permissions ORDER BY name');
-    res.json(successResponse(r.rows));
+    const limit = parseInt(String((_req.query as any).limit || '50'), 10);
+    const page = parseInt(String((_req.query as any).page || '1'), 10);
+    const search = String((_req.query as any).search || '').trim();
+    const where: string[] = [];
+    const params: any[] = [];
+    let idx = 1;
+    if (search) { where.push(`(name ILIKE $${idx} OR description ILIKE $${idx})`); params.push(`%${search}%`); idx++; }
+    const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+    const offset = (Math.max(1,page)-1)*Math.max(1,limit);
+    const sql = `SELECT name, description, COUNT(*) OVER() as total_count FROM permissions ${whereSql} ORDER BY name LIMIT $${idx} OFFSET $${idx+1}`;
+    params.push(limit, offset);
+    const r = await pool.query(sql, params);
+    const total = parseInt(r.rows[0]?.total_count || '0', 10);
+    res.json(successResponse({ data: r.rows.map((x:any)=>({ name: x.name, description: x.description })), pagination: { page, limit, total } }));
     return;
   } catch {
     res.status(500).json(errorResponse('Erro ao listar permissões'));

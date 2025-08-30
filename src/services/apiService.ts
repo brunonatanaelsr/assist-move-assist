@@ -402,7 +402,7 @@ class ApiService {
     return this.post(`/configuracoes/usuarios/${id}/reset-password`, { newPassword });
   }
   async listRoles(): Promise<ApiResponse<string[]>> { return this.get('/configuracoes/roles'); }
-  async listPermissions(): Promise<ApiResponse<any[]>> { return this.get('/configuracoes/permissions'); }
+  async listPermissions(params?: any): Promise<ApiResponse<any>> { return this.get('/configuracoes/permissions', { params }); }
   async createPermission(name: string, description?: string): Promise<ApiResponse<any>> {
     return this.post('/configuracoes/permissions', { name, description });
   }

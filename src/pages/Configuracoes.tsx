@@ -151,30 +151,58 @@ function PapeisTab() {
   const [selected, setSelected] = useState('');
   const [perms, setPerms] = useState<string[]>([]);
   const [all, setAll] = useState<any[]>([]);
+  const [permSearch, setPermSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(50);
+  const [total, setTotal] = useState(0);
   const load = async () => {
     const r = await apiService.listRoles(); if (r.success && r.data) setRoles(r.data as any);
-    const p = await apiService.listPermissions(); if (p.success && p.data) setAll(p.data as any);
+    const p = await apiService.listPermissions({ search: permSearch, page, limit }); if (p.success && p.data) { setAll(p.data.data as any); setTotal(p.data.pagination?.total || 0); }
     if (selected) { const rp = await apiService.getRolePermissions(selected); if (rp.success && rp.data) setPerms(rp.data as any); }
   };
-  useEffect(() => { load(); }, [selected]);
+  useEffect(() => { load(); }, [selected, permSearch, page, limit]);
   const toggle = (name: string) => {
     setPerms(prev => prev.includes(name) ? prev.filter(x=>x!==name) : [...prev, name]);
   };
   const save = async () => { if (!selected) return; await apiService.setRolePermissions(selected, perms); };
+  const groups = (all || []).reduce((acc:any, p:any)=>{
+    const key = String(p.name).split('.')[0] || 'geral';
+    (acc[key] ||= []).push(p);
+    return acc;
+  }, {} as Record<string, any[]>);
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2">
         <Input className="w-56" placeholder="papel" value={selected} onChange={e=>setSelected(e.target.value)} />
         <Button variant="outline" onClick={save} disabled={!selected}>Salvar permissões</Button>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-        {all.map((p:any)=>(
-          <label key={p.name} className="flex items-center gap-2 border rounded p-2">
-            <input type="checkbox" checked={perms.includes(p.name)} onChange={()=>toggle(p.name)} />
-            <span className="font-medium">{p.name}</span>
-            <span className="text-xs text-muted-foreground">{p.description}</span>
-          </label>
-        ))}
+      <div className="flex items-center gap-2">
+        <Input placeholder="buscar permissão" value={permSearch} onChange={e=>{ setPage(1); setPermSearch(e.target.value); }} />
+        <div className="flex-1" />
+        <select className="border rounded px-2 py-1" value={limit} onChange={e=>{ setPage(1); setLimit(parseInt(e.target.value)); }}>
+          <option value={25}>25</option>
+          <option value={50}>50</option>
+          <option value={100}>100</option>
+        </select>
+      </div>
+      {Object.keys(groups).sort().map(groupKey => (
+        <div key={groupKey} className="space-y-2">
+          <div className="text-sm font-semibold mt-2">{groupKey}</div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+            {groups[groupKey].map((p:any)=>(
+              <label key={p.name} className="flex items-center gap-2 border rounded p-2">
+                <input type="checkbox" checked={perms.includes(p.name)} onChange={()=>toggle(p.name)} />
+                <span className="font-medium">{p.name}</span>
+                <span className="text-xs text-muted-foreground">{p.description}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      ))}
+      <div className="flex items-center justify-end gap-2">
+        <Button variant="outline" disabled={page<=1} onClick={()=>setPage(p=>Math.max(1,p-1))}>Anterior</Button>
+        <span className="text-sm text-muted-foreground">Página {page} de {Math.max(1, Math.ceil(total/limit))}</span>
+        <Button variant="outline" disabled={page>=Math.ceil(total/limit)} onClick={()=>setPage(p=>p+1)}>Próxima</Button>
       </div>
       <div className="text-sm text-muted-foreground">Papéis existentes: {roles.join(', ') || '—'}</div>
     </div>

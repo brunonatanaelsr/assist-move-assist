@@ -1,6 +1,6 @@
 import express from 'express';
 import Redis from 'ioredis';
-import { authenticateToken, requireGestor } from '../middleware/auth';
+import { authenticateToken, requireGestor, authorize } from '../middleware/auth';
 import { successResponse, errorResponse } from '../utils/responseFormatter';
 import { createProjetoSchema, updateProjetoSchema, projetoFilterSchema } from '../validators/projeto.validator';
 import { ProjetoService } from '../services/projeto.service';
@@ -12,7 +12,7 @@ const projetoService = new ProjetoService(pool, redis);
 
 router.use(authenticateToken);
 
-router.get('/', async (req, res): Promise<void> => {
+router.get('/', authorize('projetos.ler'), async (req, res): Promise<void> => {
   try {
     const filters = projetoFilterSchema.parse(req.query);
     const result = await projetoService.listarProjetos(filters);
@@ -25,7 +25,7 @@ router.get('/', async (req, res): Promise<void> => {
   }
 });
 
-router.get('/:id', async (req, res): Promise<void> => {
+router.get('/:id', authorize('projetos.ler'), async (req, res): Promise<void> => {
   try {
     const projeto = await projetoService.buscarProjeto(Number(req.params.id));
     res.json(successResponse(projeto, 'Projeto carregado com sucesso'));
@@ -37,7 +37,7 @@ router.get('/:id', async (req, res): Promise<void> => {
   }
 });
 
-router.post('/', requireGestor, async (req, res): Promise<void> => {
+router.post('/', requireGestor, authorize('projetos.criar'), async (req, res): Promise<void> => {
   try {
     const user = (req as any).user;
     const data = createProjetoSchema.parse({ ...req.body, responsavel_id: Number(user?.id) });
@@ -51,7 +51,7 @@ router.post('/', requireGestor, async (req, res): Promise<void> => {
   }
 });
 
-router.put('/:id', requireGestor, async (req, res): Promise<void> => {
+router.put('/:id', requireGestor, authorize('projetos.editar'), async (req, res): Promise<void> => {
   try {
     const data = updateProjetoSchema.parse(req.body);
     const projeto = await projetoService.atualizarProjeto(Number(req.params.id), data);
@@ -65,7 +65,7 @@ router.put('/:id', requireGestor, async (req, res): Promise<void> => {
   }
 });
 
-router.delete('/:id', requireGestor, async (req, res): Promise<void> => {
+router.delete('/:id', requireGestor, authorize('projetos.excluir'), async (req, res): Promise<void> => {
   try {
     await projetoService.excluirProjeto(Number(req.params.id));
     res.json(successResponse(null, 'Projeto removido com sucesso'));

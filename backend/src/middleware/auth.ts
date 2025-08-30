@@ -364,8 +364,13 @@ export const authorize = (required: string | string[]) => {
       // Superadmin tem acesso total
       if (role === 'superadmin' || role === 'super_admin') return next();
 
-      const result = await pool.query('SELECT permission FROM role_permissions WHERE role = $1', [role]);
-      const perms: string[] = (result.rows || []).map((r: any) => r.permission);
+      const [rp, up] = await Promise.all([
+        pool.query('SELECT permission FROM role_permissions WHERE role = $1', [role]),
+        pool.query('SELECT permission FROM user_permissions WHERE user_id = $1', [(req.user as any).id])
+      ]);
+      const perms: string[] = [
+        ...new Set([...(rp.rows||[]).map((r:any)=>r.permission), ...(up.rows||[]).map((r:any)=>r.permission)])
+      ];
       const ok = requiredPerms.every((p) => perms.includes(p));
       if (!ok) {
         loggerService.audit('ACCESS_DENIED', (req.user as any).id, { role, required: requiredPerms, have: perms });

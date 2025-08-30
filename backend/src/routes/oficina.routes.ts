@@ -1,7 +1,7 @@
 import express from 'express';
 import Redis from 'ioredis';
 import { OficinaService } from '../services/oficina.service';
-import { authenticateToken, requireGestor } from '../middleware/auth';
+import { authenticateToken, requireGestor, authorize } from '../middleware/auth';
 import { successResponse, errorResponse } from '../utils/responseFormatter';
 import { oficinaFilterSchema, createOficinaSchema, updateOficinaSchema } from '../validators/oficina.validator';
 import { pool } from '../config/database';
@@ -23,7 +23,7 @@ const oficinaService = new OficinaService(pool, redis);
 const oficinaRepository = new OficinaRepository();
 
 // Listar oficinas (público)
-router.get('/', async (req, res): Promise<void> => {
+router.get('/', authorize('oficinas.ler'), async (req, res): Promise<void> => {
   try {
     const filters = oficinaFilterSchema.parse(req.query);
     const result = await oficinaService.listarOficinas(filters);
@@ -47,7 +47,7 @@ router.get('/', async (req, res): Promise<void> => {
 });
 
 // Obter oficina específica
-router.get('/:id', async (req, res): Promise<void> => {
+router.get('/:id', authorize('oficinas.ler'), async (req, res): Promise<void> => {
   try {
     const id = parseInt(String(req.params.id));
     const oficina = await oficinaService.buscarOficina(id);
@@ -68,7 +68,7 @@ router.get('/:id', async (req, res): Promise<void> => {
 });
 
 // Criar oficina
-router.post('/', authenticateToken, requireGestor, async (req, res): Promise<void> => {
+router.post('/', authenticateToken, requireGestor, authorize('oficinas.criar'), async (req, res): Promise<void> => {
   try {
     const user = (req as any).user;
     if (!user) {
@@ -97,7 +97,7 @@ router.post('/', authenticateToken, requireGestor, async (req, res): Promise<voi
 });
 
 // Atualizar oficina
-router.put('/:id', authenticateToken, requireGestor, async (req, res): Promise<void> => {
+router.put('/:id', authenticateToken, requireGestor, authorize('oficinas.editar'), async (req, res): Promise<void> => {
   try {
     const id = parseInt(String(req.params.id));
     const user = (req as any).user;
