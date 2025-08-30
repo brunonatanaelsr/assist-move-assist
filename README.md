@@ -138,6 +138,7 @@ Para documentação detalhada consulte:
 - [Documentação da API](docs/API_DOCUMENTATION.md)
 - [Guia de Deploy](docs/DEPLOY_GUIDE.md)
 - [Banco de Dados](docs/database/)
+ - [Guia de Admin (RBAC, permissões e smokes)](README-ADMIN.md)
 
 ## Principais Funcionalidades
 
