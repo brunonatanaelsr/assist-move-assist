@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { authenticateToken, AuthenticatedRequest, authorize } from '../middleware/auth';
 import { pool } from '../config/database';
 import { successResponse, errorResponse } from '../utils/responseFormatter';
+import redis from '../lib/redis';
 import bcrypt from 'bcryptjs';
 
 const router = Router();
@@ -166,11 +167,12 @@ router.put('/roles/:role/permissions', authenticateToken, authorize('roles.manag
     const { role } = req.params as any;
     const { permissions } = req.body || {};
     if (!Array.isArray(permissions)) { res.status(400).json(errorResponse('permissions deve ser array')); return; }
-    await pool.query('DELETE FROM role_permissions WHERE role = $1', [role]);
-    for (const p of permissions) {
-      await pool.query('INSERT INTO role_permissions (role, permission) VALUES ($1,$2) ON CONFLICT DO NOTHING', [role, p]);
-    }
-    res.json(successResponse({ role, permissions }));
+  await pool.query('DELETE FROM role_permissions WHERE role = $1', [role]);
+  for (const p of permissions) {
+    await pool.query('INSERT INTO role_permissions (role, permission) VALUES ($1,$2) ON CONFLICT DO NOTHING', [role, p]);
+  }
+  try { await redis.del(`perms:role:${role}`); } catch {}
+  res.json(successResponse({ role, permissions }));
     return;
   } catch {
     res.status(500).json(errorResponse('Erro ao atualizar permissões do papel'));
@@ -198,11 +200,12 @@ router.put('/usuarios/:id/permissions', authenticateToken, authorize('users.mana
     const { id } = req.params as any;
     const { permissions } = req.body || {};
     if (!Array.isArray(permissions)) { res.status(400).json(errorResponse('permissions deve ser array')); return; }
-    await pool.query('DELETE FROM user_permissions WHERE user_id = $1', [id]);
-    for (const p of permissions) {
-      await pool.query('INSERT INTO user_permissions (user_id, permission) VALUES ($1,$2) ON CONFLICT DO NOTHING', [id, p]);
-    }
-    res.json(successResponse({ id, permissions }));
+  await pool.query('DELETE FROM user_permissions WHERE user_id = $1', [id]);
+  for (const p of permissions) {
+    await pool.query('INSERT INTO user_permissions (user_id, permission) VALUES ($1,$2) ON CONFLICT DO NOTHING', [id, p]);
+  }
+  try { await redis.del(`perms:user:${id}`); } catch {}
+  res.json(successResponse({ id, permissions }));
     return;
   } catch {
     res.status(500).json(errorResponse('Erro ao atualizar permissões do usuário'));

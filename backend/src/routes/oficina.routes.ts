@@ -356,7 +356,7 @@ router.get('/:id/resumo', authenticateToken, async (req, res): Promise<void> => 
 });
 
 // Verificar conflito de horários
-router.post('/verificar-conflito', authenticateToken, async (req, res): Promise<void> => {
+router.post('/verificar-conflito', authenticateToken, authorize('oficinas.conflito.verificar'), async (req, res): Promise<void> => {
   try {
     const { data_inicio, data_fim, horario_inicio, horario_fim, dias_semana, excluir_oficina_id } = req.body || {};
     if (!data_inicio || !horario_inicio || !horario_fim) {
@@ -401,7 +401,7 @@ router.post('/verificar-conflito', authenticateToken, async (req, res): Promise<
 });
 
 // Horários disponíveis para uma data específica (intervalos de 30 min)
-router.get('/horarios-disponiveis', authenticateToken, async (req, res): Promise<void> => {
+router.get('/horarios-disponiveis', authenticateToken, authorize('oficinas.horarios.listar'), async (req, res): Promise<void> => {
   try {
     const data = String(req.query.data || '');
     if (!data || !/^\d{4}-\d{2}-\d{2}$/.test(data)) {
