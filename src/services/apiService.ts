@@ -392,6 +392,31 @@ class ApiService {
     return this.put('/configuracoes', data);
   }
 
+  // Configurações: usuários, papéis, permissões
+  async listUsers(): Promise<ApiResponse<any[]>> { return this.get('/configuracoes/usuarios'); }
+  async createUser(data: { email: string; password: string; nome: string; papel?: string }): Promise<ApiResponse<any>> {
+    return this.post('/configuracoes/usuarios', data);
+  }
+  async updateUser(id: number, data: any): Promise<ApiResponse<any>> { return this.put(`/configuracoes/usuarios/${id}`, data); }
+  async resetUserPassword(id: number, newPassword: string): Promise<ApiResponse<any>> {
+    return this.post(`/configuracoes/usuarios/${id}/reset-password`, { newPassword });
+  }
+  async listRoles(): Promise<ApiResponse<string[]>> { return this.get('/configuracoes/roles'); }
+  async listPermissions(): Promise<ApiResponse<any[]>> { return this.get('/configuracoes/permissions'); }
+  async createPermission(name: string, description?: string): Promise<ApiResponse<any>> {
+    return this.post('/configuracoes/permissions', { name, description });
+  }
+  async getRolePermissions(role: string): Promise<ApiResponse<string[]>> { return this.get(`/configuracoes/roles/${role}/permissions`); }
+  async setRolePermissions(role: string, permissions: string[]): Promise<ApiResponse<any>> {
+    return this.put(`/configuracoes/roles/${role}/permissions`, { permissions });
+  }
+
+  // Perfil
+  async updateProfile(data: any): Promise<ApiResponse<any>> { return this.put('/auth/profile', data); }
+  async changePassword(currentPassword: string, newPassword: string): Promise<ApiResponse<any>> {
+    return this.post('/auth/change-password', { currentPassword, newPassword });
+  }
+
   // Métodos específicos para declarações
   async getDeclaracoes(params?: any): Promise<ApiResponse<any[]>> {
     return this.get('/declaracoes', { params });

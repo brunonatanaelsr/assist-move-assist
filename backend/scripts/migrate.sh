@@ -91,3 +91,7 @@ for file in $(ls $MIGRATIONS_DIR/*.sql | sort); do
 done
 
 echo -e "${GREEN}Todas as migrações foram aplicadas com sucesso${NC}"
+
+# Rodar seed inicial para criar usuário padrão e dados base
+echo -e "${YELLOW}Executando seed inicial...${NC}"
+node scripts/create-initial-data.js || true

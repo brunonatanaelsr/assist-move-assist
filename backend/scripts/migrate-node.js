@@ -59,7 +59,17 @@ async function run() {
       }
     }
 
-    console.log('✅ Todas as migrações estão aplicadas');
+  console.log('✅ Todas as migrações estão aplicadas');
+  try {
+    console.log('⏳ Rodando seed inicial...');
+    await new Promise((resolve, reject) => {
+      const { spawn } = require('child_process');
+      const child = spawn('node', [path.resolve(__dirname, 'create-initial-data.js')], { stdio: 'inherit' });
+      child.on('exit', (code) => (code === 0 ? resolve(null) : reject(new Error(`seed exit ${code}`))));
+    });
+  } catch (e) {
+    console.warn('Seed inicial falhou (continuando):', e.message);
+  }
   } finally {
     client.release();
     await pool.end();
@@ -70,4 +80,3 @@ run().catch((err) => {
   console.error('Falha ao executar migrações via Node:', err.message);
   process.exit(1);
 });
-

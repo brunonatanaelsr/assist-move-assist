@@ -153,8 +153,14 @@ export default function EditarPerfil() {
         return;
       }
 
-      // Em produção, salvar no banco de dados
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simular delay
+      await apiService.updateProfile({
+        nome_completo: profileData.nome_completo,
+        avatar_url: profileData.foto_url,
+        cargo: profileData.cargo,
+        departamento: profileData.departamento,
+        bio: profileData.bio,
+        telefone: profileData.telefone,
+      });
 
       toast({
         title: "Sucesso",
@@ -203,8 +209,7 @@ export default function EditarPerfil() {
 
       setLoading(true);
       
-      // Em produção, validar senha atual e atualizar
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await apiService.changePassword(passwordData.senha_atual, passwordData.nova_senha);
 
       setPasswordData({
         senha_atual: '',

@@ -145,21 +145,24 @@ export class AuthService {
 
   async getProfile(userId: number) {
     const result = await this.pool.query(
-      `SELECT id, email, nome, papel as role, avatar_url, data_criacao, ultimo_login 
+      `SELECT id, email, nome, papel as role, avatar_url, data_criacao, ultimo_login,
+              cargo, departamento, bio, telefone
        FROM usuarios WHERE id = $1 AND ativo = true`,
       [userId]
     );
     return result.rows[0] || null;
   }
 
-  async updateProfile(userId: number, update: { nome_completo?: string; avatar_url?: string; }) {
-    const { nome_completo, avatar_url } = update;
+  async updateProfile(userId: number, update: { nome_completo?: string; avatar_url?: string; cargo?: string; departamento?: string; bio?: string; telefone?: string; }) {
+    const { nome_completo, avatar_url, cargo, departamento, bio, telefone } = update;
     const result = await this.pool.query(
       `UPDATE usuarios 
-       SET nome = COALESCE($1, nome), avatar_url = COALESCE($2, avatar_url), data_atualizacao = NOW()
-       WHERE id = $3 AND ativo = true
-       RETURNING id, email, nome as nome_completo, papel as role, avatar_url`,
-      [nome_completo, avatar_url, userId]
+       SET nome = COALESCE($1, nome), avatar_url = COALESCE($2, avatar_url),
+           cargo = COALESCE($3, cargo), departamento = COALESCE($4, departamento),
+           bio = COALESCE($5, bio), telefone = COALESCE($6, telefone), data_atualizacao = NOW()
+       WHERE id = $7 AND ativo = true
+       RETURNING id, email, nome as nome_completo, papel as role, avatar_url, cargo, departamento, bio, telefone`,
+      [nome_completo, avatar_url, cargo, departamento, bio, telefone, userId]
     );
     return result.rows[0];
   }

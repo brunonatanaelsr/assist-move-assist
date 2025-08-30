@@ -17,8 +17,8 @@ const auditoriaRoutes = createRouterInstance();
 // Rotas de beneficiárias
 import beneficiariasRoutes from './beneficiarias.routes';
 
-// Rotas de configurações (temporariamente desabilitado)
-const configuracoesRoutes = createRouterInstance();
+// Rotas de configurações
+import configuracoesRoutes from './configuracoes.routes';
 
 // Rotas de dashboard
 import dashboardRoutes from './dashboard.routes';
