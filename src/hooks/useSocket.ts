@@ -41,7 +41,8 @@ export const useSocket = () => {
     }
 
     // Obter token do localStorage
-    const token = localStorage.getItem('authToken');
+    // O app salva o JWT com a chave 'token' (ver usePostgreSQLAuth.tsx)
+    const token = localStorage.getItem('token');
     if (!token) {
       console.warn('Token não encontrado');
       return;

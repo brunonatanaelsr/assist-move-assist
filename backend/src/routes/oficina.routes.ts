@@ -215,7 +215,7 @@ router.post('/:id/participantes', authenticateToken, requireGestor, async (req, 
       'SELECT id FROM participacoes WHERE beneficiaria_id = $1 AND projeto_id = $2 AND ativo = true',
       [beneficiaria_id, projetoId]
     );
-    if (exists.rowCount > 0) {
+    if ((exists.rowCount || 0) > 0) {
       res.status(409).json(errorResponse('Beneficiária já participa deste projeto'));
       return;
     }
@@ -391,7 +391,7 @@ router.post('/verificar-conflito', authenticateToken, async (req, res): Promise<
       params
     );
 
-    res.json(successResponse({ conflito: result.rowCount > 0, conflitos: result.rows }));
+    res.json(successResponse({ conflito: (result.rows?.length || 0) > 0, conflitos: result.rows }));
     return;
   } catch (error: any) {
     console.error('Verificar conflito error:', error);
@@ -430,11 +430,15 @@ router.get('/horarios-disponiveis', authenticateToken, async (req, res): Promise
       return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
     };
 
-    const busyRanges = ocupadas.rows.map((r: any) => ({
-      inicio: parseInt(String(r.horario_inicio).split(':')[0], 10) * 60 + parseInt(String(r.horario_inicio).split(':')[1], 10),
-      fim: parseInt(String(r.horario_fim).split(':')[0], 10) * 60 + parseInt(String(r.horario_fim).split(':')[1], 10),
-      nome: r.nome
-    })).filter(r => !isNaN(r.inicio) && !isNaN(r.fim));
+    const busyRanges = ocupadas.rows.map((r: any) => {
+      const iniStr = (r?.horario_inicio ? String(r.horario_inicio) : '00:00');
+      const fimStr = (r?.horario_fim ? String(r.horario_fim) : '00:00');
+      const [ih, im] = iniStr.split(':');
+      const [fh, fm] = fimStr.split(':');
+      const inicio = (parseInt(ih || '0', 10) * 60) + parseInt(im || '0', 10);
+      const fim = (parseInt(fh || '0', 10) * 60) + parseInt(fm || '0', 10);
+      return { inicio, fim, nome: r.nome };
+    }).filter((r: any) => !isNaN(r.inicio) && !isNaN(r.fim));
 
     const disponiveis: string[] = [];
     for (let t = startMinutes; t + step <= endMinutes; t += step) {

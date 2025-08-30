@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { authenticateToken, AuthenticatedRequest } from '../middleware/auth';
 import { pool } from '../config/database';
 import { successResponse, errorResponse } from '../utils/responseFormatter';
+import { renderFormPdf } from '../services/formsExport.service';
 
 const router = Router();
 
@@ -272,3 +273,118 @@ router.put('/visao-holistica/:id', authenticateToken, async (req, res): Promise<
 });
 
 export default router;
+
+// ========= GENÉRICOS =========
+// Listar formularios (genéricos) com filtros e paginação
+router.get('/', authenticateToken, async (req: AuthenticatedRequest, res): Promise<void> => {
+  try {
+    const limit = parseInt((req.query.limit as string) || '20', 10);
+    const page = parseInt((req.query.page as string) || '1', 10);
+    const tipo = (req.query.tipo as string) || undefined;
+    const beneficiaria_id = (req.query.beneficiaria_id as string) || undefined;
+
+    const where: string[] = [];
+    const params: any[] = [];
+    let idx = 1;
+    if (tipo) { where.push(`tipo = $${idx++}`); params.push(tipo); }
+    if (beneficiaria_id) { where.push(`beneficiaria_id = $${idx++}`); params.push(parseInt(beneficiaria_id)); }
+    const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+    const offset = (Math.max(1, page) - 1) * Math.max(1, limit);
+    const sql = `SELECT *, COUNT(*) OVER() as total_count FROM formularios ${whereSql} ORDER BY created_at DESC LIMIT $${idx} OFFSET $${idx+1}`;
+    params.push(limit, offset);
+    const result = await pool.query(sql, params);
+    const total = parseInt(result.rows[0]?.total_count || '0', 10);
+    res.json(successResponse({ data: result.rows, pagination: { page, limit, total } }));
+    return;
+  } catch (error) {
+    res.status(500).json(errorResponse('Erro ao listar formulários'));
+    return;
+  }
+});
+
+// Agregador: listar todos os formulários (dedicados + genéricos) de uma beneficiária
+router.get('/beneficiaria/:beneficiariaId', authenticateToken, async (req: AuthenticatedRequest, res): Promise<void> => {
+  try {
+    const { beneficiariaId } = req.params as any;
+    const [gen, ana, evo, ter, vis] = await Promise.all([
+      pool.query('SELECT id, tipo, beneficiaria_id, dados, status, created_at, usuario_id as created_by FROM formularios WHERE beneficiaria_id = $1', [beneficiariaId]),
+      pool.query(`SELECT id, 'anamnese' as tipo, beneficiaria_id, dados, created_at, created_by FROM anamnese_social WHERE beneficiaria_id = $1`, [beneficiariaId]),
+      pool.query(`SELECT id, 'ficha_evolucao' as tipo, beneficiaria_id, dados, created_at, created_by FROM ficha_evolucao WHERE beneficiaria_id = $1`, [beneficiariaId]),
+      pool.query(`SELECT id, 'termos_consentimento' as tipo, beneficiaria_id, dados, created_at, created_by FROM termos_consentimento WHERE beneficiaria_id = $1`, [beneficiariaId]),
+      pool.query(`SELECT id, 'visao_holistica' as tipo, beneficiaria_id, dados, created_at, created_by FROM visao_holistica WHERE beneficiaria_id = $1`, [beneficiariaId])
+    ]);
+    const data = [...gen.rows, ...ana.rows, ...evo.rows, ...ter.rows, ...vis.rows].sort((a, b) => (new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
+    res.json(successResponse({ data, total: data.length }));
+    return;
+  } catch (error) {
+    res.status(500).json(errorResponse('Erro ao listar formulários da beneficiária'));
+    return;
+  }
+});
+
+// Criar formulário genérico por tipo
+router.post('/:tipo', authenticateToken, async (req: AuthenticatedRequest, res): Promise<void> => {
+  try {
+    const { tipo } = req.params as any;
+    const { beneficiaria_id, dados, status, observacoes } = (req.body || {}) as any;
+    const userId = Number(req.user!.id);
+    if (!beneficiaria_id) { res.status(400).json(errorResponse('beneficiaria_id é obrigatório')); return; }
+    const created = await pool.query(
+      `INSERT INTO formularios (tipo, beneficiaria_id, dados, status, observacoes, usuario_id)
+       VALUES ($1,$2,$3::jsonb,COALESCE($4,'completo'),$5,$6) RETURNING *`,
+      [tipo, beneficiaria_id, JSON.stringify(dados || {}), status, observacoes || null, userId]
+    );
+    res.status(201).json(successResponse(created.rows[0]));
+    return;
+  } catch (error) {
+    res.status(500).json(errorResponse('Erro ao criar formulário'));
+    return;
+  }
+});
+
+// Obter/Atualizar genérico e Exportar PDF
+router.get('/:tipo/:id', authenticateToken, async (req: AuthenticatedRequest, res): Promise<void> => {
+  try {
+    const { tipo, id } = req.params as any;
+    const result = await pool.query('SELECT * FROM formularios WHERE id = $1 AND tipo = $2', [id, tipo]);
+    if (result.rowCount === 0) { res.status(404).json(errorResponse('Formulário não encontrado')); return; }
+    res.json(successResponse(result.rows[0]));
+    return;
+  } catch (error) {
+    res.status(500).json(errorResponse('Erro ao obter formulário'));
+    return;
+  }
+});
+
+router.put('/:tipo/:id', authenticateToken, async (req: AuthenticatedRequest, res): Promise<void> => {
+  try {
+    const { tipo, id } = req.params as any;
+    const { dados, status, observacoes } = (req.body || {}) as any;
+    const result = await pool.query(
+      'UPDATE formularios SET dados = COALESCE($2::jsonb, dados), status = COALESCE($3, status), observacoes = COALESCE($4, observacoes), updated_at = NOW() WHERE id = $1 AND tipo = $5 RETURNING *',
+      [id, JSON.stringify(dados || null), status || null, observacoes || null, tipo]
+    );
+    if (result.rowCount === 0) { res.status(404).json(errorResponse('Formulário não encontrado')); return; }
+    res.json(successResponse(result.rows[0]));
+    return;
+  } catch (error) {
+    res.status(500).json(errorResponse('Erro ao atualizar formulário'));
+    return;
+  }
+});
+
+router.get('/:tipo/:id/pdf', authenticateToken, async (req: AuthenticatedRequest, res): Promise<void> => {
+  try {
+    const { tipo, id } = req.params as any;
+    const result = await pool.query('SELECT * FROM formularios WHERE id = $1 AND tipo = $2', [id, tipo]);
+    if (result.rowCount === 0) { res.status(404).json(errorResponse('Formulário não encontrado')); return; }
+    const pdf = await renderFormPdf(result.rows[0], { titulo: 'Formulário', subtitulo: `Tipo: ${tipo}` });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="form_${tipo}_${id}.pdf"`);
+    res.send(pdf);
+    return;
+  } catch (error) {
+    res.status(500).json(errorResponse('Erro ao exportar PDF'));
+    return;
+  }
+});

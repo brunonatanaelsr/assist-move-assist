@@ -46,7 +46,8 @@ export class WebSocketServer {
           return next(new Error('Token não fornecido'));
         }
 
-        const decoded = jwt.verify(token, config.jwtSecret) as User;
+        // Validação do token JWT usando a chave correta do config
+        const decoded = jwt.verify(token, config.jwt.secret) as User;
         (socket as Socket & { data: SocketData }).data = {
           user: decoded
         };
@@ -81,7 +82,7 @@ export class WebSocketServer {
   private setupConnectionHandlers() {
     this.io.on('connection', (socket: Socket & { data: SocketData }) => {
       const userId = socket.data.user.id;
-      
+
       // Adicionar socket à lista do usuário
       const userSockets = this.userSockets.get(userId) || [];
       userSockets.push(socket.id);
@@ -92,8 +93,13 @@ export class WebSocketServer {
 
       // Enviar notificações não lidas
       this.sendUnreadNotifications(userId, socket);
+      // Enviar mensagens de chat não lidas
+      this.sendUnreadChatMessages(userId, socket);
 
       logger.info(`Usuário ${userId} conectado via WebSocket`);
+
+      // Broadcast status online
+      this.io.emit('user_status', { userId, status: 'online' });
 
       socket.on('disconnect', () => {
         const sockets = this.userSockets.get(userId) || [];
@@ -109,6 +115,11 @@ export class WebSocketServer {
         this.clearTyping(userId);
 
         logger.info(`Usuário ${userId} desconectado do WebSocket`);
+
+        // Broadcast status offline
+        if (!this.userSockets.has(userId)) {
+          this.io.emit('user_status', { userId, status: 'offline' });
+        }
       });
 
       // Notificações de digitação
@@ -132,6 +143,148 @@ export class WebSocketServer {
       // Marcação de notificações como lidas
       socket.on('notification:read', async (notificationId: string) => {
         await this.markNotificationAsRead(userId, notificationId);
+      });
+
+      // Chat: alinhar com useSocket.ts
+      socket.on('join_groups', async () => {
+        try {
+          const groups = await this.pool.query(
+            `SELECT grupo_id FROM grupo_membros WHERE usuario_id = $1`,
+            [userId]
+          );
+          for (const row of groups.rows) {
+            socket.join(`group:${row.grupo_id}`);
+          }
+          socket.emit('joined_groups', { ok: true, groups: groups.rows.map((r: any) => r.grupo_id) });
+        } catch (err) {
+          socket.emit('joined_groups', { ok: false });
+        }
+      });
+
+      socket.on('typing', (data: { destinatario_id?: number; grupo_id?: number; isTyping: boolean }) => {
+        try {
+          if (data?.destinatario_id) {
+            this.io.to(`user:${data.destinatario_id}`).emit('user_typing', {
+              userId,
+              isTyping: !!data.isTyping
+            });
+          } else if (data?.grupo_id) {
+            this.io.to(`group:${data.grupo_id}`).emit('user_typing', {
+              userId,
+              isTyping: !!data.isTyping
+            });
+          }
+        } catch (err) {
+          logger.error('Erro no evento typing', { err });
+        }
+      });
+
+      socket.on('send_message', async (data: { destinatario_id?: number; grupo_id?: number; conteudo?: string; anexos?: string[] | null }) => {
+        try {
+          const autorId = Number(userId);
+          const conteudo = (data?.conteudo || '').toString().trim();
+
+          if (data?.grupo_id) {
+            // Verificar participação
+            const gid = Number(data.grupo_id);
+            const isMember = await this.pool.query(
+              `SELECT 1 FROM grupo_membros WHERE grupo_id = $1 AND usuario_id = $2`,
+              [gid, autorId]
+            );
+            if ((isMember.rowCount || 0) === 0) {
+              socket.emit('message_error', { message: 'Você não pertence a este grupo' });
+              return;
+            }
+
+            // Persistir mensagem de grupo
+            const insert = await this.pool.query(
+              `INSERT INTO mensagens_grupo (grupo_id, autor_id, conteudo)
+               VALUES ($1,$2,$3) RETURNING *`,
+              [gid, autorId, conteudo]
+            );
+
+            const row = insert.rows[0];
+            const message = {
+              id: row.id,
+              remetente_id: row.autor_id,
+              grupo_id: row.grupo_id,
+              conteudo: row.conteudo,
+              tipo: 'texto',
+              data_criacao: row.data_publicacao,
+              lida: false,
+              anexos: data?.anexos || null
+            };
+
+            // Entregar para membros do grupo (exceto autor)
+            const members = await this.pool.query(
+              `SELECT usuario_id FROM grupo_membros WHERE grupo_id = $1`,
+              [gid]
+            );
+            for (const m of members.rows) {
+              const uid = Number(m.usuario_id);
+              if (uid === autorId) continue;
+              if (this.userSockets.has(String(uid))) {
+                this.io.to(`user:${uid}`).emit('new_message', message);
+              } else {
+                await redis.lpush(`chat:unread:${uid}`, JSON.stringify(message));
+              }
+            }
+
+            // Confirmar ao remetente
+            socket.emit('message_sent', message);
+            // Emitir na sala do grupo
+            this.io.to(`group:${gid}`).emit('new_message', message);
+            return;
+          }
+
+          const destinatarioId = Number(data?.destinatario_id);
+          if (!destinatarioId || !conteudo) {
+            socket.emit('message_error', { message: 'destinatario_id e conteudo são obrigatórios' });
+            return;
+          }
+
+          // Persistir em mensagens_usuario
+          const result = await this.pool.query(
+            `INSERT INTO mensagens_usuario (autor_id, destinatario_id, conteudo)
+             VALUES ($1,$2,$3) RETURNING *`,
+            [autorId, destinatarioId, conteudo]
+          );
+
+          const row = result.rows[0];
+          const message = {
+            id: row.id,
+            remetente_id: row.autor_id,
+            destinatario_id: row.destinatario_id,
+            conteudo: row.conteudo,
+            tipo: 'texto',
+            data_criacao: row.data_publicacao,
+            lida: !!row.lida,
+            anexos: data?.anexos || null
+          };
+
+          // Entregar ao destinatário ou enfileirar
+          if (this.userSockets.has(String(destinatarioId))) {
+            this.io.to(`user:${destinatarioId}`).emit('new_message', message);
+          } else {
+            await redis.lpush(`chat:unread:${destinatarioId}`, JSON.stringify(message));
+          }
+          // Confirmar ao remetente
+          socket.emit('message_sent', message);
+        } catch (error: any) {
+          logger.error('Erro ao enviar mensagem', { error: error?.message });
+          socket.emit('message_error', { message: 'Erro ao enviar mensagem' });
+        }
+      });
+
+      socket.on('read_message', async (messageId: number) => {
+        try {
+          if (!messageId) return;
+          await this.pool.query('UPDATE mensagens_usuario SET lida = true WHERE id = $1', [messageId]);
+          // Notificar remetente e destinatário sobre leitura
+          this.io.emit('message_read', { messageId, readBy: Number(userId) });
+        } catch (error: any) {
+          logger.error('Erro ao marcar mensagem como lida', { error: error?.message, messageId });
+        }
       });
     });
   }
@@ -159,7 +312,12 @@ export class WebSocketServer {
           postId: data.post_id,
           comment: data.comment
         });
-
+        // Broadcast de alto nível para apps que não ingressam em salas de post
+        this.io.emit('feed:new_comment', {
+          postId: data.post_id,
+          comment: data.comment
+        });
+        
         // Notificar autor do post e outros comentaristas
         if (data.notifyUsers) {
           data.notifyUsers.forEach((userId: string) => {
@@ -177,6 +335,12 @@ export class WebSocketServer {
 
       case 'like_update':
         this.io.to(`post:${data.post_id}`).emit('post:like_update', {
+          postId: data.post_id,
+          likes: data.likes_count,
+          userId: data.user_id,
+          action: data.action
+        });
+        this.io.emit('feed:like_update', {
           postId: data.post_id,
           likes: data.likes_count,
           userId: data.user_id,
@@ -215,7 +379,48 @@ export class WebSocketServer {
     } catch (error) {
       logger.error('Erro ao enviar notificações não lidas', {
         userId,
-        error: error.message
+        error: (error as any).message
+      });
+    }
+  }
+
+  private async sendUnreadChatMessages(userId: string, socket: Socket) {
+    try {
+      const key = `chat:unread:${userId}`;
+      const messages = await redis.lrange(key, 0, -1);
+      const privateIds: number[] = [];
+      for (const raw of messages) {
+        try {
+          const msg = JSON.parse(raw);
+          socket.emit('new_message', msg);
+          if (msg && msg.id && msg.destinatario_id && String(msg.destinatario_id) === String(userId)) {
+            privateIds.push(Number(msg.id));
+          }
+        } catch (e) {
+          // ignore parse errors
+        }
+      }
+
+      // Marcar como lidas em lote (somente privadas)
+      if (privateIds.length > 0) {
+        try {
+          await this.pool.query(
+            `UPDATE mensagens_usuario SET lida = TRUE WHERE id = ANY($1::int[]) AND destinatario_id = $2`,
+            [privateIds, Number(userId)]
+          );
+        } catch (e) {
+          logger.error('Erro ao marcar mensagens privadas como lidas (offline)', { userId, count: privateIds.length });
+        }
+      }
+
+      // Limpar fila após entrega
+      if (messages.length > 0) {
+        await redis.del(key);
+      }
+    } catch (error) {
+      logger.error('Erro ao enviar mensagens de chat não lidas', {
+        userId,
+        error: (error as any).message
       });
     }
   }
@@ -233,7 +438,7 @@ export class WebSocketServer {
       logger.error('Erro ao marcar notificação como lida', {
         userId,
         notificationId,
-        error: error.message
+        error: (error as any).message
       });
     }
   }

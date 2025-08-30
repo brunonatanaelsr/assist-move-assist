@@ -42,6 +42,7 @@ const FichaEvolucao = lazy(() => import("@/pages/formularios/FichaEvolucao"));
 const DeclaracoesRecibos = lazy(() => import("@/pages/formularios/DeclaracoesRecibos"));
 const TermosConsentimento = lazy(() => import("@/pages/formularios/TermosConsentimento"));
 const VisaoHolistica = lazy(() => import("@/pages/formularios/VisaoHolistica"));
+const FormulariosBeneficiaria = lazy(() => import("@/pages/formularios/FormulariosBeneficiaria"));
 const PlanoAcao = lazy(() => import("@/pages/formularios/PlanoAcao"));
 const MatriculaProjetos = lazy(() => import("@/pages/formularios/MatriculaProjetos"));
 
@@ -87,6 +88,7 @@ const App = () => (
                       <Route index element={<DetalhesBeneficiaria />} />
                       <Route path="editar" element={<EditarBeneficiaria />} />
                       <Route path="formularios">
+                        <Route index element={<FormulariosBeneficiaria />} />
                         <Route path="anamnese-social" element={<AnamneseSocial />} />
                         <Route path="roda-vida" element={<RodaVida />} />
                         <Route path="ficha-evolucao" element={<FichaEvolucao />} />

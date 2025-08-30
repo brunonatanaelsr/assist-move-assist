@@ -14,7 +14,9 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "security-check": "node scripts/security-check.js",
-    "precommit": "npm run security-check"
+    "precommit": "npm run security-check",
+    "smoke:chat": "node scripts/smoke-chat.js",
+    "smoke:chat:offline": "node scripts/smoke-chat-offline.js"
   },
   "dependencies": {
     "@types/exceljs": "^1.3.2",

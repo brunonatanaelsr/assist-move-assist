@@ -40,6 +40,7 @@ import healthRoutes from './health.routes';
 
 // Rotas de mensagens
 import mensagensRoutes from './mensagens.routes';
+import gruposRoutes from './grupos.routes';
 
 // Rotas de oficinas
 import oficinasRoutes from './oficina.routes';
@@ -119,6 +120,7 @@ router.use('/participacoes', participacoesRoutes);
 // 4. Rotas de conteúdo e comunicação
 router.use('/feed', feedRoutes);
 router.use('/mensagens', mensagensRoutes);
+router.use('/grupos', gruposRoutes);
 router.use('/notifications', notificationsRoutes);
 router.use('/calendar', calendarRoutes);
 

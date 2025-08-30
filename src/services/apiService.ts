@@ -322,7 +322,7 @@ class ApiService {
   }
 
   // Métodos específicos para feed
-  async getFeed(params?: any): Promise<ApiResponse<any[]>> {
+  async getFeed(params?: any): Promise<ApiResponse<any>> {
     return this.get('/feed', { params });
   }
 
@@ -404,7 +404,7 @@ class ApiService {
   // ====== MÉTODOS DE COMENTÁRIOS ======
   
   // Listar comentários de um post
-  async getCommentsByPostId(postId: number, params?: any): Promise<ApiResponse<any[]>> {
+  async getCommentsByPostId(postId: number, params?: any): Promise<ApiResponse<any>> {
     return this.get(`/feed/${postId}/comentarios`, { params });
   }
 
@@ -461,6 +461,26 @@ class ApiService {
         message: error.message || 'Backend não está respondendo'
       };
     }
+  }
+  // Formularios (genéricos e agregados)
+  async listFormularios(params?: any): Promise<ApiResponse<any>> {
+    return this.get('/formularios', { params });
+  }
+  async listFormulariosBeneficiaria(beneficiariaId: number, params?: any): Promise<ApiResponse<any>> {
+    return this.get(`/formularios/beneficiaria/${beneficiariaId}`, { params });
+  }
+  async getFormulario(tipo: string, id: number): Promise<ApiResponse<any>> {
+    return this.get(`/formularios/${tipo}/${id}`);
+  }
+  async createFormulario(tipo: string, data: any): Promise<ApiResponse<any>> {
+    return this.post(`/formularios/${tipo}`, data);
+  }
+  async updateFormulario(tipo: string, id: number, data: any): Promise<ApiResponse<any>> {
+    return this.put(`/formularios/${tipo}/${id}`, data);
+  }
+  async exportFormularioPdf(tipo: string, id: number): Promise<Blob> {
+    const response = await this.api.get(`/formularios/${tipo}/${id}/pdf`, { responseType: 'blob' });
+    return response.data as Blob;
   }
 }
 

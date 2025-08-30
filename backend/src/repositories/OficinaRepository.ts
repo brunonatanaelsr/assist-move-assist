@@ -1,6 +1,6 @@
 import { pool } from '../config/database';
 import { logger } from '../utils/logger';
-import { Oficina } from '../types/shared';
+import { Oficina } from '../types/oficina';
 
 export class OficinaRepository {
   async listar(params: {

@@ -17,6 +17,20 @@ export class FeedService {
     this.redis = redis;
   }
 
+  async getPostById(postId: number) {
+    try {
+      const result = await this.pool.query(
+        `SELECT id, tipo, titulo, conteudo, autor_id, autor_nome, imagem_url, curtidas, comentarios, ativo, data_criacao, data_atualizacao
+         FROM feed_posts WHERE id = $1 AND ativo = true`,
+        [postId]
+      );
+      return result.rows[0] || null;
+    } catch (error) {
+      console.error('Erro ao obter post:', error);
+      throw new Error('Erro ao obter post');
+    }
+  }
+
   async sharePost(postId: number, userId: string): Promise<void> {
     try {
       // Opcional: registrar compartilhamento em tabela separada no futuro
@@ -49,31 +63,37 @@ export class FeedService {
     }
   }
 
-  async listPosts(limit = 10): Promise<FeedPost[]> {
+  async listPosts(limit = 10, page = 1, filters?: { tipo?: string; autorId?: string | number; userId?: string }): Promise<{ data: FeedPost[]; pagination: { page: number; limit: number; total: number } }> {
     try {
-      // Tentar buscar do cache primeiro
-      const cachedPosts = await this.getCacheKey('posts');
-      if (cachedPosts) {
-        return cachedPosts;
-      }
+      const offset = (Math.max(1, page) - 1) * Math.max(1, limit);
 
-      const result = await this.pool.query(`
+      // Montar WHERE dinâmico
+      const where: string[] = ['p.ativo = true'];
+      const params: any[] = [];
+      let idx = 1;
+      if (filters?.tipo) { where.push(`p.tipo = $${idx++}`); params.push(filters.tipo); }
+      if (filters?.autorId) { where.push(`p.autor_id = $${idx++}`); params.push(String(filters.autorId)); }
+
+      // Consulta com liked_by_user
+      const sql = `
         SELECT 
-          id, tipo, titulo, conteudo, autor_id, autor_nome, 
-          curtidas, comentarios, ativo, 
-          data_criacao, data_atualizacao, imagem_url
-        FROM feed_posts 
-        WHERE ativo = true
-        ORDER BY data_criacao DESC
-        LIMIT $1
-      `, [limit]);
+          p.id, p.tipo, p.titulo, p.conteudo, p.autor_id, p.autor_nome,
+          p.curtidas, p.comentarios, p.ativo, p.data_criacao, p.data_atualizacao, p.imagem_url,
+          CASE WHEN $${idx}::text IS NULL THEN false ELSE (EXISTS (SELECT 1 FROM feed_likes fl WHERE fl.post_id = p.id AND fl.user_id = $${idx})) END AS liked_by_user,
+          COUNT(*) OVER() as total_count
+        FROM feed_posts p
+        WHERE ${where.join(' AND ')}
+        ORDER BY p.data_criacao DESC
+        LIMIT $${idx + 1}
+        OFFSET $${idx + 2}
+      `;
+      params.push(filters?.userId || null, limit, offset);
 
+      const result = await this.pool.query(sql, params);
       const posts = formatArrayDates(result.rows, ['data_criacao', 'data_atualizacao']);
-      
-      // Armazenar no cache
-      await this.setCacheKey('posts', posts);
+      const total = parseInt(result.rows[0]?.total_count || '0', 10);
 
-      return posts;
+      return { data: posts, pagination: { page, limit, total } };
     } catch (error) {
       console.error('Erro ao listar posts:', error);
       throw new Error('Erro ao buscar posts do feed');
@@ -104,6 +124,15 @@ export class FeedService {
       // Invalidar cache de posts
       await this.redis.del('feed:posts');
 
+      // Notificar WebSocket via Postgres
+      try {
+        const payload = JSON.stringify({ type: 'new_post', post });
+        await this.pool.query("SELECT pg_notify('feed_notifications', $1)", [payload]);
+      } catch (e) {
+        // log mínimo, não quebra fluxo
+        console.error('Erro ao notificar novo post:', (e as any)?.message || e);
+      }
+
       return post;
     } catch (error) {
       console.error('Erro ao criar post:', error);
@@ -127,9 +156,55 @@ export class FeedService {
       // Invalidar cache de posts
       await this.redis.del('feed:posts');
 
+      // Notificar atualização de like genérica (sem usuário)
+      try {
+        const payload = JSON.stringify({ type: 'like_update', post_id: postId, likes_count: result.rows[0].curtidas, user_id: null, action: 'like' });
+        await this.pool.query("SELECT pg_notify('feed_notifications', $1)", [payload]);
+      } catch {}
+
       return { curtidas: result.rows[0].curtidas };
     } catch (error) {
       console.error('Erro ao curtir post:', error);
+      throw error;
+    }
+  }
+
+  async toggleLike(postId: number, userId: string, userName?: string): Promise<{ curtidas: number; liked: boolean }> {
+    try {
+      const exists = await this.pool.query('SELECT 1 FROM feed_likes WHERE post_id = $1 AND user_id = $2', [postId, userId]);
+      let liked = false;
+      if (exists.rows.length > 0) {
+        await this.pool.query('DELETE FROM feed_likes WHERE post_id = $1 AND user_id = $2', [postId, userId]);
+        await this.pool.query('UPDATE feed_posts SET curtidas = GREATEST(curtidas - 1, 0), data_atualizacao = CURRENT_TIMESTAMP WHERE id = $1', [postId]);
+        liked = false;
+      } else {
+        await this.pool.query('INSERT INTO feed_likes (post_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING', [postId, userId]);
+        await this.pool.query('UPDATE feed_posts SET curtidas = curtidas + 1, data_atualizacao = CURRENT_TIMESTAMP WHERE id = $1', [postId]);
+        liked = true;
+      }
+
+      const cur = await this.pool.query('SELECT curtidas, autor_id FROM feed_posts WHERE id = $1', [postId]);
+      const curtidas = cur.rows[0]?.curtidas || 0;
+      const autorId = cur.rows[0]?.autor_id;
+
+      await this.redis.del('feed:posts');
+
+      try {
+        const payload = JSON.stringify({
+          type: 'like_update',
+          post_id: postId,
+          likes_count: curtidas,
+          user_id: userId,
+          userName: userName || 'Usuário',
+          autor_id: autorId,
+          action: liked ? 'like' : 'unlike'
+        });
+        await this.pool.query("SELECT pg_notify('feed_notifications', $1)", [payload]);
+      } catch {}
+
+      return { curtidas, liked };
+    } catch (error) {
+      console.error('Erro ao alternar like:', error);
       throw error;
     }
   }
@@ -172,29 +247,23 @@ export class FeedService {
     }
   }
 
-  async listComments(postId: number): Promise<FeedComment[]> {
+  async listComments(postId: number, limit = 20, page = 1): Promise<{ data: FeedComment[]; pagination: { page: number; limit: number; total: number } }> {
     try {
-      // Tentar buscar do cache primeiro
-      const cachedComments = await this.getCacheKey(`comments:${postId}`);
-      if (cachedComments) {
-        return cachedComments;
-      }
-
+      const offset = (Math.max(1, page) - 1) * Math.max(1, limit);
       const result = await this.pool.query(`
         SELECT 
-          c.id, c.post_id, c.autor_id, c.autor_nome, c.autor_foto, 
-          c.conteudo, c.data_criacao, c.data_atualizacao
+          c.id, c.post_id, c.autor_id, c.autor_nome, c.autor_foto,
+          c.conteudo, c.data_criacao, c.data_atualizacao,
+          COUNT(*) OVER() as total_count
         FROM comentarios_feed c
         WHERE c.post_id = $1 AND c.ativo = true
         ORDER BY c.data_criacao ASC
-      `, [postId]);
+        LIMIT $2 OFFSET $3
+      `, [postId, limit, offset]);
 
       const comments = formatArrayDates(result.rows, ['data_criacao', 'data_atualizacao']);
-
-      // Armazenar no cache
-      await this.setCacheKey(`comments:${postId}`, comments);
-
-      return comments;
+      const total = parseInt(result.rows[0]?.total_count || '0', 10);
+      return { data: comments, pagination: { page, limit, total } };
     } catch (error) {
       console.error('Erro ao listar comentários:', error);
       throw new Error('Erro ao buscar comentários do post');
@@ -233,11 +302,58 @@ export class FeedService {
       await this.redis.del(`feed:comments:${validatedData.post_id}`);
       await this.redis.del('feed:posts');
 
+      // Notificar novo comentário
+      try {
+        const payload = JSON.stringify({ type: 'new_comment', post_id: validatedData.post_id, comment });
+        await this.pool.query("SELECT pg_notify('feed_notifications', $1)", [payload]);
+      } catch {}
+
       return comment;
     } catch (error) {
       console.error('Erro ao criar comentário:', error);
       throw new Error('Erro ao criar novo comentário');
     }
+  }
+
+  async updateComment(commentId: number, conteudo: string, userId: string, userRole: string) {
+    const c = await this.pool.query('SELECT * FROM comentarios_feed WHERE id = $1 AND ativo = true', [commentId]);
+    if (c.rows.length === 0) {
+      const err: any = new Error('Comentário não encontrado');
+      err.status = 404;
+      throw err;
+    }
+    const comment = c.rows[0];
+    if (String(comment.autor_id) !== String(userId) && !['super_admin', 'superadmin'].includes(userRole)) {
+      const err: any = new Error('Sem permissão para editar comentário');
+      err.status = 403;
+      throw err;
+    }
+    const upd = await this.pool.query(
+      'UPDATE comentarios_feed SET conteudo = $1, data_atualizacao = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *',
+      [conteudo.trim(), commentId]
+    );
+    await this.redis.del(`feed:comments:${comment.post_id}`);
+    return upd.rows[0];
+  }
+
+  async deleteComment(commentId: number, userId: string, userRole: string) {
+    const c = await this.pool.query('SELECT * FROM comentarios_feed WHERE id = $1 AND ativo = true', [commentId]);
+    if (c.rows.length === 0) {
+      const err: any = new Error('Comentário não encontrado');
+      err.status = 404;
+      throw err;
+    }
+    const comment = c.rows[0];
+    if (String(comment.autor_id) !== String(userId) && !['super_admin', 'superadmin'].includes(userRole)) {
+      const err: any = new Error('Sem permissão para excluir comentário');
+      err.status = 403;
+      throw err;
+    }
+    await this.pool.query('UPDATE comentarios_feed SET ativo = false, data_atualizacao = CURRENT_TIMESTAMP WHERE id = $1', [commentId]);
+    await this.pool.query('UPDATE feed_posts SET comentarios = GREATEST(comentarios - 1, 0), data_atualizacao = CURRENT_TIMESTAMP WHERE id = $1', [comment.post_id]);
+    await this.redis.del(`feed:comments:${comment.post_id}`);
+    await this.redis.del('feed:posts');
+    return { success: true };
   }
 
   async updatePost(postId: number, data: Partial<FeedPost>, userId: string, userRole: string): Promise<FeedPost> {
@@ -340,6 +456,11 @@ export class FeedService {
         await this.pool.query('ROLLBACK');
         throw error;
       }
+      // Notificar remoção de post
+      try {
+        const payload = JSON.stringify({ type: 'post_deleted', post_id: postId });
+        await this.pool.query("SELECT pg_notify('feed_notifications', $1)", [payload]);
+      } catch {}
     } catch (error) {
       console.error('Erro ao excluir post:', error);
       throw error;

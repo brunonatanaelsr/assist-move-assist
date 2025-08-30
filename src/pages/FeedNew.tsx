@@ -82,12 +82,15 @@ export default function Feed() {
   const { isAdmin, profile, user } = useAuth();
   const { toast } = useToast();
   
-  const [posts, setPosts] = useState<Post[]>([]);
+  const [posts, setPosts] = useState<(Post & { liked_by_user?: boolean })[]>([]);
   const [filteredPosts, setFilteredPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [filtroTipo, setFiltroTipo] = useState<string>('todos');
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] =  useState(10);
+  const [total, setTotal] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
   const [curtidas, setCurtidas] = useState<Record<number, boolean>>({});
   
@@ -96,6 +99,11 @@ export default function Feed() {
   const [comments, setComments] = useState<Record<number, Comment[]>>({});
   const [loadingComments, setLoadingComments] = useState<Record<number, boolean>>({});
   const [newComment, setNewComment] = useState<Record<number, string>>({});
+  const [commentPage, setCommentPage] = useState<Record<number, number>>({});
+  const [commentTotal, setCommentTotal] = useState<Record<number, number>>({});
+  const [commentLimit] = useState(20);
+  const [editingComment, setEditingComment] = useState<Record<number, boolean>>({});
+  const [editCommentText, setEditCommentText] = useState<Record<number, string>>({});
 
   // Estados para estatísticas
   const [stats, setStats] = useState<Stats>({
@@ -146,13 +154,15 @@ export default function Feed() {
       
       // Carregar posts e estatísticas
       const [postsResponse, statsResponse] = await Promise.all([
-        apiService.getFeed(),
+        apiService.getFeed({ page, limit, tipo: filtroTipo !== 'todos' ? filtroTipo : undefined }),
         apiService.getFeedStats()
       ]);
 
       if (postsResponse.success && postsResponse.data) {
-        setPosts(postsResponse.data);
-        setFilteredPosts(postsResponse.data);
+        const payload = postsResponse.data;
+        setPosts(payload.data || []);
+        setFilteredPosts(payload.data || []);
+        setTotal(payload.pagination?.total || 0);
       }
 
       if (statsResponse.success && statsResponse.data) {
@@ -173,7 +183,7 @@ export default function Feed() {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [page, limit, filtroTipo]);
 
   // Filtrar posts
   useEffect(() => {
@@ -196,26 +206,70 @@ export default function Feed() {
     setFilteredPosts(filtered);
   }, [posts, filtroTipo, searchTerm]);
 
+  // WebSocket: atualizar feed em tempo real
+  try {
+    // Lazy import para evitar falhas de SSR
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    var useSock = require('@/hooks/useSocket');
+  } catch {}
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+  const sockHook = (useSock && useSock.useSocket) ? useSock.useSocket : null;
+  const socketCtx = sockHook ? sockHook() : { socket: null, isConnected: false } as any;
+  const socket = socketCtx?.socket as any;
+  const isSockConnected = !!socketCtx?.isConnected;
+
+  useEffect(() => {
+    if (!socket || !isSockConnected) return;
+    const onNewPost = (post: any) => {
+      setPosts(prev => [post, ...prev]);
+      setFilteredPosts(prev => [post, ...prev]);
+      setTotal(t => t + 1);
+    };
+    const onLike = (data: any) => {
+      setPosts(prev => prev.map(p => p.id === data.postId ? { ...p, curtidas: data.likes } : p));
+      setFilteredPosts(prev => prev.map(p => p.id === data.postId ? { ...p, curtidas: data.likes } : p));
+    };
+    const onNewComment = (payload: any) => {
+      const pid = payload?.postId;
+      if (!pid) return;
+      setPosts(prev => prev.map(p => p.id === pid ? { ...p, comentarios: (p.comentarios || 0) + 1 } : p));
+      setFilteredPosts(prev => prev.map(p => p.id === pid ? { ...p, comentarios: (p.comentarios || 0) + 1 } : p));
+      // Se comentários estiverem abertos, opcionalmente buscar de novo
+    };
+    const onPostDeleted = (payload: any) => {
+      const pid = payload?.postId || payload?.post_id;
+      if (!pid) return;
+      setPosts(prev => prev.filter(p => p.id !== pid));
+      setFilteredPosts(prev => prev.filter(p => p.id !== pid));
+      setTotal(t => Math.max(0, t - 1));
+    };
+
+    socket.on('feed:new_post', onNewPost);
+    socket.on('feed:like_update', onLike);
+    socket.on('feed:new_comment', onNewComment);
+    socket.on('feed:post_deleted', onPostDeleted);
+    return () => {
+      socket.off('feed:new_post', onNewPost);
+      socket.off('feed:like_update', onLike);
+      socket.off('feed:new_comment', onNewComment);
+      socket.off('feed:post_deleted', onPostDeleted);
+    };
+  }, [socket, isSockConnected]);
+
   // Curtir post
   const handleLike = async (postId: number) => {
     try {
       const response = await apiService.likeFeedPost(postId);
       
       if (response.success) {
-        // Atualizar estado local
-        setPosts(prev => 
-          prev.map(post => 
-            post.id === postId 
-              ? { ...post, curtidas: response.data.curtidas }
-              : post
-          )
-        );
-        
-        setCurtidas(prev => ({ ...prev, [postId]: true }));
+        const liked = !!response?.data?.liked;
+        const curtidas = response?.data?.curtidas ?? 0;
+        setPosts(prev => prev.map(p => p.id === postId ? { ...p, curtidas, liked_by_user: liked } as any : p));
+        setCurtidas(prev => ({ ...prev, [postId]: liked }));
         
         toast({
           title: 'Sucesso',
-          description: 'Post curtido!',
+          description: liked ? 'Post curtido!' : 'Curtida removida!',
         });
       }
     } catch (error) {
@@ -254,10 +308,12 @@ export default function Feed() {
     try {
       setLoadingComments(prev => ({ ...prev, [postId]: true }));
       
-      const response = await apiService.getCommentsByPostId(postId);
-      
+      const response = await apiService.getCommentsByPostId(postId, { page: 1, limit: commentLimit });
       if (response.success && response.data) {
-        setComments(prev => ({ ...prev, [postId]: response.data }));
+        const payload = response.data;
+        setComments(prev => ({ ...prev, [postId]: payload.data || [] }));
+        setCommentPage(prev => ({ ...prev, [postId]: 1 }));
+        setCommentTotal(prev => ({ ...prev, [postId]: payload.pagination?.total || (payload.data?.length || 0) }));
       }
     } catch (error) {
       toast({
@@ -279,6 +335,25 @@ export default function Feed() {
     // Se está abrindo os comentários e ainda não carregou, carregar agora
     if (!isShowing && !comments[postId]) {
       await loadComments(postId);
+    }
+  };
+
+  // Carregar mais comentários
+  const loadMoreComments = async (postId: number) => {
+    try {
+      const nextPage = (commentPage[postId] || 1) + 1;
+      setLoadingComments(prev => ({ ...prev, [postId]: true }));
+      const response = await apiService.getCommentsByPostId(postId, { page: nextPage, limit: commentLimit });
+      if (response.success && response.data) {
+        const payload = response.data;
+        setComments(prev => ({ ...prev, [postId]: ([...(prev[postId] || []), ...(payload.data || [])]) }));
+        setCommentPage(prev => ({ ...prev, [postId]: nextPage }));
+        setCommentTotal(prev => ({ ...prev, [postId]: payload.pagination?.total || prev[postId] || 0 }));
+      }
+    } catch (error) {
+      toast({ title: 'Erro', description: 'Erro ao carregar mais comentários', variant: 'destructive' });
+    } finally {
+      setLoadingComments(prev => ({ ...prev, [postId]: false }));
     }
   };
 
@@ -328,6 +403,58 @@ export default function Feed() {
         description: 'Erro ao criar comentário',
         variant: 'destructive',
       });
+    }
+  };
+
+  // Editar comentário
+  const startEditComment = (comment: Comment) => {
+    setEditingComment(prev => ({ ...prev, [comment.id]: true }));
+    setEditCommentText(prev => ({ ...prev, [comment.id]: comment.conteudo }));
+  };
+
+  const cancelEditComment = (commentId: number) => {
+    setEditingComment(prev => ({ ...prev, [commentId]: false }));
+    setEditCommentText(prev => ({ ...prev, [commentId]: '' }));
+  };
+
+  const saveEditComment = async (postId: number, commentId: number) => {
+    const conteudo = (editCommentText[commentId] || '').trim();
+    if (!conteudo) {
+      toast({ title: 'Erro', description: 'Comentário não pode ser vazio', variant: 'destructive' });
+      return;
+    }
+    try {
+      const resp = await apiService.updateComment(commentId, { conteudo });
+      if (resp.success && resp.data) {
+        setComments(prev => ({
+          ...prev,
+          [postId]: (prev[postId] || []).map(c => c.id === commentId ? { ...c, conteudo } : c)
+        }));
+        cancelEditComment(commentId);
+        toast({ title: 'Sucesso', description: 'Comentário atualizado!' });
+      } else {
+        throw new Error(resp.message || 'Falha ao atualizar comentário');
+      }
+    } catch (error: any) {
+      toast({ title: 'Erro', description: error.message || 'Erro ao atualizar comentário', variant: 'destructive' });
+    }
+  };
+
+  const handleDeleteComment = async (postId: number, commentId: number) => {
+    try {
+      const resp = await apiService.deleteComment(commentId);
+      if (resp.success || resp === undefined) {
+        setComments(prev => ({
+          ...prev,
+          [postId]: (prev[postId] || []).filter(c => c.id !== commentId)
+        }));
+        setPosts(prev => prev.map(p => p.id === postId ? { ...p, comentarios: Math.max(0, p.comentarios - 1) } : p));
+        toast({ title: 'Sucesso', description: 'Comentário removido!' });
+      } else {
+        throw new Error(resp.message || 'Falha ao remover comentário');
+      }
+    } catch (error: any) {
+      toast({ title: 'Erro', description: error.message || 'Erro ao remover comentário', variant: 'destructive' });
     }
   };
 
@@ -716,6 +843,12 @@ export default function Feed() {
     }
     
     // 3. Admins comuns NÃO podem editar posts de outros usuários
+    return false;
+  };
+
+  const canModifyComment = (comment: Comment) => {
+    if (String(comment.autor_id) === String((profile as any)?.id)) return true;
+    if ((user as any)?.papel === 'superadmin') return true;
     return false;
   };
 
@@ -1262,7 +1395,33 @@ export default function Feed() {
                                       {formatDate(comment.data_criacao)}
                                     </span>
                                   </div>
-                                  <p className="text-sm text-gray-700">{comment.conteudo}</p>
+                                  {editingComment[comment.id] ? (
+                                    <div className="space-y-2">
+                                      <Input
+                                        value={editCommentText[comment.id] || ''}
+                                        onChange={(e) => setEditCommentText(prev => ({ ...prev, [comment.id]: e.target.value }))}
+                                        className="h-8"
+                                      />
+                                      <div className="flex gap-2 justify-end">
+                                        <Button variant="ghost" size="sm" onClick={() => cancelEditComment(comment.id)}>Cancelar</Button>
+                                        <Button size="sm" onClick={() => saveEditComment(post.id, comment.id)}>Salvar</Button>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <div className="flex items-start justify-between gap-2">
+                                      <p className="text-sm text-gray-700 flex-1">{comment.conteudo}</p>
+                                      {canModifyComment(comment) && (
+                                        <div className="flex gap-1">
+                                          <Button variant="ghost" size="sm" className="h-8 px-2" onClick={() => startEditComment(comment)}>
+                                            <Edit2 className="h-4 w-4" />
+                                          </Button>
+                                          <Button variant="ghost" size="sm" className="h-8 px-2 text-red-600" onClick={() => handleDeleteComment(post.id, comment.id)}>
+                                            <Trash2 className="h-4 w-4" />
+                                          </Button>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                             </div>
@@ -1271,6 +1430,14 @@ export default function Feed() {
                           <p className="text-center text-gray-500 py-4 text-sm">
                             Seja o primeiro a comentar!
                           </p>
+                        )}
+                        {/* Paginação de comentários */}
+                        {comments[post.id] && (commentTotal[post.id] || 0) > (comments[post.id]?.length || 0) && (
+                          <div className="text-center mt-3">
+                            <Button variant="outline" size="sm" onClick={() => loadMoreComments(post.id)} disabled={!!loadingComments[post.id]}>
+                              {loadingComments[post.id] ? 'Carregando...' : 'Carregar mais comentários'}
+                            </Button>
+                          </div>
                         )}
                       </div>
                     </div>
@@ -1302,13 +1469,13 @@ export default function Feed() {
                       <button
                         onClick={() => handleLike(post.id)}
                         className={`flex items-center space-x-2 text-sm transition-colors ${
-                          curtidas[post.id] 
+                          (curtidas[post.id] ?? (post as any).liked_by_user) 
                             ? 'text-red-600 hover:text-red-700' 
                             : 'text-gray-500 hover:text-red-600'
                         }`}
-                        disabled={curtidas[post.id]}
+                        
                       >
-                        <Heart className={`h-4 w-4 ${curtidas[post.id] ? 'fill-current' : ''}`} />
+                        <Heart className={`h-4 w-4 ${(curtidas[post.id] ?? (post as any).liked_by_user) ? 'fill-current' : ''}`} />
                         <span>{post.curtidas} curtidas</span>
                       </button>
 
@@ -1346,6 +1513,13 @@ export default function Feed() {
             </CardContent>
           </Card>
         )}
+
+        {/* Paginação de posts */}
+        <div className="flex items-center justify-end gap-2 mt-6">
+          <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(p => Math.max(1, p - 1))}>Anterior</Button>
+          <span className="text-sm text-gray-600">Página {page} de {Math.max(1, Math.ceil(total / limit))}</span>
+          <Button variant="outline" size="sm" disabled={page >= Math.ceil(total / limit)} onClick={() => setPage(p => p + 1)}>Próxima</Button>
+        </div>
       </div>
     </div>
   );

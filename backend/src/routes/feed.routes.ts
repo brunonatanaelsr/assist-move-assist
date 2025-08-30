@@ -49,11 +49,32 @@ router.get(
   async (req: AuthenticatedRequest, res: Response): Promise<Response> => {
     try {
       const limit = parseInt((req.query.limit as string) || '10');
-      const posts = await feedService.listPosts(limit);
-      return res.json(successResponse(posts));
+      const page = parseInt((req.query.page as string) || '1');
+      const tipo = (req.query.tipo as string) || undefined;
+      const autorId = (req.query.autor_id as string) || undefined;
+      const userId = String(((req as any).user?.id ?? ''));
+      const result = await feedService.listPosts(limit, page, { tipo, autorId, userId });
+      return res.json(successResponse(result));
     } catch (error) {
       console.error('Erro ao listar posts:', error);
       return res.status(500).json(errorResponse('Erro ao listar posts'));
+    }
+  }
+);
+
+// Obter post por ID
+router.get(
+  '/:id',
+  authenticateToken,
+  async (req: AuthenticatedRequest, res: Response): Promise<Response> => {
+    try {
+      const { id } = req.params as any;
+      const post = await feedService.getPostById(parseInt(String(id)));
+      if (!post) return res.status(404).json(errorResponse('Post não encontrado'));
+      return res.json(successResponse(post));
+    } catch (error) {
+      console.error('Erro ao obter post:', error);
+      return res.status(500).json(errorResponse('Erro ao obter post'));
     }
   }
 );
@@ -93,8 +114,10 @@ router.post(
   async (req: AuthenticatedRequest, res: Response): Promise<Response> => {
     try {
       const { id } = req.params as any;
-      const post = await feedService.likePost(parseInt(String(id)));
-      return res.json(successResponse(post));
+      const userId = String(((req as any).user?.id ?? ''));
+      const userName = ((req as any).user?.nome as string) || 'Usuário';
+      const result = await feedService.toggleLike(parseInt(String(id)), userId, userName);
+      return res.json(successResponse({ curtidas: result.curtidas, liked: result.liked }));
     } catch (error) {
       console.error('Erro ao curtir post:', error);
       return res.status(500).json(errorResponse('Erro ao curtir post'));
@@ -142,7 +165,9 @@ router.get(
   async (req: AuthenticatedRequest, res: Response): Promise<Response> => {
     try {
       const { postId } = req.params as any;
-      const comentarios = await feedService.listComments(parseInt(String(postId)));
+      const limit = parseInt((req.query.limit as string) || '20');
+      const page = parseInt((req.query.page as string) || '1');
+      const comentarios = await feedService.listComments(parseInt(String(postId)), limit, page);
       return res.json(successResponse(comentarios));
     } catch (error) {
       console.error('Erro ao listar comentários:', error);
@@ -180,6 +205,46 @@ router.post(
   }
 );
 
+// Atualizar comentário
+router.put(
+  '/comentarios/:id',
+  authenticateToken,
+  async (req: AuthenticatedRequest, res: Response): Promise<Response> => {
+    try {
+      const { id } = req.params as any;
+      const { conteudo } = req.body || {};
+      if (!conteudo || !String(conteudo).trim()) {
+        return res.status(400).json(errorResponse('Conteúdo é obrigatório'));
+      }
+      const userId = String(((req as any).user?.id ?? ''));
+      const userRole = String(((req as any).user?.role ?? (req as any).user?.papel ?? ''));
+      const updated = await feedService.updateComment(parseInt(String(id)), String(conteudo), userId, userRole);
+      return res.json(successResponse(updated));
+    } catch (error: any) {
+      const status = error?.status || 500;
+      return res.status(status).json(errorResponse(error?.message || 'Erro ao atualizar comentário'));
+    }
+  }
+);
+
+// Remover comentário
+router.delete(
+  '/comentarios/:id',
+  authenticateToken,
+  async (req: AuthenticatedRequest, res: Response): Promise<Response> => {
+    try {
+      const { id } = req.params as any;
+      const userId = String(((req as any).user?.id ?? ''));
+      const userRole = String(((req as any).user?.role ?? (req as any).user?.papel ?? ''));
+      await feedService.deleteComment(parseInt(String(id)), userId, userRole);
+      return res.status(204).end();
+    } catch (error: any) {
+      const status = error?.status || 500;
+      return res.status(status).json(errorResponse(error?.message || 'Erro ao remover comentário'));
+    }
+  }
+);
+
 // Deletar post (soft delete)
 router.delete(
   '/:id',
@@ -192,6 +257,24 @@ router.delete(
     } catch (error) {
       console.error('Erro ao deletar post:', error);
       return res.status(500).json(errorResponse('Erro ao deletar post'));
+    }
+  }
+);
+
+// Atualizar post
+router.put(
+  '/:id',
+  authenticateToken,
+  async (req: AuthenticatedRequest, res: Response): Promise<Response> => {
+    try {
+      const { id } = req.params as any;
+      const userId = String(((req as any).user?.id ?? ''));
+      const userRole = String(((req as any).user?.role ?? (req as any).user?.papel ?? ''));
+      const updated = await feedService.updatePost(parseInt(String(id)), req.body || {}, userId, userRole);
+      return res.json(successResponse(updated));
+    } catch (error: any) {
+      const status = error?.status || 500;
+      return res.status(status).json(errorResponse(error?.message || 'Erro ao atualizar post'));
     }
   }
 );

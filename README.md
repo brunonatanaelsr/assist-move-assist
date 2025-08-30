@@ -38,14 +38,16 @@ Sistema de gestão para institutos sociais que auxilia no acompanhamento de bene
    Edite os arquivos `.env` com suas configurações:
    ```env
    # Frontend (.env.local)
-   VITE_API_URL=http://localhost:3001
+   VITE_API_URL=http://localhost:3000
    
    # Backend (.env)
-   PORT=3001
+   PORT=3000
    DATABASE_URL=postgres://user:pass@localhost:5432/assist_move
    REDIS_URL=redis://localhost:6379
    JWT_SECRET=seu_jwt_secret
    UPLOAD_PATH=./uploads
+   ENABLE_WS=true
+   FRONTEND_URL=http://localhost:5173
    ```
 4. **Configure o banco de dados**
    ```bash
@@ -68,14 +70,14 @@ Sistema de gestão para institutos sociais que auxilia no acompanhamento de bene
    npm run dev            # inicia API em http://localhost:3000
    
    # Terminal 3 (Frontend)
-   npm run dev            # inicia em http://localhost:8080 com proxy para /api
+   npm run dev            # inicia em http://localhost:5173
    ```
-   Frontend: [http://localhost:8080](http://localhost:8080)
+   Frontend: [http://localhost:5173](http://localhost:5173)
    Backend: [http://localhost:3000](http://localhost:3000)
 
 ## Scripts Úteis
 ```bash
-npm run dev           # Servidor de desenvolvimento (frontend:8080, proxy /api → 3000)
+npm run dev           # Dev (frontend:5173, backend:3000)
 npm run build         # Build de produção
 npm run preview       # Preview do build
 npm run lint          # Linter ESLint
@@ -150,6 +152,21 @@ Para documentação detalhada consulte:
 - Notificações em tempo real
 - Indicadores de digitação
 - Entrega offline via Redis
+  - Chat privado: fila `chat:unread:<userId>`
+  - Notificações: fila `unread:<userId>`
+
+### Endpoints do Feed
+- `GET /api/feed` — listar posts
+- `GET /api/feed/:id` — obter post por ID
+- `POST /api/feed` — criar post
+- `PUT /api/feed/:id` — atualizar post (autor ou superadmin)
+- `DELETE /api/feed/:id` — remover post (soft delete; autor ou superadmin)
+- `POST /api/feed/:id/curtir` — alternar curtida (por usuário) e retornar `{ curtidas, liked }`
+- `POST /api/feed/:id/compartilhar` — compartilhar post
+- `GET /api/feed/:postId/comentarios` — listar comentários do post
+- `POST /api/feed/:postId/comentarios` — criar comentário
+- `PUT /api/feed/comentarios/:id` — atualizar comentário (autor ou superadmin)
+- `DELETE /api/feed/comentarios/:id` — remover comentário (autor ou superadmin)
 
 ### Upload de Arquivos
 - Gerenciamento local via Multer
@@ -164,6 +181,32 @@ Para documentação detalhada consulte:
 - Audit trail de ações
 
 ## Docker (Produção)
+
+## Realtime (WebSocket)
+- Backend usa Socket.IO embutido em `backend/src/websocket/server.ts`.
+- Para habilitar, defina no `backend/.env`:
+  - `ENABLE_WS=true`
+  - `FRONTEND_URL=http://localhost:5173` (ou URL do frontend)
+- Eventos principais de chat expostos:
+  - Cliente → servidor: `join_groups`, `send_message`, `read_message`, `typing`.
+  - Servidor → cliente: `new_message`, `message_sent`, `message_read`, `user_status`, `user_typing`.
+ - Grupos: usuários entram automaticamente em `user:<id>` e podem entrar em `group:<id>` via `join_groups` (membros são detectados pelo backend).
+
+### Endpoints de Grupos
+- `GET /api/grupos` — lista grupos do usuário autenticado
+- `GET /api/grupos/:id/mensagens` — lista mensagens do grupo (últimas 200)
+ - `GET /api/grupos/:id` — detalhes do grupo (membros apenas)
+ - `GET /api/grupos/:id/membros` — lista membros do grupo
+ - `POST /api/grupos` — cria grupo (criador vira admin)
+ - `PUT /api/grupos/:id` — atualiza nome/descrição/ativo (somente admin)
+ - `DELETE /api/grupos/:id` — desativa o grupo (somente admin)
+ - `POST /api/grupos/:id/membros` — adiciona/atualiza papel de um membro (somente admin)
+ - `DELETE /api/grupos/:id/membros/:usuarioId` — remove membro (somente admin)
+
+### Migrações relacionadas
+- `014_criar_grupos.sql` — tabelas de grupos e membros
+- `015_criar_mensagens_grupo.sql` — tabela de mensagens de grupo
+
 
 ```bash
 # Build das imagens
