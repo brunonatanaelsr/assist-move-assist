@@ -3,6 +3,7 @@ import { defineConfig, devices } from '@playwright/test';
 // Allow overriding the application port/base URL for local or CI runs
 const PORT = process.env.PORT || '5173';
 const BASE_URL = process.env.PLAYWRIGHT_BASE_URL || `http://127.0.0.1:${PORT}`;
+const API_URL = process.env.PLAYWRIGHT_API_URL || 'http://127.0.0.1:3000';
 
 export default defineConfig({
   testDir: './tests',
