@@ -7,12 +7,32 @@ on:
     branches: [ main ]
 
 jobs:
-  test:
+  unit:
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - name: Install dependencies (root + backend)
+        run: |
+          npm ci
+          npm --prefix backend ci
+      - name: Run frontend unit tests
+        run: npm test
+      - name: Run backend unit tests
+        run: |
+          cd backend
+          npm test
 
+  api-smoke:
+    needs: unit
+    runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:15
+        image: postgres:16
         env:
           POSTGRES_DB: movemarias_test
           POSTGRES_USER: postgres
@@ -24,23 +44,28 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
     steps:
       - uses: actions/checkout@v4
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
-
-      - name: Install dependencies
+      - name: Install backend deps
         run: |
+          cd backend
           npm ci
-          npm --prefix backend ci
-
-      - name: Run unit tests
-        run: npm test
+      - name: Build + Migrate + Start API
+        run: |
+          cd backend
+          npm run build
+          npm run migrate:node
+          nohup npm start &
+          for i in {1..30}; do curl -sf http://localhost:3000/api/health && break || sleep 2; done
         env:
           NODE_ENV: test
           PORT: 3000
@@ -50,16 +75,104 @@ jobs:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
           JWT_SECRET: test_secret
-          CORS_ORIGIN: http://localhost:5173
+          ENABLE_WS: false
+          CORS_ORIGIN: http://127.0.0.1:5173
+      - name: Run config smoke
+        run: |
+          cd backend
+          npm run smoke:config
+        env:
+          API_BASE: http://localhost:3000/api
+          SUPER_EMAIL: bruno@move.com
+          SUPER_PASS: 15002031
+      - name: Run reports smoke
+        run: |
+          cd backend
+          npm run smoke:reports
+        env:
+          API_BASE: http://localhost:3000/api
+          SUPER_EMAIL: bruno@move.com
+          SUPER_PASS: 15002031
 
+  e2e:
+    needs: api-smoke
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: movemarias_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - name: Install deps (root + backend)
+        run: |
+          npm ci
+          npm --prefix backend ci
+      - name: Build + Migrate + Start API
+        run: |
+          cd backend
+          npm run build
+          npm run migrate:node
+          nohup npm start &
+          for i in {1..30}; do curl -sf http://localhost:3000/api/health && break || sleep 2; done
+        env:
+          NODE_ENV: test
+          PORT: 3000
+          POSTGRES_HOST: localhost
+          POSTGRES_PORT: 5432
+          POSTGRES_DB: movemarias_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          JWT_SECRET: test_secret
+          ENABLE_WS: false
+          CORS_ORIGIN: http://127.0.0.1:5173
       - name: Build frontend
         run: npm run build
-
       - name: Run E2E tests
         run: npm run test:e2e
+        env:
+          PLAYWRIGHT_BASE_URL: http://127.0.0.1:5173
+
+  integration:
+    needs: unit
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - name: Install backend deps
+        run: |
+          cd backend
+          npm ci
+      - name: Run integration tests (testcontainers)
+        run: |
+          cd backend
+          RUN_INTEGRATION=1 npm run test:integration
 
   deploy:
-    needs: test
+    needs: [unit, api-smoke, e2e]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
 
@@ -72,29 +185,11 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
-      - name: Install PM2
-        run: npm install -g pm2
-
-      - name: Deploy
+      - name: Deploy (systemd via update script)
         run: |
           echo "🚀 Iniciando deploy..."
-
-          # Backend
-          cd backend
-          npm ci --production
-          npm run build
-
-          # Frontend
-          cd ..
-          npm ci --production
-          npm run build
-
-          # Aplicar migrations
-          cd backend
-          npm run migrate
-
-          # Reiniciar PM2
-          pm2 reload ecosystem.config.js
+          chmod +x scripts/update-production.sh || true
+          sudo ./scripts/update-production.sh
         env:
           NODE_ENV: production
           # Variáveis de ambiente adicionais devem ser configuradas via GitHub Secrets

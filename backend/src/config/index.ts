@@ -14,10 +14,10 @@ const config = {
   // Configurações do PostgreSQL
   database: {
     host: process.env.POSTGRES_HOST || 'localhost',
-    port: parseInt(process.env.POSTGRES_PORT || '5434'),
+    port: parseInt(process.env.POSTGRES_PORT || '5432'),
     database: process.env.POSTGRES_DB || 'movemarias',
     user: process.env.POSTGRES_USER || 'postgres',
-    password: process.env.POSTGRES_PASSWORD || '15002031',
+    password: process.env.POSTGRES_PASSWORD || 'postgres',
   },
 
   // Configurações do Redis
@@ -62,6 +62,17 @@ const config = {
     origin: '*',
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
     allowedHeaders: ['Content-Type', 'Authorization'],
+  },
+
+  // Configurações de Email (SMTP)
+  email: {
+    host: process.env.SMTP_HOST || 'smtp.gmail.com',
+    port: parseInt(process.env.SMTP_PORT || '587'),
+    secure: (process.env.SMTP_SECURE || 'false').toLowerCase() === 'true' || process.env.SMTP_PORT === '465',
+    user: process.env.SMTP_USER || '',
+    password: process.env.SMTP_PASS || '',
+    fromName: process.env.SMTP_FROM_NAME || 'Assist Move Assist',
+    fromEmail: process.env.SMTP_FROM_EMAIL || (process.env.SMTP_USER || 'no-reply@example.com'),
   },
 };
 

@@ -19,9 +19,17 @@ async function createInitialUsers() {
   try {
     console.log('🔐 Criando usuários iniciais...');
 
+    // Dados via ENV (com defaults)
+    const SUPERADMIN_NAME = process.env.SUPERADMIN_NAME || 'Super Administrador';
+    const SUPERADMIN_EMAIL = process.env.SUPERADMIN_EMAIL || 'superadmin@example.com';
+    const SUPERADMIN_PASSWORD = process.env.SUPERADMIN_PASSWORD || 'ChangeMe!123';
+    const ADMIN_NAME = process.env.ADMIN_NAME || 'Administrador';
+    const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@example.com';
+    const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'ChangeMe!123';
+
     // Hash das senhas
-    const brunoPasswordHash = await bcrypt.hash('15002031', 12);
-    const adminPasswordHash = await bcrypt.hash('movemarias123', 12);
+    const brunoPasswordHash = await bcrypt.hash(SUPERADMIN_PASSWORD, 12);
+    const adminPasswordHash = await bcrypt.hash(ADMIN_PASSWORD, 12);
 
     // Criar superadmin
     const upsertUser = `
@@ -36,8 +44,8 @@ async function createInitialUsers() {
     `;
 
     const superadminResult = await pool.query(upsertUser, [
-      'Bruno Superadmin',
-      'bruno@move.com',
+      SUPERADMIN_NAME,
+      SUPERADMIN_EMAIL,
       brunoPasswordHash,
       'superadmin'
     ]);
@@ -46,8 +54,8 @@ async function createInitialUsers() {
 
     // Criar admin
     const adminResult = await pool.query(upsertUser, [
-      'Admin Move Marias',
-      'admin@movemarias.com',
+      ADMIN_NAME,
+      ADMIN_EMAIL,
       adminPasswordHash,
       'admin'
     ]);

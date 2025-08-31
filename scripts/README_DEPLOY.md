@@ -1,55 +1,56 @@
 # 🚀 Deploy Automático VPS - Assist Move Assist
 
+> Segurança: este documento foi sanitizado para remover IPs, senhas e credenciais reais. Substitua os placeholders abaixo pelas suas credenciais via variáveis de ambiente, vault ou `.env` no servidor. Evite versionar segredos.
+
 ## Scripts de Deploy
 
-### 1. Deploy Completo Automatizado
+Este repositório inclui utilitários para suporte ao deploy, não um instalador automatizado completo. Use os scripts abaixo junto com o guia `docs/PM2_DEPLOYMENT.md`.
+
+### 1. Pré-checagens e preparação
 ```bash
-./scripts/deploy-vps-auto.sh
+./scripts/pre-deploy-check.sh
 ```
 
-**O que faz:**
-- Conecta na VPS via SSH automaticamente
-- Instala todas as dependências (Node.js, PostgreSQL, Nginx, SSL)
-- Configura banco de dados PostgreSQL
-- Faz deploy do backend completo
-- Configura SSL com Let's Encrypt
-- Cria usuários superadmin e admin
-- Configura firewall e segurança
-- Testa tudo automaticamente
-
-### 2. Deploy Rápido
+### 2. Atualização de produção (pull/build/reload)
 ```bash
-./scripts/deploy-now.sh
+sudo ./scripts/update-production.sh
+```
+
+### 3. Health check pós-deploy
+```bash
+./scripts/health-check.sh
 ```
 
 ## Informações da VPS
 
-- **IP:** 145.79.6.36
+- **IP:** <SEU_IP>
 - **Usuário:** root
-- **Senha:** AGzzcso1@1500
-- **Domínio:** movemarias.squadsolucoes.com.br
+- **Senha:** <SENHA_ROOT>
+- **Domínio:** <SEU_DOMINIO>
 
 ## Credenciais do Sistema
 
-### Superadmin
-- **Email:** bruno@move.com
-- **Senha:** 15002031
+Defina via variáveis de ambiente no deploy (não versione):
 
-### Admin
-- **Email:** admin@movemarias.com
-- **Senha:** movemarias123
+### Superadmin
+- **Email:** <SUPERADMIN_EMAIL>
+- **Senha:** <SUPERADMIN_SENHA>
+
+### Admin (opcional)
+- **Email:** <ADMIN_EMAIL>
+- **Senha:** <ADMIN_SENHA>
 
 ## URLs de Acesso
 
-- **Sistema:** https://movemarias.squadsolucoes.com.br
-- **API:** https://movemarias.squadsolucoes.com.br/api
-- **Health Check:** https://movemarias.squadsolucoes.com.br/health
+- **Sistema:** https://<SEU_DOMINIO>
+- **API:** https://<SEU_DOMINIO>/api
+- **Health Check:** https://<SEU_DOMINIO>/health
 
 ## Comandos Úteis na VPS
 
 ```bash
 # Conectar na VPS
-ssh root@145.79.6.36
+ssh root@<SEU_IP>
 
 # Status dos serviços
 systemctl status nginx postgresql
@@ -75,27 +76,17 @@ O script instala automaticamente o `sshpass`:
 
 ## Como Usar
 
-1. **Execute o deploy:**
-   ```bash
-   ./scripts/deploy-now.sh
-   ```
-
-2. **Aguarde a conclusão** (processo leva cerca de 10-15 minutos)
-
-3. **Acesse o sistema:**
-   ```
-   https://movemarias.squadsolucoes.com.br
-   ```
-
-4. **Faça login com:**
-   - Email: bruno@move.com
-   - Senha: 15002031
+1. Provisionar a VPS (Node.js, PostgreSQL, Nginx, firewall, SSL). Siga `docs/PM2_DEPLOYMENT.md`.
+2. Rodar `./scripts/pre-deploy-check.sh` para validar dependências.
+3. Configurar variáveis no servidor (`/var/www/assist-move-assist/backend/.env` e frontend `.env.production`).
+4. Rodar `sudo ./scripts/update-production.sh` para copiar, buildar e reiniciar.
+5. Validar com `./scripts/health-check.sh` e inspeção de logs.
 
 ## Resolução de Problemas
 
 ### Script não executa
 ```bash
-chmod +x scripts/deploy-vps-auto.sh scripts/deploy-now.sh
+chmod +x scripts/pre-deploy-check.sh scripts/update-production.sh scripts/health-check.sh
 ```
 
 ### sshpass não encontrado
@@ -110,12 +101,12 @@ brew install hudochenkov/sshpass/sshpass
 ### Erro de conexão SSH
 - Verificar se a VPS está online
 - Confirmar IP e credenciais
-- Testar conexão manual: `ssh root@145.79.6.36`
+- Testar conexão manual: `ssh root@<SEU_IP>`
 
 ### Sistema não carrega
 ```bash
 # Conectar na VPS e verificar serviços
-ssh root@145.79.6.36
+ssh root@<SEU_IP>
 systemctl status nginx postgresql
 pm2 status
 ```
@@ -127,7 +118,7 @@ pm2 status
 - **Banco:** PostgreSQL
 - **SSL:** Let's Encrypt
 - **Firewall:** UFW
-- **Domínio:** movemarias.squadsolucoes.com.br
+- **Domínio:** <SEU_DOMINIO>
 
 ## Segurança
 

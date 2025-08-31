@@ -1,8 +1,17 @@
 import request from 'supertest';
 import express from 'express';
-import authRoutes from '../routes/auth';
-import beneficiariasRoutes from '../routes/beneficiarias';
+import authRoutes from '../routes/auth.routes';
+import beneficiariasRoutes from '../routes/beneficiarias.routes';
 import { AuthService } from '../middleware/auth';
+// Mockar o serviço real utilizado nas rotas
+jest.mock('../services', () => ({
+  authService: {
+    login: jest.fn(),
+    getProfile: jest.fn(),
+    generateToken: jest.fn().mockReturnValue('test-token')
+  }
+}));
+import { authService } from '../services';
 import { db } from '../services/db';
 
 jest.mock('../services/db', () => ({
@@ -33,9 +42,7 @@ describe('Auth and protected routes', () => {
         avatar_url: null,
         active: true
       };
-      (db.query as jest.Mock).mockResolvedValueOnce([user]);
-      (db.query as jest.Mock).mockResolvedValueOnce([]);
-      jest.spyOn(AuthService, 'verifyPassword').mockResolvedValue(true);
+      (authService.login as jest.Mock).mockResolvedValue({ user, token: 'jwt-token' });
 
       const res = await request(app)
         .post('/auth/login')
@@ -43,7 +50,8 @@ describe('Auth and protected routes', () => {
 
       expect(res.status).toBe(200);
       expect(res.body.user.email).toBe(user.email);
-      expect(res.headers['set-cookie'][0]).toMatch(/auth_token=/);
+      // Login retorna token no corpo em ambiente de testes/CI
+      expect(res.body.token).toBeTruthy();
     });
 
     it('should reject invalid credentials', async () => {
@@ -56,8 +64,7 @@ describe('Auth and protected routes', () => {
         avatar_url: null,
         active: true
       };
-      (db.query as jest.Mock).mockResolvedValueOnce([user]);
-      jest.spyOn(AuthService, 'verifyPassword').mockResolvedValue(false);
+      (authService.login as jest.Mock).mockResolvedValue(null);
 
       const res = await request(app)
         .post('/auth/login')
@@ -85,8 +92,8 @@ describe('Auth and protected routes', () => {
         role: 'user',
         avatar_url: null
       };
-      (db.query as jest.Mock).mockResolvedValueOnce([profile]);
-      const token = AuthService.generateToken({ id: profile.id, email: profile.email, role: profile.role });
+      (authService.getProfile as jest.Mock).mockResolvedValue(profile);
+      const token = AuthService.generateToken({ id: Number(profile.id), email: profile.email, role: profile.role });
 
       const res = await request(app)
         .get('/auth/profile')
@@ -111,7 +118,7 @@ describe('Auth and protected routes', () => {
 
   describe('Protected resource authorization', () => {
     it('should deny access when role is insufficient', async () => {
-      const token = AuthService.generateToken({ id: '1', email: 'user@example.com', role: 'user' });
+      const token = AuthService.generateToken({ id: 1, email: 'user@example.com', role: 'user' });
       const res = await request(app)
         .post('/beneficiarias')
         .set('Authorization', `Bearer ${token}`)

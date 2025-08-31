@@ -10,7 +10,8 @@ jest.mock('../../middleware/auth', () => ({
     req.user = { id: '1', role: 'admin' };
     next();
   },
-  requireGestor: (_req: any, _res: any, next: any) => next()
+  requireGestor: (_req: any, _res: any, next: any) => next(),
+  authorize: () => (_req: any, _res: any, next: any) => next()
 }));
 
 describe('Oficinas Routes', () => {
@@ -34,7 +35,7 @@ describe('Oficinas Routes', () => {
   });
 
   it('GET /oficinas/horarios-disponiveis - retorna slots', async () => {
-    mockPool.query.mockResolvedValueOnce({ rows: [] } as any);
+    (mockPool.query as unknown as jest.Mock).mockResolvedValueOnce({ rows: [] } as any);
     const res = await supertest(app).get('/oficinas/horarios-disponiveis?data=2025-01-01');
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
@@ -47,9 +48,8 @@ describe('Oficinas Routes', () => {
   });
 
   it('GET /oficinas/:id/relatorio-presencas - 404 quando oficina inexiste', async () => {
-    mockPool.query.mockResolvedValueOnce({ rowCount: 0, rows: [] } as any);
+    (mockPool.query as unknown as jest.Mock).mockResolvedValueOnce({ rowCount: 0, rows: [] } as any);
     const res = await supertest(app).get('/oficinas/999/relatorio-presencas');
     expect(res.status).toBe(404);
   });
 });
-

@@ -34,7 +34,7 @@ describe('Feed Routes', () => {
   describe('GET /feed', () => {
     it('deve listar posts do feed', async () => {
       const mockPosts = [{ id: 1, titulo: 'Post 1' }];
-      mockPool.query.mockResolvedValueOnce({ rows: mockPosts });
+      (mockPool.query as unknown as jest.Mock).mockResolvedValueOnce({ rows: mockPosts });
 
       const response = await supertest(app).get('/feed');
 
@@ -43,7 +43,7 @@ describe('Feed Routes', () => {
     });
 
     it('deve retornar erro 500 em caso de falha', async () => {
-      mockPool.query.mockRejectedValueOnce(new Error('Erro no banco'));
+      (mockPool.query as unknown as jest.Mock).mockRejectedValueOnce(new Error('Erro no banco'));
 
       const response = await supertest(app).get('/feed');
 
@@ -60,7 +60,7 @@ describe('Feed Routes', () => {
         conteudo: 'Conteúdo do post'
       };
       const mockCreatedPost = { ...newPost, id: 1 };
-      mockPool.query.mockResolvedValueOnce({ rows: [mockCreatedPost] });
+      (mockPool.query as unknown as jest.Mock).mockResolvedValueOnce({ rows: [mockCreatedPost] });
 
       const response = await supertest(app)
         .post('/feed')
@@ -82,7 +82,7 @@ describe('Feed Routes', () => {
   describe('POST /feed/:id/curtir', () => {
     it('deve permitir curtir um post', async () => {
       const postId = 1;
-      mockPool.query.mockResolvedValueOnce({ rows: [{ curtidas: 10 }] });
+      (mockPool.query as unknown as jest.Mock).mockResolvedValueOnce({ rows: [{ curtidas: 10 }] });
 
       const response = await supertest(app).post(`/feed/${postId}/curtir`);
 
@@ -91,7 +91,7 @@ describe('Feed Routes', () => {
     });
 
     it('deve retornar 404 para post inexistente', async () => {
-      mockPool.query.mockResolvedValueOnce({ rows: [] });
+      (mockPool.query as unknown as jest.Mock).mockResolvedValueOnce({ rows: [] });
 
       const response = await supertest(app).post('/feed/999/curtir');
 
@@ -105,7 +105,7 @@ describe('Feed Routes', () => {
         total_posts: 10,
         total_curtidas: 100
       };
-      mockPool.query.mockResolvedValueOnce({ rows: [mockStats] });
+      (mockPool.query as unknown as jest.Mock).mockResolvedValueOnce({ rows: [mockStats] });
 
       const response = await supertest(app).get('/feed/stats/summary');
 
@@ -125,7 +125,7 @@ describe('Feed Routes', () => {
         autor_id: '123',
         autor_nome: 'Test User'
       };
-      mockPool.query
+      (mockPool.query as unknown as jest.Mock)
         .mockResolvedValueOnce({ rows: [mockCreatedComment] })  // Inserir comentário
         .mockResolvedValueOnce({ rows: [{}] });  // Atualizar contagem
 
@@ -151,12 +151,12 @@ describe('Feed Routes', () => {
     const userId = '123';
 
     beforeEach(() => {
-      mockPool.query.mockResolvedValueOnce({ rows: [{ id: postId, autor_id: userId }] }); // Verificação inicial
+      (mockPool.query as unknown as jest.Mock).mockResolvedValueOnce({ rows: [{ id: postId, autor_id: userId }] }); // Verificação inicial
     });
 
     it('deve atualizar post quando usuário é autor', async () => {
       const updateData = { titulo: 'Título Atualizado' };
-      mockPool.query.mockResolvedValueOnce({ rows: [{ id: postId, ...updateData }] });
+      (mockPool.query as unknown as jest.Mock).mockResolvedValueOnce({ rows: [{ id: postId, ...updateData }] });
 
       const response = await supertest(app)
         .put(`/feed/${postId}`)
@@ -167,7 +167,7 @@ describe('Feed Routes', () => {
     });
 
     it('deve rejeitar atualização quando usuário não é autor', async () => {
-      mockPool.query.mockResolvedValueOnce({ rows: [{ id: postId, autor_id: 'outro_usuario' }] });
+      (mockPool.query as unknown as jest.Mock).mockResolvedValueOnce({ rows: [{ id: postId, autor_id: 'outro_usuario' }] });
 
       const response = await supertest(app)
         .put(`/feed/${postId}`)
@@ -182,11 +182,11 @@ describe('Feed Routes', () => {
     const userId = '123';
 
     beforeEach(() => {
-      mockPool.query.mockResolvedValueOnce({ rows: [{ id: postId, autor_id: userId }] }); // Verificação inicial
+      (mockPool.query as unknown as jest.Mock).mockResolvedValueOnce({ rows: [{ id: postId, autor_id: userId }] }); // Verificação inicial
     });
 
     it('deve excluir post quando usuário é autor', async () => {
-      mockPool.query
+      (mockPool.query as unknown as jest.Mock)
         .mockResolvedValueOnce({ rows: [] })  // Soft delete post
         .mockResolvedValueOnce({ rows: [] }); // Soft delete comentários
 
@@ -197,7 +197,7 @@ describe('Feed Routes', () => {
     });
 
     it('deve rejeitar exclusão quando usuário não é autor', async () => {
-      mockPool.query.mockResolvedValueOnce({ rows: [{ id: postId, autor_id: 'outro_usuario' }] });
+      (mockPool.query as unknown as jest.Mock).mockResolvedValueOnce({ rows: [{ id: postId, autor_id: 'outro_usuario' }] });
 
       const response = await supertest(app).delete(`/feed/${postId}`);
 

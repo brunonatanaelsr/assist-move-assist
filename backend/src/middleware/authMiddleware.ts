@@ -3,7 +3,10 @@ import jwt from 'jsonwebtoken';
 import { z } from 'zod';
 import { logger } from '../config/logger';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {
+  throw new Error('JWT_SECRET não definido em produção');
+}
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-only-secret';
 
 // Schema de validação do token
 const tokenSchema = z.object({

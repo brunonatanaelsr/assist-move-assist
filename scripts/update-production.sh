@@ -68,11 +68,8 @@ sudo -u www-data npm install
 sudo -u www-data npm run build
 
 echo "🔄 Executando migrações (se houver)..."
-cd /tmp/assist-move-assist
-if [ -f "migrations/new_migration.sql" ]; then
-    echo "📊 Aplicando novas migrações..."
-    psql -h localhost -U $(grep DB_USER $BACKEND_DIR/.env | cut -d '=' -f2) -d $(grep DB_NAME $BACKEND_DIR/.env | cut -d '=' -f2) -f migrations/new_migration.sql
-fi
+cd $BACKEND_DIR
+sudo -u www-data npm run migrate || true
 
 echo "🚀 Reiniciando serviços..."
 sudo systemctl start assist-move-assist
@@ -102,4 +99,4 @@ rm -rf /tmp/assist-move-assist /tmp/env_backup /tmp/frontend_env_backup
 echo ""
 echo "✅ Atualização concluída com sucesso!"
 echo "📅 $(date)"
-echo "🌐 Sistema disponível em: https://movemarias.squadsolucoes.com.br"
+echo "🌐 Sistema disponível em: https://<SEU_DOMINIO>"

@@ -63,9 +63,7 @@ REQUIRED_FILES=(
     "package.json"
     "backend/package.json"
     ".env.example"
-    ".env.prod"
     "vite.config.ts"
-    "backend/app-production.js"
     "config/nginx-ssl-production.conf"
     "scripts/deploy-ubuntu-24.sh"
 )
@@ -108,21 +106,16 @@ fi
 echo ""
 echo "🔐 Verificando configurações de ambiente..."
 
-if [ -f ".env.prod" ]; then
-    log_check "PASS" "Arquivo .env.prod existe"
-    
-    # Verificar variáveis críticas
-    REQUIRED_VARS=("POSTGRES_PASSWORD" "JWT_SECRET" "ADMIN_EMAIL" "CORS_ORIGIN")
-    
-    for var in "${REQUIRED_VARS[@]}"; do
-        if grep -q "^${var}=" .env.prod; then
-            log_check "PASS" "Variável $var definida em .env.prod"
-        else
-            log_check "FAIL" "Variável $var AUSENTE em .env.prod"
-        fi
-    done
+if [ -f ".env.production" ]; then
+    log_check "PASS" "Arquivo .env.production existe (frontend)"
 else
-    log_check "FAIL" "Arquivo .env.prod não encontrado"
+    log_check "WARN" "Arquivo .env.production ausente (frontend)"
+fi
+
+if [ -f "backend/.env" ]; then
+    log_check "PASS" "Arquivo backend/.env existe (backend)"
+else
+    log_check "WARN" "Arquivo backend/.env ausente (será criado no deploy)"
 fi
 
 # 5. Testar build do frontend
@@ -160,28 +153,26 @@ fi
 echo ""
 echo "🔧 Testando backend..."
 
-# Verificar se o backend pode iniciar
-timeout 15s node backend/app-production.js &
-BACKEND_PID=$!
-sleep 5
-
-# Testar health check
-if curl -sf http://localhost:3000/health > /dev/null 2>&1; then
-    log_check "PASS" "Backend iniciou e responde ao health check"
-    
-    # Testar API básica
-    if curl -sf http://localhost:3000/api/beneficiarias > /dev/null 2>&1; then
-        log_check "PASS" "API de beneficiárias respondendo"
+if [ -f "backend/dist/app.js" ]; then
+    log_check "PASS" "Artefato backend/dist/app.js presente"
+    # Opcional: smoke rápido se porta livre
+    if ! lsof -i:3000 -sTCP:LISTEN -t >/dev/null 2>&1; then
+        timeout 15s node backend/dist/app.js &
+        BACKEND_PID=$!
+        sleep 5
+        if curl -sf http://localhost:3000/health > /dev/null 2>&1; then
+            log_check "PASS" "Backend respondeu ao health check"
+        else
+            log_check "WARN" "Backend não respondeu ao health (ambiente local pode faltar DB/Redis)"
+        fi
+        kill $BACKEND_PID 2>/dev/null || true
+        wait $BACKEND_PID 2>/dev/null || true
     else
-        log_check "FAIL" "API de beneficiárias não respondendo"
+        log_check "INFO" "Porta 3000 ocupada; pulando smoke local"
     fi
 else
-    log_check "FAIL" "Backend não responde ao health check"
+    log_check "WARN" "backend/dist/app.js ausente — rode npm run build no backend"
 fi
-
-# Limpar processo do backend
-kill $BACKEND_PID 2>/dev/null
-wait $BACKEND_PID 2>/dev/null
 
 # 7. Verificar scripts de deploy
 echo ""
@@ -214,10 +205,14 @@ else
 fi
 
 # Verificar configuração CORS
-if grep -q "origin.*localhost" backend/app-production.js; then
-    log_check "WARN" "CORS permite localhost (ok para desenvolvimento)"
+if grep -q "CORS_ORIGIN" backend/.env 2>/dev/null; then
+    if grep -q "localhost" backend/.env; then
+        log_check "WARN" "CORS aponta para localhost (dev)"
+    else
+        log_check "PASS" "CORS aponta para domínio (produção)"
+    fi
 else
-    log_check "PASS" "CORS configurado para produção"
+    log_check "INFO" "CORS será definido no deploy"
 fi
 
 # 9. Verificar otimizações

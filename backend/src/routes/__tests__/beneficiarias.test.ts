@@ -22,6 +22,8 @@ const requireProfissional = jest.fn((req: any, _res: any, next: any) => next());
 jest.mock('../../middleware/auth', () => ({
   authenticateToken,
   requireProfissional,
+  requireGestor: (_req: any, _res: any, next: any) => next(),
+  authorize: () => (_req: any, _res: any, next: any) => next(),
   AuthService: {
     verifyToken: jest.fn().mockReturnValue(mockUser)
   }
@@ -384,4 +386,3 @@ describe('Beneficiarias Routes', () => {
     });
   });
 });
-

@@ -1,4 +1,5 @@
-import Redis from 'ioredis';
+import type Redis from 'ioredis';
+import redisSingleton from '../lib/redis';
 import { loggerService } from '../services/logger';
 
 interface CacheConfig {
@@ -14,25 +15,7 @@ class CacheService {
   private defaultTTL: number = 300; // 5 minutos
 
   constructor(config: CacheConfig) {
-    this.redis = new Redis({
-      host: config.host,
-      port: config.port,
-      password: config.password,
-      db: config.db || 0,
-      keyPrefix: config.keyPrefix || 'assist-move:',
-      retryStrategy: (times: number) => {
-        const delay = Math.min(times * 50, 2000);
-        return delay;
-      }
-    });
-
-    this.redis.on('error', (error) => {
-      loggerService.error('Erro na conexão Redis:', error);
-    });
-
-    this.redis.on('connect', () => {
-      loggerService.info('Conectado ao Redis');
-    });
+    this.redis = redisSingleton as unknown as Redis;
   }
 
   async get<T>(key: string): Promise<T | null> {

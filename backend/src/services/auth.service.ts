@@ -36,7 +36,11 @@ export class AuthService {
     private pool: Pool,
     private redis: Redis
   ) {
-    this.JWT_SECRET = process.env.JWT_SECRET || 'movemarias_jwt_secret_key_2025_production';
+    // Exigir JWT_SECRET em produção para evitar segredos embutidos
+    if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {
+      throw new Error('JWT_SECRET não definido em produção');
+    }
+    this.JWT_SECRET = process.env.JWT_SECRET || 'dev-only-secret';
     this.JWT_EXPIRY = process.env.JWT_EXPIRY || '24h';
   }
 
@@ -83,13 +87,22 @@ export class AuthService {
       // Remover campos sensíveis
       const { senha_hash, ...userWithoutPassword } = user;
 
-      // Cache
-      await this.redis.set(
-        `auth:user:${user.id}`,
-        JSON.stringify(userWithoutPassword),
-        'EX',
-        this.CACHE_TTL
-      );
+      // Retorna imediatamente em ambientes sem Redis disponível
+      if (!process.env.REDIS_HOST) {
+        return { token, user: userWithoutPassword };
+      }
+
+      // Cache (ignorar falhas de Redis em dev)
+      try {
+        await this.redis.set(
+          `auth:user:${user.id}`,
+          JSON.stringify(userWithoutPassword),
+          'EX',
+          this.CACHE_TTL
+        );
+      } catch (e) {
+        console.warn('Redis indisponível (cache de auth ignorado)');
+      }
 
       return {
         token,

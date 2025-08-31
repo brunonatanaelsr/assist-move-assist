@@ -1,7 +1,7 @@
 import { Pool } from 'pg';
-import { BeneficiariasRepository } from '../../src/repositories/BeneficiariasRepository';
-import { AppError } from '../../src/utils/AppError';
-import { Beneficiaria } from '../../src/types/beneficiarias';
+import { BeneficiariasRepository } from '../../repositories/beneficiariasRepository';
+import { AppError } from '../../utils/AppError';
+import { Beneficiaria } from '../../types/beneficiarias';
 
 describe('BeneficiariasRepository', () => {
   let pool: Pool;

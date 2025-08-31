@@ -1,5 +1,4 @@
 import express from 'express';
-import Redis from 'ioredis';
 import { OficinaService } from '../services/oficina.service';
 import { authenticateToken, requireGestor, authorize } from '../middleware/auth';
 import { successResponse, errorResponse } from '../utils/responseFormatter';
@@ -11,15 +10,9 @@ import ExcelJS = require('exceljs');
 
 const router = express.Router();
 
-// Inicialização do Redis
-const redis = new Redis({
-  host: process.env.REDIS_HOST || 'localhost',
-  port: parseInt(process.env.REDIS_PORT || '6379'),
-  password: process.env.REDIS_PASSWORD,
-  db: 0
-});
+import redis from '../lib/redis';
 
-const oficinaService = new OficinaService(pool, redis);
+const oficinaService = new OficinaService(pool, redis as any);
 const oficinaRepository = new OficinaRepository();
 
 // Listar oficinas (público)
@@ -42,6 +35,110 @@ router.get('/', authorize('oficinas.ler'), async (req, res): Promise<void> => {
     }
 
     res.status(500).json(errorResponse("Erro ao buscar oficinas"));
+    return;
+  }
+});
+
+// Horários disponíveis para uma data específica (intervalos de 30 min)
+router.get('/horarios-disponiveis', authenticateToken, authorize('oficinas.horarios.listar'), async (req, res): Promise<void> => {
+  try {
+    const data = String(req.query.data || '');
+    if (!data || !/^\d{4}-\d{2}-\d{2}$/.test(data)) {
+      res.status(400).json(errorResponse('Parâmetro "data" (YYYY-MM-DD) é obrigatório'));
+      return;
+    }
+
+    // Buscar janelas ocupadas neste dia
+    const ocupadas = await pool.query(
+      `SELECT id, nome, horario_inicio, horario_fim, data_inicio, data_fim, dias_semana
+       FROM oficinas o
+       WHERE o.ativo = true
+         AND o.data_inicio <= $1
+         AND (o.data_fim IS NULL OR o.data_fim >= $1)`,
+      [data]
+    );
+
+    // Geração de slots de 30min entre 08:00 e 20:00
+    const startMinutes = 8 * 60; // 08:00
+    const endMinutes = 20 * 60; // 20:00
+    const step = 30; // 30 minutos
+
+    const toHM = (total: number) => {
+      const h = Math.floor(total / 60);
+      const m = total % 60;
+      return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+    };
+
+    const busyRanges = ocupadas.rows.map((r: any) => {
+      const iniStr = (r?.horario_inicio ? String(r.horario_inicio) : '00:00');
+      const fimStr = (r?.horario_fim ? String(r.horario_fim) : '00:00');
+      const [ih, im] = iniStr.split(':');
+      const [fh, fm] = fimStr.split(':');
+      const inicio = (parseInt(ih || '0', 10) * 60) + parseInt(im || '0', 10);
+      const fim = (parseInt(fh || '0', 10) * 60) + parseInt(fm || '0', 10);
+      return { inicio, fim, nome: r.nome };
+    }).filter((r: any) => !isNaN(r.inicio) && !isNaN(r.fim));
+
+    const disponiveis: string[] = [];
+    for (let t = startMinutes; t + step <= endMinutes; t += step) {
+      const slotInicio = t;
+      const slotFim = t + step;
+      const overlap = busyRanges.some((b) => !(slotFim <= b.inicio || slotInicio >= b.fim));
+      if (!overlap) {
+        disponiveis.push(`${toHM(slotInicio)}-${toHM(slotFim)}`);
+      }
+    }
+
+    res.json(successResponse({ date: data, disponiveis, ocupados: ocupadas.rows }));
+    return;
+  } catch (error: any) {
+    console.error('Horários disponíveis error:', error);
+    res.status(500).json(errorResponse('Erro ao calcular horários disponíveis'));
+    return;
+  }
+});
+
+// Verificar conflito de horários
+router.post('/verificar-conflito', authenticateToken, authorize('oficinas.conflito.verificar'), async (req, res): Promise<void> => {
+  try {
+    const { data_inicio, data_fim, horario_inicio, horario_fim, dias_semana, excluir_oficina_id } = req.body || {};
+    if (!data_inicio || !horario_inicio || !horario_fim) {
+      res.status(400).json(errorResponse('data_inicio, horario_inicio e horario_fim são obrigatórios'));
+      return;
+    }
+
+    const params: any[] = [data_inicio, data_fim || data_inicio, horario_inicio, horario_fim];
+    let idx = 5;
+    let where = `
+      o.ativo = true
+      AND (
+        (o.data_inicio <= $2 AND (o.data_fim IS NULL OR o.data_fim >= $1))
+      )
+      AND NOT ($4 <= o.horario_inicio OR $3 >= o.horario_fim)
+    `;
+
+    if (dias_semana) {
+      where += ` AND (o.dias_semana IS NULL OR o.dias_semana ILIKE $${idx++})`;
+      params.push(`%${dias_semana}%`);
+    }
+    if (excluir_oficina_id) {
+      where += ` AND o.id <> $${idx++}`;
+      params.push(excluir_oficina_id);
+    }
+
+    const result = await pool.query(
+      `SELECT id, nome, data_inicio, data_fim, horario_inicio, horario_fim, local
+       FROM oficinas o
+       WHERE ${where}
+       LIMIT 20`,
+      params
+    );
+
+    res.json(successResponse({ conflito: (result.rows?.length || 0) > 0, conflitos: result.rows }));
+    return;
+  } catch (error: any) {
+    console.error('Verificar conflito error:', error);
+    res.status(500).json(errorResponse('Erro ao verificar conflito'));
     return;
   }
 });
@@ -355,109 +452,6 @@ router.get('/:id/resumo', authenticateToken, async (req, res): Promise<void> => 
   }
 });
 
-// Verificar conflito de horários
-router.post('/verificar-conflito', authenticateToken, authorize('oficinas.conflito.verificar'), async (req, res): Promise<void> => {
-  try {
-    const { data_inicio, data_fim, horario_inicio, horario_fim, dias_semana, excluir_oficina_id } = req.body || {};
-    if (!data_inicio || !horario_inicio || !horario_fim) {
-      res.status(400).json(errorResponse('data_inicio, horario_inicio e horario_fim são obrigatórios'));
-      return;
-    }
-
-    const params: any[] = [data_inicio, data_fim || data_inicio, horario_inicio, horario_fim];
-    let idx = 5;
-    let where = `
-      o.ativo = true
-      AND (
-        (o.data_inicio <= $2 AND (o.data_fim IS NULL OR o.data_fim >= $1))
-      )
-      AND NOT ($4 <= o.horario_inicio OR $3 >= o.horario_fim)
-    `;
-
-    if (dias_semana) {
-      where += ` AND (o.dias_semana IS NULL OR o.dias_semana ILIKE $${idx++})`;
-      params.push(`%${dias_semana}%`);
-    }
-    if (excluir_oficina_id) {
-      where += ` AND o.id <> $${idx++}`;
-      params.push(excluir_oficina_id);
-    }
-
-    const result = await pool.query(
-      `SELECT id, nome, data_inicio, data_fim, horario_inicio, horario_fim, local
-       FROM oficinas o
-       WHERE ${where}
-       LIMIT 20`,
-      params
-    );
-
-    res.json(successResponse({ conflito: (result.rows?.length || 0) > 0, conflitos: result.rows }));
-    return;
-  } catch (error: any) {
-    console.error('Verificar conflito error:', error);
-    res.status(500).json(errorResponse('Erro ao verificar conflito'));
-    return;
-  }
-});
-
-// Horários disponíveis para uma data específica (intervalos de 30 min)
-router.get('/horarios-disponiveis', authenticateToken, authorize('oficinas.horarios.listar'), async (req, res): Promise<void> => {
-  try {
-    const data = String(req.query.data || '');
-    if (!data || !/^\d{4}-\d{2}-\d{2}$/.test(data)) {
-      res.status(400).json(errorResponse('Parâmetro "data" (YYYY-MM-DD) é obrigatório'));
-      return;
-    }
-
-    // Buscar janelas ocupadas neste dia
-    const ocupadas = await pool.query(
-      `SELECT id, nome, horario_inicio, horario_fim, data_inicio, data_fim, dias_semana
-       FROM oficinas o
-       WHERE o.ativo = true
-         AND o.data_inicio <= $1
-         AND (o.data_fim IS NULL OR o.data_fim >= $1)`,
-      [data]
-    );
-
-    // Geração de slots de 30min entre 08:00 e 20:00
-    const startMinutes = 8 * 60; // 08:00
-    const endMinutes = 20 * 60; // 20:00
-    const step = 30; // 30 minutos
-
-    const toHM = (total: number) => {
-      const h = Math.floor(total / 60);
-      const m = total % 60;
-      return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-    };
-
-    const busyRanges = ocupadas.rows.map((r: any) => {
-      const iniStr = (r?.horario_inicio ? String(r.horario_inicio) : '00:00');
-      const fimStr = (r?.horario_fim ? String(r.horario_fim) : '00:00');
-      const [ih, im] = iniStr.split(':');
-      const [fh, fm] = fimStr.split(':');
-      const inicio = (parseInt(ih || '0', 10) * 60) + parseInt(im || '0', 10);
-      const fim = (parseInt(fh || '0', 10) * 60) + parseInt(fm || '0', 10);
-      return { inicio, fim, nome: r.nome };
-    }).filter((r: any) => !isNaN(r.inicio) && !isNaN(r.fim));
-
-    const disponiveis: string[] = [];
-    for (let t = startMinutes; t + step <= endMinutes; t += step) {
-      const slotInicio = t;
-      const slotFim = t + step;
-      const overlap = busyRanges.some((b) => !(slotFim <= b.inicio || slotInicio >= b.fim));
-      if (!overlap) {
-        disponiveis.push(`${toHM(slotInicio)}-${toHM(slotFim)}`);
-      }
-    }
-
-    res.json(successResponse({ date: data, disponiveis, ocupados: ocupadas.rows }));
-    return;
-  } catch (error: any) {
-    console.error('Horários disponíveis error:', error);
-    res.status(500).json(errorResponse('Erro ao calcular horários disponíveis'));
-    return;
-  }
-});
 
 // Relatório de presenças (PDF/Excel)
 router.get('/:id/relatorio-presencas', authenticateToken, authorize('oficinas.relatorio.exportar'), async (req, res): Promise<void> => {

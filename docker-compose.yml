@@ -5,9 +5,9 @@ services:
     image: postgres:16
     container_name: movemarias_postgres
     environment:
-      POSTGRES_DB: movemarias
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: 15002031
+      POSTGRES_DB: ${POSTGRES_DB:-movemarias}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
     ports:
       - "5434:5432"
     volumes:

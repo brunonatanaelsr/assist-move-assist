@@ -9,6 +9,7 @@ export type MockRedis = {
   get: jest.Mock<any, any>
   setex: jest.Mock<any, any>
   del: jest.Mock<any, any>
+  keys?: jest.Mock<any, any>
 }
 
 export const createMockPool = (): MockPool => ({
@@ -18,10 +19,10 @@ export const createMockPool = (): MockPool => ({
 export const createMockRedis = (): MockRedis => ({
   get: jest.fn(),
   setex: jest.fn(),
-  del: jest.fn()
+  del: jest.fn(),
+  keys: jest.fn().mockResolvedValue([])
 })
 
 // Type helpers to cast when needed in tests
 export const asPool = (mock: MockPool) => mock as unknown as Pool
 export const asRedis = (mock: MockRedis) => mock as unknown as Redis
-

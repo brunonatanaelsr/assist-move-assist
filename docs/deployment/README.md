@@ -6,9 +6,9 @@ Este guia descreve o processo de deploy completamente automatizado para o sistem
 
 ### 🎯 Configuração do Deploy
 
-- **Domínio**: `movemarias.squadsolucoes.com.br`
+- **Domínio**: `<SEU_DOMINIO>`
 - **Sistema**: Ubuntu 24.04 LTS
-- **Super Admin**: `bruno@move.com` / `15002031`
+- **Super Admin**: definido via seed/migrações (configure por env/seed)
 - **SSL**: Let's Encrypt com renovação automática
 - **Database**: PostgreSQL puro (sem Supabase)
 
@@ -27,13 +27,20 @@ git clone https://github.com/brunonatanaelsr/assist-move-assist.git
 cd assist-move-assist
 ```
 
-#### 2. Execute o script de deploy:
+#### 2. Executar pré-checks e preparar ambiente
 ```bash
-chmod +x scripts/deploy-production.sh
-sudo ./scripts/deploy-production.sh
+chmod +x scripts/pre-deploy-check.sh
+sudo ./scripts/pre-deploy-check.sh
 ```
 
-#### 3. Aguarde o processo completo (15-20 minutos)
+#### 3. Siga o guia PM2 para provisionamento e serviço
+Consulte `docs/PM2_DEPLOYMENT.md` para criar diretórios, instalar dependências, configurar o serviço PM2/systemd e variáveis de ambiente.
+
+#### 4. Atualizações futuras (deploy contínuo)
+Use:
+```bash
+sudo ./scripts/update-production.sh
+```
 
 ### 🏗️ O que o script faz automaticamente:
 
@@ -82,17 +89,14 @@ O script gera automaticamente:
 
 ### 👤 Super Administrador
 
-- **Email**: `bruno@move.com`
-- **Senha**: `15002031`
-- **Role**: `admin`
-- **Permissões**: Todas as funcionalidades do sistema
+Defina via variáveis de ambiente/seed de migração. Nunca versione credenciais.
 
 ### 🌐 URLs de Acesso
 
 Após o deploy:
-- **Site**: https://movemarias.squadsolucoes.com.br
-- **API**: https://movemarias.squadsolucoes.com.br/api
-- **Health Check**: https://movemarias.squadsolucoes.com.br/health
+- **Site**: https://<SEU_DOMINIO>
+- **API**: https://<SEU_DOMINIO>/api
+- **Health Check**: https://<SEU_DOMINIO>/health
 
 ### 🛠️ Scripts de Manutenção
 

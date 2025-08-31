@@ -47,7 +47,7 @@ Sistema de gestão para institutos sociais que auxilia no acompanhamento de bene
    JWT_SECRET=seu_jwt_secret
    UPLOAD_PATH=./uploads
    ENABLE_WS=true
-   FRONTEND_URL=http://localhost:5173
+   FRONTEND_URL=http://localhost:8080
    ```
 4. **Configure o banco de dados**
    ```bash
@@ -69,15 +69,15 @@ Sistema de gestão para institutos sociais que auxilia no acompanhamento de bene
    npm run migrate        # aplica migrações (usa POSTGRES_* do .env)
    npm run dev            # inicia API em http://localhost:3000
    
-   # Terminal 3 (Frontend)
-   npm run dev            # inicia em http://localhost:5173
+  # Terminal 3 (Frontend)
+  npm run dev            # inicia em http://localhost:8080
    ```
-   Frontend: [http://localhost:5173](http://localhost:5173)
+   Frontend: [http://localhost:8080](http://localhost:8080)
    Backend: [http://localhost:3000](http://localhost:3000)
 
 ## Scripts Úteis
 ```bash
-npm run dev           # Dev (frontend:5173, backend:3000)
+npm run dev           # Dev (frontend:8080, backend:3000)
 npm run build         # Build de produção
 npm run preview       # Preview do build
 npm run lint          # Linter ESLint
@@ -136,7 +136,7 @@ npm run test:e2e
 Para documentação detalhada consulte:
 - [Documentação Técnica](docs/TECHNICAL_DOCUMENTATION.md)
 - [Documentação da API](docs/API_DOCUMENTATION.md)
-- [Guia de Deploy](docs/DEPLOY_GUIDE.md)
+- [Guia de Deploy](docs/deployment/README.md)
 - [Banco de Dados](docs/database/)
  - [Guia de Admin (RBAC, permissões e smokes)](README-ADMIN.md)
 
@@ -186,8 +186,8 @@ Para documentação detalhada consulte:
 ## Realtime (WebSocket)
 - Backend usa Socket.IO embutido em `backend/src/websocket/server.ts`.
 - Para habilitar, defina no `backend/.env`:
-  - `ENABLE_WS=true`
-  - `FRONTEND_URL=http://localhost:5173` (ou URL do frontend)
+- `ENABLE_WS=true`
+  - `FRONTEND_URL=http://localhost:8080` (ou URL do frontend)
 - Eventos principais de chat expostos:
   - Cliente → servidor: `join_groups`, `send_message`, `read_message`, `typing`.
   - Servidor → cliente: `new_message`, `message_sent`, `message_read`, `user_status`, `user_typing`.

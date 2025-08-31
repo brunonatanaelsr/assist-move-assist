@@ -1,5 +1,4 @@
 import express from 'express';
-import Redis from 'ioredis';
 import { authenticateToken, requireGestor, authorize } from '../middleware/auth';
 import { successResponse, errorResponse } from '../utils/responseFormatter';
 import { createProjetoSchema, updateProjetoSchema, projetoFilterSchema } from '../validators/projeto.validator';
@@ -7,8 +6,8 @@ import { ProjetoService } from '../services/projeto.service';
 import { pool } from '../config/database';
 
 const router = express.Router();
-const redis = new Redis({ host: process.env.REDIS_HOST || 'localhost', port: parseInt(process.env.REDIS_PORT || '6379') });
-const projetoService = new ProjetoService(pool, redis);
+import redis from '../lib/redis';
+const projetoService = new ProjetoService(pool, redis as any);
 
 router.use(authenticateToken);
 

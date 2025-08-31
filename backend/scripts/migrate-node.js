@@ -31,10 +31,26 @@ async function run() {
       applied_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
     );`);
 
-    const files = fs
+  // Read and sort migrations with a small manual priority to respect FK deps
+  const allFiles = fs
       .readdirSync(MIGRATIONS_DIR)
-      .filter((f) => f.endsWith('.sql'))
-      .sort();
+      .filter((f) => f.endsWith('.sql'));
+
+  const priorityOrder = [
+    '001_criar_usuarios.sql',
+    '002_criar_beneficiarias.sql',
+    // projetos precisa existir antes de oficinas/participacoes
+    '005_criar_projetos.sql',
+    '003_criar_oficinas.sql',
+    '006_criar_participacoes.sql',
+  ];
+
+  const prioritySet = new Set(priorityOrder);
+  const priorityFiles = priorityOrder.filter((f) => allFiles.includes(f));
+  const remaining = allFiles
+    .filter((f) => !prioritySet.has(f))
+    .sort();
+  const files = [...priorityFiles, ...remaining];
 
     for (const file of files) {
       const { rows } = await client.query('SELECT 1 FROM migrations WHERE name = $1', [file]);

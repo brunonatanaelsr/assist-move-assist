@@ -2,10 +2,39 @@ import { Pool } from 'pg';
 import { PostgresBaseRepository } from './postgresBaseRepository';
 import { Beneficiaria } from '../models/beneficiaria';
 import { NotFoundError } from '../utils/errors';
+import { AppError } from '../utils/AppError';
 
 export class BeneficiariasRepository extends PostgresBaseRepository<Beneficiaria> {
   constructor(pool: Pool) {
     super(pool, 'beneficiarias');
+  }
+
+  // Compatibilidade com testes legados
+  async criar(data: Partial<Beneficiaria>): Promise<Beneficiaria> {
+    return this.create(data as any);
+  }
+
+  async buscarPorId(id: number): Promise<Beneficiaria> {
+    const found = await this.findById(id);
+    if (!found) {
+      throw new AppError('Beneficiária não encontrada', 404);
+    }
+    return found;
+  }
+
+  async listar(
+    filtros: any = {},
+    paginacao: { page?: number; limit?: number } = {}
+  ): Promise<{ items: Beneficiaria[]; total: number; page: number; totalPages: number }> {
+    const page = paginacao.page ?? 1;
+    const limit = paginacao.limit ?? 10;
+    const result = await this.listarAtivas(page, limit, filtros);
+    return {
+      items: result.data,
+      total: result.total,
+      page,
+      totalPages: result.pages
+    };
   }
 
   async findByCPF(cpf: string): Promise<Beneficiaria | null> {

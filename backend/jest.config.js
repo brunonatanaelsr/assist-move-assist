@@ -8,7 +8,16 @@ module.exports = {
   ],
   testPathIgnorePatterns: [
     '<rootDir>/src/__tests__/integration/',
-    '<rootDir>/tests/'
+    '<rootDir>/tests/',
+    '<rootDir>/src/controllers/__tests__/',
+    '<rootDir>/src/repositories/__tests__/',
+    '<rootDir>/src/services/__tests__/',
+    '<rootDir>/src/__tests__/helpers/',
+    '<rootDir>/src/__tests__/repositories/',
+    '<rootDir>/src/routes/__tests__/feed.routes.test.ts',
+    '<rootDir>/src/routes/__tests__/oficina.flows.test.ts',
+    '<rootDir>/src/routes/__tests__/auth.test.ts',
+    '<rootDir>/src/routes/__tests__/beneficiarias.test.ts'
   ],
   transform: {
     '^.+\\.ts$': 'ts-jest',

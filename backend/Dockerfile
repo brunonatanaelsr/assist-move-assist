@@ -12,10 +12,18 @@ COPY . .
 EXPOSE 3000
 
 ENV NODE_ENV=development
-ENV DATABASE_URL=postgresql://postgres:15002031@postgres:5432/movemarias
-ENV REDIS_URL=redis://redis:6379
-ENV JWT_SECRET=your_jwt_secret_key_here
-ENV JWT_EXPIRES_IN=7d
-ENV CORS_ORIGIN=https://cautious-space-waddle-r4vx96jpv5p93pvp5-8080.app.github.dev
+
+# Use variáveis configuráveis para evitar segredos hardcoded
+ARG DATABASE_URL=postgresql://postgres:postgres@postgres:5432/movemarias
+ARG REDIS_URL=redis://redis:6379
+ARG JWT_SECRET=change-me
+ARG JWT_EXPIRES_IN=7d
+ARG CORS_ORIGIN=http://localhost:8080
+
+ENV DATABASE_URL=${DATABASE_URL}
+ENV REDIS_URL=${REDIS_URL}
+ENV JWT_SECRET=${JWT_SECRET}
+ENV JWT_EXPIRES_IN=${JWT_EXPIRES_IN}
+ENV CORS_ORIGIN=${CORS_ORIGIN}
 
 CMD ["npm", "run", "dev"]

@@ -6,7 +6,10 @@ import { loggerService } from '../services/logger';
 import { pool } from '../config/database';
 import redisClient from '../lib/redis';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {
+  throw new Error('JWT_SECRET não definido em produção');
+}
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-only-secret';
 const SIGN_OPTIONS: SignOptions = { expiresIn: (process.env.JWT_EXPIRES_IN || '24h') as any };
 
 export enum PERMISSIONS {

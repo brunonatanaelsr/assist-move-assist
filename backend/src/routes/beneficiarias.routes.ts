@@ -1,5 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express';
-import { BeneficiariasRepository } from '../repositories/BeneficiariasRepository';
+// Import com case correto para compatibilidade em Linux (FS case-sensitive)
+import { BeneficiariasRepository } from '../repositories/beneficiariasRepository';
 import { authenticateToken, requireProfissional, authorize } from '../middleware/auth';
 import { successResponse, errorResponse } from '../utils/responseFormatter';
 import { catchAsync } from '../middleware/errorHandler';
@@ -52,11 +53,11 @@ router.get(
       }
 
       // Formatar datas antes de enviar a resposta
-      const beneficiariaFormatada = formatObjectDates(beneficiaria, [
+      const beneficiariaFormatada = formatObjectDates(beneficiaria as unknown as Record<string, unknown>, [
         'data_nascimento',
         'data_criacao',
         'data_atualizacao'
-      ]);
+      ]) as unknown as typeof beneficiaria;
       
       res.json(successResponse(beneficiariaFormatada));
       return;

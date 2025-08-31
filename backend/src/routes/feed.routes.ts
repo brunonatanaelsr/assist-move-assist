@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import Redis from 'ioredis';
+import redis from '../lib/redis';
 import { authenticateToken, AuthenticatedRequest } from '../middleware/auth';
 import { successResponse, errorResponse } from '../utils/responseFormatter';
 import { uploadSingle } from '../middleware/upload';
@@ -8,15 +8,7 @@ import { pool } from '../config/database';
 
 const router = Router();
 
-// Inicialização do Redis
-const redis = new Redis({
-  host: process.env.REDIS_HOST || 'localhost',
-  port: parseInt(process.env.REDIS_PORT || '6379'),
-  password: process.env.REDIS_PASSWORD,
-  enableReadyCheck: true,
-});
-
-const feedService = new FeedService(pool, redis);
+const feedService = new FeedService(pool, redis as any);
 
 interface ExtendedRequest extends AuthenticatedRequest {
   file?: Express.Multer.File;

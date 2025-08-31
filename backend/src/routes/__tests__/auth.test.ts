@@ -22,7 +22,8 @@ jest.mock('../../middleware/auth', () => ({
     getProfile: jest.fn()
   },
   authenticateToken,
-  requireProfissional: jest.fn()
+  requireProfissional: jest.fn(),
+  authorize: () => (_req: any, _res: any, next: any) => next()
 }));
 
 import { AuthService } from '../../middleware/auth';
@@ -117,4 +118,3 @@ describe('Auth Routes', () => {
     });
   });
 });
-

@@ -1,5 +1,5 @@
 import { Pool } from 'pg';
-import Redis from 'ioredis';
+import type Redis from 'ioredis';
 import { z } from 'zod';
 import { feedPostSchema, feedCommentSchema } from '../validators/feed.validator';
 import { formatArrayDates, formatObjectDates } from '../utils/dateFormatter';

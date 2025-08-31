@@ -1,6 +1,7 @@
 import type { Express, Request, Response, NextFunction } from 'express';
 import express from 'express';
 import cors from 'cors';
+import type { CorsOptions } from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
 import morgan from 'morgan';
@@ -37,12 +38,14 @@ app.use(helmet());
 app.use(compression());
 
 // CORS
-app.use(cors({
-  origin: true,
+const corsOrigin = process.env.CORS_ORIGIN || (process.env.NODE_ENV === 'development' ? '*' : '');
+const corsOptions: CorsOptions = {
+  origin: corsOrigin === '*' || corsOrigin === '' ? true : corsOrigin.split(',').map((o) => o.trim()),
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
-}));
+};
+app.use(cors(corsOptions));
 
 // Rate limiting
 const limiter = rateLimit({

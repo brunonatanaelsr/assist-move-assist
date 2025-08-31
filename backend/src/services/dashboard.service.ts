@@ -1,12 +1,9 @@
 import { db } from '../services/db';
-import { Redis } from 'ioredis';
+import type { Redis } from 'ioredis';
+import redis from '../lib/redis';
 import { loggerService } from '../services/logger';
 
 const CACHE_TTL = 300; // 5 minutos
-const redis = new Redis({
-  host: process.env.REDIS_HOST || 'localhost',
-  port: Number(process.env.REDIS_PORT) || 6379
-});
 
 interface DashboardStats {
   totalBeneficiarias: number;
