@@ -94,7 +94,7 @@ class DashboardService {
       FROM (
         SELECT id FROM beneficiarias
         UNION ALL
-        SELECT id FROM anamneses_social
+        SELECT id FROM formularios
       ) as combined_activities
     `);
 
@@ -112,14 +112,14 @@ class DashboardService {
         UNION ALL
         
         SELECT 
-          'anamnese_created' as type,
-          a.id,
+          'formulario_created' as type,
+          f.id,
           b.nome_completo as beneficiaria_nome,
-          a.created_at,
+          f.created_at,
           u.nome as created_by_name
-        FROM anamneses_social a
-        LEFT JOIN beneficiarias b ON a.beneficiaria_id = b.id
-        LEFT JOIN usuarios u ON a.created_by = u.id
+        FROM formularios f
+        LEFT JOIN beneficiarias b ON f.beneficiaria_id = b.id
+        LEFT JOIN usuarios u ON f.usuario_id = u.id
       ) as combined_activities
       ORDER BY created_at DESC
       LIMIT $1 OFFSET $2
@@ -138,9 +138,9 @@ class DashboardService {
   private getActivityDescription(activity: Activity): string {
     switch (activity.type) {
       case 'beneficiaria_created':
-        return `Beneficiária ${activity.nome_completo} foi cadastrada por ${activity.created_by_name || 'Sistema'}`;
-      case 'anamnese_created':
-        return `Anamnese criada para ${activity.beneficiaria_nome} por ${activity.created_by_name || 'Sistema'}`;
+        return `Beneficiária ${(activity as any).nome_completo} foi cadastrada por ${(activity as any).created_by_name || 'Sistema'}`;
+      case 'formulario_created':
+        return `Formulário criado para ${(activity as any).beneficiaria_nome} por ${(activity as any).created_by_name || 'Sistema'}`;
       default:
         return 'Atividade não especificada';
     }

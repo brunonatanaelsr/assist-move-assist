@@ -1,6 +1,6 @@
 // Ambiente de desenvolvimento
 const DEV_CONFIG = {
-  API_URL: 'http://localhost:3000/api',
+  API_URL: '/api',
   AUTH_TOKEN_KEY: 'auth_token',
   USER_KEY: 'user',
 };

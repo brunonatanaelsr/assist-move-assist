@@ -5,13 +5,15 @@ services:
     image: postgres:16
     container_name: movemarias_postgres
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-movemarias}
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-assist_move_assist}
+      POSTGRES_USER: ${POSTGRES_USER:-assistmove}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-assistmove123}
     ports:
-      - "5434:5432"
+      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - movemarias_network
 
   redis:
     image: redis:7
@@ -20,7 +22,69 @@ services:
       - "6379:6379"
     volumes:
       - redis_data:/data
+    networks:
+      - movemarias_network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: movemarias_backend
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - HOST=0.0.0.0
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=assist_move_assist
+      - POSTGRES_USER=assistmove
+      - POSTGRES_PASSWORD=assistmove123
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - JWT_SECRET=assist-move-assist-dev-secret-key-2025
+      - JWT_EXPIRES_IN=24h
+      - CORS_ORIGIN=https://stunning-bassoon-6956qpx5wg94257xg-5173.app.github.dev,https://stunning-bassoon-6956qpx5wg94257xg-3000.app.github.dev
+      - FRONTEND_URL=https://stunning-bassoon-6956qpx5wg94257xg-5173.app.github.dev
+      - ENABLE_WS=true
+      - SUPERADMIN_NAME=Bruno Admin
+      - SUPERADMIN_EMAIL=bruno@move.com
+      - SUPERADMIN_PASSWORD=15002031
+      - ADMIN_NAME=Administrador
+      - ADMIN_EMAIL=admin@movemarias.com
+      - ADMIN_PASSWORD=movemarias123
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    networks:
+      - movemarias_network
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: movemarias_frontend
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=https://stunning-bassoon-6956qpx5wg94257xg-3000.app.github.dev/api
+      - VITE_API_BASE_URL=https://stunning-bassoon-6956qpx5wg94257xg-3000.app.github.dev/api
+    depends_on:
+      - backend
+    volumes:
+      - .:/app
+      - /app/node_modules
+    networks:
+      - movemarias_network
 
 volumes:
   postgres_data:
   redis_data:
+
+networks:
+  movemarias_network:
+    driver: bridge

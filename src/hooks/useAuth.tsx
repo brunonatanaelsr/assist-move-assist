@@ -15,13 +15,25 @@ interface User {
   nome: string;
   papel: string;
   avatar_url?: string;
+  ativo?: boolean;
+  telefone?: string;
+  nome_completo?: string;
+  cargo?: string;
+  departamento?: string;
+  bio?: string;
+  foto_url?: string;
+  endereco?: string;
+  data_nascimento?: string;
 }
 
 interface AuthContextType {
   user: User | null;
+  profile: User | null; // alias para compatibilidade
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error?: Error }>;
   signOut: () => Promise<void>;
+  isAuthenticated: boolean;
+  isAdmin: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -71,7 +83,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, signOut }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      profile: user, // alias para compatibilidade
+      loading, 
+      signIn, 
+      signOut,
+      isAuthenticated: !!user,
+      isAdmin: user?.papel === 'admin' || user?.papel === 'super_admin' || user?.papel === 'superadmin'
+    }}>
       {children}
     </AuthContext.Provider>
   );

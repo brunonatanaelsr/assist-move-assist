@@ -63,18 +63,20 @@ const getBeneficiarias = async (filters: BeneficiariaFilters) => {
 };
 
 const getStats = async () => {
-  const [totalBeneficiarias, activeBeneficiarias, totalAnamneses, totalDeclaracoes] = await Promise.all([
-    client.query('SELECT COUNT(*)::int AS total FROM beneficiarias'),
-    client.query("SELECT COUNT(*)::int AS total FROM beneficiarias WHERE status = 'ativa'"),
-    client.query('SELECT COUNT(*)::int AS total FROM anamneses_social'),
-    client.query('SELECT COUNT(*)::int AS total FROM declaracoes_comparecimento')
+  const [totalBeneficiarias, activeBeneficiarias, totalFormularios, totalAtendimentos] = await Promise.all([
+    client.query('SELECT COUNT(*)::int AS total FROM beneficiarias WHERE deleted_at IS NULL'),
+    client.query("SELECT COUNT(*)::int AS total FROM beneficiarias WHERE status = 'ativa' AND deleted_at IS NULL"),
+    client.query('SELECT COUNT(*)::int AS total FROM formularios'),
+    client.query('SELECT COUNT(*)::int AS total FROM historico_atendimentos')
   ]);
 
   return {
     totalBeneficiarias: Number(totalBeneficiarias[0]?.total || 0),
     activeBeneficiarias: Number(activeBeneficiarias[0]?.total || 0),
-    totalAnamneses: Number(totalAnamneses[0]?.total || 0),
-    totalDeclaracoes: Number(totalDeclaracoes[0]?.total || 0)
+    inactiveBeneficiarias: Number(totalBeneficiarias[0]?.total || 0) - Number(activeBeneficiarias[0]?.total || 0),
+    totalFormularios: Number(totalFormularios[0]?.total || 0),
+    totalAtendimentos: Number(totalAtendimentos[0]?.total || 0),
+    engajamento: totalBeneficiarias[0]?.total > 0 ? Math.round((Number(activeBeneficiarias[0]?.total || 0) / Number(totalBeneficiarias[0]?.total || 0)) * 100) : 0
   };
 };
 

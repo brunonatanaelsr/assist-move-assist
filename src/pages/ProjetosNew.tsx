@@ -11,7 +11,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Plus, FolderKanban, Edit, Trash2, Users, Calendar, MapPin, DollarSign, AlertCircle, CheckCircle } from "lucide-react";
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { apiFetch } from '@/lib/api';
+import { apiService } from '@/services/apiService';
 
 interface Projeto {
   id: number;
@@ -55,7 +55,7 @@ export default function Projetos() {
   const carregarProjetos = async () => {
     try {
       setLoading(true);
-      const response = await apiFetch('/api/projetos');
+      const response = await apiService.getProjetos();
       if (response.success) {
         setProjetos(response.data);
       }
@@ -80,14 +80,8 @@ export default function Projetos() {
       };
 
       const response = editingProjeto 
-        ? await apiFetch(`/api/projetos/${editingProjeto.id}`, {
-            method: 'PUT',
-            body: JSON.stringify(dados)
-          })
-        : await apiFetch('/api/projetos', {
-            method: 'POST',
-            body: JSON.stringify(dados)
-          });
+        ? await apiService.updateProjeto(editingProjeto.id.toString(), dados)
+        : await apiService.createProjeto(dados);
 
       if (response.success) {
         setSuccess(editingProjeto ? 'Projeto atualizado com sucesso!' : 'Projeto criado com sucesso!');
@@ -121,9 +115,7 @@ export default function Projetos() {
     if (!confirm('Tem certeza que deseja excluir este projeto?')) return;
 
     try {
-      const response = await apiFetch(`/api/projetos/${id}`, {
-        method: 'DELETE'
-      });
+      const response = await apiService.deleteProjeto(id.toString());
 
       if (response.success) {
         setSuccess('Projeto excluído com sucesso!');

@@ -62,8 +62,7 @@ const menuItems = [
     title: "Formulários",
     icon: FileText,
     children: [
-      { title: "Declaração de Comparecimento", href: "/formularios/declaracao" },
-      { title: "Recibo de Benefício", href: "/formularios/recibo" },
+      { title: "Declarações e Recibos", href: "/declaracoes-recibos" },
       { title: "Anamnese Social", href: "/formularios/anamnese" },
       { title: "Ficha de Evolução", href: "/formularios/evolucao" },
       { title: "Termo de Consentimento", href: "/formularios/termo" },

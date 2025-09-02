@@ -69,7 +69,15 @@ export default function Dashboard() {
       // Carregar estatísticas reais do PostgreSQL
       const statsResponse = await apiService.getDashboardStats();
       if (statsResponse.success) {
-        setStats(statsResponse.data);
+        const data = statsResponse.data;
+        setStats({
+          totalBeneficiarias: data.totalBeneficiarias || 0,
+          beneficiariasAtivas: data.activeBeneficiarias || 0,
+          beneficiariasInativas: data.inactiveBeneficiarias || 0,
+          formularios: data.totalFormularios || 0,
+          atendimentosMes: data.totalAtendimentos || 0,
+          engajamento: `${data.engajamento || 0}%`
+        });
       }
 
       // Carregar atividades recentes reais

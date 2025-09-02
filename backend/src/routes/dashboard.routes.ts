@@ -78,18 +78,19 @@ router.get('/recent-activities', authenticateToken, async (req: express.Request,
         LIMIT $1
       `, [Number(limit)]);
 
-      // Anamneses recentes
-      const recentAnamneses = await db.query(`
+      // Formulários recentes
+      const recentFormularios = await db.query(`
         SELECT 
-          'anamnese_created' as type,
-          a.id,
+          'formulario_created' as type,
+          f.id,
           b.nome_completo as beneficiaria_nome,
-          a.created_at,
+          f.tipo as formulario_tipo,
+          f.created_at,
           u.nome as created_by_name
-        FROM anamneses_social a
-        LEFT JOIN beneficiarias b ON a.beneficiaria_id = b.id
-        LEFT JOIN usuarios u ON a.created_by = u.id
-        ORDER BY a.created_at DESC
+        FROM formularios f
+        LEFT JOIN beneficiarias b ON f.beneficiaria_id = b.id
+        LEFT JOIN usuarios u ON f.usuario_id = u.id
+        ORDER BY f.created_at DESC
         LIMIT $1
       `, [Number(limit)]);
 
@@ -98,9 +99,9 @@ router.get('/recent-activities', authenticateToken, async (req: express.Request,
           ...item,
           description: `Beneficiária ${item.nome_completo} foi cadastrada por ${item.created_by_name || 'Sistema'}`
         })),
-        ...recentAnamneses.map(item => ({
+        ...recentFormularios.map(item => ({
           ...item,
-          description: `Anamnese criada para ${item.beneficiaria_nome} por ${item.created_by_name || 'Sistema'}`
+          description: `Formulário de ${item.formulario_tipo} criado para ${item.beneficiaria_nome} por ${item.created_by_name || 'Sistema'}`
         }))
       ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
        .slice(0, Number(limit));

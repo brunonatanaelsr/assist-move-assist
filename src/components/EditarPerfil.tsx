@@ -23,7 +23,7 @@ import {
   Check,
   X
 } from 'lucide-react';
-import { useAuth } from '@/hooks/usePostgreSQLAuth';
+import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/components/ui/use-toast';
 import apiService from '@/services/apiService';
 

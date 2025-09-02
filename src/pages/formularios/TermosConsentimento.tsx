@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ArrowLeft, Shield, FileText, User, CheckCircle, AlertCircle, Eye, Download } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { apiFetch } from '@/lib/api';
+import { apiService } from '@/services/apiService';
 
 interface TermoConsentimento {
   beneficiaria_id: number;
@@ -75,7 +75,7 @@ export default function TermosConsentimento() {
 
   const carregarBeneficiaria = async () => {
     try {
-      const response = await apiFetch(`/api/beneficiarias/${id}`);
+      const response = await apiService.getBeneficiaria(id!);
       if (response.success) {
         setBeneficiaria(response.data);
       }
@@ -86,9 +86,9 @@ export default function TermosConsentimento() {
 
   const carregarTermosExistentes = async () => {
     try {
-      const response = await apiFetch(`/api/formularios/termos-consentimento/${id}`);
+      const response = await apiService.get(`/formularios/termos-consentimento/${id}`);
       if (response.success) {
-        setTermosExistentes(response.data);
+        setTermosExistentes(response.data as any[]);
       }
     } catch (error) {
       console.error('Erro ao carregar termos:', error);
@@ -103,12 +103,9 @@ export default function TermosConsentimento() {
 
     try {
       setLoading(true);
-      const response = await apiFetch('/api/formularios/termos-consentimento', {
-        method: 'POST',
-        body: JSON.stringify({
-          ...termoData,
-          data_aceite: new Date().toISOString()
-        })
+      const response = await apiService.post('/formularios/termos-consentimento', {
+        ...termoData,
+        data_aceite: new Date().toISOString()
       });
 
       if (response.success) {

@@ -10,7 +10,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { ArrowLeft, Target, Plus, Trash2, Calendar, User, CheckCircle, AlertTriangle, Clock, TrendingUp } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { apiFetch } from '@/lib/api';
+import { apiService } from '@/services/apiService';
 
 interface Acao {
   id?: number;
@@ -80,7 +80,7 @@ export default function PlanoAcao() {
 
   const carregarBeneficiaria = async () => {
     try {
-      const response = await apiFetch(`/api/beneficiarias/${id}`);
+      const response = await apiService.getBeneficiaria(id!);
       if (response.success) {
         setBeneficiaria(response.data);
       }
@@ -128,10 +128,7 @@ export default function PlanoAcao() {
 
     try {
       setLoading(true);
-      const response = await apiFetch('/api/planos-acao', {
-        method: 'POST',
-        body: JSON.stringify(planoData)
-      });
+      const response = await apiService.post('/planos-acao', planoData);
 
       if (response.success) {
         alert('Plano de Ação salvo com sucesso!');

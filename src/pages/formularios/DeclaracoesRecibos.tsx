@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ArrowLeft, FileText, Download, Calendar, User, Award, Receipt, CheckCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { apiFetch } from '@/lib/api';
+import { apiService } from '@/services/apiService';
 
 interface DeclaracaoData {
   tipo: 'comparecimento' | 'participacao' | 'conclusao' | 'frequencia';
@@ -67,7 +67,7 @@ export default function DeclaracoesRecibos() {
 
   const carregarBeneficiaria = async () => {
     try {
-      const response = await apiFetch(`/api/beneficiarias/${id}`);
+      const response = await apiService.getBeneficiaria(id!);
       if (response.success) {
         setBeneficiaria(response.data);
       }
@@ -79,14 +79,11 @@ export default function DeclaracoesRecibos() {
   const gerarDeclaracao = async () => {
     try {
       setLoading(true);
-      const response = await apiFetch('/api/declaracoes/gerar', {
-        method: 'POST',
-        body: JSON.stringify(declaracaoData)
-      });
+      const response = await apiService.post('/declaracoes/gerar', declaracaoData);
 
       if (response.success) {
         // Download do arquivo gerado
-        window.open(response.data.url, '_blank');
+        window.open((response.data as any)?.url, '_blank');
       }
     } catch (error) {
       console.error('Erro ao gerar declaração:', error);
@@ -98,14 +95,11 @@ export default function DeclaracoesRecibos() {
   const gerarRecibo = async () => {
     try {
       setLoading(true);
-      const response = await apiFetch('/api/recibos/gerar', {
-        method: 'POST',
-        body: JSON.stringify(reciboData)
-      });
+      const response = await apiService.post('/recibos/gerar', reciboData);
 
       if (response.success) {
         // Download do arquivo gerado
-        window.open(response.data.url, '_blank');
+        window.open((response.data as any)?.url, '_blank');
       }
     } catch (error) {
       console.error('Erro ao gerar recibo:', error);

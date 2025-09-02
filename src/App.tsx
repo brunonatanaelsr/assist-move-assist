@@ -30,12 +30,13 @@ const ParticipantesProjeto = () => null as any; // módulo legado desativado
 const CalendarPage = lazy(() => import("@/pages/CalendarPage"));
 const Configuracoes = lazy(() => import("@/pages/Configuracoes"));
 const EditarPerfil = lazy(() => import("@/components/EditarPerfil"));
-const ChatInterno = () => null as any; // módulo legado desativado
+const ChatInterno = lazy(() => import("@/pages/ChatInterno"));
 const Atividades = lazy(() => import("@/pages/Atividades"));
 const FeedNew = lazy(() => import("@/pages/FeedNew"));
 const ProjetosNew = lazy(() => import("@/pages/ProjetosNew"));
 const Relatorios = lazy(() => import("@/pages/Relatorios"));
 const FormularioGenerico = lazy(() => import("@/pages/FormularioGenerico"));
+const DeclaracoesReciboGeral = lazy(() => import("@/pages/DeclaracoesReciboGeral"));
 const AnamneseSocial = lazy(() => import("@/pages/formularios/AnamneseSocial"));
 const RodaVida = lazy(() => import("@/pages/formularios/RodaVida"));
 const FichaEvolucao = lazy(() => import("@/pages/formularios/FichaEvolucao"));
@@ -112,6 +113,7 @@ const App = () => (
                     <Route path="perfil" element={<EditarPerfil />} />
                   </Route>
                   <Route path="chat-interno" element={<ChatInterno />} />
+                  <Route path="declaracoes-recibos" element={<DeclaracoesReciboGeral />} />
                   <Route path="atividades" element={<Atividades />} />
                   <Route path="calendar" element={<CalendarPage />} />
                   <Route path="feed" element={<FeedNew />} />

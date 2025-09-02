@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ArrowLeft, Save, FileText, User, Home, Heart, Users, Briefcase, GraduationCap } from 'lucide-react';
-import { apiFetch } from '@/lib/api';
+import { apiService } from '@/services/apiService';
 
 interface AnamneseSocialData {
   beneficiaria_id: number;
@@ -75,7 +75,7 @@ export default function AnamneseSocial() {
 
   const carregarBeneficiaria = async () => {
     try {
-      const response = await apiFetch(`/api/beneficiarias/${id}`);
+      const response = await apiService.getBeneficiaria(id!);
       if (response.success) {
         setBeneficiaria(response.data);
       }
@@ -86,7 +86,7 @@ export default function AnamneseSocial() {
 
   const carregarAnamnese = async () => {
     try {
-      const response = await apiFetch(`/api/formularios/anamnese/${id}`);
+      const response = await apiService.get(`/formularios/anamnese/${id}`);
       if (response.success && response.data) {
         setFormData(response.data);
       }
@@ -99,10 +99,7 @@ export default function AnamneseSocial() {
   const salvarAnamnese = async () => {
     try {
       setLoading(true);
-      const response = await apiFetch('/api/formularios/anamnese', {
-        method: 'POST',
-        body: JSON.stringify(formData)
-      });
+      const response = await apiService.post('/formularios/anamnese', formData);
 
       if (response.success) {
         navigate(`/beneficiarias/${id}`);

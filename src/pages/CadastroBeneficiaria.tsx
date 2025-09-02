@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ArrowLeft, Save, UserPlus, Loader2 } from 'lucide-react';
 import { api } from '@/lib/api';
-import { useAuth } from '@/hooks/usePostgreSQLAuth';
+import { useAuth } from '@/hooks/useAuth';
 import type { Beneficiaria } from '@/types/shared';
 
 export default function CadastroBeneficiaria() {

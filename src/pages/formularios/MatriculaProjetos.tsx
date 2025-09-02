@@ -10,7 +10,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { ArrowLeft, GraduationCap, Calendar, User, MapPin, Clock, CheckCircle, AlertCircle, BookOpen } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { apiFetch } from '@/lib/api';
+import { apiService } from '@/services/apiService';
 
 interface MatriculaProjeto {
   beneficiaria_id: number;
@@ -118,7 +118,7 @@ export default function MatriculaProjetos() {
 
   const carregarBeneficiaria = async () => {
     try {
-      const response = await apiFetch(`/api/beneficiarias/${id}`);
+      const response = await apiService.getBeneficiaria(id!);
       if (response.success) {
         setBeneficiaria(response.data);
       }
@@ -129,7 +129,7 @@ export default function MatriculaProjetos() {
 
   const carregarProjetos = async () => {
     try {
-      const response = await apiFetch('/api/projetos');
+      const response = await apiService.getProjetos();
       if (response.success) {
         setProjetos(response.data.filter((p: any) => p.status === 'ativo'));
       }
@@ -178,10 +178,7 @@ export default function MatriculaProjetos() {
 
     try {
       setLoading(true);
-      const response = await apiFetch('/api/matriculas-projetos', {
-        method: 'POST',
-        body: JSON.stringify(matriculaData)
-      });
+      const response = await apiService.post('/matriculas-projetos', matriculaData);
 
       if (response.success) {
         alert('Matrícula realizada com sucesso!');

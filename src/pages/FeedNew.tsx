@@ -28,7 +28,7 @@ import {
   MoreVertical,
   Edit2
 } from 'lucide-react';
-import { useAuth } from '@/hooks/usePostgreSQLAuth';
+import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/components/ui/use-toast';
 import apiService from '@/services/apiService';
 
@@ -130,6 +130,7 @@ export default function Feed() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [imagePreview, setImagePreview] = useState<string>('');
+  const [submittingPost, setSubmittingPost] = useState(false);
 
   // Estados para exclusão
   const [deletingPosts, setDeletingPosts] = useState<Set<number>>(new Set());
@@ -541,8 +542,10 @@ export default function Feed() {
   // Criar novo post
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('handleSubmit chamado', { formData });
     
     if (!formData.titulo || !formData.conteudo) {
+      console.log('Validação falhou', { titulo: formData.titulo, conteudo: formData.conteudo });
       toast({
         title: 'Erro',
         description: 'Título e conteúdo são obrigatórios',
@@ -552,6 +555,8 @@ export default function Feed() {
     }
 
     try {
+      console.log('Iniciando criação do post...');
+      setSubmittingPost(true);
       let finalImageUrl = formData.imagem_url;
 
       // Se há um arquivo selecionado mas ainda não foi feito upload, fazer agora
@@ -574,8 +579,11 @@ export default function Feed() {
         imagem_url: finalImageUrl,
         autor_nome: profile?.nome_completo || formData.autor_nome
       });
+      
+      console.log('Resposta da API:', response);
 
       if (response.success && response.data) {
+        console.log('Post criado com sucesso!');
         // Recarregar dados
         await loadData();
         
@@ -594,8 +602,12 @@ export default function Feed() {
           title: 'Sucesso',
           description: 'Post criado com sucesso!',
         });
+      } else {
+        console.log('Erro na resposta:', response);
+        throw new Error(response.message || 'Erro desconhecido');
       }
     } catch (error: any) {
+      console.error('Erro ao criar post:', error);
       toast({
         title: 'Erro',
         description: error.message || 'Erro ao criar post',
@@ -603,6 +615,7 @@ export default function Feed() {
       });
     } finally {
       setUploadingImage(false);
+      setSubmittingPost(false);
     }
   };
 
@@ -1034,7 +1047,13 @@ export default function Feed() {
                   </div>
 
                   <div className="flex gap-2">
-                    <Button type="submit" className="flex-1">Publicar</Button>
+                    <Button 
+                      type="submit" 
+                      className="flex-1" 
+                      disabled={submittingPost || uploadingImage}
+                    >
+                      {submittingPost ? 'Publicando...' : 'Publicar'}
+                    </Button>
                     <Button type="button" variant="outline" onClick={() => setShowForm(false)}>
                       Cancelar
                     </Button>

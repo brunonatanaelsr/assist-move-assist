@@ -77,7 +77,16 @@ function UsuariosTab() {
     }
   };
   useEffect(() => { load(); }, [search, page, limit]);
-  useEffect(() => { (async()=>{ const p = await apiService.listPermissions(); if (p.success && p.data) setAllPerms(p.data as any); })(); }, []);
+  useEffect(() => { 
+    (async()=>{ 
+      const p = await apiService.listPermissions(); 
+      if (p.success && p.data) {
+        // A API retorna {data: {data: [...], pagination: {...}}}
+        const permsArray = Array.isArray(p.data.data) ? p.data.data : [];
+        setAllPerms(permsArray);
+      }
+    })(); 
+  }, []);
   const create = async () => {
     if (!form.email || !form.password || !form.nome) return;
     await apiService.createUser(form as any);
@@ -126,7 +135,7 @@ function UsuariosTab() {
           <div className="border rounded p-3">
             <div className="text-sm font-semibold mb-2">Permissões do usuário {openPermUser}</div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-              {allPerms.map((p:any)=>(
+              {(Array.isArray(allPerms) ? allPerms : []).map((p:any)=>(
                 <label key={p.name} className="flex items-center gap-2 border rounded p-2">
                   <input type="checkbox" checked={(userPerms[openPermUser]||[]).includes(p.name)} onChange={()=>togglePerm({ id: openPermUser }, p.name)} />
                   <span className="font-medium">{p.name}</span>
@@ -212,7 +221,7 @@ function PapeisTab() {
 function PermissoesTab() {
   const [list, setList] = useState<any[]>([]);
   const [form, setForm] = useState({ name: '', description: '' });
-  const load = async () => { const r = await apiService.listPermissions(); if (r.success && r.data) setList(r.data as any); };
+  const load = async () => { const r = await apiService.listPermissions(); if (r.success && r.data) setList(r.data.data || []); };
   useEffect(() => { load(); }, []);
   const create = async () => { if (!form.name) return; await apiService.createPermission(form.name, form.description); setForm({ name:'', description:'' }); await load(); };
   return (

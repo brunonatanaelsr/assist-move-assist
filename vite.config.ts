@@ -74,22 +74,22 @@ export default defineConfig(({ mode }) => {
       },
     },
     server: {
-      port: 8080,
+      port: 5173,
       // Escuta em todas as interfaces (inclui IPv4 e IPv6)
       host: true,
-      // Se 8080 estiver ocupado, Vite escolhe porta livre automaticamente
+      // Se 5173 estiver ocupado, Vite escolhe porta livre automaticamente
       strictPort: false,
       open: true,
       proxy: {
         '/api': {
-          target: 'http://localhost:3000',
+          target: 'http://backend:3000',
           changeOrigin: true,
           secure: false,
           ws: true,
         },
         // Proxy para WebSockets do backend (Socket.IO)
         '/socket.io': {
-          target: 'http://localhost:3000',
+          target: 'http://backend:3000',
           changeOrigin: true,
           secure: false,
           ws: true,
@@ -97,7 +97,7 @@ export default defineConfig(({ mode }) => {
       },
     },
     preview: {
-      port: 8080,
+      port: 5173,
       host: true,
       open: true,
     },

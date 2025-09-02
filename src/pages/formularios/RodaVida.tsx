@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Textarea } from '@/components/ui/textarea';
 import { ArrowLeft, Save, Target, TrendingUp, Heart, Home, Users, Briefcase, GraduationCap, Smile } from 'lucide-react';
-import { apiFetch } from '@/lib/api';
+import { apiService } from '@/services/apiService';
 
 interface RodaVidaData {
   beneficiaria_id: number;
@@ -93,7 +93,7 @@ export default function RodaVida() {
 
   const carregarBeneficiaria = async () => {
     try {
-      const response = await apiFetch(`/api/beneficiarias/${id}`);
+      const response = await apiService.getBeneficiaria(id!);
       if (response.success) {
         setBeneficiaria(response.data);
       }
@@ -104,7 +104,7 @@ export default function RodaVida() {
 
   const carregarRodaVida = async () => {
     try {
-      const response = await apiFetch(`/api/formularios/roda-vida/${id}`);
+      const response = await apiService.get(`/formularios/roda-vida/${id}`);
       if (response.success && response.data) {
         setFormData(response.data);
       }
@@ -116,10 +116,7 @@ export default function RodaVida() {
   const salvarRodaVida = async () => {
     try {
       setLoading(true);
-      const response = await apiFetch('/api/formularios/roda-vida', {
-        method: 'POST',
-        body: JSON.stringify(formData)
-      });
+      const response = await apiService.post('/formularios/roda-vida', formData);
 
       if (response.success) {
         navigate(`/beneficiarias/${id}`);

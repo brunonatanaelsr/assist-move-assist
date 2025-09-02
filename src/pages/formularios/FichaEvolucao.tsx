@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Save, Plus, TrendingUp, Calendar, User, Activity, Target } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { apiFetch } from '@/lib/api';
+import { apiService } from '@/services/apiService';
 
 interface RegistroEvolucao {
   id?: number;
@@ -68,7 +68,7 @@ export default function FichaEvolucao() {
 
   const carregarBeneficiaria = async () => {
     try {
-      const response = await apiFetch(`/api/beneficiarias/${id}`);
+      const response = await apiService.getBeneficiaria(id!);
       if (response.success) {
         setBeneficiaria(response.data);
       }
@@ -79,7 +79,7 @@ export default function FichaEvolucao() {
 
   const carregarFichaEvolucao = async () => {
     try {
-      const response = await apiFetch(`/api/formularios/ficha-evolucao/${id}`);
+      const response = await apiService.get(`/formularios/ficha-evolucao/${id}`);
       if (response.success && response.data) {
         setFichaData(response.data);
       }
@@ -129,10 +129,7 @@ export default function FichaEvolucao() {
   const salvarFicha = async () => {
     try {
       setLoading(true);
-      const response = await apiFetch('/api/formularios/ficha-evolucao', {
-        method: 'POST',
-        body: JSON.stringify(fichaData)
-      });
+      const response = await apiService.post('/formularios/ficha-evolucao', fichaData);
 
       if (response.success) {
         navigate(`/beneficiarias/${id}`);

@@ -11,7 +11,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Plus, Users, Calendar, Clock, MapPin, Edit, Trash2, AlertCircle, CheckCircle, GraduationCap, User, Target } from "lucide-react";
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { apiFetch } from '@/lib/api';
+import { apiService } from '@/services/apiService';
 import { oficinasService } from '@/services/oficinas.service';
 import { Download } from 'lucide-react';
 
@@ -89,7 +89,7 @@ export default function OficinasNew() {
   const carregarOficinas = async () => {
     try {
       setLoading(true);
-      const response = await apiFetch('/api/oficinas');
+      const response = await apiService.getOficinas();
       if (response.success) {
         setOficinas(response.data);
       }
@@ -103,7 +103,7 @@ export default function OficinasNew() {
 
   const carregarProjetos = async () => {
     try {
-      const response = await apiFetch('/api/projetos');
+      const response = await apiService.getProjetos();
       console.log('Resposta da API projetos:', response);
       if (response.success) {
         console.log('Projetos recebidos:', response.data);
@@ -169,14 +169,8 @@ export default function OficinasNew() {
       console.log('Enviando dados:', dados); // ✅ DEBUG
 
       const response = editingOficina 
-        ? await apiFetch(`/api/oficinas/${editingOficina.id}`, {
-            method: 'PUT',
-            body: JSON.stringify(dados)
-          })
-        : await apiFetch('/api/oficinas', {
-            method: 'POST',
-            body: JSON.stringify(dados)
-          });
+        ? await apiService.updateOficina(editingOficina.id.toString(), dados)
+        : await apiService.createOficina(dados);
 
       if (response.success) {
         setSuccess(editingOficina ? 'Oficina atualizada com sucesso!' : 'Oficina criada com sucesso!');
@@ -222,9 +216,7 @@ export default function OficinasNew() {
     if (!confirm('Tem certeza que deseja excluir esta oficina?')) return;
 
     try {
-      const response = await apiFetch(`/api/oficinas/${id}`, {
-        method: 'DELETE'
-      });
+      const response = await apiService.deleteOficina(id.toString());
 
       if (response.success) {
         setSuccess('Oficina excluída com sucesso!');
