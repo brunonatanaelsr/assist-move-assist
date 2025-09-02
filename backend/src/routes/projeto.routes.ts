@@ -36,7 +36,7 @@ router.get('/:id', authorize('projetos.ler'), async (req, res): Promise<void> =>
   }
 });
 
-router.post('/', requireGestor, authorize('projetos.criar'), async (req, res): Promise<void> => {
+router.post('/', authorize('projetos.criar'), async (req, res): Promise<void> => {
   try {
     const user = (req as any).user;
     const data = createProjetoSchema.parse({ ...req.body, responsavel_id: Number(user?.id) });
@@ -50,7 +50,7 @@ router.post('/', requireGestor, authorize('projetos.criar'), async (req, res): P
   }
 });
 
-router.put('/:id', requireGestor, authorize('projetos.editar'), async (req, res): Promise<void> => {
+router.put('/:id', authorize('projetos.editar'), async (req, res): Promise<void> => {
   try {
     const data = updateProjetoSchema.parse(req.body);
     const projeto = await projetoService.atualizarProjeto(Number(req.params.id), data);
@@ -64,7 +64,7 @@ router.put('/:id', requireGestor, authorize('projetos.editar'), async (req, res)
   }
 });
 
-router.delete('/:id', requireGestor, authorize('projetos.excluir'), async (req, res): Promise<void> => {
+router.delete('/:id', authorize('projetos.excluir'), async (req, res): Promise<void> => {
   try {
     await projetoService.excluirProjeto(Number(req.params.id));
     res.json(successResponse(null, 'Projeto removido com sucesso'));

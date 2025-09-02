@@ -19,8 +19,8 @@ export const oficinaSchema = z.object({
     .max(100, 'Nome do instrutor muito longo')
     .nullable()
     .optional(),
-  data_inicio: z.coerce.date(),
-  data_fim: z.coerce.date().nullable().optional(),
+  data_inicio: z.string().transform(val => new Date(val)).or(z.date()),
+  data_fim: z.string().transform(val => new Date(val)).or(z.date()).nullable().optional(),
   horario_inicio: horarioSchema,
   horario_fim: horarioSchema,
   local: z.string()
@@ -28,12 +28,16 @@ export const oficinaSchema = z.object({
     .max(200, 'Local muito longo')
     .nullable()
     .optional(),
-  vagas_total: z.number()
+  capacidade_maxima: z.number()
     .int('Número de vagas deve ser inteiro')
     .min(1, 'Número mínimo de vagas é 1')
-    .max(1000, 'Número máximo de vagas é 1000'),
+    .max(1000, 'Número máximo de vagas é 1000')
+    .nullable()
+    .optional(),
   projeto_id: z.number().nullable().optional(),
-  responsavel_id: z.string(),
+  responsavel_id: z.union([z.string(), z.number()]).transform((val) => 
+    typeof val === 'string' ? parseInt(val, 10) : val
+  ).nullable().optional(),
   status: z.enum(['ativa', 'cancelada', 'concluida', 'em_andamento', 'planejada']),
   ativo: z.boolean().default(true),
   data_criacao: z.date(),
@@ -47,8 +51,7 @@ export const createOficinaSchema = oficinaSchema
     nome: true,
     data_inicio: true,
     horario_inicio: true,
-    horario_fim: true,
-    vagas_total: true
+    horario_fim: true
   });
 
 // Schema para atualização de oficina (todos os campos opcionais)

@@ -15,6 +15,9 @@ import redis from '../lib/redis';
 const oficinaService = new OficinaService(pool, redis as any);
 const oficinaRepository = new OficinaRepository();
 
+// Aplicar autenticação a todas as rotas
+router.use(authenticateToken);
+
 // Listar oficinas (público)
 router.get('/', authorize('oficinas.ler'), async (req, res): Promise<void> => {
   try {
@@ -165,7 +168,7 @@ router.get('/:id', authorize('oficinas.ler'), async (req, res): Promise<void> =>
 });
 
 // Criar oficina
-router.post('/', authenticateToken, requireGestor, authorize('oficinas.criar'), async (req, res): Promise<void> => {
+router.post('/', authorize('oficinas.criar'), async (req, res): Promise<void> => {
   try {
     const user = (req as any).user;
     if (!user) {
@@ -194,7 +197,7 @@ router.post('/', authenticateToken, requireGestor, authorize('oficinas.criar'), 
 });
 
 // Atualizar oficina
-router.put('/:id', authenticateToken, requireGestor, authorize('oficinas.editar'), async (req, res): Promise<void> => {
+router.put('/:id', authorize('oficinas.editar'), async (req, res): Promise<void> => {
   try {
     const id = parseInt(String(req.params.id));
     const user = (req as any).user;
@@ -240,7 +243,7 @@ router.put('/:id', authenticateToken, requireGestor, authorize('oficinas.editar'
 });
 
 // Excluir oficina (soft delete)
-router.delete('/:id', authenticateToken, requireGestor, async (req, res): Promise<void> => {
+router.delete('/:id', authorize('oficinas.excluir'), async (req, res): Promise<void> => {
   try {
     const id = parseInt(String(req.params.id));
     const user = (req as any).user;
