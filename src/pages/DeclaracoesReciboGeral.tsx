@@ -20,18 +20,27 @@ interface Beneficiaria {
 
 interface DeclaracaoData {
   beneficiaria_id: number;
-  tipo: string;
+  tipo: 'comparecimento' | 'participacao' | 'conclusao' | 'frequencia';
   data_inicio: string;
-  data_fim: string;
-  observacoes: string;
+  data_fim?: string;
+  carga_horaria?: number;
+  atividades_participadas: string;
+  frequencia_percentual?: number;
+  observacoes?: string;
+  finalidade: string;
+  responsavel_emissao: string;
+  data_emissao: string;
 }
 
 interface ReciboData {
   beneficiaria_id: number;
-  tipo_beneficio: string;
+  tipo: 'auxilio_transporte' | 'auxilio_alimentacao' | 'material_didatico' | 'outro';
+  descricao: string;
   valor: number;
-  data_pagamento: string;
-  observacoes: string;
+  data_recebimento: string;
+  periodo_referencia: string;
+  observacoes?: string;
+  responsavel_entrega: string;
 }
 
 export default function DeclaracoesReciboGeral() {
@@ -45,15 +54,21 @@ export default function DeclaracoesReciboGeral() {
   
   const [declaracaoData, setDeclaracaoData] = useState<Partial<DeclaracaoData>>({
     tipo: 'comparecimento',
-    data_inicio: '',
-    data_fim: '',
+    data_inicio: new Date().toISOString().split('T')[0],
+    data_emissao: new Date().toISOString().split('T')[0],
+    atividades_participadas: '',
+    finalidade: '',
+    responsavel_emissao: 'Administrador Sistema',
     observacoes: ''
   });
   
   const [reciboData, setReciboData] = useState<Partial<ReciboData>>({
-    tipo_beneficio: 'assistencia_social',
+    tipo: 'auxilio_alimentacao',
     valor: 0,
-    data_pagamento: '',
+    data_recebimento: new Date().toISOString().split('T')[0],
+    periodo_referencia: '',
+    descricao: '',
+    responsavel_entrega: 'Administrador Sistema',
     observacoes: ''
   });
 
@@ -87,33 +102,49 @@ export default function DeclaracoesReciboGeral() {
       return;
     }
 
+    if (!declaracaoData.atividades_participadas || !declaracaoData.finalidade) {
+      toast({
+        title: 'Atenção',
+        description: 'Preencha as atividades participadas e a finalidade da declaração',
+        variant: 'destructive'
+      });
+      return;
+    }
+
     try {
       setLoading(true);
-      const response = await apiService.createFormulario('declaracao', { 
+      console.log('Gerando declaração:', { ...declaracaoData, beneficiaria_id: selectedBeneficiaria });
+      
+      const response = await apiService.post('/declaracoes/gerar', { 
         ...declaracaoData, 
         beneficiaria_id: selectedBeneficiaria 
       });
 
+      console.log('Resposta da API:', response);
+
       if (response.success) {
         toast({
           title: 'Sucesso',
-          description: 'Declaração gerada com sucesso'
+          description: 'Declaração gerada com sucesso!'
         });
         
-        // Download do PDF
-        const blob = await apiService.exportFormularioPdf('declaracao', response.data.id);
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `declaracao_${response.data.id}.pdf`;
-        a.click();
-        URL.revokeObjectURL(url);
+        // Abrir PDF em nova aba
+        const url = (response.data as any)?.url;
+        if (url) {
+          window.open(`localhost:3000${url}`, '_blank');
+        }
+      } else {
+        toast({
+          title: 'Erro',
+          description: response.message || 'Não foi possível gerar a declaração',
+          variant: 'destructive'
+        });
       }
     } catch (error) {
       console.error('Erro ao gerar declaração:', error);
       toast({
         title: 'Erro',
-        description: 'Não foi possível gerar a declaração',
+        description: 'Erro de comunicação com o servidor',
         variant: 'destructive'
       });
     } finally {
@@ -131,33 +162,49 @@ export default function DeclaracoesReciboGeral() {
       return;
     }
 
+    if (!reciboData.descricao || !reciboData.valor || !reciboData.periodo_referencia) {
+      toast({
+        title: 'Atenção',
+        description: 'Preencha a descrição, valor e período de referência do recibo',
+        variant: 'destructive'
+      });
+      return;
+    }
+
     try {
       setLoading(true);
-      const response = await apiService.createFormulario('recibo', { 
+      console.log('Gerando recibo:', { ...reciboData, beneficiaria_id: selectedBeneficiaria });
+      
+      const response = await apiService.post('/recibos/gerar', { 
         ...reciboData, 
         beneficiaria_id: selectedBeneficiaria 
       });
 
+      console.log('Resposta da API:', response);
+
       if (response.success) {
         toast({
           title: 'Sucesso',
-          description: 'Recibo gerado com sucesso'
+          description: 'Recibo gerado com sucesso!'
         });
         
-        // Download do PDF
-        const blob = await apiService.exportFormularioPdf('recibo', response.data.id);
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `recibo_${response.data.id}.pdf`;
-        a.click();
-        URL.revokeObjectURL(url);
+        // Abrir PDF em nova aba
+        const url = (response.data as any)?.url;
+        if (url) {
+          window.open(`localhost:3000${url}`, '_blank');
+        }
+      } else {
+        toast({
+          title: 'Erro',
+          description: response.message || 'Não foi possível gerar o recibo',
+          variant: 'destructive'
+        });
       }
     } catch (error) {
       console.error('Erro ao gerar recibo:', error);
       toast({
         title: 'Erro',
-        description: 'Não foi possível gerar o recibo',
+        description: 'Erro de comunicação com o servidor',
         variant: 'destructive'
       });
     } finally {
@@ -243,7 +290,8 @@ export default function DeclaracoesReciboGeral() {
                       <SelectContent>
                         <SelectItem value="comparecimento">Comparecimento</SelectItem>
                         <SelectItem value="participacao">Participação em Atividade</SelectItem>
-                        <SelectItem value="atendimento">Atendimento Social</SelectItem>
+                        <SelectItem value="conclusao">Conclusão de Curso</SelectItem>
+                        <SelectItem value="frequencia">Frequência</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -259,7 +307,7 @@ export default function DeclaracoesReciboGeral() {
                   </div>
 
                   <div>
-                    <Label htmlFor="data_fim">Data de Fim</Label>
+                    <Label htmlFor="data_fim">Data de Fim (opcional)</Label>
                     <Input
                       id="data_fim"
                       type="date"
@@ -267,6 +315,39 @@ export default function DeclaracoesReciboGeral() {
                       onChange={(e) => setDeclaracaoData({...declaracaoData, data_fim: e.target.value})}
                     />
                   </div>
+
+                  <div>
+                    <Label htmlFor="carga_horaria">Carga Horária (horas)</Label>
+                    <Input
+                      id="carga_horaria"
+                      type="number"
+                      min="0"
+                      value={declaracaoData.carga_horaria || ''}
+                      onChange={(e) => setDeclaracaoData({...declaracaoData, carga_horaria: Number(e.target.value)})}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="atividades_participadas">Atividades Participadas *</Label>
+                  <Textarea
+                    id="atividades_participadas"
+                    placeholder="Descreva as atividades, oficinas ou cursos participados..."
+                    value={declaracaoData.atividades_participadas || ''}
+                    onChange={(e) => setDeclaracaoData({...declaracaoData, atividades_participadas: e.target.value})}
+                    required
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="finalidade">Finalidade da Declaração *</Label>
+                  <Input
+                    id="finalidade"
+                    placeholder="Para que será utilizada esta declaração?"
+                    value={declaracaoData.finalidade || ''}
+                    onChange={(e) => setDeclaracaoData({...declaracaoData, finalidade: e.target.value})}
+                    required
+                  />
                 </div>
 
                 <div>
@@ -288,26 +369,25 @@ export default function DeclaracoesReciboGeral() {
               <TabsContent value="recibo" className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="tipo_beneficio">Tipo de Benefício</Label>
+                    <Label htmlFor="tipo_recibo">Tipo de Benefício</Label>
                     <Select
-                      value={reciboData.tipo_beneficio || ''}
-                      onValueChange={(value: any) => setReciboData({...reciboData, tipo_beneficio: value})}
+                      value={reciboData.tipo || ''}
+                      onValueChange={(value: any) => setReciboData({...reciboData, tipo: value})}
                     >
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="assistencia_social">Assistência Social</SelectItem>
-                        <SelectItem value="cesta_basica">Cesta Básica</SelectItem>
                         <SelectItem value="auxilio_transporte">Auxílio Transporte</SelectItem>
-                        <SelectItem value="material_escolar">Material Escolar</SelectItem>
-                        <SelectItem value="outros">Outros</SelectItem>
+                        <SelectItem value="auxilio_alimentacao">Auxílio Alimentação</SelectItem>
+                        <SelectItem value="material_didatico">Material Didático</SelectItem>
+                        <SelectItem value="outro">Outro</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
 
                   <div>
-                    <Label htmlFor="valor">Valor (R$)</Label>
+                    <Label htmlFor="valor">Valor (R$) *</Label>
                     <Input
                       id="valor"
                       type="number"
@@ -315,18 +395,41 @@ export default function DeclaracoesReciboGeral() {
                       min="0"
                       value={reciboData.valor || 0}
                       onChange={(e) => setReciboData({...reciboData, valor: Number(e.target.value)})}
+                      required
                     />
                   </div>
 
                   <div>
-                    <Label htmlFor="data_pagamento">Data do Pagamento</Label>
+                    <Label htmlFor="data_recebimento">Data do Recebimento</Label>
                     <Input
-                      id="data_pagamento"
+                      id="data_recebimento"
                       type="date"
-                      value={reciboData.data_pagamento || ''}
-                      onChange={(e) => setReciboData({...reciboData, data_pagamento: e.target.value})}
+                      value={reciboData.data_recebimento || ''}
+                      onChange={(e) => setReciboData({...reciboData, data_recebimento: e.target.value})}
                     />
                   </div>
+
+                  <div>
+                    <Label htmlFor="periodo_referencia">Período de Referência *</Label>
+                    <Input
+                      id="periodo_referencia"
+                      placeholder="Ex: Janeiro/2024, Semestre 1/2024"
+                      value={reciboData.periodo_referencia || ''}
+                      onChange={(e) => setReciboData({...reciboData, periodo_referencia: e.target.value})}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="descricao">Descrição do Benefício *</Label>
+                  <Textarea
+                    id="descricao"
+                    placeholder="Descreva detalhadamente o benefício recebido..."
+                    value={reciboData.descricao || ''}
+                    onChange={(e) => setReciboData({...reciboData, descricao: e.target.value})}
+                    required
+                  />
                 </div>
 
                 <div>
