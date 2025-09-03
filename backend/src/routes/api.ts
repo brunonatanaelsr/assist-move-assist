@@ -51,6 +51,9 @@ import oficinasRoutes from './oficina.routes';
 // Rotas de participações
 import participacoesRoutes from './participacao.routes';
 
+// Rotas de matrículas
+import matriculasRoutes from './matriculas.routes';
+
 // Rotas de projetos
 import projetosRoutes from './projeto.routes';
 
@@ -119,6 +122,7 @@ router.use('/beneficiarias', beneficiariasRoutes);
 router.use('/projetos', projetosRoutes);
 router.use('/oficinas', oficinasRoutes);
 router.use('/participacoes', participacoesRoutes);
+router.use('/matriculas-projetos', matriculasRoutes);
 
 // 4. Rotas de conteúdo e comunicação
 router.use('/feed', feedRoutes);

@@ -138,3 +138,72 @@ export interface ValidationError {
     message: string;
     code: string;
 }
+
+// Interface para Matrícula em Projetos
+export interface MatriculaProjeto {
+    id?: number;
+    beneficiaria_id: number;
+    projeto_id: number;
+    data_matricula: string;
+    data_inicio_prevista?: string;
+    data_conclusao_prevista?: string;
+    
+    // Dados da Beneficiária na Matrícula
+    situacao_social_familiar?: string;
+    escolaridade_atual?: string;
+    experiencia_profissional?: string;
+    motivacao_participacao: string;
+    expectativas: string;
+    disponibilidade_horarios: string[];
+    possui_dependentes: boolean;
+    necessita_auxilio_transporte: boolean;
+    necessita_auxilio_alimentacao: boolean;
+    necessita_cuidado_criancas: boolean;
+    
+    // Critérios de Elegibilidade
+    atende_criterios_idade: boolean;
+    atende_criterios_renda: boolean;
+    atende_criterios_genero: boolean;
+    atende_criterios_territorio: boolean;
+    atende_criterios_vulnerabilidade: boolean;
+    observacoes_elegibilidade?: string;
+    
+    // Compromissos e Responsabilidades
+    termo_compromisso_assinado: boolean;
+    frequencia_minima_aceita: boolean;
+    regras_convivencia_aceitas: boolean;
+    participacao_atividades_aceita: boolean;
+    avaliacao_periodica_aceita: boolean;
+    
+    // Dados Complementares
+    como_conheceu_projeto?: string;
+    pessoas_referencias?: string;
+    condicoes_especiais?: string;
+    medicamentos_uso_continuo?: string;
+    alergias_restricoes?: string;
+    
+    // Profissional Responsável
+    profissional_matricula?: string;
+    observacoes_profissional?: string;
+    
+    // Status
+    status_matricula: 'pendente' | 'aprovada' | 'reprovada' | 'lista_espera';
+    motivo_status?: string;
+    data_aprovacao?: string;
+    
+    // Timestamps
+    created_at?: string;
+    updated_at?: string;
+}
+
+export interface ElegibilidadeCheck {
+    beneficiaria_id: number;
+    projeto_id: number;
+}
+
+export interface ElegibilidadeResult {
+    elegivel: boolean;
+    motivos: string[];
+    warnings: string[];
+    matricula_existente?: MatriculaProjeto;
+}

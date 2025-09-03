@@ -378,6 +378,27 @@ class ApiService {
     return this.delete(`/documentos/${id}`);
   }
 
+  // Métodos específicos para matrículas em projetos
+  async getMatriculas(params?: any): Promise<ApiResponse<any[]>> {
+    return this.get('/matriculas-projetos', { params });
+  }
+
+  async createMatricula(data: any): Promise<ApiResponse<any>> {
+    return this.post('/matriculas-projetos', data);
+  }
+
+  async getMatricula(id: string | number): Promise<ApiResponse<any>> {
+    return this.get(`/matriculas-projetos/${id}`);
+  }
+
+  async updateMatricula(id: string | number, data: any): Promise<ApiResponse<any>> {
+    return this.patch(`/matriculas-projetos/${id}`, data);
+  }
+
+  async verificarElegibilidade(data: { beneficiaria_id: number; projeto_id: number }): Promise<ApiResponse<any>> {
+    return this.post('/matriculas-projetos/verificar-elegibilidade', data);
+  }
+
   // Métodos específicos para auditoria
   async getAuditoria(params?: any): Promise<ApiResponse<any[]>> {
     return this.get('/auditoria', { params });

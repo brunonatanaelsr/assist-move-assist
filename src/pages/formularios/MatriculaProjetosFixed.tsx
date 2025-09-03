@@ -7,71 +7,23 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ArrowLeft, GraduationCap, Calendar, User, MapPin, Clock, CheckCircle, AlertCircle, BookOpen } from 'lucide-react';
+import { ArrowLeft, GraduationCap, Calendar, User, MapPin, Clock, CheckCircle, AlertCircle, BookOpen, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { apiService } from '@/services/apiService';
+import { MatriculaProjeto, ElegibilidadeResult } from '@/types/shared';
 
-interface MatriculaProjeto {
-  beneficiaria_id: number;
-  projeto_id: number;
-  data_matricula: string;
-  data_inicio_prevista: string;
-  data_conclusao_prevista?: string;
-  
-  // Dados da Beneficiária na Matrícula
-  situacao_social_familiar: string;
-  escolaridade_atual: string;
-  experiencia_profissional: string;
-  motivacao_participacao: string;
-  expectativas: string;
-  disponibilidade_horarios: string[];
-  possui_dependentes: boolean;
-  necessita_auxilio_transporte: boolean;
-  necessita_auxilio_alimentacao: boolean;
-  necessita_cuidado_criancas: boolean;
-  
-  // Critérios de Elegibilidade
-  atende_criterios_idade: boolean;
-  atende_criterios_renda: boolean;
-  atende_criterios_genero: boolean;
-  atende_criterios_territorio: boolean;
-  atende_criterios_vulnerabilidade: boolean;
-  observacoes_elegibilidade: string;
-  
-  // Compromissos e Responsabilidades
-  termo_compromisso_assinado: boolean;
-  frequencia_minima_aceita: boolean;
-  regras_convivencia_aceitas: boolean;
-  participacao_atividades_aceita: boolean;
-  avaliacao_periodica_aceita: boolean;
-  
-  // Dados Complementares
-  como_conheceu_projeto: string;
-  pessoas_referencias: string;
-  condicoes_especiais: string;
-  medicamentos_uso_continuo: string;
-  alergias_restricoes: string;
-  
-  // Profissional Responsável
-  profissional_matricula: string;
-  observacoes_profissional: string;
-  
-  // Status
-  status_matricula: 'pendente' | 'aprovada' | 'reprovada' | 'lista_espera';
-  motivo_status: string;
-  data_aprovacao?: string;
-}
-
-export default function MatriculaProjetos() {
+export default function MatriculaProjetosFixed() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [carregandoDados, setCarregandoDados] = useState(true);
   const [beneficiaria, setBeneficiaria] = useState<any>(null);
   const [projetos, setProjetos] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<'dados' | 'elegibilidade' | 'compromissos' | 'complementares'>('dados');
   const [elegibilidadeChecked, setElegibilidadeChecked] = useState(false);
-  const [elegibilidadeResult, setElegibilidadeResult] = useState<any>(null);
+  const [elegibilidadeResult, setElegibilidadeResult] = useState<ElegibilidadeResult | null>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   
   const [matriculaData, setMatriculaData] = useState<Partial<MatriculaProjeto>>({
     beneficiaria_id: parseInt(id || '0'),
@@ -93,7 +45,7 @@ export default function MatriculaProjetos() {
     participacao_atividades_aceita: false,
     avaliacao_periodica_aceita: false,
     status_matricula: 'pendente',
-    profissional_matricula: 'Usuário Logado'
+    profissional_matricula: 'Sistema'
   });
 
   const horariosDisponiveis = [
@@ -113,30 +65,54 @@ export default function MatriculaProjetos() {
 
   useEffect(() => {
     if (id) {
-      carregarBeneficiaria();
-      carregarProjetos();
+      carregarDadosIniciais();
     }
   }, [id]);
 
+  const carregarDadosIniciais = async () => {
+    setCarregandoDados(true);
+    try {
+      await Promise.all([
+        carregarBeneficiaria(),
+        carregarProjetos()
+      ]);
+    } catch (error) {
+      console.error('Erro ao carregar dados iniciais:', error);
+    } finally {
+      setCarregandoDados(false);
+    }
+  };
+
   const carregarBeneficiaria = async () => {
     try {
+      console.log('Carregando beneficiária com ID:', id);
       const response = await apiService.getBeneficiaria(id!);
       if (response.success) {
         setBeneficiaria(response.data);
+        console.log('Beneficiária carregada:', response.data);
+      } else {
+        setErrors(prev => ({ ...prev, beneficiaria: 'Erro ao carregar dados da beneficiária' }));
       }
     } catch (error) {
       console.error('Erro ao carregar beneficiária:', error);
+      setErrors(prev => ({ ...prev, beneficiaria: 'Erro ao carregar dados da beneficiária' }));
     }
   };
 
   const carregarProjetos = async () => {
     try {
+      console.log('Carregando projetos...');
       const response = await apiService.getProjetos();
       if (response.success) {
-        setProjetos(response.data.filter((p: any) => p.status === 'ativo'));
+        const projetosAtivos = response.data.filter((p: any) => p.status === 'ativo');
+        setProjetos(projetosAtivos);
+        console.log(`${projetosAtivos.length} projetos ativos carregados`);
+      } else {
+        setErrors(prev => ({ ...prev, projetos: 'Erro ao carregar projetos' }));
       }
     } catch (error) {
       console.error('Erro ao carregar projetos:', error);
+      setErrors(prev => ({ ...prev, projetos: 'Erro ao carregar projetos' }));
     }
   };
 
@@ -144,6 +120,7 @@ export default function MatriculaProjetos() {
     try {
       if (!id) return;
       
+      console.log('Verificando elegibilidade para projeto:', projetoId);
       const response = await apiService.verificarElegibilidade({
         beneficiaria_id: parseInt(id),
         projeto_id: projetoId
@@ -152,15 +129,19 @@ export default function MatriculaProjetos() {
       if (response.success) {
         setElegibilidadeResult(response.data);
         setElegibilidadeChecked(true);
+        console.log('Resultado da elegibilidade:', response.data);
 
         // Se não for elegível, mostrar aviso
         if (!response.data.elegivel) {
           const motivos = response.data.motivos.join('; ');
-          alert(`⚠️ Atenção: ${motivos}`);
+          setErrors(prev => ({ ...prev, elegibilidade: motivos }));
+        } else {
+          setErrors(prev => ({ ...prev, elegibilidade: '' }));
         }
       }
     } catch (error) {
       console.error('Erro ao verificar elegibilidade:', error);
+      setErrors(prev => ({ ...prev, elegibilidade: 'Erro ao verificar elegibilidade' }));
     }
   };
 
@@ -179,16 +160,19 @@ export default function MatriculaProjetos() {
     }
   };
 
-  const salvarMatricula = async () => {
-    // Validações básicas
+  const validarFormulario = () => {
+    const novosErros: Record<string, string> = {};
+
     if (!matriculaData.projeto_id) {
-      alert('Selecione um projeto');
-      return;
+      novosErros.projeto_id = 'Selecione um projeto';
     }
 
-    if (!matriculaData.motivacao_participacao || !matriculaData.expectativas) {
-      alert('Preencha a motivação e expectativas');
-      return;
+    if (!matriculaData.motivacao_participacao?.trim()) {
+      novosErros.motivacao_participacao = 'Motivação é obrigatória';
+    }
+
+    if (!matriculaData.expectativas?.trim()) {
+      novosErros.expectativas = 'Expectativas são obrigatórias';
     }
 
     const todosCompromissosAceitos = matriculaData.termo_compromisso_assinado &&
@@ -198,7 +182,24 @@ export default function MatriculaProjetos() {
       matriculaData.avaliacao_periodica_aceita;
 
     if (!todosCompromissosAceitos) {
-      alert('Todos os compromissos devem ser aceitos para completar a matrícula');
+      novosErros.compromissos = 'Todos os compromissos devem ser aceitos';
+    }
+
+    if (elegibilidadeResult && !elegibilidadeResult.elegivel) {
+      novosErros.elegibilidade = 'Beneficiária não atende aos critérios de elegibilidade';
+    }
+
+    setErrors(novosErros);
+    return Object.keys(novosErros).length === 0;
+  };
+
+  const salvarMatricula = async () => {
+    if (!validarFormulario()) {
+      // Mostrar primeiro erro encontrado
+      const primeiroErro = Object.values(errors)[0];
+      if (primeiroErro) {
+        alert(primeiroErro);
+      }
       return;
     }
 
@@ -211,10 +212,11 @@ export default function MatriculaProjetos() {
       console.log('Resposta da matrícula:', response);
 
       if (response.success) {
-        alert('Matrícula realizada com sucesso!');
+        alert('✅ Matrícula realizada com sucesso!');
         navigate(`/beneficiarias/${id}`);
       } else {
-        alert('Erro ao salvar matrícula: ' + (response.data?.error || 'Erro desconhecido'));
+        const errorMessage = response.data?.error || 'Erro desconhecido';
+        alert('❌ Erro ao salvar matrícula: ' + errorMessage);
       }
     } catch (error: any) {
       console.error('Erro ao salvar matrícula:', error);
@@ -231,7 +233,7 @@ export default function MatriculaProjetos() {
         errorMessage = error.response.data?.error || 'Dados da matrícula inválidos';
       }
       
-      alert(errorMessage);
+      alert('❌ ' + errorMessage);
     } finally {
       setLoading(false);
     }
@@ -258,6 +260,17 @@ export default function MatriculaProjetos() {
     return `${ano}${mes}${sequence}`;
   };
 
+  if (carregandoDados) {
+    return (
+      <div className="min-h-screen bg-background p-6 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+          <p>Carregando dados...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-4xl mx-auto space-y-6">
@@ -277,8 +290,21 @@ export default function MatriculaProjetos() {
                 {beneficiaria.nome_completo} • CPF: {beneficiaria.cpf} • PAEDI: {generatePAEDI(beneficiaria)}
               </p>
             )}
+            {!beneficiaria && errors.beneficiaria && (
+              <p className="text-red-500 text-sm">{errors.beneficiaria}</p>
+            )}
           </div>
         </div>
+
+        {/* Alertas de Erro Globais */}
+        {errors.projetos && (
+          <div className="p-4 border-l-4 border-red-500 bg-red-50">
+            <p className="text-red-700">
+              <AlertCircle className="h-4 w-4 inline mr-2" />
+              {errors.projetos}
+            </p>
+          </div>
+        )}
 
         {/* Tabs */}
         <div className="flex space-x-1 bg-muted p-1 rounded-lg">
@@ -295,7 +321,7 @@ export default function MatriculaProjetos() {
             onClick={() => setActiveTab('elegibilidade')}
             className="flex-1"
           >
-            <CheckCircle className="h-4 w-4 mr-2" />
+            <CheckCircle className={`h-4 w-4 mr-2 ${verificarElegibilidade() ? 'text-green-500' : 'text-red-500'}`} />
             Elegibilidade
           </Button>
           <Button
@@ -346,7 +372,7 @@ export default function MatriculaProjetos() {
                         verificarElegibilidadeAutomatica(projetoId);
                       }}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger className={errors.projeto_id ? 'border-red-500' : ''}>
                         <SelectValue placeholder="Selecione o projeto" />
                       </SelectTrigger>
                       <SelectContent>
@@ -368,6 +394,7 @@ export default function MatriculaProjetos() {
                       </SelectContent>
                     </Select>
                   )}
+                  {errors.projeto_id && <p className="text-red-500 text-sm">{errors.projeto_id}</p>}
                   
                   {/* Informações do projeto selecionado */}
                   {matriculaData.projeto_id && projetos.find(p => p.id === matriculaData.projeto_id) && (
@@ -480,23 +507,27 @@ export default function MatriculaProjetos() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label>Motivação para Participação</Label>
+                  <Label>Motivação para Participação *</Label>
                   <Textarea
                     placeholder="Por que deseja participar deste projeto?"
                     value={matriculaData.motivacao_participacao || ''}
                     onChange={(e) => setMatriculaData({...matriculaData, motivacao_participacao: e.target.value})}
                     rows={4}
+                    className={errors.motivacao_participacao ? 'border-red-500' : ''}
                   />
+                  {errors.motivacao_participacao && <p className="text-red-500 text-sm">{errors.motivacao_participacao}</p>}
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Expectativas</Label>
+                  <Label>Expectativas *</Label>
                   <Textarea
                     placeholder="O que espera aprender/conquistar com este projeto?"
                     value={matriculaData.expectativas || ''}
                     onChange={(e) => setMatriculaData({...matriculaData, expectativas: e.target.value})}
                     rows={4}
+                    className={errors.expectativas ? 'border-red-500' : ''}
                   />
+                  {errors.expectativas && <p className="text-red-500 text-sm">{errors.expectativas}</p>}
                 </div>
 
                 <div className="space-y-2">
@@ -730,6 +761,15 @@ export default function MatriculaProjetos() {
                   </div>
                 </div>
               </div>
+
+              {errors.compromissos && (
+                <div className="p-4 border-l-4 border-red-500 bg-red-50">
+                  <p className="text-red-700">
+                    <AlertCircle className="h-4 w-4 inline mr-2" />
+                    {errors.compromissos}
+                  </p>
+                </div>
+              )}
             </CardContent>
           </Card>
         )}
@@ -900,8 +940,17 @@ export default function MatriculaProjetos() {
                     }
                     size="lg"
                   >
-                    <GraduationCap className="h-4 w-4 mr-2" />
-                    {loading ? 'Salvando...' : 'Confirmar Matrícula'}
+                    {loading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Salvando...
+                      </>
+                    ) : (
+                      <>
+                        <GraduationCap className="h-4 w-4 mr-2" />
+                        Confirmar Matrícula
+                      </>
+                    )}
                   </Button>
                 </div>
               </CardContent>

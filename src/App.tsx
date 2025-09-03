@@ -19,7 +19,7 @@ import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 // Lazy loaded pages
 const Index = lazy(() => import("@/pages/Index"));
 const Auth = lazy(() => import("@/pages/Auth"));
-const Beneficiarias = lazy(() => import("@/pages/Beneficiarias"));
+const Beneficiarias = lazy(() => import("@/pages/BeneficiariasFixed"));
 const CadastroBeneficiaria = lazy(() => import("@/pages/CadastroBeneficiaria"));
 const DetalhesBeneficiaria = lazy(() => import("@/pages/DetalhesBeneficiaria"));
 const EditarBeneficiaria = lazy(() => import("@/pages/EditarBeneficiaria"));
@@ -47,7 +47,7 @@ const VisaoHolistica = lazy(() => import("@/pages/formularios/VisaoHolistica"));
 const FormulariosBeneficiaria = lazy(() => import("@/pages/formularios/FormulariosBeneficiaria"));
 const EvolucaoBeneficiaria = lazy(() => import("@/pages/formularios/EvolucaoBeneficiaria"));
 const PlanoAcao = lazy(() => import("@/pages/formularios/PlanoAcao"));
-const MatriculaProjetos = lazy(() => import("@/pages/formularios/MatriculaProjetos"));
+const MatriculaProjetos = lazy(() => import("@/pages/formularios/MatriculaProjetosFixed"));
 
 const queryClient = new QueryClient();
 

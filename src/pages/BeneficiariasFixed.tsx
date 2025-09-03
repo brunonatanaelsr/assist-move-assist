@@ -22,7 +22,7 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { apiService } from "@/services/apiService";
 
-// Tipo local simplificado baseado no banco real
+// Tipo correto baseado no banco real
 interface Beneficiaria {
   id: number;
   nome_completo: string;
@@ -49,7 +49,7 @@ interface Beneficiaria {
   ativo: boolean;
 }
 
-export default function Beneficiarias() {
+export default function BeneficiariasFixed() {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("Todas");
@@ -119,19 +119,6 @@ export default function Beneficiarias() {
       setLoading(false);
     }
   };
-      console.error('Erro ao carregar beneficiárias:', error);
-      // Em caso de erro, definir valores padrão
-      setBeneficiarias([]);
-      setStats({
-        total: 0,
-        ativas: 0,
-        aguardando: 0,
-        inativas: 0
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const filteredBeneficiarias = beneficiarias.filter(beneficiaria => {
     const matchesSearch = beneficiaria.nome_completo.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -173,6 +160,7 @@ export default function Beneficiarias() {
   };
 
   const formatCpf = (cpf: string) => {
+    if (!cpf) return '';
     return cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
   };
 
@@ -183,7 +171,7 @@ export default function Beneficiarias() {
 
   const generatePaedi = (beneficiaria: Beneficiaria) => {
     try {
-      const dataCadastro = beneficiaria.data_cadastro ? new Date(beneficiaria.data_cadastro) : new Date();
+      const dataCadastro = beneficiaria.data_criacao ? new Date(beneficiaria.data_criacao) : new Date();
       const year = isNaN(dataCadastro.getTime()) ? new Date().getFullYear() : dataCadastro.getFullYear();
       const sequence = beneficiaria.id.toString().padStart(3, '0').slice(-3);
       return `MM-${year}-${sequence}`;
@@ -324,9 +312,9 @@ export default function Beneficiarias() {
                   <TableHead>Beneficiária</TableHead>
                   <TableHead>CPF</TableHead>
                   <TableHead>PAEDI</TableHead>
-                  <TableHead>Programa</TableHead>
+                  <TableHead>Telefone</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Data de Início</TableHead>
+                  <TableHead>Data Nascimento</TableHead>
                   <TableHead className="w-[50px]"></TableHead>
                 </TableRow>
               </TableHeader>
@@ -363,7 +351,7 @@ export default function Beneficiarias() {
                           </Avatar>
                           <div>
                             <div className="font-medium text-foreground">{beneficiaria.nome_completo}</div>
-                            <div className="text-sm text-muted-foreground">{beneficiaria.telefone}</div>
+                            <div className="text-sm text-muted-foreground">{beneficiaria.email || 'Sem email'}</div>
                           </div>
                         </div>
                       </TableCell>
@@ -371,13 +359,13 @@ export default function Beneficiarias() {
                       <TableCell className="font-mono text-sm font-medium text-primary">
                         {generatePaedi(beneficiaria)}
                       </TableCell>
-                      <TableCell>{beneficiaria.status || 'Não definido'}</TableCell>
+                      <TableCell>{beneficiaria.telefone || beneficiaria.contato1 || 'Não informado'}</TableCell>
                       <TableCell>
                         <Badge variant={getStatusVariant(getBeneficiariaStatus(beneficiaria))}>
                           {getBeneficiariaStatus(beneficiaria)}
                         </Badge>
                       </TableCell>
-                      <TableCell>{formatDate(beneficiaria.data_nascimento.toString())}</TableCell>
+                      <TableCell>{formatDate(beneficiaria.data_nascimento)}</TableCell>
                       <TableCell>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
@@ -394,7 +382,7 @@ export default function Beneficiarias() {
                               <Edit className="mr-2 h-4 w-4" />
                               Editar
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => navigate(`/beneficiarias/${beneficiaria.id}/declaracoes-recibos`)}>
+                            <DropdownMenuItem onClick={() => navigate(`/beneficiarias/${beneficiaria.id}/formularios/declaracoes-recibos`)}>
                               <FileText className="mr-2 h-4 w-4" />
                               Gerar Documento
                             </DropdownMenuItem>

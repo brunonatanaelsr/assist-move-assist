@@ -3,6 +3,7 @@ import { authenticateToken, AuthenticatedRequest } from '../middleware/auth';
 import { pool } from '../config/database';
 import { successResponse, errorResponse } from '../utils/responseFormatter';
 import { loggerService } from '../services/logger';
+import { gerarPDFDeclaracao } from '../utils/pdfGen';
 
 const router = Router();
 
@@ -108,7 +109,7 @@ router.get('/:id', authenticateToken, async (req: Request, res: Response): Promi
   }
 });
 
-// EXPORT PDF DA DECLARAÇÃO (Placeholder)
+// EXPORT PDF DA DECLARAÇÃO
 router.get('/:id/pdf', authenticateToken, async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
@@ -126,32 +127,19 @@ router.get('/:id/pdf', authenticateToken, async (req: Request, res: Response): P
       return;
     }
 
-    // Por enquanto, retornar um PDF simulado
     const declaracao = result.rows[0];
-    const pdfContent = `
-      DECLARAÇÃO DE ${declaracao.tipo.toUpperCase()}
-      
-      Beneficiária: ${declaracao.beneficiaria_nome}
-      CPF: ${declaracao.cpf}
-      
-      Declaramos que a beneficiária acima participou das seguintes atividades:
-      ${declaracao.atividades_participadas}
-      
-      Período: ${declaracao.data_inicio} ${declaracao.data_fim ? `até ${declaracao.data_fim}` : ''}
-      ${declaracao.carga_horaria ? `Carga Horária: ${declaracao.carga_horaria}h` : ''}
-      ${declaracao.frequencia_percentual ? `Frequência: ${declaracao.frequencia_percentual}%` : ''}
-      
-      Finalidade: ${declaracao.finalidade}
-      
-      Observações: ${declaracao.observacoes || 'Nenhuma'}
-      
-      Data de Emissão: ${declaracao.data_emissao}
-      Responsável: ${declaracao.responsavel_emissao}
-    `;
+    
+    // Gerar PDF real usando pdf-lib
+    const pdfBytes = await gerarPDFDeclaracao(declaracao);
 
     res.header('Content-Type', 'application/pdf');
     res.header('Content-Disposition', `attachment; filename="declaracao_${id}.pdf"`);
-    res.send(pdfContent);
+    
+    // Converter Uint8Array para Array regular para evitar problemas de serialização
+    const pdfArray = Array.from(pdfBytes);
+    const pdfBuffer = Buffer.from(pdfArray);
+    
+    res.send(pdfBuffer);
     return;
   } catch (error) {
     loggerService.error('Erro ao gerar PDF:', error);

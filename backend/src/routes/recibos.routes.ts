@@ -3,6 +3,7 @@ import { authenticateToken } from '../middleware/auth';
 import { pool } from '../config/database';
 import { successResponse, errorResponse } from '../utils/responseFormatter';
 import { loggerService } from '../services/logger';
+import { gerarPDFRecibo } from '../utils/pdfGen';
 
 const router = Router();
 
@@ -100,7 +101,7 @@ router.get('/:id', authenticateToken, async (req: Request, res: Response): Promi
   }
 });
 
-// EXPORT PDF DO RECIBO (Placeholder)
+// EXPORT PDF DO RECIBO
 router.get('/:id/pdf', authenticateToken, async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
@@ -118,33 +119,19 @@ router.get('/:id/pdf', authenticateToken, async (req: Request, res: Response): P
       return;
     }
 
-    // Por enquanto, retornar um PDF simulado
     const recibo = result.rows[0];
-    const pdfContent = `
-      RECIBO DE ${recibo.tipo.toUpperCase()}
-      
-      Beneficiária: ${recibo.beneficiaria_nome}
-      CPF: ${recibo.cpf}
-      
-      RECONHEÇO que recebi de ${recibo.responsavel_entrega}:
-      
-      Descrição: ${recibo.descricao}
-      Valor: R$ ${parseFloat(recibo.valor).toFixed(2)}
-      Data do Recebimento: ${recibo.data_recebimento}
-      Período de Referência: ${recibo.periodo_referencia}
-      
-      Observações: ${recibo.observacoes || 'Nenhuma'}
-      
-      Por ser expressão da verdade, firmo o presente.
-      
-      ________________________________
-      ${recibo.beneficiaria_nome}
-      CPF: ${recibo.cpf}
-    `;
+    
+    // Gerar PDF real usando pdf-lib
+    const pdfBytes = await gerarPDFRecibo(recibo);
 
     res.header('Content-Type', 'application/pdf');
     res.header('Content-Disposition', `attachment; filename="recibo_${id}.pdf"`);
-    res.send(pdfContent);
+    
+    // Converter Uint8Array para Array regular para evitar problemas de serialização
+    const pdfArray = Array.from(pdfBytes);
+    const pdfBuffer = Buffer.from(pdfArray);
+    
+    res.send(pdfBuffer);
     return;
   } catch (error) {
     loggerService.error('Erro ao gerar PDF:', error);

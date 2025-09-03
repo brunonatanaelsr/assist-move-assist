@@ -55,9 +55,15 @@ export default function Projetos() {
   const carregarProjetos = async () => {
     try {
       setLoading(true);
-      const response = await apiService.getProjetos();
+      // Adicionando timestamp para evitar cache
+      const response = await apiService.get(`/projetos?_t=${Date.now()}`);
+      console.log('Resposta completa da API:', response);
       if (response.success) {
+        console.log('Projetos carregados:', response.data);
         setProjetos(response.data);
+      } else {
+        console.error('Erro na resposta da API:', response);
+        setError(response.message || 'Erro ao carregar projetos');
       }
     } catch (error) {
       console.error('Erro ao carregar projetos:', error);
@@ -79,15 +85,22 @@ export default function Projetos() {
         data_fim_prevista: formData.data_fim_prevista || null
       };
 
+      console.log('Dados sendo enviados:', dados);
+      console.log('ID do projeto sendo editado:', editingProjeto?.id);
+
       const response = editingProjeto 
         ? await apiService.updateProjeto(editingProjeto.id.toString(), dados)
         : await apiService.createProjeto(dados);
+
+      console.log('Resposta da atualização:', response);
 
       if (response.success) {
         setSuccess(editingProjeto ? 'Projeto atualizado com sucesso!' : 'Projeto criado com sucesso!');
         setDialogOpen(false);
         resetForm();
-        carregarProjetos();
+        console.log('Recarregando projetos...');
+        await carregarProjetos();
+        console.log('Projetos recarregados');
       } else {
         setError(response.message || 'Erro ao salvar projeto');
       }

@@ -81,7 +81,7 @@ export default function DetalhesBeneficiaria() {
         return;
       }
 
-      // Buscar participações
+      // Buscar participações - usar método correto
       try {
         const participacoesResponse = await apiService.getParticipacoes({ beneficiaria_id: id });
         if (participacoesResponse.success && participacoesResponse.data) {
@@ -89,18 +89,17 @@ export default function DetalhesBeneficiaria() {
         }
       } catch (err) {
         console.log('Erro ao carregar participações:', err);
-        // Não bloqueia o carregamento se participações falharem
+        setParticipacoes([]); // Define array vazio por padrão
       }
 
-      // Buscar documentos
+      // Buscar documentos - usar método correto  
       try {
         const documentosResponse = await apiService.getDocumentos({ beneficiaria_id: id });
         if (documentosResponse.success && documentosResponse.data) {
           setDocumentos(documentosResponse.data);
         }
       } catch (err) {
-        console.log('Erro ao carregar documentos (tabela pode não existir):', err);
-        // Não bloqueia o carregamento se documentos falharem
+        console.log('Erro ao carregar documentos (pode não estar implementado):', err);
         setDocumentos([]); // Define array vazio por padrão
       }
 
@@ -145,11 +144,16 @@ export default function DetalhesBeneficiaria() {
 
   const generatePAEDI = (beneficiaria: Beneficiaria) => {
     if (!beneficiaria) return 'N/A';
-    const dataCriacao = new Date(beneficiaria.data_criacao);
-    const ano = dataCriacao.getFullYear().toString().slice(-2);
-    const mes = (dataCriacao.getMonth() + 1).toString().padStart(2, '0');
-    const sequence = beneficiaria.id.toString().padStart(3, '0').slice(-3);
-    return `${ano}${mes}${sequence}`;
+    try {
+      const dataCriacao = beneficiaria.data_criacao ? new Date(beneficiaria.data_criacao) : new Date();
+      const year = isNaN(dataCriacao.getTime()) ? new Date().getFullYear() : dataCriacao.getFullYear();
+      const sequence = beneficiaria.id.toString().padStart(3, '0').slice(-3);
+      return `MM-${year}-${sequence}`;
+    } catch (error) {
+      console.warn('Erro ao gerar PAEDI:', error);
+      const sequence = beneficiaria.id.toString().padStart(3, '0').slice(-3);
+      return `MM-${new Date().getFullYear()}-${sequence}`;
+    }
   };
 
   if (loading) {
@@ -329,15 +333,15 @@ export default function DetalhesBeneficiaria() {
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="contato1">Telefone</Label>
+                      <Label htmlFor="contato1">Telefone Principal</Label>
                       {editMode ? (
                         <Input
                           id="contato1"
-                          value={beneficiaria.contato1 || ''}
+                          value={beneficiaria.contato1 || beneficiaria.telefone || ''}
                           onChange={(e) => setBeneficiaria({...beneficiaria, contato1: e.target.value})}
                         />
                       ) : (
-                        <p className="text-sm">{beneficiaria.contato1 || 'Não informado'}</p>
+                        <p className="text-sm">{beneficiaria.contato1 || beneficiaria.telefone || 'Não informado'}</p>
                       )}
                     </div>
                     
