@@ -79,14 +79,30 @@ export default function DeclaracoesRecibos() {
   const gerarDeclaracao = async () => {
     try {
       setLoading(true);
+      console.log('Tentando gerar declaração:', declaracaoData);
+      
+      // Validação básica dos dados obrigatórios
+      if (!declaracaoData.atividades_participadas || !declaracaoData.finalidade) {
+        alert('Por favor, preencha as atividades participadas e a finalidade da declaração.');
+        return;
+      }
+
       const response = await apiService.post('/declaracoes/gerar', declaracaoData);
+      console.log('Resposta da API:', response);
 
       if (response.success) {
+        alert('Declaração gerada com sucesso!');
         // Download do arquivo gerado
-        window.open((response.data as any)?.url, '_blank');
+        const url = (response.data as any)?.url;
+        if (url) {
+          window.open(url, '_blank');
+        }
+      } else {
+        alert(`Erro: ${response.message || 'Não foi possível gerar a declaração'}`);
       }
     } catch (error) {
       console.error('Erro ao gerar declaração:', error);
+      alert('Erro de comunicação com o servidor. Verifique sua conexão e tente novamente.');
     } finally {
       setLoading(false);
     }
@@ -95,14 +111,30 @@ export default function DeclaracoesRecibos() {
   const gerarRecibo = async () => {
     try {
       setLoading(true);
+      console.log('Tentando gerar recibo:', reciboData);
+      
+      // Validação básica dos dados obrigatórios
+      if (!reciboData.descricao || !reciboData.valor || !reciboData.periodo_referencia) {
+        alert('Por favor, preencha a descrição, valor e período de referência do recibo.');
+        return;
+      }
+
       const response = await apiService.post('/recibos/gerar', reciboData);
+      console.log('Resposta da API:', response);
 
       if (response.success) {
+        alert('Recibo gerado com sucesso!');
         // Download do arquivo gerado
-        window.open((response.data as any)?.url, '_blank');
+        const url = (response.data as any)?.url;
+        if (url) {
+          window.open(url, '_blank');
+        }
+      } else {
+        alert(`Erro: ${response.message || 'Não foi possível gerar o recibo'}`);
       }
     } catch (error) {
       console.error('Erro ao gerar recibo:', error);
+      alert('Erro de comunicação com o servidor. Verifique sua conexão e tente novamente.');
     } finally {
       setLoading(false);
     }
