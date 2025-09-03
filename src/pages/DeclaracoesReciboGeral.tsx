@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FileText, Download, Search, Users } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import apiService from "@/services/apiService";
+import { downloadDeclaracao, downloadRecibo } from "@/utils/pdfDownload";
 
 interface Beneficiaria {
   id: number;
@@ -128,10 +129,19 @@ export default function DeclaracoesReciboGeral() {
           description: 'Declaração gerada com sucesso!'
         });
         
-        // Abrir PDF em nova aba
-        const url = (response.data as any)?.url;
-        if (url) {
-          window.open(`localhost:3000${url}`, '_blank');
+        // Fazer download do PDF usando utilitário
+        const declaracaoId = (response.data as any)?.declaracao?.id;
+        if (declaracaoId) {
+          const token = localStorage.getItem('token') || '';
+          const downloadOk = await downloadDeclaracao(declaracaoId, token);
+          
+          if (!downloadOk) {
+            toast({
+              title: 'Atenção',
+              description: 'PDF gerado, mas houve problema no download. Tente novamente.',
+              variant: 'default'
+            });
+          }
         }
       } else {
         toast({
@@ -188,10 +198,19 @@ export default function DeclaracoesReciboGeral() {
           description: 'Recibo gerado com sucesso!'
         });
         
-        // Abrir PDF em nova aba
-        const url = (response.data as any)?.url;
-        if (url) {
-          window.open(`localhost:3000${url}`, '_blank');
+        // Fazer download do PDF usando utilitário
+        const reciboId = (response.data as any)?.recibo?.id;
+        if (reciboId) {
+          const token = localStorage.getItem('token') || '';
+          const downloadOk = await downloadRecibo(reciboId, token);
+          
+          if (!downloadOk) {
+            toast({
+              title: 'Atenção',
+              description: 'PDF gerado, mas houve problema no download. Tente novamente.',
+              variant: 'default'
+            });
+          }
         }
       } else {
         toast({

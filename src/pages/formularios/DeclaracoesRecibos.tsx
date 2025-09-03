@@ -10,6 +10,7 @@ import { ArrowLeft, FileText, Download, Calendar, User, Award, Receipt, CheckCir
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { apiService } from '@/services/apiService';
+import { downloadDeclaracao, downloadRecibo } from '@/utils/pdfDownload';
 
 interface DeclaracaoData {
   tipo: 'comparecimento' | 'participacao' | 'conclusao' | 'frequencia';
@@ -92,10 +93,16 @@ export default function DeclaracoesRecibos() {
 
       if (response.success) {
         alert('Declaração gerada com sucesso!');
-        // Download do arquivo gerado
-        const url = (response.data as any)?.url;
-        if (url) {
-          window.open(url, '_blank');
+        
+        // Fazer download do PDF usando utilitário
+        const declaracaoId = (response.data as any)?.declaracao?.id;
+        if (declaracaoId) {
+          const token = localStorage.getItem('token') || '';
+          const downloadOk = await downloadDeclaracao(declaracaoId, token);
+          
+          if (!downloadOk) {
+            alert('PDF gerado, mas houve problema no download. Verifique se permite downloads neste site.');
+          }
         }
       } else {
         alert(`Erro: ${response.message || 'Não foi possível gerar a declaração'}`);
@@ -124,10 +131,16 @@ export default function DeclaracoesRecibos() {
 
       if (response.success) {
         alert('Recibo gerado com sucesso!');
-        // Download do arquivo gerado
-        const url = (response.data as any)?.url;
-        if (url) {
-          window.open(url, '_blank');
+        
+        // Fazer download do PDF usando utilitário
+        const reciboId = (response.data as any)?.recibo?.id;
+        if (reciboId) {
+          const token = localStorage.getItem('token') || '';
+          const downloadOk = await downloadRecibo(reciboId, token);
+          
+          if (!downloadOk) {
+            alert('PDF gerado, mas houve problema no download. Verifique se permite downloads neste site.');
+          }
         }
       } else {
         alert(`Erro: ${response.message || 'Não foi possível gerar o recibo'}`);
