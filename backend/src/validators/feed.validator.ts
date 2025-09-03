@@ -5,7 +5,7 @@ export const feedPostSchema = z.object({
   id: z.number(),
   tipo: z.enum(['anuncio', 'evento', 'noticia', 'conquista']),
   titulo: z.string().min(3).max(200),
-  conteudo: z.string().min(10),
+  conteudo: z.string().min(1).max(5000).optional(),
   autor_id: z.string().or(z.number()),
   autor_nome: z.string(),
   curtidas: z.number().default(0),

@@ -265,8 +265,8 @@ export class OficinaService {
         throw new Error('Oficina não encontrada');
       }
 
-      const isResponsavel = oficinaCheck.rows[0].responsavel_id === userId;
-      const isAdmin = ['admin', 'super_admin'].includes(userRole);
+      const isResponsavel = oficinaCheck.rows[0].responsavel_id === parseInt(String(userId));
+      const isAdmin = ['admin', 'super_admin', 'superadmin'].includes(userRole);
 
       if (!isResponsavel && !isAdmin) {
         throw new Error('Sem permissão para editar esta oficina');
@@ -322,8 +322,8 @@ export class OficinaService {
         throw new Error('Oficina não encontrada');
       }
 
-      const isResponsavel = oficinaCheck.rows[0].responsavel_id === userId;
-      const isAdmin = ['admin', 'super_admin'].includes(userRole);
+      const isResponsavel = oficinaCheck.rows[0].responsavel_id === parseInt(String(userId));
+      const isAdmin = ['admin', 'super_admin', 'superadmin'].includes(userRole);
 
       if (!isResponsavel && !isAdmin) {
         throw new Error('Sem permissão para excluir esta oficina');

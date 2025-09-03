@@ -45,8 +45,8 @@ services:
       - REDIS_PORT=6379
       - JWT_SECRET=assist-move-assist-dev-secret-key-2025
       - JWT_EXPIRES_IN=24h
-      - CORS_ORIGIN=https://stunning-bassoon-6956qpx5wg94257xg-5173.app.github.dev,https://stunning-bassoon-6956qpx5wg94257xg-3000.app.github.dev
-      - FRONTEND_URL=https://stunning-bassoon-6956qpx5wg94257xg-5173.app.github.dev
+      - CORS_ORIGIN=https://legendary-space-capybara-4jv45rpv67593qrrv-5173.app.github.dev,https://legendary-space-capybara-4jv45rpv67593qrrv-3000.app.github.dev
+      - FRONTEND_URL=https://legendary-space-capybara-4jv45rpv67593qrrv-5173.app.github.dev
       - ENABLE_WS=true
       - SUPERADMIN_NAME=Bruno Admin
       - SUPERADMIN_EMAIL=bruno@move.com
@@ -71,8 +71,8 @@ services:
     ports:
       - "5173:5173"
     environment:
-      - VITE_API_URL=https://stunning-bassoon-6956qpx5wg94257xg-3000.app.github.dev/api
-      - VITE_API_BASE_URL=https://stunning-bassoon-6956qpx5wg94257xg-3000.app.github.dev/api
+      - VITE_API_URL=https://legendary-space-capybara-4jv45rpv67593qrrv-3000.app.github.dev/api
+      - VITE_API_BASE_URL=https://legendary-space-capybara-4jv45rpv67593qrrv-3000.app.github.dev/api
     depends_on:
       - backend
     volumes:

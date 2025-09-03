@@ -35,6 +35,7 @@ const Atividades = lazy(() => import("@/pages/Atividades"));
 const FeedNew = lazy(() => import("@/pages/FeedNew"));
 const ProjetosNew = lazy(() => import("@/pages/ProjetosNew"));
 const Relatorios = lazy(() => import("@/pages/Relatorios"));
+const FormulariosNavegacao = lazy(() => import("@/pages/FormulariosNavegacao"));
 const FormularioGenerico = lazy(() => import("@/pages/FormularioGenerico"));
 const DeclaracoesReciboGeral = lazy(() => import("@/pages/DeclaracoesReciboGeral"));
 const AnamneseSocial = lazy(() => import("@/pages/formularios/AnamneseSocial"));
@@ -120,11 +121,22 @@ const App = () => (
                   <Route path="projetos" element={<ProjetosNew />} />
                   <Route path="relatorios" element={<Relatorios />} />
 
-                  {/* Formulários genéricos */}
+                  {/* Formulários genéricos - Redirecionamento para beneficiárias */}
                   <Route path="formularios">
+                    <Route index element={<FormulariosNavegacao />} />
+                    <Route path="anamnese" element={<FormulariosNavegacao />} />
+                    <Route path="evolucao" element={<FormulariosNavegacao />} />
+                    <Route path="termo" element={<FormulariosNavegacao />} />
+                    <Route path="visao" element={<FormulariosNavegacao />} />
+                    <Route path="roda-vida" element={<FormulariosNavegacao />} />
+                    <Route path="plano" element={<FormulariosNavegacao />} />
+                    <Route path="matricula" element={<FormulariosNavegacao />} />
                     <Route path=":tipo" element={<FormularioGenerico />} />
-                    <Route path="*" element={<FormularioGenerico />} />
+                    <Route path="*" element={<FormulariosNavegacao />} />
                   </Route>
+                  
+                  {/* Declarações e Recibos - Redirecionamento para beneficiárias */}
+                  <Route path="declaracoes-recibos" element={<FormulariosNavegacao />} />
                 </Route>
 
                 {/* Redirecionamento padrão se alguém cair em "/" sem contexto */}

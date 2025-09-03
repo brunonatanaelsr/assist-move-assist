@@ -86,9 +86,13 @@ export default function AnamneseSocial() {
 
   const carregarAnamnese = async () => {
     try {
-      const response = await apiService.get(`/formularios/anamnese/${id}`);
-      if (response.success && response.data) {
-        setFormData(response.data);
+      const response = await apiService.get(`/formularios/anamnese/beneficiaria/${id}`);
+      if (response.success && response.data && response.data.length > 0) {
+        // Pegar a anamnese mais recente se existir
+        const anamneseData = response.data[0];
+        if (anamneseData.dados) {
+          setFormData({ ...anamneseData.dados, beneficiaria_id: parseInt(id || '0') });
+        }
       }
     } catch (error) {
       // Se não existir, mantém os dados vazios

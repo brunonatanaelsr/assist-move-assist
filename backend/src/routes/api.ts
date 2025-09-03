@@ -24,7 +24,8 @@ import configuracoesRoutes from './configuracoes.routes';
 import dashboardRoutes from './dashboard.routes';
 
 // Rotas de declarações (temporariamente desabilitado)
-const declaracoesRoutes = createRouterInstance();
+const declaracoesRoutesInstance = createRouterInstance();
+const recibosRoutesInstance = createRouterInstance();
 
 // Rotas de documentos
 import documentosRoutes from './documentos.routes';
@@ -33,6 +34,8 @@ import documentosRoutes from './documentos.routes';
 import feedRoutes from './feed.routes';
 
 // Rotas de formulários
+import declaracoesRoutes from './declaracoes.routes';
+import recibosRoutes from './recibos.routes';
 import formulariosRoutes from './formularios.routes';
 
 // Rotas de health check
@@ -126,6 +129,8 @@ router.use('/calendar', calendarRoutes);
 
 // 5. Rotas de formulários e documentos
 router.use('/formularios', formulariosRoutes);
+router.use('/declaracoes', declaracoesRoutes);
+router.use('/recibos', recibosRoutes);
 router.use('/declaracoes', declaracoesRoutes);
 router.use('/documentos', documentosRoutes);
 

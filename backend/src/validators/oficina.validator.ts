@@ -10,7 +10,6 @@ export const oficinaSchema = z.object({
     .min(3, 'Nome deve ter pelo menos 3 caracteres')
     .max(200, 'Nome muito longo'),
   descricao: z.string()
-    .min(10, 'Descrição deve ter pelo menos 10 caracteres')
     .max(2000, 'Descrição muito longa')
     .nullable()
     .optional(),
@@ -28,7 +27,7 @@ export const oficinaSchema = z.object({
     .max(200, 'Local muito longo')
     .nullable()
     .optional(),
-  capacidade_maxima: z.number()
+  vagas_total: z.number()
     .int('Número de vagas deve ser inteiro')
     .min(1, 'Número mínimo de vagas é 1')
     .max(1000, 'Número máximo de vagas é 1000')
@@ -51,7 +50,8 @@ export const createOficinaSchema = oficinaSchema
     nome: true,
     data_inicio: true,
     horario_inicio: true,
-    horario_fim: true
+    horario_fim: true,
+    vagas_total: true
   });
 
 // Schema para atualização de oficina (todos os campos opcionais)
