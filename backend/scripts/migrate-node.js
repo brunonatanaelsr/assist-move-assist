@@ -113,6 +113,9 @@ async function run() {
       } catch (err) {
         await client.query('ROLLBACK');
         console.error(`❌ Erro na migração ${file}:`, err.message);
+        if (err && err.stack) {
+          console.error(err.stack);
+        }
         throw err;
       }
     }
