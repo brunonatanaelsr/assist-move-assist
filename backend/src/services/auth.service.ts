@@ -50,7 +50,7 @@ export class AuthService {
     return jwt.sign(payload, this.JWT_SECRET, options);
   }
 
-  async login(email: string, password: string, ipAddress: string): Promise<AuthResponse> {
+  async login(email: string, password: string, ipAddress: string): Promise<AuthResponse | null> {
     try {
       // Buscar usuário
       const userQuery = "SELECT * FROM usuarios WHERE email = $1 AND ativo = true";
@@ -58,7 +58,7 @@ export class AuthService {
 
       if (userResult.rows.length === 0) {
         loggerService.info(`Failed login attempt: ${email} from ${ipAddress}`);
-        throw new Error("Credenciais inválidas");
+        return null;
       }
 
       const user = userResult.rows[0];
@@ -67,7 +67,7 @@ export class AuthService {
       const passwordMatch = await bcrypt.compare(password, user.senha_hash);
       if (!passwordMatch) {
         loggerService.info(`Failed login attempt: ${email} (wrong password) from ${ipAddress}`);
-        throw new Error("Credenciais inválidas");
+        return null;
       }
 
       // Atualizar último login
