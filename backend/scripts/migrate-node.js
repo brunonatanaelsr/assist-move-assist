@@ -35,11 +35,43 @@ async function run() {
     // Compatibilidade: algumas migrações antigas podem referenciar "migration_log"
     // Criamos a tabela se não existir para evitar falhas em ambientes onde
     // um arquivo legado ainda faça INSERT nela.
-    await client.query(`CREATE TABLE IF NOT EXISTS migration_log (
-      id SERIAL PRIMARY KEY,
-      name VARCHAR(255) NOT NULL UNIQUE,
-      applied_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
-    );`);
+    await client.query(`
+      -- Compat table used by legacy migrations
+      CREATE TABLE IF NOT EXISTS migration_log (
+        id SERIAL PRIMARY KEY
+      );
+      -- Ensure legacy columns exist with proper constraints
+      DO $$
+      BEGIN
+        -- Column used by legacy INSERTs
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name='migration_log' AND column_name='migration_name'
+        ) THEN
+          ALTER TABLE migration_log ADD COLUMN migration_name VARCHAR(255);
+        END IF;
+        -- Unique for ON CONFLICT (migration_name)
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND indexname = 'uq_migration_log_migration_name'
+        ) THEN
+          CREATE UNIQUE INDEX uq_migration_log_migration_name ON migration_log (migration_name);
+        END IF;
+        -- Timestamp column expected by legacy scripts
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name='migration_log' AND column_name='executed_at'
+        ) THEN
+          ALTER TABLE migration_log ADD COLUMN executed_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP;
+        END IF;
+        -- Optional description column used by some scripts
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name='migration_log' AND column_name='description'
+        ) THEN
+          ALTER TABLE migration_log ADD COLUMN description TEXT;
+        END IF;
+      END $$;
+    `);
 
   // Read and sort migrations with a small manual priority to respect FK deps
   const allFiles = fs

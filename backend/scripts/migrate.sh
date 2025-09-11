@@ -69,11 +69,37 @@ PGPASSWORD=$POSTGRES_PASSWORD psql \
   -p $POSTGRES_PORT \
   -U $POSTGRES_USER \
   -d $POSTGRES_DB \
-  -c "CREATE TABLE IF NOT EXISTS migration_log (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(255) NOT NULL UNIQUE,
-    applied_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-  );"
+  -c "
+    CREATE TABLE IF NOT EXISTS migration_log (
+      id SERIAL PRIMARY KEY
+    );
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name='migration_log' AND column_name='migration_name'
+      ) THEN
+        ALTER TABLE migration_log ADD COLUMN migration_name VARCHAR(255);
+      END IF;
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND indexname = 'uq_migration_log_migration_name'
+      ) THEN
+        CREATE UNIQUE INDEX uq_migration_log_migration_name ON migration_log (migration_name);
+      END IF;
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name='migration_log' AND column_name='executed_at'
+      ) THEN
+        ALTER TABLE migration_log ADD COLUMN executed_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;
+      END IF;
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name='migration_log' AND column_name='description'
+      ) THEN
+        ALTER TABLE migration_log ADD COLUMN description TEXT;
+      END IF;
+    END $$;
+  "
 
 # Executar todas as migrações em ordem alfabética
 for file in $(ls $MIGRATIONS_DIR/*.sql | sort); do
