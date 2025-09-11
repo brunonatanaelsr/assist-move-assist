@@ -1,0 +1,49 @@
+name: Deploy to VPS
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_migrations:
+        description: "Run DB migrations"
+        required: false
+        default: "true"
+  push:
+    branches: [ main ]
+    paths:
+      - 'backend/**'
+      - 'src/**'
+      - 'scripts/**'
+      - '.github/workflows/deploy-vps.yml'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy via SSH (bootstrap script)
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          password: ${{ secrets.VPS_PASSWORD }}
+          port: ${{ secrets.VPS_PORT }}
+          script_stop: true
+          command_timeout: 30m
+          script: |
+            set -euo pipefail
+            export REPO_URL="https://github.com/${{ github.repository }}.git"
+            export BRANCH="main"
+            # Required
+            export DOMAIN="${{ secrets.DOMAIN }}"
+            # Optional / Recommended
+            export LETSENCRYPT_EMAIL="${{ secrets.LETSENCRYPT_EMAIL }}"
+            export DB_NAME="${{ secrets.DB_NAME }}"
+            export DB_USER="${{ secrets.DB_USER }}"
+            export DB_PASS="${{ secrets.DB_PASS }}"
+            export SUPERADMIN_EMAIL="${{ secrets.SUPERADMIN_EMAIL }}"
+            export SUPERADMIN_PASSWORD="${{ secrets.SUPERADMIN_PASSWORD }}"
+            export ADMIN_EMAIL="${{ secrets.ADMIN_EMAIL }}"
+            export ADMIN_PASSWORD="${{ secrets.ADMIN_PASSWORD }}"
+            export API_PORT="${{ secrets.API_PORT }}"
+            # Execute remote deploy script from repo
+            bash -lc 'curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/scripts/deploy-ubuntu-24.sh -o /tmp/deploy.sh && bash /tmp/deploy.sh'
+
