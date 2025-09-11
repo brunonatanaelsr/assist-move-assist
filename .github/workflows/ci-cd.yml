@@ -279,6 +279,9 @@ jobs:
           ADMIN_PASSWORD: admin123
       - name: Build frontend
         run: npm run build
+      - name: Install Playwright browsers
+        run: |
+          npx playwright install --with-deps
       - name: Run E2E tests
         run: npm run test:e2e
         env:
