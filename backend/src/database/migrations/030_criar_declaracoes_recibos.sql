@@ -63,7 +63,4 @@ COMMENT ON COLUMN recibos.beneficiaria_id IS 'ID da beneficiária que recebe o b
 COMMENT ON COLUMN recibos.valor IS 'Valor monetário do benefício em reais';
 COMMENT ON COLUMN recibos.periodo_referencia IS 'Período a que se refere o benefício (ex: Janeiro/2024)';
 
--- Log da migração
-INSERT INTO migration_log (migration_name, executed_at, description) 
-VALUES ('030_criar_declaracoes_recibos', NOW(), 'Criação das tabelas declaracoes e recibos com índices e documentação')
-ON CONFLICT (migration_name) DO NOTHING;
+-- Log de migração removido: o runner registra em tabela "migrations"
