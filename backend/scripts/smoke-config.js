@@ -20,30 +20,61 @@ function client(token) {
 }
 
 async function run() {
-  const superAdmin = await login(SUPER_EMAIL, SUPER_PASS);
-  const c = client(superAdmin.token);
+  const step = async (name, fn) => {
+    try {
+      await fn();
+      console.log(`✔ ${name}`);
+    } catch (e) {
+      const status = e?.response?.status;
+      const data = e?.response?.data;
+      console.error(`✖ ${name} failed`, status ? `(status ${status})` : '');
+      if (data) console.error('Response:', JSON.stringify(data));
+      throw e;
+    }
+  };
 
-  // Ensure base permissions
-  await c.post('/configuracoes/permissions', { name: 'users.manage', description: 'Gerenciar usuários' }).catch(()=>{});
-  await c.post('/configuracoes/permissions', { name: 'roles.manage', description: 'Gerenciar papéis' }).catch(()=>{});
+  let superAdmin, c;
+  await step('Login superadmin', async () => {
+    superAdmin = await login(SUPER_EMAIL, SUPER_PASS);
+    c = client(superAdmin.token);
+  });
 
-  // Grant admin role permissions
-  await c.put('/configuracoes/roles/admin/permissions', { permissions: ['users.manage', 'roles.manage'] });
+  await step('Ensure base permission users.manage', async () => {
+    await c.post('/configuracoes/permissions', { name: 'users.manage', description: 'Gerenciar usuários' }).catch(()=>{});
+  });
+  await step('Ensure base permission roles.manage', async () => {
+    await c.post('/configuracoes/permissions', { name: 'roles.manage', description: 'Gerenciar papéis' }).catch(()=>{});
+  });
 
-  // Create admin user
+  await step('Grant admin role permissions', async () => {
+    await c.put('/configuracoes/roles/admin/permissions', { permissions: ['users.manage', 'roles.manage'] });
+  });
+
   const email = `admin.smoke+${Date.now()}@local`; const password = '123456';
-  const created = await c.post('/configuracoes/usuarios', { email, password, nome: 'Admin Smoke', papel: 'admin' });
-  const adminUser = created.data.data;
+  let adminUser;
+  await step('Create admin user', async () => {
+    const created = await c.post('/configuracoes/usuarios', { email, password, nome: 'Admin Smoke', papel: 'admin' });
+    adminUser = created.data.data;
+  });
 
-  // Login as new admin and access protected route
-  const admin = await login(email, password);
-  const ca = client(admin.token);
-  const list = await ca.get('/configuracoes/usuarios');
-  if (!Array.isArray(list.data.data)) throw new Error('Lista de usuários inválida');
+  let admin, ca;
+  await step('Login as admin', async () => {
+    admin = await login(email, password);
+    ca = client(admin.token);
+  });
 
-  // Update admin cargo and reset password
-  await c.put(`/configuracoes/usuarios/${adminUser.id}`, { cargo: 'Operador' });
-  await c.post(`/configuracoes/usuarios/${adminUser.id}/reset-password`, { newPassword: '654321' });
+  await step('List users as admin', async () => {
+    const list = await ca.get('/configuracoes/usuarios');
+    if (!Array.isArray(list.data.data)) throw new Error('Lista de usuários inválida');
+  });
+
+  await step('Update admin cargo', async () => {
+    await c.put(`/configuracoes/usuarios/${adminUser.id}`, { cargo: 'Operador' });
+  });
+
+  await step('Reset admin password', async () => {
+    await c.post(`/configuracoes/usuarios/${adminUser.id}/reset-password`, { newPassword: '654321' });
+  });
 
   console.log('✅ Smoke config OK');
 }
@@ -51,4 +82,3 @@ async function run() {
 if (require.main === module) {
   run().catch((e) => { console.error('❌ Smoke config FAIL:', e.message); process.exit(1); });
 }
-
