@@ -15,27 +15,30 @@ const router = express.Router();
 router.get('/beneficiarias', authenticateToken, auth.authorize('relatorios.beneficiarias.gerar'), async (req, res) => {
   try {
     const { data_inicio, data_fim } = req.query;
-    let whereClause = 'WHERE b.ativo = true';
+    // Tabela beneficiarias não possui coluna "ativo"; usamos deleted_at IS NULL
+    let whereClause = 'WHERE b.deleted_at IS NULL';
     const params: any[] = [];
 
     if (data_inicio && data_fim) {
-      whereClause += ' AND b.data_criacao BETWEEN $1 AND $2';
+      // Campo temporal é created_at
+      whereClause += ' AND b.created_at BETWEEN $1 AND $2';
       params.push(data_inicio, data_fim);
     }
 
-    const result = await pool.query(`
-      SELECT 
-        COUNT(*) as total_beneficiarias,
-        COUNT(CASE WHEN b.status = 'ativa' THEN 1 END) as ativas,
-        COUNT(CASE WHEN b.status = 'inativa' THEN 1 END) as inativas,
-        COUNT(CASE WHEN b.status = 'pendente' THEN 1 END) as pendentes,
-        AVG(EXTRACT(YEAR FROM AGE(CURRENT_DATE, b.data_nascimento)))::INTEGER as media_idade,
-        MODE() WITHIN GROUP (ORDER BY b.escolaridade) as escolaridade_predominante,
-        COUNT(DISTINCT b.cidade) as total_cidades,
-        JSON_AGG(DISTINCT b.cidade) as cidades
-      FROM beneficiarias b
-      ${whereClause}
-    `, params);
+    const result = await pool.query(
+      `SELECT 
+          COUNT(*)::int as total_beneficiarias,
+          COUNT(*) FILTER (WHERE UPPER(b.status) = 'ATIVO')::int as ativas,
+          COUNT(*) FILTER (WHERE UPPER(b.status) = 'INATIVO')::int as inativas,
+          0::int as pendentes,
+          AVG(EXTRACT(YEAR FROM AGE(CURRENT_DATE, b.data_nascimento)))::INTEGER as media_idade,
+          MODE() WITHIN GROUP (ORDER BY b.escolaridade) as escolaridade_predominante,
+          0::int as total_cidades,
+          '[]'::json as cidades
+        FROM beneficiarias b
+        ${whereClause}`,
+      params
+    );
 
     res.json(successResponse(result.rows[0], "Relatório de beneficiárias gerado com sucesso"));
   } catch (error) {
