@@ -5,8 +5,17 @@
 
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 
-// Em desenvolvimento, usar o proxy do Vite. Em produção, usar URL completa
-const API_URL = '/api';
+// Base URL configurável via env; fallback para '/api'
+const API_URL = (import.meta as any)?.env?.VITE_API_URL || '/api';
+const IS_DEV = (import.meta as any)?.env?.DEV === true || (import.meta as any)?.env?.MODE === 'development';
+
+function getCookie(name: string): string | null {
+  if (typeof document === 'undefined') return null;
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return decodeURIComponent(parts.pop()!.split(';').shift() || '');
+  return null;
+}
 
 export interface ApiResponse<T = any> {
   success: boolean;
@@ -42,12 +51,20 @@ class ApiService {
         } else if (config.headers && 'Authorization' in config.headers) {
           delete (config.headers as any).Authorization;
         }
-        
-        console.log(`API Request: ${config.method?.toUpperCase()} ${config.url}`);
+
+        // CSRF header opcional (se o backend validar)
+        const csrf = getCookie('csrf_token');
+        if (csrf && config.method && ['post','put','patch','delete'].includes(config.method)) {
+          (config.headers as any)['X-CSRF-Token'] = csrf;
+        }
+
+        if (IS_DEV) {
+          console.log(`API Request: ${config.method?.toUpperCase()} ${config.url}`);
+        }
         return config;
       },
       (error) => {
-        console.error('Request error:', error);
+        if (IS_DEV) console.error('Request error:', error);
         return Promise.reject(error);
       }
     );
@@ -55,7 +72,7 @@ class ApiService {
     // Interceptor para tratar respostas e erros
     this.api.interceptors.response.use(
       (response: AxiosResponse<ApiResponse>) => {
-        console.log(`API Response: ${response.status} - ${response.config.url}`);
+        if (IS_DEV) console.log(`API Response: ${response.status} - ${response.config.url}`);
         
         // Se a resposta já tem o formato esperado, retorna como está
         if (response.data && typeof response.data.success === 'boolean') {
@@ -74,7 +91,7 @@ class ApiService {
         };
       },
       (error) => {
-        console.error('API Error:', error);
+        if (IS_DEV) console.error('API Error:', error);
         
         // Tratar erro de autenticação
         if (error.response && error.response.status === 401) {
@@ -117,19 +134,21 @@ class ApiService {
 
   async post<T>(url: string, data: any, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
     try {
-      console.log('POST Request:', { url, data, baseURL: this.api.defaults.baseURL });
+      if (IS_DEV) console.log('POST Request:', { url, data, baseURL: this.api.defaults.baseURL });
       const response = await this.api.post<ApiResponse<T>>(url, data, config);
-      console.log('POST Response Success:', response.data);
+      if (IS_DEV) console.log('POST Response Success:', response.data);
       return response.data;
     } catch (error: any) {
-      console.error('POST Error:', error);
-      console.error('Error details:', {
-        message: error.message,
-        code: error.code,
-        response: error.response?.data,
-        status: error.response?.status,
-        url: error.config?.url
-      });
+      if (IS_DEV) {
+        console.error('POST Error:', error);
+        console.error('Error details:', {
+          message: error.message,
+          code: error.code,
+          response: error.response?.data,
+          status: error.response?.status,
+          url: error.config?.url
+        });
+      }
       
       if (error.response && error.response.data) {
         return error.response.data;
@@ -141,26 +160,26 @@ class ApiService {
     }
   }
 
-  private async put<T>(endpoint: string, data?: any): Promise<ApiResponse<T>> {
+  async put<T>(endpoint: string, data?: any): Promise<ApiResponse<T>> {
     const response = await this.api.put(endpoint, data);
     return response.data;
   }
 
-  private async patch<T>(endpoint: string, data?: any): Promise<ApiResponse<T>> {
+  async patch<T>(endpoint: string, data?: any): Promise<ApiResponse<T>> {
     const response = await this.api.patch(endpoint, data);
     return response.data;
   }
 
-  private async delete<T>(endpoint: string): Promise<ApiResponse<T>> {
+  async delete<T>(endpoint: string): Promise<ApiResponse<T>> {
     const response = await this.api.delete(endpoint);
     return response.data;
   }
 
   // Métodos específicos para autenticação
   async login(email: string, password: string): Promise<ApiResponse<{token: string, user: any}>> {
-    console.log('Login attempt:', { email, apiUrl: API_URL });
+    if (IS_DEV) console.log('Login attempt:', { email, apiUrl: API_URL });
     const result = await this.post<{token: string, user: any}>('/auth/login', { email, password });
-    console.log('Login result:', result);
+    if (IS_DEV) console.log('Login result:', result);
     return result;
   }
 

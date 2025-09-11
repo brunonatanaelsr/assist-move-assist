@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "build:dev": "vite build --mode development",
-    "lint": "eslint backend/src/utils/dateFormatter.ts src/components/__tests__/ui-components.test.tsx",
+    "lint": "eslint . --ext .ts,.tsx --max-warnings=0",
     "preview": "vite preview",
     "type-check": "tsc -b --noEmit",
     "test": "npm run test:frontend",

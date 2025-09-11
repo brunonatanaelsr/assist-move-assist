@@ -79,6 +79,10 @@ router.post('/login', async (req: RequestWithBody<LoginRequestBody>, res: Respon
     // Evite depender de cookies para reduzir falhas ambientais
 
     loggerService.info('[AUTH] sending response');
+    // Set cookie HttpOnly para sessões baseada em cookie
+    try {
+      res.cookie('auth_token', result.token, COOKIE_OPTIONS);
+    } catch {}
     res.json({
       message: 'Login realizado com sucesso',
       token: result.token,

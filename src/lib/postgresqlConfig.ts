@@ -1,11 +1,9 @@
 // Configuração global do PostgreSQL (sem mocks)
 export const usePostgreSQLConfig = () => {
   const isPostgreSQLMode = true;
+  const apiBaseUrl = (import.meta as any)?.env?.VITE_API_URL || '/api';
   return {
     isPostgreSQLMode,
-    apiBaseUrl:
-      window.location.hostname === 'movemarias.squadsolucoes.com.br'
-        ? 'http://movemarias.squadsolucoes.com.br/api'
-        : 'http://localhost:3001/api',
+    apiBaseUrl,
   };
 };

@@ -4,8 +4,8 @@ import fs from 'fs';
 import { Request } from 'express';
 import { AppError } from '../utils';
 
-// Criar diretório de uploads se não existir
-const uploadDir = path.join(__dirname, '../../uploads');
+// Diretório único de uploads baseado no CWD do processo
+const uploadDir = path.resolve(process.cwd(), 'uploads');
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
@@ -23,7 +23,7 @@ const storage = multer.diskStorage({
   }
 });
 
-// Filtro de arquivos
+// Filtro de arquivos (somente imagens)
 const fileFilter = (req: Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
   // Permitir apenas imagens
   if (file.mimetype.startsWith('image/')) {
@@ -52,9 +52,21 @@ export const uploadMultiple = (fieldName: string, maxCount: number = 5) => uploa
 // Middleware para campos múltiplos
 export const uploadFields = (fields: { name: string; maxCount: number }[]) => upload.fields(fields);
 
-// Configuração para aceitar arquivos genéricos (ex.: PDF)
+// Configuração para aceitar documentos (PDF) e imagens com lista branca de MIME types
+const ALLOWED_DOC_MIME: readonly string[] = [
+  'application/pdf',
+  'image/png',
+  'image/jpeg',
+  'image/jpg',
+  'image/webp'
+];
+
 const uploadAny = multer({
   storage,
+  fileFilter: (req: Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+    if (ALLOWED_DOC_MIME.includes(file.mimetype)) return cb(null, true);
+    return cb(new AppError('Tipo de arquivo não permitido', 400));
+  },
   limits: {
     fileSize: 20 * 1024 * 1024, // até 20MB para documentos
     files: 5
@@ -75,7 +87,8 @@ export const deleteFile = async (filename: string): Promise<void> => {
 
 // Função para obter URL do arquivo
 export const getFileUrl = (filename: string): string => {
-  return `/uploads/${filename}`;
+  // As URLs públicas passaram a ser servidas por rotas autenticadas
+  return `/api/feed/images/${filename}`;
 };
 
 // Função para validar mime type

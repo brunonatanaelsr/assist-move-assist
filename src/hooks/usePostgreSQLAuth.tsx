@@ -55,16 +55,16 @@ export const PostgreSQLAuthProvider: React.FC<AuthProviderProps> = ({ children }
         // Verificar se há token antes de fazer a requisição
         const token = localStorage.getItem('token');
         if (!token) {
-          console.log('Nenhum token encontrado, usuário não autenticado');
+          if (IS_DEV) console.log('Nenhum token encontrado, usuário não autenticado');
           setUser(null);
           setProfile(null);
           setLoading(false);
           return;
         }
 
-        console.log('Token encontrado, carregando usuário...');
+        if (IS_DEV) console.log('Token encontrado, carregando usuário...');
         const response = await apiService.getCurrentUser();
-        console.log('Response getCurrentUser:', response);
+        if (IS_DEV) console.log('Response getCurrentUser:', response);
         
         if (response && response.success && response.data && response.data.user) {
           const userData = response.data.user;
@@ -79,13 +79,13 @@ export const PostgreSQLAuthProvider: React.FC<AuthProviderProps> = ({ children }
           setUser(userData);
           setProfile(userProfile);
         } else {
-          console.log('Response inválido ou usuário não encontrado');
+          if (IS_DEV) console.log('Response inválido ou usuário não encontrado');
           localStorage.removeItem('token');
           setUser(null);
           setProfile(null);
         }
       } catch (error) {
-        console.error('Error loading user:', error);
+        if (IS_DEV) console.error('Error loading user:', error);
         localStorage.removeItem('token');
         setUser(null);
         setProfile(null);
@@ -100,10 +100,10 @@ export const PostgreSQLAuthProvider: React.FC<AuthProviderProps> = ({ children }
   const signIn = async (email: string, password: string) => {
     try {
       setLoading(true);
-      console.log('Hook signIn chamado:', { email, password: '***' });
+      if (IS_DEV) console.log('Hook signIn chamado:', { email, password: '***' });
       
       const response = await apiService.login(email, password);
-      console.log('Response do apiService:', response);
+      if (IS_DEV) console.log('Response do apiService:', response);
 
       if (response && response.data && response.data.user) {
         const userData = response.data.user;
@@ -127,7 +127,7 @@ export const PostgreSQLAuthProvider: React.FC<AuthProviderProps> = ({ children }
         return { error: { message: response.message || 'Erro ao fazer login' } };
       }
     } catch (error: any) {
-      console.error('Login error:', error);
+      if (IS_DEV) console.error('Login error:', error);
       return { error: { message: error.message || 'Erro de conexão' } };
     } finally {
       setLoading(false);
@@ -141,7 +141,7 @@ export const PostgreSQLAuthProvider: React.FC<AuthProviderProps> = ({ children }
       setProfile(null);
       return { error: null };
     } catch (error: any) {
-      console.error('Logout error:', error);
+      if (IS_DEV) console.error('Logout error:', error);
       return { error: { message: 'Erro ao fazer logout' } };
     }
   };
@@ -158,3 +158,4 @@ export const PostgreSQLAuthProvider: React.FC<AuthProviderProps> = ({ children }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
+  const IS_DEV = (import.meta as any)?.env?.DEV === true || (import.meta as any)?.env?.MODE === 'development';

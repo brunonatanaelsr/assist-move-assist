@@ -61,8 +61,8 @@ app.use(morgan('combined', { stream: { write: (message) => logger.info(message.t
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Configurar pasta de uploads
-app.use('/uploads', express.static('uploads'));
+// Removido: exposição direta de uploads
+// Os arquivos agora são servidos por rotas autenticadas (ex.: /api/feed/images/:filename)
 
 // Health check
 app.get('/health', (req, res) => {

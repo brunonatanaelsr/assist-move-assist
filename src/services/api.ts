@@ -1,197 +1,194 @@
-import axios from 'axios';
 import { z } from 'zod';
 import { beneficiariaSchema } from '../validation/zodSchemas';
+import { apiService } from '@/services/apiService';
 
 type Beneficiaria = z.infer<typeof beneficiariaSchema>;
 
-// Cliente HTTP base
-export const api = axios.create({
-  // Em dev, use o proxy do Vite
-  baseURL: import.meta.env.VITE_API_URL || '/api',
-  withCredentials: true,
-  headers: {
-    'Content-Type': 'application/json'
-  }
-});
+// Wrapper fino para compatibilidade com axios-like
+type ResponseLike<T> = { data: T };
 
-// Interceptor para adicionar token
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  
-  return config;
-});
+async function wrapGet<T>(url: string, config?: any): Promise<ResponseLike<T>> {
+  const res = await apiService.get<T>(url, config);
+  if (res.success) return { data: res.data as T };
+  throw new Error(res.message || 'Erro na requisição');
+}
 
-// Interceptor para tratamento de erros
-api.interceptors.response.use(
-  (response) => response,
-  async (error) => {
-    if (error.response?.status === 401) {
-      // Remove token e redireciona para login
-      localStorage.removeItem('token');
-      window.location.href = '/auth';
-    }
-    return Promise.reject(error);
-  }
-);
+async function wrapPost<T>(url: string, data?: any, config?: any): Promise<ResponseLike<T>> {
+  const res = await apiService.post<T>(url, data, config);
+  if (res.success) return { data: res.data as T };
+  throw new Error(res.message || 'Erro na requisição');
+}
 
-// Serviços para beneficiárias
+async function wrapPut<T>(url: string, data?: any, _config?: any): Promise<ResponseLike<T>> {
+  const res = await apiService.put<T>(url, data);
+  if (res.success) return { data: res.data as T };
+  throw new Error(res.message || 'Erro na requisição');
+}
+
+async function wrapPatch<T>(url: string, data?: any, _config?: any): Promise<ResponseLike<T>> {
+  const res = await apiService.patch<T>(url, data);
+  if (res.success) return { data: res.data as T };
+  throw new Error(res.message || 'Erro na requisição');
+}
+
+async function wrapDelete<T = any>(url: string, _config?: any): Promise<ResponseLike<T>> {
+  const res = await apiService.delete<T>(url);
+  if (res.success) return { data: (res.data as T) };
+  throw new Error(res.message || 'Erro na requisição');
+}
+
+// Expor objeto `api` compatível com uso existente (get/post/... retornando {data})
+export const api = {
+  get: wrapGet,
+  post: wrapPost,
+  put: wrapPut,
+  patch: wrapPatch,
+  delete: wrapDelete,
+};
+
+// Serviços para beneficiárias delegando ao apiService
 export const beneficiariasService = {
-  // Listar com paginação e filtros
-  listar: async (params?: {
-    page?: number;
-    limit?: number;
-    search?: string;
-    status?: string;
-    escolaridade?: string;
-  }) => {
-    const { data } = await api.get('/beneficiarias', { params });
-    return data;
+  listar: async (params?: { page?: number; limit?: number; search?: string; status?: string; escolaridade?: string; }) => {
+    const res = await apiService.getBeneficiarias(params);
+    if (res.success) return res.data;
+    throw new Error(res.message || 'Erro ao listar beneficiárias');
   },
-
-  // Buscar por ID
   buscarPorId: async (id: string) => {
-    const { data } = await api.get(`/beneficiarias/${id}`);
-    return data;
+    const res = await apiService.getBeneficiaria(id);
+    if (res.success) return res.data;
+    throw new Error(res.message || 'Erro ao buscar beneficiária');
   },
-
-  // Buscar resumo
   buscarResumo: async (id: string) => {
-    const { data } = await api.get(`/beneficiarias/${id}/resumo`);
-    return data;
+    const res = await apiService.get(`/beneficiarias/${id}/resumo`);
+    if (res.success) return res.data;
+    throw new Error(res.message || 'Erro ao buscar resumo');
   },
-
-  // Criar nova
   criar: async (beneficiaria: Omit<Beneficiaria, 'id'>) => {
-    const { data } = await api.post('/beneficiarias', beneficiaria);
-    return data;
+    const res = await apiService.createBeneficiaria(beneficiaria as any);
+    if (res.success) return res.data;
+    throw new Error(res.message || 'Erro ao criar beneficiária');
   },
-
-  // Atualizar existente
   atualizar: async (id: string, beneficiaria: Partial<Beneficiaria>) => {
-    const { data } = await api.put(`/beneficiarias/${id}`, beneficiaria);
-    return data;
+    const res = await apiService.updateBeneficiaria(id, beneficiaria as any);
+    if (res.success) return res.data;
+    throw new Error(res.message || 'Erro ao atualizar beneficiária');
   },
-
-  // Excluir (soft delete)
   excluir: async (id: string) => {
-    const { data } = await api.delete(`/beneficiarias/${id}`);
-    return data;
-  }
+    const res = await apiService.deleteBeneficiaria(id);
+    if (res.success) return res.data;
+    throw new Error(res.message || 'Erro ao excluir beneficiária');
+  },
 };
 
 // Serviços para formulários
 export const formulariosService = {
-  // Anamnese Social
   anamnese: {
     criar: async (formulario: any) => {
-      const { data } = await api.post('/formularios/anamnese', formulario);
-      return data;
+      const res = await apiService.createFormulario('anamnese', formulario);
+      if (res.success) return res.data;
+      throw new Error(res.message || 'Erro ao criar anamnese');
     },
     buscar: async (id: string) => {
-      const { data } = await api.get(`/formularios/anamnese/${id}`);
-      return data;
+      const res = await apiService.getFormulario('anamnese', Number(id));
+      if (res.success) return res.data;
+      throw new Error(res.message || 'Erro ao buscar anamnese');
     },
     atualizar: async (id: string, formulario: any) => {
-      const { data } = await api.put(`/formularios/anamnese/${id}`, formulario);
-      return data;
-    }
+      const res = await apiService.updateFormulario('anamnese', Number(id), formulario);
+      if (res.success) return res.data;
+      throw new Error(res.message || 'Erro ao atualizar anamnese');
+    },
   },
-
-  // Roda da Vida
   rodaVida: {
     criar: async (formulario: any) => {
-      const { data } = await api.post('/formularios/roda-vida', formulario);
-      return data;
+      const res = await apiService.createFormulario('roda-vida', formulario);
+      if (res.success) return res.data;
+      throw new Error(res.message || 'Erro ao criar Roda da Vida');
     },
     buscar: async (id: string) => {
-      const { data } = await api.get(`/formularios/roda-vida/${id}`);
-      return data;
+      const res = await apiService.getFormulario('roda-vida', Number(id));
+      if (res.success) return res.data;
+      throw new Error(res.message || 'Erro ao buscar Roda da Vida');
     },
     atualizar: async (id: string, formulario: any) => {
-      const { data } = await api.put(`/formularios/roda-vida/${id}`, formulario);
-      return data;
-    }
+      const res = await apiService.updateFormulario('roda-vida', Number(id), formulario);
+      if (res.success) return res.data;
+      throw new Error(res.message || 'Erro ao atualizar Roda da Vida');
+    },
   },
-
-  // Visão Holística
   visaoHolistica: {
     criar: async (formulario: any) => {
-      const { data } = await api.post('/formularios/visao-holistica', formulario);
-      return data;
+      const res = await apiService.createFormulario('visao-holistica', formulario);
+      if (res.success) return res.data;
+      throw new Error(res.message || 'Erro ao criar Visão Holística');
     },
     buscar: async (id: string) => {
-      const { data } = await api.get(`/formularios/visao-holistica/${id}`);
-      return data;
+      const res = await apiService.getFormulario('visao-holistica', Number(id));
+      if (res.success) return res.data;
+      throw new Error(res.message || 'Erro ao buscar Visão Holística');
     },
     atualizar: async (id: string, formulario: any) => {
-      const { data } = await api.put(`/formularios/visao-holistica/${id}`, formulario);
-      return data;
-    }
+      const res = await apiService.updateFormulario('visao-holistica', Number(id), formulario);
+      if (res.success) return res.data;
+      throw new Error(res.message || 'Erro ao atualizar Visão Holística');
+    },
   },
-
-  // Ficha de Evolução
   fichaEvolucao: {
     criar: async (formulario: any) => {
-      const { data } = await api.post('/formularios/ficha-evolucao', formulario);
-      return data;
+      const res = await apiService.createFormulario('ficha-evolucao', formulario);
+      if (res.success) return res.data;
+      throw new Error(res.message || 'Erro ao criar Ficha de Evolução');
     },
     buscar: async (id: string) => {
-      const { data } = await api.get(`/formularios/ficha-evolucao/${id}`);
-      return data;
+      const res = await apiService.getFormulario('ficha-evolucao', Number(id));
+      if (res.success) return res.data;
+      throw new Error(res.message || 'Erro ao buscar Ficha de Evolução');
     },
     listar: async (beneficiariaId: string) => {
-      const { data } = await api.get(`/formularios/ficha-evolucao/beneficiaria/${beneficiariaId}`);
-      return data;
-    }
-  }
+      const res = await apiService.get(`/formularios/ficha-evolucao/beneficiaria/${beneficiariaId}`);
+      if (res.success) return res.data;
+      throw new Error(res.message || 'Erro ao listar Ficha de Evolução');
+    },
+  },
 };
 
 // Serviços para oficinas
 export const oficinasService = {
-  listar: async (params?: {
-    page?: number;
-    limit?: number;
-    status?: string;
-  }) => {
-    const { data } = await api.get('/oficinas', { params });
-    return data;
+  listar: async (params?: { page?: number; limit?: number; status?: string }) => {
+    const res = await apiService.getOficinas(params);
+    if (res.success) return res.data;
+    throw new Error(res.message || 'Erro ao listar oficinas');
   },
-
   buscarPorId: async (id: string) => {
-    const { data } = await api.get(`/oficinas/${id}`);
-    return data;
+    const res = await apiService.get(`/oficinas/${id}`);
+    if (res.success) return res.data;
+    throw new Error(res.message || 'Erro ao buscar oficina');
   },
-
   criar: async (oficina: any) => {
-    const { data } = await api.post('/oficinas', oficina);
-    return data;
+    const res = await apiService.createOficina(oficina);
+    if (res.success) return res.data;
+    throw new Error(res.message || 'Erro ao criar oficina');
   },
-
   atualizar: async (id: string, oficina: any) => {
-    const { data } = await api.put(`/oficinas/${id}`, oficina);
-    return data;
+    const res = await apiService.updateOficina(id, oficina);
+    if (res.success) return res.data;
+    throw new Error(res.message || 'Erro ao atualizar oficina');
   },
-
   excluir: async (id: string) => {
-    const { data } = await api.delete(`/oficinas/${id}`);
-    return data;
+    const res = await apiService.deleteOficina(id);
+    if (res.success) return res.data;
+    throw new Error(res.message || 'Erro ao excluir oficina');
   },
-
-  // Presenças
   presencas: {
     registrar: async (presenca: any) => {
-      const { data } = await api.post('/oficinas/presencas', presenca);
-      return data;
+      const res = await apiService.post('/oficinas/presencas', presenca);
+      if (res.success) return res.data;
+      throw new Error(res.message || 'Erro ao registrar presença');
     },
     listar: async (oficinaId: string, data?: string) => {
-      const { data: response } = await api.get(`/oficinas/${oficinaId}/presencas`, {
-        params: { data }
-      });
-      return response;
-    }
-  }
+      const res = await apiService.get(`/oficinas/${oficinaId}/presencas`, { params: { data } });
+      if (res.success) return res.data;
+      throw new Error(res.message || 'Erro ao listar presenças');
+    },
+  },
 };

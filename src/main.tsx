@@ -13,14 +13,30 @@ window.addEventListener('unhandledrejection', (e) => {
 
 try {
   createRoot(document.getElementById("root")!).render(<App />);
-} catch (error) {
+} catch (error: any) {
   console.error('Erro ao renderizar App:', error);
-  // Fallback para erro
-  document.getElementById("root")!.innerHTML = `
-    <div style="padding: 20px; font-family: Arial, sans-serif;">
-      <h1>Erro de Inicialização</h1>
-      <p>Houve um problema ao carregar o aplicativo:</p>
-      <pre style="background: #f5f5f5; padding: 10px; border-radius: 4px;">${error}</pre>
-    </div>
-  `;
+  // Fallback seguro sem innerHTML
+  const root = document.getElementById('root');
+  if (root) {
+    const wrap = document.createElement('div');
+    wrap.style.padding = '20px';
+    wrap.style.fontFamily = 'Arial, sans-serif';
+
+    const h1 = document.createElement('h1');
+    h1.textContent = 'Erro de Inicialização';
+
+    const p = document.createElement('p');
+    p.textContent = 'Houve um problema ao carregar o aplicativo:';
+
+    const pre = document.createElement('pre');
+    pre.style.background = '#f5f5f5';
+    pre.style.padding = '10px';
+    pre.style.borderRadius = '4px';
+    pre.textContent = String(error?.message || error || 'Erro desconhecido');
+
+    wrap.appendChild(h1);
+    wrap.appendChild(p);
+    wrap.appendChild(pre);
+    root.replaceChildren(wrap);
+  }
 }

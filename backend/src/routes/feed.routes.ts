@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import redis from '../lib/redis';
 import { authenticateToken, AuthenticatedRequest } from '../middleware/auth';
 import { successResponse, errorResponse } from '../utils/responseFormatter';
-import { uploadSingle } from '../middleware/upload';
+import { uploadSingle, UPLOAD_DIR } from '../middleware/upload';
 import { FeedService } from '../services/feed.service';
 import { pool } from '../config/database';
 import { loggerService } from '../services/logger';
@@ -27,11 +27,56 @@ router.post(
         return res.status(400).json(errorResponse('Nenhuma imagem foi enviada'));
       }
 
-      const imageUrl = `/uploads/${req.file.filename}`;
+      // URL autenticada via API para servir imagens
+      const imageUrl = `/api/feed/images/${req.file.filename}`;
       return res.json(successResponse({ url: imageUrl }));
     } catch (error) {
       loggerService.error('Erro no upload:', error);
       return res.status(500).json(errorResponse('Erro ao fazer upload da imagem'));
+    }
+  })
+);
+
+// Servir imagem de feed (somente imagens) de forma autenticada
+router.get(
+  '/images/:filename',
+  authenticateToken,
+  catchAsync(async (req: ExtendedRequest, res: Response) => {
+    try {
+      const { filename } = req.params as any;
+      // Prevenir path traversal
+      const safe = require('path').basename(String(filename));
+      if (safe !== filename) {
+        return res.status(400).json(errorResponse('Nome de arquivo inválido'));
+      }
+
+      // Validar extensão permitida
+      const ext = (safe.split('.').pop() || '').toLowerCase();
+      const allowed = ['png', 'jpg', 'jpeg', 'gif', 'webp'];
+      if (!allowed.includes(ext)) {
+        return res.status(400).json(errorResponse('Extensão de arquivo não permitida'));
+      }
+
+      const path = require('path');
+      const fs = require('fs');
+      const filePath = path.join(UPLOAD_DIR, safe);
+      if (!fs.existsSync(filePath)) {
+        return res.status(404).json(errorResponse('Arquivo não encontrado'));
+      }
+
+      // Mapear content-type
+      const mime: Record<string, string> = {
+        png: 'image/png',
+        jpg: 'image/jpeg',
+        jpeg: 'image/jpeg',
+        gif: 'image/gif',
+        webp: 'image/webp'
+      };
+      res.setHeader('Content-Type', mime[ext] || 'application/octet-stream');
+      return res.sendFile(filePath);
+    } catch (error) {
+      loggerService.error('Erro ao servir imagem de feed', error);
+      return res.status(500).json(errorResponse('Erro ao servir imagem'));
     }
   })
 );

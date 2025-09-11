@@ -510,9 +510,9 @@ export default function Feed() {
       const response = await apiService.uploadImage(selectedFile);
       
       if (response.success && response.data) {
-        // Usar URL completa do servidor
-        const fullUrl = `http://localhost:3000${response.data.url}`;
-        setFormData(prev => ({ ...prev, imagem_url: fullUrl }));
+        // Usar URL absoluta retornada pela API (autenticada)
+        const imageUrl = response.data.url;
+        setFormData(prev => ({ ...prev, imagem_url: imageUrl }));
         
         toast({
           title: 'Sucesso',
@@ -566,7 +566,7 @@ export default function Feed() {
         const uploadResponse = await apiService.uploadImage(selectedFile);
         
         if (uploadResponse.success && uploadResponse.data) {
-          finalImageUrl = `http://localhost:3000${uploadResponse.data.url}`;
+          finalImageUrl = uploadResponse.data.url;
         } else {
           throw new Error(uploadResponse.message || 'Erro no upload da imagem');
         }
@@ -736,8 +736,8 @@ export default function Feed() {
       const uploadResponse = await apiService.uploadImage(editSelectedFile);
       
       if (uploadResponse.success && uploadResponse.data) {
-        const fullUrl = `http://localhost:3000${uploadResponse.data.url}`;
-        setEditFormData(prev => ({ ...prev, imagem_url: fullUrl }));
+        const imageUrl = uploadResponse.data.url;
+        setEditFormData(prev => ({ ...prev, imagem_url: imageUrl }));
         
         toast({
           title: 'Sucesso',
@@ -788,7 +788,7 @@ export default function Feed() {
         const uploadResponse = await apiService.uploadImage(editSelectedFile);
         
         if (uploadResponse.success && uploadResponse.data) {
-          finalImageUrl = `http://localhost:3000${uploadResponse.data.url}`;
+          finalImageUrl = uploadResponse.data.url;
         } else {
           throw new Error(uploadResponse.message || 'Erro no upload da imagem');
         }
