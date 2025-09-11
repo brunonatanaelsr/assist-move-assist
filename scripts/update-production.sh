@@ -37,6 +37,9 @@ sudo cp backend/tsconfig.json $BACKEND_DIR/
 
 # Restaurar .env
 sudo cp /tmp/env_backup $BACKEND_DIR/.env
+if ! grep -q '^POSTGRES_SSL=' "$BACKEND_DIR/.env"; then
+  echo 'POSTGRES_SSL=false' | sudo tee -a "$BACKEND_DIR/.env" >/dev/null
+fi
 
 # Atualizar dependências e recompilar
 cd $BACKEND_DIR

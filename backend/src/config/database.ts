@@ -4,12 +4,27 @@ import { logger } from '../services/logger';
 
 dotenv.config();
 
+const host = process.env.POSTGRES_HOST || 'localhost';
+const port = parseInt(process.env.POSTGRES_PORT || '5432');
+const database = process.env.POSTGRES_DB || 'movemarias';
+const user = process.env.POSTGRES_USER || 'postgres';
+const password = process.env.POSTGRES_PASSWORD || 'postgres';
+
+// SSL strategy:
+// - Prefer explicit POSTGRES_SSL env ("true"/"false")
+// - Otherwise, disable SSL for localhost/127.0.0.1
+// - Only enable implicit SSL in production for remote hosts
+const envSsl = String(process.env.POSTGRES_SSL || '').toLowerCase();
+const explicitSsl = envSsl === 'true' ? true : envSsl === 'false' ? false : undefined;
+const isLocalHost = host === 'localhost' || host === '127.0.0.1';
+const useSsl = explicitSsl !== undefined ? explicitSsl : (!isLocalHost && process.env.NODE_ENV === 'production');
+
 export const pool = new Pool({
-  host: process.env.POSTGRES_HOST || 'localhost',
-  port: parseInt(process.env.POSTGRES_PORT || '5432'),
-  database: process.env.POSTGRES_DB || 'movemarias',
-  user: process.env.POSTGRES_USER || 'postgres',
-  password: process.env.POSTGRES_PASSWORD || 'postgres',
+  host,
+  port,
+  database,
+  user,
+  password,
   
   // Configurações do pool
   max: 20, // máximo de conexões no pool
@@ -17,10 +32,8 @@ export const pool = new Pool({
   idleTimeoutMillis: 30000, // tempo máximo que uma conexão pode ficar inativa
   connectionTimeoutMillis: 5000, // tempo máximo para estabelecer conexão
   
-  // Configurações SSL para produção
-  ssl: process.env.NODE_ENV === 'production' ? { 
-    rejectUnauthorized: false 
-  } : false,
+  // Configurações SSL
+  ssl: useSsl ? { rejectUnauthorized: false } as any : false,
   
   // Configurações de retry
   statement_timeout: 30000, // timeout para queries (30 segundos)
