@@ -108,5 +108,10 @@ async function run() {
 }
 
 if (require.main === module) {
-  run().catch((e) => { console.error('❌ Smoke config FAIL:', e.message); process.exit(1); });
+  run().catch((e) => {
+    const status = e?.response?.status;
+    const body = e?.response?.data ? JSON.stringify(e.response.data) : '';
+    console.error('❌ Smoke config FAIL:', status ? `(status ${status})` : '', body || e.message);
+    process.exit(1);
+  });
 }

@@ -71,6 +71,17 @@ echo "🔄 Executando migrações (se houver)..."
 cd $BACKEND_DIR
 sudo -u www-data npm run migrate || true
 
+echo "👤 Garantindo superadmin padrão..."
+sudo -u www-data env \
+  POSTGRES_HOST=${POSTGRES_HOST:-localhost} \
+  POSTGRES_PORT=${POSTGRES_PORT:-5432} \
+  POSTGRES_DB=${POSTGRES_DB:-movemarias} \
+  POSTGRES_USER=${POSTGRES_USER:-postgres} \
+  POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres} \
+  SUPERADMIN_EMAIL=${SUPERADMIN_EMAIL:-superadmin@localhost} \
+  SUPERADMIN_PASSWORD=${SUPERADMIN_PASSWORD:-ChangeMe!123} \
+  node scripts/seed-superadmin.js || true
+
 echo "🚀 Reiniciando serviços..."
 sudo systemctl start assist-move-assist
 sudo systemctl reload nginx

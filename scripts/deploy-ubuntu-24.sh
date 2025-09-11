@@ -160,6 +160,18 @@ chmod 600 "$BACKEND_DIR/.env"
 msg "Aplicando migrações do banco..."
 sudo -u www-data npm run migrate || true
 
+# Garante superadmin com as credenciais fornecidas
+msg "Garantindo superadmin padrão..."
+sudo -u www-data env \
+  POSTGRES_HOST=${DB_HOST:-localhost} \
+  POSTGRES_PORT=${DB_PORT:-5432} \
+  POSTGRES_DB=${DB_NAME} \
+  POSTGRES_USER=${DB_USER} \
+  POSTGRES_PASSWORD=${DB_PASS} \
+  SUPERADMIN_EMAIL=${SUPERADMIN_EMAIL:-superadmin@${DOMAIN}} \
+  SUPERADMIN_PASSWORD=${SUPERADMIN_PASSWORD:-ChangeMe!123} \
+  node scripts/seed-superadmin.js || true
+
 # ======= Frontend =======
 msg "Montando frontend..."
 rsync -a --delete "$WORKDIR/public/" "$FRONTEND_DIR/public/" || true
