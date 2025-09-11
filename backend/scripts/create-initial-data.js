@@ -66,9 +66,9 @@ async function createInitialUsers() {
     await pool.query(`
       INSERT INTO beneficiarias (nome_completo, cpf, data_nascimento, telefone, endereco, status)
       VALUES 
-        ('Maria Silva Santos', '123.456.789-00', '1990-01-01', '(11) 99999-1111', 'Rua das Flores, 123 - São Paulo, SP', 'ativa'),
-        ('Ana Paula Oliveira', '987.654.321-00', '1991-02-02', '(11) 99999-2222', 'Av. Principal, 456 - São Paulo, SP', 'ativa'),
-        ('Joana Ferreira Lima', '456.789.123-00', '1992-03-03', '(11) 99999-3333', 'Rua da Esperança, 789 - São Paulo, SP', 'ativa')
+        ('Maria Silva Santos', '123.456.789-00', '1990-01-01', '(11) 99999-1111', 'Rua das Flores, 123 - São Paulo, SP', 'ATIVO'),
+        ('Ana Paula Oliveira', '987.654.321-00', '1991-02-02', '(11) 99999-2222', 'Av. Principal, 456 - São Paulo, SP', 'ATIVO'),
+        ('Joana Ferreira Lima', '456.789.123-00', '1992-03-03', '(11) 99999-3333', 'Rua da Esperança, 789 - São Paulo, SP', 'ATIVO')
       ON CONFLICT (cpf) DO NOTHING;
     `);
 

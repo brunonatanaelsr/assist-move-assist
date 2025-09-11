@@ -45,6 +45,8 @@ jobs:
           POSTGRES_PASSWORD=postgres
           JWT_SECRET=ci-secret
           ENABLE_WS=false
+          SUPERADMIN_EMAIL=bruno@move.com
+          SUPERADMIN_PASSWORD=15002031
           ENV
       - name: Bootstrap migration compat tables
         env:
