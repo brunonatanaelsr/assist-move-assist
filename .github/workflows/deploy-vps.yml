@@ -19,13 +19,42 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
+      - name: Prepare secrets (support single JSON bundle)
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Seed with individual secrets if provided
+          echo "VPS_HOST=${{ secrets.VPS_HOST }}" >> $GITHUB_ENV
+          echo "VPS_USER=${{ secrets.VPS_USER }}" >> $GITHUB_ENV
+          echo "VPS_PASSWORD=${{ secrets.VPS_PASSWORD }}" >> $GITHUB_ENV
+          echo "VPS_PORT=${{ secrets.VPS_PORT }}" >> $GITHUB_ENV
+          echo "DOMAIN=${{ secrets.DOMAIN }}" >> $GITHUB_ENV
+          echo "LETSENCRYPT_EMAIL=${{ secrets.LETSENCRYPT_EMAIL }}" >> $GITHUB_ENV
+          echo "DB_NAME=${{ secrets.DB_NAME }}" >> $GITHUB_ENV
+          echo "DB_USER=${{ secrets.DB_USER }}" >> $GITHUB_ENV
+          echo "DB_PASS=${{ secrets.DB_PASS }}" >> $GITHUB_ENV
+          echo "SUPERADMIN_EMAIL=${{ secrets.SUPERADMIN_EMAIL }}" >> $GITHUB_ENV
+          echo "SUPERADMIN_PASSWORD=${{ secrets.SUPERADMIN_PASSWORD }}" >> $GITHUB_ENV
+          echo "ADMIN_EMAIL=${{ secrets.ADMIN_EMAIL }}" >> $GITHUB_ENV
+          echo "ADMIN_PASSWORD=${{ secrets.ADMIN_PASSWORD }}" >> $GITHUB_ENV
+          echo "API_PORT=${{ secrets.API_PORT }}" >> $GITHUB_ENV
+          # If a bundled JSON secret is provided, override from it
+          if [ -n "${{ secrets.SECRETS_MOVEMARIAS }}" ]; then
+            printf '%s' "${{ secrets.SECRETS_MOVEMARIAS }}" > /tmp/deploy_secrets.json
+            for key in VPS_HOST VPS_USER VPS_PASSWORD VPS_PORT DOMAIN LETSENCRYPT_EMAIL DB_NAME DB_USER DB_PASS SUPERADMIN_EMAIL SUPERADMIN_PASSWORD ADMIN_EMAIL ADMIN_PASSWORD API_PORT; do
+              val=$(jq -r --arg k "$key" '.[$k] // empty' /tmp/deploy_secrets.json || true)
+              if [ -n "$val" ] && [ "$val" != "null" ]; then
+                echo "$key=$val" >> $GITHUB_ENV
+              fi
+            done
+          fi
       - name: Deploy via SSH (bootstrap script)
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          password: ${{ secrets.VPS_PASSWORD }}
-          port: ${{ secrets.VPS_PORT }}
+          host: ${{ env.VPS_HOST }}
+          username: ${{ env.VPS_USER }}
+          password: ${{ env.VPS_PASSWORD }}
+          port: ${{ env.VPS_PORT }}
           script_stop: true
           command_timeout: 30m
           script: |
@@ -33,17 +62,16 @@ jobs:
             export REPO_URL="https://github.com/${{ github.repository }}.git"
             export BRANCH="main"
             # Required
-            export DOMAIN="${{ secrets.DOMAIN }}"
+            export DOMAIN="${DOMAIN}"
             # Optional / Recommended
-            export LETSENCRYPT_EMAIL="${{ secrets.LETSENCRYPT_EMAIL }}"
-            export DB_NAME="${{ secrets.DB_NAME }}"
-            export DB_USER="${{ secrets.DB_USER }}"
-            export DB_PASS="${{ secrets.DB_PASS }}"
-            export SUPERADMIN_EMAIL="${{ secrets.SUPERADMIN_EMAIL }}"
-            export SUPERADMIN_PASSWORD="${{ secrets.SUPERADMIN_PASSWORD }}"
-            export ADMIN_EMAIL="${{ secrets.ADMIN_EMAIL }}"
-            export ADMIN_PASSWORD="${{ secrets.ADMIN_PASSWORD }}"
-            export API_PORT="${{ secrets.API_PORT }}"
+            export LETSENCRYPT_EMAIL="${LETSENCRYPT_EMAIL}"
+            export DB_NAME="${DB_NAME}"
+            export DB_USER="${DB_USER}"
+            export DB_PASS="${DB_PASS}"
+            export SUPERADMIN_EMAIL="${SUPERADMIN_EMAIL}"
+            export SUPERADMIN_PASSWORD="${SUPERADMIN_PASSWORD}"
+            export ADMIN_EMAIL="${ADMIN_EMAIL}"
+            export ADMIN_PASSWORD="${ADMIN_PASSWORD}"
+            export API_PORT="${API_PORT:-3000}"
             # Execute remote deploy script from repo
             bash -lc 'curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/scripts/deploy-ubuntu-24.sh -o /tmp/deploy.sh && bash /tmp/deploy.sh'
-
