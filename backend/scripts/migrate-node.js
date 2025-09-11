@@ -25,7 +25,17 @@ async function run() {
   try {
     console.log('🔌 Conectado ao PostgreSQL');
 
+    // Tabela padrão de controle de migrações
     await client.query(`CREATE TABLE IF NOT EXISTS migrations (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(255) NOT NULL UNIQUE,
+      applied_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+    );`);
+
+    // Compatibilidade: algumas migrações antigas podem referenciar "migration_log"
+    // Criamos a tabela se não existir para evitar falhas em ambientes onde
+    // um arquivo legado ainda faça INSERT nela.
+    await client.query(`CREATE TABLE IF NOT EXISTS migration_log (
       id SERIAL PRIMARY KEY,
       name VARCHAR(255) NOT NULL UNIQUE,
       applied_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP

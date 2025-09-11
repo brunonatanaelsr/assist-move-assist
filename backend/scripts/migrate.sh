@@ -63,6 +63,18 @@ PGPASSWORD=$POSTGRES_PASSWORD psql \
     applied_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
   );"
 
+# Compatibilidade: algumas migrações antigas podem referenciar "migration_log"
+PGPASSWORD=$POSTGRES_PASSWORD psql \
+  -h $POSTGRES_HOST \
+  -p $POSTGRES_PORT \
+  -U $POSTGRES_USER \
+  -d $POSTGRES_DB \
+  -c "CREATE TABLE IF NOT EXISTS migration_log (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL UNIQUE,
+    applied_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+  );"
+
 # Executar todas as migrações em ordem alfabética
 for file in $(ls $MIGRATIONS_DIR/*.sql | sort); do
   filename=$(basename "$file")
