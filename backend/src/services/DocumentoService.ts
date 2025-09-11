@@ -4,7 +4,7 @@ import { createHash } from 'crypto';
 import sharp from 'sharp';
 import { DocumentoRepository } from '../repositories/DocumentoRepository';
 import { logger } from '../utils/logger';
-import { AppError } from '../utils/errors';
+import { AppError } from '../utils';
 import { moveUploadedFile } from '../config/upload';
 
 interface UploadDocumentoParams {

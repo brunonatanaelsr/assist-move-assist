@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { AuthenticationError } from '../utils/errors';
+import { AuthenticationError } from '../utils';
 
 export function requireRole(role: 'admin' | 'user') {
   return (req: Request, res: Response, next: NextFunction) => {

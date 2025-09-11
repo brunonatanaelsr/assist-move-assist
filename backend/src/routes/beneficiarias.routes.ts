@@ -5,7 +5,7 @@ import { authenticateToken, requireProfissional, authorize } from '../middleware
 import { successResponse, errorResponse } from '../utils/responseFormatter';
 import { catchAsync } from '../middleware/errorHandler';
 import { formatObjectDates } from '../utils/dateFormatter';
-import { AppError } from '../utils/AppError';
+import { AppError } from '../utils';
 import { loggerService } from '../services/logger';
 import { db } from '../services/db';
 import { pool } from '../config/database';

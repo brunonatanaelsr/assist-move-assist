@@ -40,7 +40,7 @@ const router = express.Router();
 
 // Rota base /api/auth
 router.use((req, res, next) => {
-  console.log(`[AUTH] ${req.method} ${req.originalUrl}`);
+  loggerService.info(`[AUTH] ${req.method} ${req.originalUrl}`);
   next();
 });
 
@@ -66,7 +66,7 @@ router.post('/login', async (req: RequestWithBody<LoginRequestBody>, res: Respon
 
     const ipAddress = req.ip || req.connection?.remoteAddress || 'unknown';
     const result = await authService.login(email, password, ipAddress);
-    console.log('[AUTH] login result', !!result);
+    loggerService.info('[AUTH] login result ' + String(!!result));
 
     if (!result) {
       res.status(401).json({
@@ -78,7 +78,7 @@ router.post('/login', async (req: RequestWithBody<LoginRequestBody>, res: Respon
     // Em dev/CI, o token no corpo é suficiente para os smokes/E2E
     // Evite depender de cookies para reduzir falhas ambientais
 
-    console.log('[AUTH] sending response');
+    loggerService.info('[AUTH] sending response');
     res.json({
       message: 'Login realizado com sucesso',
       token: result.token,
@@ -305,21 +305,6 @@ router.post('/refresh-token', authenticateToken, async (req: express.Request, re
 });
 
 // POST /auth/logout
-router.post('/logout', async (req: express.Request, res: express.Response) => {
-  try {
-    res.clearCookie('auth_token', COOKIE_OPTIONS);
-
-    res.json({
-      message: 'Logout realizado com sucesso'
-    });
-  } catch (error) {
-    loggerService.error('Erro no logout:', error);
-    res.status(500).json({
-      error: 'Erro interno do servidor'
-    });
-  }
-});
-
 export default router;
 // GET /auth/me - alias para profile
 router.get('/me', authenticateToken, async (req: express.Request, res: express.Response): Promise<void> => {

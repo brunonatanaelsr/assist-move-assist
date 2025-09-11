@@ -1,5 +1,7 @@
 import { Pool } from 'pg';
 import Redis from 'ioredis';
+import { loggerService } from '../services/logger';
+import { AppError, ValidationError } from '../utils';
 import {
   Participacao,
   CreateParticipacaoDTO,
@@ -25,7 +27,7 @@ export class ParticipacaoService {
       const data = await this.redis.get(`participacoes:${key}`);
       return data ? JSON.parse(data) : null;
     } catch (error) {
-      console.error('Erro ao buscar cache:', error);
+      loggerService.warn('Cache read failed', { key: `participacoes:${key}`, error: (error as any)?.message });
       return null;
     }
   }
@@ -34,7 +36,7 @@ export class ParticipacaoService {
     try {
       await this.redis.setex(`participacoes:${key}`, this.CACHE_TTL, JSON.stringify(data));
     } catch (error) {
-      console.error('Erro ao definir cache:', error);
+      loggerService.warn('Cache set failed', { key: `participacoes:${key}`, error: (error as any)?.message });
     }
   }
 
@@ -48,7 +50,7 @@ export class ParticipacaoService {
         await this.redis.del(...allKeys);
       }
     } catch (error) {
-      console.error('Erro ao invalidar cache:', error);
+      loggerService.warn('Cache invalidate failed', { patterns, error: (error as any)?.message });
     }
   }
 
@@ -168,8 +170,8 @@ export class ParticipacaoService {
 
       return response;
     } catch (error) {
-      console.error('Erro ao listar participações:', error);
-      throw new Error('Erro ao buscar participações');
+      loggerService.error('Erro ao listar participações', { error });
+      throw new AppError('Erro ao buscar participações', 500);
     }
   }
 
@@ -185,7 +187,7 @@ export class ParticipacaoService {
       );
 
       if (beneficiariaCheck.rows.length === 0) {
-        throw new Error('Beneficiária não encontrada');
+        throw new AppError('Beneficiária não encontrada', 404);
       }
 
       // Verificar se projeto existe
@@ -195,7 +197,7 @@ export class ParticipacaoService {
       );
 
       if (projetoCheck.rows.length === 0) {
-        throw new Error('Projeto não encontrado');
+        throw new AppError('Projeto não encontrado', 404);
       }
 
       // Verificar se já existe participação ativa
@@ -205,7 +207,7 @@ export class ParticipacaoService {
       );
 
       if (participacaoCheck.rows.length > 0) {
-        throw new Error('Beneficiária já está inscrita neste projeto');
+        throw new AppError('Beneficiária já está inscrita neste projeto', 409);
       }
 
       const result = await this.pool.query(`
@@ -229,9 +231,12 @@ export class ParticipacaoService {
       await this.invalidateCache(['list:*', `beneficiaria:${validatedData.beneficiaria_id}*`]);
 
       return participacao;
-    } catch (error) {
-      console.error('Erro ao criar participação:', error);
-      throw error;
+    } catch (error: any) {
+      if (error?.name === 'ZodError') {
+        throw new ValidationError('Dados inválidos para criar participação');
+      }
+      loggerService.error('Erro ao criar participação', { error });
+      throw error instanceof AppError ? error : new AppError('Erro ao criar participação', 500);
     }
   }
 
@@ -247,7 +252,7 @@ export class ParticipacaoService {
       );
 
       if (participacaoCheck.rows.length === 0) {
-        throw new Error('Participação não encontrada');
+        throw new AppError('Participação não encontrada', 404);
       }
 
       const fieldsToUpdate = Object.entries(validatedData)
@@ -274,9 +279,12 @@ export class ParticipacaoService {
       ]);
 
       return participacao;
-    } catch (error) {
-      console.error('Erro ao atualizar participação:', error);
-      throw error;
+    } catch (error: any) {
+      if (error?.name === 'ZodError') {
+        throw new ValidationError('Dados inválidos para atualizar participação');
+      }
+      loggerService.error('Erro ao atualizar participação', { error });
+      throw error instanceof AppError ? error : new AppError('Erro ao atualizar participação', 500);
     }
   }
 
@@ -289,7 +297,7 @@ export class ParticipacaoService {
       );
 
       if (participacaoCheck.rows.length === 0) {
-        throw new Error('Participação não encontrada');
+        throw new AppError('Participação não encontrada', 404);
       }
 
       // Soft delete
@@ -305,15 +313,15 @@ export class ParticipacaoService {
       ]);
 
     } catch (error) {
-      console.error('Erro ao excluir participação:', error);
-      throw error;
+      loggerService.error('Erro ao excluir participação', { error });
+      throw error instanceof AppError ? error : new AppError('Erro ao excluir participação', 500);
     }
   }
 
   async registrarPresenca(id: number, presenca: number): Promise<Participacao> {
     try {
       if (presenca < 0 || presenca > 100) {
-        throw new Error('Percentual de presença deve estar entre 0 e 100');
+        throw new ValidationError('Percentual de presença deve estar entre 0 e 100');
       }
 
       // Verificar se participação existe
@@ -323,7 +331,7 @@ export class ParticipacaoService {
       );
 
       if (participacaoCheck.rows.length === 0) {
-        throw new Error('Participação não encontrada');
+        throw new AppError('Participação não encontrada', 404);
       }
 
       const result = await this.pool.query(`
@@ -343,8 +351,8 @@ export class ParticipacaoService {
 
       return participacao;
     } catch (error) {
-      console.error('Erro ao registrar presença:', error);
-      throw error;
+      loggerService.error('Erro ao registrar presença', { error });
+      throw error instanceof AppError ? error : new AppError('Erro ao registrar presença', 500);
     }
   }
 
@@ -357,11 +365,11 @@ export class ParticipacaoService {
       );
 
       if (participacaoCheck.rows.length === 0) {
-        throw new Error('Participação não encontrada');
+        throw new AppError('Participação não encontrada', 404);
       }
 
       if (participacaoCheck.rows[0].presenca_percentual < 75) {
-        throw new Error('Presença mínima de 75% é necessária para emitir certificado');
+        throw new ValidationError('Presença mínima de 75% é necessária para emitir certificado');
       }
 
       const result = await this.pool.query(`
@@ -385,8 +393,8 @@ export class ParticipacaoService {
 
       return participacao;
     } catch (error) {
-      console.error('Erro ao emitir certificado:', error);
-      throw error;
+      loggerService.error('Erro ao emitir certificado', { error });
+      throw error instanceof AppError ? error : new AppError('Erro ao emitir certificado', 500);
     }
   }
 }

@@ -1,4 +1,6 @@
-import { Request, Response } from 'express';
+import { Request, Response, NextFunction } from 'express';
+import { loggerService } from '../services/logger';
+import { AppError, ValidationError } from '../utils';
 import { ParticipacaoService } from '../services/participacao.service';
 import pool from '../config/database';
 import redis from '../config/redis';
@@ -29,7 +31,7 @@ interface CustomResponse {
 
 const participacaoService = new ParticipacaoService(pool, redis);
 
-export const listarParticipacoes = async (req: CustomRequest & Request, res: CustomResponse) => {
+export const listarParticipacoes = async (req: CustomRequest & Request, res: CustomResponse, next: NextFunction) => {
   try {
     const {
       page = 1,
@@ -58,91 +60,67 @@ export const listarParticipacoes = async (req: CustomRequest & Request, res: Cus
     const result = await participacaoService.listarParticipacoes(filters);
     return res.json(result);
   } catch (error) {
-    console.error('Erro no controller ao listar participações:', error);
-    return res.status(500).json({ error: 'Erro interno ao buscar participações' });
+    loggerService.error('Erro no controller ao listar participações', { error });
+    return next(error instanceof AppError ? error : new AppError('Erro interno ao buscar participações', 500));
   }
 };
 
-export const criarParticipacao = async (req: CustomRequest & Request, res: CustomResponse) => {
+export const criarParticipacao = async (req: CustomRequest & Request, res: CustomResponse, next: NextFunction) => {
   try {
     const participacao = await participacaoService.criarParticipacao(req.body);
     return res.status(201).json(participacao);
   } catch (error: any) {
-    console.error('Erro no controller ao criar participação:', error);
-    if (error.message.includes('não encontrad')) {
-      return res.status(404).json({ error: error.message });
-    }
-    if (error.message.includes('já está inscrita')) {
-      return res.status(409).json({ error: error.message });
-    }
-    return res.status(500).json({ error: 'Erro interno ao criar participação' });
+    loggerService.error('Erro no controller ao criar participação', { error });
+    return next(error);
   }
 };
 
-export const atualizarParticipacao = async (req: CustomRequest & Request, res: CustomResponse) => {
+export const atualizarParticipacao = async (req: CustomRequest & Request, res: CustomResponse, next: NextFunction) => {
   try {
     const { id } = req.params;
     const participacao = await participacaoService.atualizarParticipacao(Number(id), req.body);
     return res.json(participacao);
   } catch (error: any) {
-    console.error('Erro no controller ao atualizar participação:', error);
-    if (error.message.includes('não encontrada')) {
-      return res.status(404).json({ error: error.message });
-    }
-    return res.status(500).json({ error: 'Erro interno ao atualizar participação' });
+    loggerService.error('Erro no controller ao atualizar participação', { error });
+    return next(error);
   }
 };
 
-export const excluirParticipacao = async (req: CustomRequest & Request, res: CustomResponse) => {
+export const excluirParticipacao = async (req: CustomRequest & Request, res: CustomResponse, next: NextFunction) => {
   try {
     const { id } = req.params;
     await participacaoService.excluirParticipacao(Number(id));
     return res.status(204).send();
   } catch (error: any) {
-    console.error('Erro no controller ao excluir participação:', error);
-    if (error.message.includes('não encontrada')) {
-      return res.status(404).json({ error: error.message });
-    }
-    return res.status(500).json({ error: 'Erro interno ao excluir participação' });
+    loggerService.error('Erro no controller ao excluir participação', { error });
+    return next(error);
   }
 };
 
-export const registrarPresenca = async (req: CustomRequest & Request, res: CustomResponse) => {
+export const registrarPresenca = async (req: CustomRequest & Request, res: CustomResponse, next: NextFunction) => {
   try {
     const { id } = req.params;
     const { presenca } = req.body;
     
     if (presenca === undefined) {
-      return res.status(400).json({ error: 'Percentual de presença é obrigatório' });
+      throw new ValidationError('Percentual de presença é obrigatório');
     }
 
     const participacao = await participacaoService.registrarPresenca(Number(id), Number(presenca));
     return res.json(participacao);
   } catch (error: any) {
-    console.error('Erro no controller ao registrar presença:', error);
-    if (error.message.includes('não encontrada')) {
-      return res.status(404).json({ error: error.message });
-    }
-    if (error.message.includes('deve estar entre')) {
-      return res.status(400).json({ error: error.message });
-    }
-    return res.status(500).json({ error: 'Erro interno ao registrar presença' });
+    loggerService.error('Erro no controller ao registrar presença', { error });
+    return next(error);
   }
 };
 
-export const emitirCertificado = async (req: CustomRequest & Request, res: CustomResponse) => {
+export const emitirCertificado = async (req: CustomRequest & Request, res: CustomResponse, next: NextFunction) => {
   try {
     const { id } = req.params;
     const participacao = await participacaoService.emitirCertificado(Number(id));
     return res.json(participacao);
   } catch (error: any) {
-    console.error('Erro no controller ao emitir certificado:', error);
-    if (error.message.includes('não encontrada')) {
-      return res.status(404).json({ error: error.message });
-    }
-    if (error.message.includes('Presença mínima')) {
-      return res.status(400).json({ error: error.message });
-    }
-    return res.status(500).json({ error: 'Erro interno ao emitir certificado' });
+    loggerService.error('Erro no controller ao emitir certificado', { error });
+    return next(error);
   }
 };

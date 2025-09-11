@@ -7,14 +7,15 @@ import { pool } from '../config/database';
 
 const router = express.Router();
 import redis from '../lib/redis';
+import { catchAsync } from '../middleware/errorHandler';
 const projetoService = new ProjetoService(pool, redis as any);
 
 router.use(authenticateToken);
 
-router.get('/', authorize('projetos.ler'), async (req, res): Promise<void> => {
+router.get('/', authorize('projetos.ler'), catchAsync(async (req, res): Promise<void> => {
   try {
     const filters = projetoFilterSchema.parse(req.query);
-    const result = await projetoService.listarProjetos(filters);
+    const result = await projetoService.listarProjetos(filters) as any;
     res.json(successResponse(result.data, 'Projetos carregados com sucesso'));
     return;
   } catch (error: any) {
@@ -22,9 +23,9 @@ router.get('/', authorize('projetos.ler'), async (req, res): Promise<void> => {
     res.status(500).json(errorResponse('Erro ao buscar projetos'));
     return;
   }
-});
+}));
 
-router.get('/:id', authorize('projetos.ler'), async (req, res): Promise<void> => {
+router.get('/:id', authorize('projetos.ler'), catchAsync(async (req, res): Promise<void> => {
   try {
     const projeto = await projetoService.buscarProjeto(Number(req.params.id));
     res.json(successResponse(projeto, 'Projeto carregado com sucesso'));
@@ -34,9 +35,9 @@ router.get('/:id', authorize('projetos.ler'), async (req, res): Promise<void> =>
     res.status(500).json(errorResponse('Erro ao buscar projeto'));
     return;
   }
-});
+}));
 
-router.post('/', authorize('projetos.criar'), async (req, res): Promise<void> => {
+router.post('/', authorize('projetos.criar'), catchAsync(async (req, res): Promise<void> => {
   try {
     const user = (req as any).user;
     const data = createProjetoSchema.parse({ ...req.body, responsavel_id: Number(user?.id) });
@@ -48,9 +49,9 @@ router.post('/', authorize('projetos.criar'), async (req, res): Promise<void> =>
     res.status(500).json(errorResponse('Erro ao criar projeto'));
     return;
   }
-});
+}));
 
-router.put('/:id', authorize('projetos.editar'), async (req, res): Promise<void> => {
+router.put('/:id', authorize('projetos.editar'), catchAsync(async (req, res): Promise<void> => {
   try {
     const data = updateProjetoSchema.parse(req.body);
     const projeto = await projetoService.atualizarProjeto(Number(req.params.id), data);
@@ -62,9 +63,9 @@ router.put('/:id', authorize('projetos.editar'), async (req, res): Promise<void>
     res.status(500).json(errorResponse('Erro ao atualizar projeto'));
     return;
   }
-});
+}));
 
-router.delete('/:id', authorize('projetos.excluir'), async (req, res): Promise<void> => {
+router.delete('/:id', authorize('projetos.excluir'), catchAsync(async (req, res): Promise<void> => {
   try {
     await projetoService.excluirProjeto(Number(req.params.id));
     res.json(successResponse(null, 'Projeto removido com sucesso'));
@@ -77,6 +78,6 @@ router.delete('/:id', authorize('projetos.excluir'), async (req, res): Promise<v
     res.status(500).json(errorResponse('Erro ao excluir projeto'));
     return;
   }
-});
+}));
 
 export default router;

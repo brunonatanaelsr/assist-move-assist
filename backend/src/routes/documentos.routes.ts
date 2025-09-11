@@ -1,15 +1,17 @@
 import { Router } from 'express';
+import { loggerService } from '../services/logger';
 import { authenticateToken, AuthenticatedRequest } from '../middleware/auth';
 import { pool } from '../config/database';
 import { successResponse, errorResponse } from '../utils/responseFormatter';
 import { uploadAnySingle } from '../middleware/upload';
+import { catchAsync } from '../middleware/errorHandler';
 import path from 'path';
 import fs from 'fs';
 
 const router = Router();
 
 // GET /documentos/:beneficiariaId - listar documentos da beneficiária
-router.get('/:beneficiariaId', authenticateToken, async (req: AuthenticatedRequest, res) => {
+router.get('/:beneficiariaId', authenticateToken, catchAsync(async (req: AuthenticatedRequest, res) => {
   try {
     const { beneficiariaId } = req.params as any;
     const result = await pool.query(
@@ -19,14 +21,15 @@ router.get('/:beneficiariaId', authenticateToken, async (req: AuthenticatedReque
        ORDER BY data_upload DESC`,
       [beneficiariaId]
     );
-    res.json(result.rows);
+    res.json(successResponse(result.rows));
   } catch (error) {
+    loggerService.error('Erro ao listar documentos', { error });
     res.status(500).json(errorResponse('Erro ao listar documentos'));
   }
-});
+}));
 
 // POST /documentos/:beneficiariaId/upload - upload de documento
-router.post('/:beneficiariaId/upload', authenticateToken, uploadAnySingle('file'), async (req: AuthenticatedRequest & { file?: Express.Multer.File }, res): Promise<void> => {
+router.post('/:beneficiariaId/upload', authenticateToken, uploadAnySingle('file'), catchAsync(async (req: AuthenticatedRequest & { file?: Express.Multer.File }, res): Promise<void> => {
   try {
     const { beneficiariaId } = req.params as any;
     const { tipo, categoria, metadata } = req.body || {};
@@ -38,7 +41,7 @@ router.post('/:beneficiariaId/upload', authenticateToken, uploadAnySingle('file'
     const dest = path.join(uploadsRoot, String(beneficiariaId));
     if (!fs.existsSync(dest)) fs.mkdirSync(dest, { recursive: true });
     const finalPath = path.join(dest, file.filename);
-    fs.renameSync(file.path, finalPath);
+    await fs.promises.rename(file.path, finalPath);
 
     const result = await pool.query(
       `INSERT INTO documentos (beneficiaria_id, nome_arquivo, caminho_arquivo, tamanho, mime_type, tipo_documento, categoria, status, uploaded_by, data_upload, metadata)
@@ -49,13 +52,23 @@ router.post('/:beneficiariaId/upload', authenticateToken, uploadAnySingle('file'
     res.status(201).json(result.rows[0]);
     return;
   } catch (error) {
+    loggerService.error('Erro ao fazer upload de documento', { error });
+    // rollback do arquivo movido
+    try {
+      if (req.file) {
+        const uploadsRoot = path.resolve(process.cwd(), 'uploads');
+        const dest = path.join(uploadsRoot, String((req.params as any).beneficiariaId));
+        const finalPath = path.join(dest, req.file.filename);
+        await fs.promises.unlink(finalPath).catch(() => {});
+      }
+    } catch {}
     res.status(500).json(errorResponse('Erro ao fazer upload'));
     return;
   }
-});
+}));
 
 // PUT /documentos/:documentoId - nova versão
-router.put('/:documentoId', authenticateToken, uploadAnySingle('file'), async (req: AuthenticatedRequest & { file?: Express.Multer.File }, res): Promise<void> => {
+router.put('/:documentoId', authenticateToken, uploadAnySingle('file'), catchAsync(async (req: AuthenticatedRequest & { file?: Express.Multer.File }, res): Promise<void> => {
   try {
     const { documentoId } = req.params as any;
     const { motivoModificacao, metadata } = req.body || {};
@@ -69,7 +82,7 @@ router.put('/:documentoId', authenticateToken, uploadAnySingle('file'), async (r
     const dest = path.join(uploadsRoot, String(doc.rows[0].beneficiaria_id));
     if (!fs.existsSync(dest)) fs.mkdirSync(dest, { recursive: true });
     const finalPath = path.join(dest, file.filename);
-    fs.renameSync(file.path, finalPath);
+    await fs.promises.rename(file.path, finalPath);
 
     // calcular número de versão
     const last = await pool.query('SELECT COALESCE(MAX(numero_versao),0)+1 as next FROM documento_versoes WHERE documento_id = $1', [documentoId]);
@@ -85,13 +98,26 @@ router.put('/:documentoId', authenticateToken, uploadAnySingle('file'), async (r
     res.json(successResponse({ id: documentoId, numero_versao: numero }));
     return;
   } catch (error) {
+    loggerService.error('Erro ao versionar documento', { error });
+    // rollback do arquivo movido
+    try {
+      if (req.file) {
+        const { documentoId } = req.params as any;
+        const doc = await pool.query('SELECT beneficiaria_id FROM documentos WHERE id = $1', [documentoId]);
+        const beneficiariaId = doc.rows[0]?.beneficiaria_id || 'unknown';
+        const uploadsRoot = path.resolve(process.cwd(), 'uploads');
+        const dest = path.join(uploadsRoot, String(beneficiariaId));
+        const finalPath = path.join(dest, req.file.filename);
+        await fs.promises.unlink(finalPath).catch(() => {});
+      }
+    } catch {}
     res.status(500).json(errorResponse('Erro ao versionar documento'));
     return;
   }
-});
+}));
 
 // GET /documentos/:documentoId/download
-router.get('/:documentoId/download', authenticateToken, async (req: AuthenticatedRequest, res): Promise<void> => {
+router.get('/:documentoId/download', authenticateToken, catchAsync(async (req: AuthenticatedRequest, res): Promise<void> => {
   try {
     const { documentoId } = req.params as any;
     const result = await pool.query('SELECT nome_arquivo, caminho_arquivo, mime_type FROM documentos WHERE id = $1', [documentoId]);
@@ -102,24 +128,26 @@ router.get('/:documentoId/download', authenticateToken, async (req: Authenticate
     res.sendFile(path.resolve(caminho_arquivo));
     return;
   } catch (error) {
+    loggerService.error('Erro no download de documento', { error });
     res.status(500).json(errorResponse('Erro no download'));
     return;
   }
-});
+}));
 
 // DELETE /documentos/:documentoId
-router.delete('/:documentoId', authenticateToken, async (req: AuthenticatedRequest, res) => {
+router.delete('/:documentoId', authenticateToken, catchAsync(async (req: AuthenticatedRequest, res) => {
   try {
     const { documentoId } = req.params as any;
     await pool.query('UPDATE documentos SET status = $1 WHERE id = $2', ['removido', documentoId]);
     res.status(204).end();
   } catch (error) {
+    loggerService.error('Erro ao excluir documento', { error });
     res.status(500).json(errorResponse('Erro ao excluir documento'));
   }
-});
+}));
 
 // GET /documentos/:beneficiariaId/versoes
-router.get('/:beneficiariaId/versoes', authenticateToken, async (req: AuthenticatedRequest, res) => {
+router.get('/:beneficiariaId/versoes', authenticateToken, catchAsync(async (req: AuthenticatedRequest, res) => {
   try {
     const { beneficiariaId } = req.params as any;
     const result = await pool.query(
@@ -131,8 +159,9 @@ router.get('/:beneficiariaId/versoes', authenticateToken, async (req: Authentica
     );
     res.json(result.rows);
   } catch (error) {
+    loggerService.error('Erro ao listar versões de documento', { error });
     res.status(500).json(errorResponse('Erro ao listar versões'));
   }
-});
+}));
 
 export default router;

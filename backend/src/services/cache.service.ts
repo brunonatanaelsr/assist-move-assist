@@ -1,4 +1,3 @@
-import type Redis from 'ioredis';
 import redisSingleton from '../lib/redis';
 import { loggerService } from '../services/logger';
 
@@ -11,11 +10,11 @@ interface CacheConfig {
 }
 
 class CacheService {
-  private redis: Redis;
+  private redis: any;
   private defaultTTL: number = 300; // 5 minutos
 
   constructor(config: CacheConfig) {
-    this.redis = redisSingleton as unknown as Redis;
+    this.redis = redisSingleton as any;
   }
 
   async get<T>(key: string): Promise<T | null> {
@@ -23,7 +22,8 @@ class CacheService {
       const data = await this.redis.get(key);
       return data ? JSON.parse(data) : null;
     } catch (error) {
-      loggerService.error(`Erro ao buscar cache para chave ${key}:`, error);
+      // Log no nível warn para falhas de leitura de cache, evitando ruído excessivo
+      loggerService.warn(`Cache read failed`, { key, error: (error as any)?.message });
       return null;
     }
   }
@@ -51,9 +51,28 @@ class CacheService {
 
   async deletePattern(pattern: string): Promise<void> {
     try {
-      const keys = await this.redis.keys(pattern);
-      if (keys.length > 0) {
-        await this.redis.del(...keys);
+      // Use SCAN to avoid blocking Redis; fallback to KEYS if SCAN unavailable (e.g., stub)
+      if (typeof this.redis.scan === 'function') {
+        let cursor = '0';
+        const batch: string[] = [];
+        const matchPattern = pattern;
+        do {
+          const res = await this.redis.scan(cursor, 'MATCH', matchPattern, 'COUNT', 100);
+          cursor = res[0];
+          const found: string[] = res[1] || [];
+          batch.push(...found);
+          if (batch.length >= 500) {
+            await this.redis.del(...batch.splice(0, batch.length));
+          }
+        } while (cursor !== '0');
+        if (batch.length > 0) {
+          await this.redis.del(...batch);
+        }
+      } else {
+        const keys = await this.redis.keys(pattern);
+        if (keys.length > 0) {
+          await this.redis.del(...keys);
+        }
       }
     } catch (error) {
       loggerService.error(`Erro ao deletar cache com padrão ${pattern}:`, error);

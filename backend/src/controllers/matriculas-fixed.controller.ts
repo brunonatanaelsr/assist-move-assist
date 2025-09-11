@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import pool from '../config/database';
 import redis from '../config/redis';
+import { cacheService } from '../services/cache.service';
 
 interface MatriculaData {
   beneficiaria_id: number;
@@ -122,7 +123,7 @@ export const listarMatriculas = async (req: Request, res: Response): Promise<Res
     const result = await pool.query(query, params);
 
     // Limpar cache quando listar
-    await redis.del('cache:matriculas:*');
+    await cacheService.deletePattern('cache:matriculas:*');
 
     return res.json({
       success: true,
@@ -199,51 +200,7 @@ export const criarMatricula = async (req: Request, res: Response): Promise<Respo
       });
     }
 
-    // Criar a tabela se não existir
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS matriculas_projetos (
-        id SERIAL PRIMARY KEY,
-        beneficiaria_id INTEGER REFERENCES beneficiarias(id) ON DELETE CASCADE,
-        projeto_id INTEGER REFERENCES projetos(id) ON DELETE CASCADE,
-        data_matricula DATE DEFAULT CURRENT_DATE,
-        data_inicio_prevista DATE,
-        data_conclusao_prevista DATE,
-        situacao_social_familiar TEXT,
-        escolaridade_atual VARCHAR(100),
-        experiencia_profissional TEXT,
-        motivacao_participacao TEXT NOT NULL,
-        expectativas TEXT NOT NULL,
-        disponibilidade_horarios JSONB DEFAULT '[]',
-        possui_dependentes BOOLEAN DEFAULT FALSE,
-        necessita_auxilio_transporte BOOLEAN DEFAULT FALSE,
-        necessita_auxilio_alimentacao BOOLEAN DEFAULT FALSE,
-        necessita_cuidado_criancas BOOLEAN DEFAULT FALSE,
-        atende_criterios_idade BOOLEAN DEFAULT TRUE,
-        atende_criterios_renda BOOLEAN DEFAULT TRUE,
-        atende_criterios_genero BOOLEAN DEFAULT TRUE,
-        atende_criterios_territorio BOOLEAN DEFAULT TRUE,
-        atende_criterios_vulnerabilidade BOOLEAN DEFAULT TRUE,
-        observacoes_elegibilidade TEXT,
-        termo_compromisso_assinado BOOLEAN DEFAULT FALSE,
-        frequencia_minima_aceita BOOLEAN DEFAULT FALSE,
-        regras_convivencia_aceitas BOOLEAN DEFAULT FALSE,
-        participacao_atividades_aceita BOOLEAN DEFAULT FALSE,
-        avaliacao_periodica_aceita BOOLEAN DEFAULT FALSE,
-        como_conheceu_projeto VARCHAR(200),
-        pessoas_referencias TEXT,
-        condicoes_especiais TEXT,
-        medicamentos_uso_continuo TEXT,
-        alergias_restricoes TEXT,
-        profissional_matricula VARCHAR(100),
-        observacoes_profissional TEXT,
-        status_matricula VARCHAR(20) DEFAULT 'pendente',
-        motivo_status TEXT,
-        data_aprovacao TIMESTAMPTZ,
-        created_at TIMESTAMPTZ DEFAULT NOW(),
-        updated_at TIMESTAMPTZ DEFAULT NOW(),
-        UNIQUE(beneficiaria_id, projeto_id)
-      )
-    `);
+    // Tabela garantida via migrations (031_criar_matriculas_projetos.sql)
 
     // Inserir a matrícula
     const insertQuery = `
@@ -327,9 +284,9 @@ export const criarMatricula = async (req: Request, res: Response): Promise<Respo
     await client.query('COMMIT');
 
     // Limpar cache
-    await redis.del(`cache:beneficiaria:${data.beneficiaria_id}`);
-    await redis.del(`cache:projeto:${data.projeto_id}`);
-    await redis.del('cache:matriculas:*');
+    await cacheService.delete(`cache:beneficiaria:${data.beneficiaria_id}`);
+    await cacheService.delete(`cache:projeto:${data.projeto_id}`);
+    await cacheService.deletePattern('cache:matriculas:*');
 
     return res.status(201).json({
       success: true,
@@ -469,9 +426,9 @@ export const atualizarMatricula = async (req: Request, res: Response): Promise<R
     await client.query('COMMIT');
 
     // Limpar cache
-    await redis.del(`cache:beneficiaria:${matriculaAtual.beneficiaria_id}`);
-    await redis.del(`cache:projeto:${matriculaAtual.projeto_id}`);
-    await redis.del('cache:matriculas:*');
+    await cacheService.delete(`cache:beneficiaria:${matriculaAtual.beneficiaria_id}`);
+    await cacheService.delete(`cache:projeto:${matriculaAtual.projeto_id}`);
+    await cacheService.deletePattern('cache:matriculas:*');
 
     return res.json({
       success: true,

@@ -1,5 +1,7 @@
 import { Pool } from 'pg';
 import Redis from 'ioredis';
+import { loggerService } from '../services/logger';
+import { cacheService } from './cache.service';
 import {
   Oficina,
   CreateOficinaDTO,
@@ -21,35 +23,30 @@ export class OficinaService {
     this.redis = redis;
   }
 
-  private async getCacheKey(key: string) {
+  private async getCacheKey<T>(key: string): Promise<T | null> {
     try {
-      const data = await this.redis.get(`oficinas:${key}`);
-      return data ? JSON.parse(data) : null;
+      return await cacheService.get<T>(`oficinas:${key}`);
     } catch (error) {
-      console.error('Erro ao buscar cache:', error);
+      loggerService.warn('Erro ao buscar cache:', { error });
       return null;
     }
   }
 
   private async setCacheKey(key: string, data: any) {
     try {
-      await this.redis.setex(`oficinas:${key}`, this.CACHE_TTL, JSON.stringify(data));
+      await cacheService.set(`oficinas:${key}`, data, this.CACHE_TTL);
     } catch (error) {
-      console.error('Erro ao definir cache:', error);
+      loggerService.warn('Erro ao definir cache:', { error });
     }
   }
 
   private async invalidateCache(patterns: string[]) {
     try {
-      const keys = await Promise.all(
-        patterns.map(pattern => this.redis.keys(`oficinas:${pattern}`))
-      );
-      const allKeys = keys.flat();
-      if (allKeys.length > 0) {
-        await this.redis.del(...allKeys);
+      for (const pattern of patterns) {
+        await cacheService.deletePattern(`oficinas:${pattern}`);
       }
     } catch (error) {
-      console.error('Erro ao invalidar cache:', error);
+      loggerService.warn('Erro ao invalidar cache:', { error });
     }
   }
 
@@ -157,7 +154,7 @@ export class OficinaService {
 
       return response;
     } catch (error) {
-      console.error('Erro ao listar oficinas:', error);
+      loggerService.error('Erro ao listar oficinas:', { error });
       throw new Error('Erro ao buscar oficinas');
     }
   }
@@ -165,7 +162,7 @@ export class OficinaService {
   async buscarOficina(id: number): Promise<Oficina> {
     try {
       // Tentar buscar do cache
-      const cachedOficina = await this.getCacheKey(`detail:${id}`);
+      const cachedOficina = await this.getCacheKey<Oficina>(`detail:${id}`);
       if (cachedOficina) {
         return cachedOficina;
       }
@@ -193,7 +190,7 @@ export class OficinaService {
 
       return oficina;
     } catch (error) {
-      console.error('Erro ao buscar oficina:', error);
+      loggerService.error('Erro ao buscar oficina:', { error });
       throw error;
     }
   }
@@ -245,7 +242,7 @@ export class OficinaService {
 
       return oficina;
     } catch (error) {
-      console.error('Erro ao criar oficina:', error);
+      loggerService.error('Erro ao criar oficina:', { error });
       throw error;
     }
   }
@@ -305,7 +302,7 @@ export class OficinaService {
 
       return oficina;
     } catch (error) {
-      console.error('Erro ao atualizar oficina:', error);
+      loggerService.error('Erro ao atualizar oficina:', { error });
       throw error;
     }
   }
@@ -339,7 +336,7 @@ export class OficinaService {
       await this.invalidateCache(['list:*', `detail:${id}`]);
 
     } catch (error) {
-      console.error('Erro ao excluir oficina:', error);
+      loggerService.error('Erro ao excluir oficina:', { error });
       throw error;
     }
   }
@@ -347,7 +344,7 @@ export class OficinaService {
   async listarParticipantes(id: number): Promise<any[]> {
     try {
       // Tentar buscar do cache
-      const cachedParticipantes = await this.getCacheKey(`participantes:${id}`);
+      const cachedParticipantes = await this.getCacheKey<any[]>(`participantes:${id}`);
       if (cachedParticipantes) {
         return cachedParticipantes;
       }
@@ -383,7 +380,7 @@ export class OficinaService {
 
       return participantes;
     } catch (error) {
-      console.error('Erro ao listar participantes:', error);
+      loggerService.error('Erro ao listar participantes:', { error });
       throw error;
     }
   }

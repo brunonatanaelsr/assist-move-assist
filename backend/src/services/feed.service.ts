@@ -1,8 +1,10 @@
 import { Pool } from 'pg';
 import type Redis from 'ioredis';
+import { loggerService } from '../services/logger';
 import { z } from 'zod';
 import { feedPostSchema, feedCommentSchema } from '../validators/feed.validator';
 import { formatArrayDates, formatObjectDates } from '../utils/dateFormatter';
+import { cacheService } from './cache.service';
 
 export type FeedPost = z.infer<typeof feedPostSchema>;
 export type FeedComment = z.infer<typeof feedCommentSchema>;
@@ -26,7 +28,7 @@ export class FeedService {
       );
       return result.rows[0] || null;
     } catch (error) {
-      console.error('Erro ao obter post:', error);
+      loggerService.error('Erro ao obter post:', { error });
       throw new Error('Erro ao obter post');
     }
   }
@@ -39,27 +41,26 @@ export class FeedService {
         [postId]
       );
       // Invalidar cache de posts
-      await this.redis.del('feed:posts');
+      await cacheService.deletePattern('feed:*');
     } catch (error) {
-      console.error('Erro ao compartilhar post:', error);
+      loggerService.error('Erro ao compartilhar post:', { error });
     }
   }
 
-  private async getCacheKey(key: string) {
+  private async getCacheKey<T>(key: string): Promise<T | null> {
     try {
-      const data = await this.redis.get(`feed:${key}`);
-      return data ? JSON.parse(data) : null;
+      return await cacheService.get<T>(`feed:${key}`);
     } catch (error) {
-      console.error('Erro ao buscar cache:', error);
+      loggerService.warn('Erro ao buscar cache:', { error });
       return null;
     }
   }
 
   private async setCacheKey(key: string, data: any) {
     try {
-      await this.redis.setex(`feed:${key}`, this.CACHE_TTL, JSON.stringify(data));
+      await cacheService.set(`feed:${key}`, data, this.CACHE_TTL);
     } catch (error) {
-      console.error('Erro ao definir cache:', error);
+      loggerService.warn('Erro ao definir cache:', { error });
     }
   }
 
@@ -95,7 +96,7 @@ export class FeedService {
 
       return { data: posts, pagination: { page, limit, total } };
     } catch (error) {
-      console.error('Erro ao listar posts:', error);
+      loggerService.error('Erro ao listar posts:', { error });
       throw new Error('Erro ao buscar posts do feed');
     }
   }

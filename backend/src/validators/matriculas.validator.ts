@@ -176,7 +176,7 @@ export const verificarElegibilidadeSchema = Joi.object({
 
 // Middleware de validação genérico
 export const validateRequest = (schema: Joi.Schema) => {
-  return (req: Request, res: Response, next: NextFunction) => {
+  return (req: Request, res: Response, next: NextFunction): any => {
     const { error, value } = schema.validate(req.body, {
       abortEarly: false, // Retorna todos os erros, não apenas o primeiro
       stripUnknown: true, // Remove campos não definidos no schema
@@ -200,13 +200,13 @@ export const validateRequest = (schema: Joi.Schema) => {
 
     // Substituir req.body pelos dados validados e sanitizados
     req.body = value;
-    next();
+    return next();
   };
 };
 
 // Middleware de validação para parâmetros de query
 export const validateQuery = (schema: Joi.Schema) => {
-  return (req: Request, res: Response, next: NextFunction) => {
+  return (req: Request, res: Response, next: NextFunction): any => {
     const { error, value } = schema.validate(req.query, {
       abortEarly: false,
       stripUnknown: true,
@@ -229,7 +229,7 @@ export const validateQuery = (schema: Joi.Schema) => {
     }
 
     req.query = value;
-    next();
+    return next();
   };
 };
 
@@ -258,7 +258,7 @@ export const idParamSchema = Joi.object({
 
 // Middleware para validar parâmetros de rota
 export const validateParams = (schema: Joi.Schema) => {
-  return (req: Request, res: Response, next: NextFunction) => {
+  return (req: Request, res: Response, next: NextFunction): any => {
     const { error, value } = schema.validate(req.params, {
       abortEarly: false,
       convert: true
@@ -280,6 +280,6 @@ export const validateParams = (schema: Joi.Schema) => {
     }
 
     req.params = value;
-    next();
+    return next();
   };
 };

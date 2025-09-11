@@ -1,6 +1,6 @@
 import { Pool } from 'pg';
 import { logger } from '../utils/logger';
-import { AppError } from '../utils/errors';
+import { AppError } from '../utils';
 
 interface Documento {
   id: number;

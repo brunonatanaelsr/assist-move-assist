@@ -1,6 +1,6 @@
 import express, { Request as ExpressRequest, Response as ExpressResponse, NextFunction } from 'express';
+import { loggerService } from '../services/logger';
 import { createRouterInstance } from '../utils/router';
-import rateLimit from 'express-rate-limit';
 
 // Types auxiliares
 // Usamos os tipos nativos do Express para evitar conflitos
@@ -69,23 +69,8 @@ const router = createRouterInstance();
 
 // ========== MIDDLEWARE GLOBAL ==========
 
-// Rate limiting para proteção contra ataques
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutos
-  max: 100, // máximo 100 requisições por IP por janela
-  message: {
-    success: false,
-    error: 'Muitas requisições deste IP, tente novamente em 15 minutos.',
-    retryAfter: '15 minutos',
-    timestamp: new Date().toISOString()
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-
-// Aplicar rate limiting (exceto para health checks)
-router.use('/health', healthRoutes); // Health check sem rate limit
-router.use(limiter); // Rate limit para todas as outras rotas
+// Health check (sem rate limit aqui; aplicado no app root)
+router.use('/health', healthRoutes);
 
 // Middleware de logging de requisições
 router.use((req: ExpressRequest, res: ExpressResponse, next: NextFunction) => {
@@ -95,7 +80,7 @@ router.use((req: ExpressRequest, res: ExpressResponse, next: NextFunction) => {
   const ip = req.ip || req.connection.remoteAddress;
   const userAgent = req.get('User-Agent') || 'Unknown';
   
-  console.log(`[${timestamp}] ${method} ${url} - IP: ${ip} - UserAgent: ${userAgent}`);
+  loggerService.info(`[${timestamp}] ${method} ${url} - IP: ${ip} - UserAgent: ${userAgent}`);
   next();
 });
 
@@ -135,7 +120,6 @@ router.use('/calendar', calendarRoutes);
 router.use('/formularios', formulariosRoutes);
 router.use('/declaracoes', declaracoesRoutes);
 router.use('/recibos', recibosRoutes);
-router.use('/declaracoes', declaracoesRoutes);
 router.use('/documentos', documentosRoutes);
 
 // 6. Rotas administrativas
@@ -195,7 +179,7 @@ router.use('*', (req: ExpressRequest, res: ExpressResponse) => {
   const path = req.originalUrl;
   
   // Log da tentativa de acesso a rota inexistente
-  console.warn(`[${new Date().toISOString()}] 404 - ${method} ${path} - IP: ${req.ip}`);
+  loggerService.warn(`[${new Date().toISOString()}] 404 - ${method} ${path} - IP: ${req.ip}`);
   
   res.status(404).json({
     success: false,
@@ -234,7 +218,7 @@ router.use((error: any, req: ExpressRequest, res: ExpressResponse, next: NextFun
     timestamp: new Date().toISOString()
   };
   
-  console.error('🚨 Erro na API:', errorInfo);
+  loggerService.error('🚨 Erro na API:', errorInfo);
   
   // Determinar status code
   const statusCode = error.status || error.statusCode || 500;

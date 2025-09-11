@@ -1,6 +1,6 @@
 import { Pool, PoolClient, QueryResult } from 'pg';
 import { BaseRepository } from './interfaces/baseRepository';
-import { DatabaseError, NotFoundError } from '../utils/errors';
+import { DatabaseError, NotFoundError } from '../utils';
 
 export abstract class PostgresBaseRepository<T> implements BaseRepository<T> {
   constructor(

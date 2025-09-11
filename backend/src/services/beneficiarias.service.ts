@@ -1,9 +1,10 @@
 import { Pool } from 'pg';
 import { Redis } from 'ioredis';
 import { logger } from '../utils/logger';
-import { AppError } from '../utils/errors';
+import { AppError } from '../utils';
 import { validateBeneficiaria } from '../validators/beneficiaria.validator';
 import { withCache } from '../utils/redisCache';
+import { cacheService } from './cache.service';
 
 interface ListBeneficiariasParams {
   search?: string;
@@ -141,7 +142,7 @@ export class BeneficiariasService {
       ]);
 
       // Invalidar cache
-      await this.redis.del('beneficiarias:list:*');
+      await cacheService.deletePattern('beneficiarias:list:*');
 
       return beneficiaria;
 
@@ -195,7 +196,7 @@ export class BeneficiariasService {
       const { rows: [beneficiaria] } = await this.db.query(query, values);
 
       // Invalidar cache
-      await this.redis.del('beneficiarias:list:*');
+      await cacheService.deletePattern('beneficiarias:list:*');
 
       return beneficiaria;
 
@@ -218,7 +219,7 @@ export class BeneficiariasService {
       }
 
       // Invalidar cache
-      await this.redis.del('beneficiarias:list:*');
+      await cacheService.deletePattern('beneficiarias:list:*');
 
       return { success: true };
 

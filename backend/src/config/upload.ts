@@ -3,7 +3,7 @@ import path from 'path';
 import fs from 'fs';
 import crypto from 'crypto';
 import { Request } from 'express';
-import { AppError } from '../utils/errors';
+import { AppError } from '../utils';
 import { logger } from '../utils/logger';
 
 // Configurações básicas

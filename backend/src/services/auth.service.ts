@@ -1,5 +1,6 @@
 import { Pool } from 'pg';
 import Redis from 'ioredis';
+import { loggerService } from '../services/logger';
 import bcrypt from 'bcryptjs';
 import jwt, { SignOptions } from 'jsonwebtoken';
 
@@ -56,7 +57,7 @@ export class AuthService {
       const userResult = await this.pool.query(userQuery, [email.toLowerCase()]);
 
       if (userResult.rows.length === 0) {
-        console.log(`Failed login attempt: ${email} from ${ipAddress}`);
+        loggerService.info(`Failed login attempt: ${email} from ${ipAddress}`);
         throw new Error("Credenciais inválidas");
       }
 
@@ -65,7 +66,7 @@ export class AuthService {
       // Verificar senha
       const passwordMatch = await bcrypt.compare(password, user.senha_hash);
       if (!passwordMatch) {
-        console.log(`Failed login attempt: ${email} (wrong password) from ${ipAddress}`);
+        loggerService.info(`Failed login attempt: ${email} (wrong password) from ${ipAddress}`);
         throw new Error("Credenciais inválidas");
       }
 
@@ -82,7 +83,7 @@ export class AuthService {
         role: user.papel
       });
 
-      console.log(`Successful login: ${email} from ${ipAddress}`);
+      loggerService.info(`Successful login: ${email} from ${ipAddress}`);
 
       // Remover campos sensíveis
       const { senha_hash, ...userWithoutPassword } = user;
@@ -101,7 +102,7 @@ export class AuthService {
           this.CACHE_TTL
         );
       } catch (e) {
-        console.warn('Redis indisponível (cache de auth ignorado)');
+        loggerService.warn('Redis indisponível (cache de auth ignorado)');
       }
 
       return {
@@ -109,7 +110,7 @@ export class AuthService {
         user: userWithoutPassword
       };
     } catch (error) {
-      console.error("Login error:", error);
+      loggerService.error("Login error:", error);
       throw error;
     }
   }
@@ -127,7 +128,7 @@ export class AuthService {
 
       return decoded;
     } catch (error) {
-      console.error("Token validation error:", error);
+      loggerService.error("Token validation error:", error);
       throw error;
     }
   }

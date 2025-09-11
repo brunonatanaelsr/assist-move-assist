@@ -7,10 +7,12 @@ import { pool } from '../config/database';
 import { OficinaRepository } from '../repositories/OficinaRepository';
 import PDFDocument = require('pdfkit');
 import ExcelJS = require('exceljs');
+import { catchAsync } from '../middleware/errorHandler';
 
 const router = express.Router();
 
 import redis from '../lib/redis';
+import { loggerService } from '../services/logger';
 
 const oficinaService = new OficinaService(pool, redis as any);
 const oficinaRepository = new OficinaRepository();
@@ -19,10 +21,10 @@ const oficinaRepository = new OficinaRepository();
 router.use(authenticateToken);
 
 // Listar oficinas (público)
-router.get('/', authorize('oficinas.ler'), async (req, res): Promise<void> => {
+router.get('/', authorize('oficinas.ler'), catchAsync(async (req, res): Promise<void> => {
   try {
     const filters = oficinaFilterSchema.parse(req.query);
-    const result = await oficinaService.listarOficinas(filters);
+    const result = await oficinaService.listarOficinas(filters) as any;
     
     res.json(successResponse(
       result.data,
@@ -30,7 +32,7 @@ router.get('/', authorize('oficinas.ler'), async (req, res): Promise<void> => {
     ));
     return;
   } catch (error: any) {
-    console.error("Get oficinas error:", error);
+    loggerService.error("Get oficinas error:", error);
 
     if (error.name === 'ZodError') {
       res.status(400).json(errorResponse("Parâmetros de filtro inválidos"));
@@ -40,10 +42,10 @@ router.get('/', authorize('oficinas.ler'), async (req, res): Promise<void> => {
     res.status(500).json(errorResponse("Erro ao buscar oficinas"));
     return;
   }
-});
+}));
 
 // Horários disponíveis para uma data específica (intervalos de 30 min)
-router.get('/horarios-disponiveis', authenticateToken, authorize('oficinas.horarios.listar'), async (req, res): Promise<void> => {
+router.get('/horarios-disponiveis', authenticateToken, authorize('oficinas.horarios.listar'), catchAsync(async (req, res): Promise<void> => {
   try {
     const data = String(req.query.data || '');
     if (!data || !/^\d{4}-\d{2}-\d{2}$/.test(data)) {
@@ -95,14 +97,14 @@ router.get('/horarios-disponiveis', authenticateToken, authorize('oficinas.horar
     res.json(successResponse({ date: data, disponiveis, ocupados: ocupadas.rows }));
     return;
   } catch (error: any) {
-    console.error('Horários disponíveis error:', error);
+    loggerService.error('Horários disponíveis error:', error);
     res.status(500).json(errorResponse('Erro ao calcular horários disponíveis'));
     return;
   }
-});
+}));
 
 // Verificar conflito de horários
-router.post('/verificar-conflito', authenticateToken, authorize('oficinas.conflito.verificar'), async (req, res): Promise<void> => {
+router.post('/verificar-conflito', authenticateToken, authorize('oficinas.conflito.verificar'), catchAsync(async (req, res): Promise<void> => {
   try {
     const { data_inicio, data_fim, horario_inicio, horario_fim, dias_semana, excluir_oficina_id } = req.body || {};
     if (!data_inicio || !horario_inicio || !horario_fim) {
@@ -140,14 +142,14 @@ router.post('/verificar-conflito', authenticateToken, authorize('oficinas.confli
     res.json(successResponse({ conflito: (result.rows?.length || 0) > 0, conflitos: result.rows }));
     return;
   } catch (error: any) {
-    console.error('Verificar conflito error:', error);
+    loggerService.error('Verificar conflito error:', error);
     res.status(500).json(errorResponse('Erro ao verificar conflito'));
     return;
   }
-});
+}));
 
 // Obter oficina específica
-router.get('/:id', authorize('oficinas.ler'), async (req, res): Promise<void> => {
+router.get('/:id', authorize('oficinas.ler'), catchAsync(async (req, res): Promise<void> => {
   try {
     const id = parseInt(String(req.params.id));
     const oficina = await oficinaService.buscarOficina(id);
@@ -155,7 +157,7 @@ router.get('/:id', authorize('oficinas.ler'), async (req, res): Promise<void> =>
     res.json(successResponse(oficina, "Oficina carregada com sucesso"));
     return;
   } catch (error: any) {
-    console.error("Get oficina error:", error);
+    loggerService.error("Get oficina error:", error);
 
     if (error.message === "Oficina não encontrada") {
       res.status(404).json(errorResponse(error.message));
@@ -165,10 +167,10 @@ router.get('/:id', authorize('oficinas.ler'), async (req, res): Promise<void> =>
     res.status(500).json(errorResponse("Erro ao buscar oficina"));
     return;
   }
-});
+}));
 
 // Criar oficina
-router.post('/', authorize('oficinas.criar'), async (req, res): Promise<void> => {
+router.post('/', authorize('oficinas.criar'), catchAsync(async (req, res): Promise<void> => {
   try {
     const user = (req as any).user;
     if (!user) {
@@ -179,7 +181,7 @@ router.post('/', authorize('oficinas.criar'), async (req, res): Promise<void> =>
     res.status(201).json(successResponse(oficina, "Oficina criada com sucesso"));
     return;
   } catch (error: any) {
-    console.error("Create oficina error:", error);
+    loggerService.error("Create oficina error:", error);
 
     if (error.name === 'ZodError') {
       res.status(400).json(errorResponse("Dados inválidos para criar oficina"));
@@ -194,10 +196,10 @@ router.post('/', authorize('oficinas.criar'), async (req, res): Promise<void> =>
     res.status(500).json(errorResponse("Erro ao criar oficina"));
     return;
   }
-});
+}));
 
 // Atualizar oficina
-router.put('/:id', authorize('oficinas.editar'), async (req, res): Promise<void> => {
+router.put('/:id', authorize('oficinas.editar'), catchAsync(async (req, res): Promise<void> => {
   try {
     const id = parseInt(String(req.params.id));
     const user = (req as any).user;
@@ -215,7 +217,7 @@ router.put('/:id', authorize('oficinas.editar'), async (req, res): Promise<void>
     res.json(successResponse(oficina, "Oficina atualizada com sucesso"));
     return;
   } catch (error: any) {
-    console.error("Update oficina error:", error);
+    loggerService.error("Update oficina error:", error);
 
     if (error.name === 'ZodError') {
       res.status(400).json(errorResponse("Dados inválidos para atualizar oficina"));
@@ -240,10 +242,10 @@ router.put('/:id', authorize('oficinas.editar'), async (req, res): Promise<void>
     res.status(500).json(errorResponse("Erro ao atualizar oficina"));
     return;
   }
-});
+}));
 
 // Excluir oficina (soft delete)
-router.delete('/:id', authorize('oficinas.excluir'), async (req, res): Promise<void> => {
+router.delete('/:id', authorize('oficinas.excluir'), catchAsync(async (req, res): Promise<void> => {
   try {
     const id = parseInt(String(req.params.id));
     const user = (req as any).user;
@@ -256,7 +258,7 @@ router.delete('/:id', authorize('oficinas.excluir'), async (req, res): Promise<v
     res.json(successResponse(null, "Oficina excluída com sucesso"));
     return;
   } catch (error: any) {
-    console.error("Delete oficina error:", error);
+    loggerService.error("Delete oficina error:", error);
 
     if (error.message === "Oficina não encontrada") {
       res.status(404).json(errorResponse(error.message));
@@ -271,10 +273,10 @@ router.delete('/:id', authorize('oficinas.excluir'), async (req, res): Promise<v
     res.status(500).json(errorResponse("Erro ao excluir oficina"));
     return;
   }
-});
+}));
 
 // Obter participantes de uma oficina
-router.get('/:id/participantes', authenticateToken, authorize('oficinas.participantes.ver'), async (req, res): Promise<void> => {
+router.get('/:id/participantes', authenticateToken, authorize('oficinas.participantes.ver'), catchAsync(async (req, res): Promise<void> => {
   try {
     const id = parseInt(String(req.params.id));
     const participantes = await oficinaService.listarParticipantes(id);
@@ -282,7 +284,7 @@ router.get('/:id/participantes', authenticateToken, authorize('oficinas.particip
     res.json(successResponse(participantes, "Participantes carregados com sucesso"));
     return;
   } catch (error: any) {
-    console.error("Get participantes error:", error);
+    loggerService.error("Get participantes error:", error);
 
     if (error.message === "Oficina não encontrada") {
       res.status(404).json(errorResponse(error.message));
@@ -292,10 +294,10 @@ router.get('/:id/participantes', authenticateToken, authorize('oficinas.particip
     res.status(500).json(errorResponse("Erro ao buscar participantes"));
     return;
   }
-});
+}));
 
 // Adicionar participante à oficina (mapeia para participação no projeto da oficina)
-router.post('/:id/participantes', authenticateToken, requireGestor, authorize('oficinas.participantes.adicionar'), async (req, res): Promise<void> => {
+router.post('/:id/participantes', authenticateToken, requireGestor, authorize('oficinas.participantes.adicionar'), catchAsync(async (req, res): Promise<void> => {
   try {
     const oficinaId = parseInt(String(req.params.id));
     const { beneficiaria_id, observacoes } = req.body || {};
@@ -329,14 +331,14 @@ router.post('/:id/participantes', authenticateToken, requireGestor, authorize('o
     res.status(201).json(successResponse(created.rows[0], 'Participante adicionada com sucesso'));
     return;
   } catch (error: any) {
-    console.error('Add participante error:', error);
+    loggerService.error('Add participante error:', error);
     res.status(500).json(errorResponse('Erro ao adicionar participante'));
     return;
   }
-});
+}));
 
 // Remover participante da oficina (soft delete da participação no projeto)
-router.delete('/:id/participantes/:beneficiariaId', authenticateToken, requireGestor, authorize('oficinas.participantes.remover'), async (req, res): Promise<void> => {
+router.delete('/:id/participantes/:beneficiariaId', authenticateToken, requireGestor, authorize('oficinas.participantes.remover'), catchAsync(async (req, res): Promise<void> => {
   try {
     const oficinaId = parseInt(String(req.params.id));
     const beneficiariaId = parseInt(String(req.params.beneficiariaId));
@@ -356,14 +358,14 @@ router.delete('/:id/participantes/:beneficiariaId', authenticateToken, requireGe
     res.json(successResponse({ message: 'Participante removida com sucesso' }));
     return;
   } catch (error: any) {
-    console.error('Remove participante error:', error);
+    loggerService.error('Remove participante error:', error);
     res.status(500).json(errorResponse('Erro ao remover participante'));
     return;
   }
-});
+}));
 
 // Registrar presença em uma oficina para uma beneficiária
-router.post('/:id/presencas', authenticateToken, authorize('oficinas.presencas.registrar'), async (req, res): Promise<void> => {
+router.post('/:id/presencas', authenticateToken, authorize('oficinas.presencas.registrar'), catchAsync(async (req, res): Promise<void> => {
   try {
     const oficinaId = parseInt(String(req.params.id));
     const { beneficiaria_id, presente, observacoes, data } = req.body || {};
@@ -386,14 +388,14 @@ router.post('/:id/presencas', authenticateToken, authorize('oficinas.presencas.r
     res.status(201).json(successResponse(registro, 'Presença registrada'));
     return;
   } catch (error: any) {
-    console.error('Registrar presença error:', error);
+    loggerService.error('Registrar presença error:', error);
     res.status(500).json(errorResponse('Erro ao registrar presença'));
     return;
   }
-});
+}));
 
 // Listar presenças de uma oficina (opcionalmente filtrar por data YYYY-MM-DD)
-router.get('/:id/presencas', authenticateToken, authorize('oficinas.presencas.listar'), async (req, res): Promise<void> => {
+router.get('/:id/presencas', authenticateToken, authorize('oficinas.presencas.listar'), catchAsync(async (req, res): Promise<void> => {
   try {
     const oficinaId = parseInt(String(req.params.id));
     const data = (req.query.data as string) || '';
@@ -415,14 +417,14 @@ router.get('/:id/presencas', authenticateToken, authorize('oficinas.presencas.li
     res.json(successResponse(result.rows));
     return;
   } catch (error: any) {
-    console.error('Listar presenças error:', error);
+    loggerService.error('Listar presenças error:', error);
     res.status(500).json(errorResponse('Erro ao listar presenças'));
     return;
   }
-});
+}));
 
 // Resumo da oficina
-router.get('/:id/resumo', authenticateToken, async (req, res): Promise<void> => {
+router.get('/:id/resumo', authenticateToken, catchAsync(async (req, res): Promise<void> => {
   try {
     const oficinaId = parseInt(String(req.params.id));
 
@@ -449,15 +451,15 @@ router.get('/:id/resumo', authenticateToken, async (req, res): Promise<void> => 
     }));
     return;
   } catch (error: any) {
-    console.error('Resumo oficina error:', error);
+    loggerService.error('Resumo oficina error:', error);
     res.status(500).json(errorResponse('Erro ao obter resumo da oficina'));
     return;
   }
-});
+}));
 
 
 // Relatório de presenças (PDF/Excel)
-router.get('/:id/relatorio-presencas', authenticateToken, authorize('oficinas.relatorio.exportar'), async (req, res): Promise<void> => {
+router.get('/:id/relatorio-presencas', authenticateToken, authorize('oficinas.relatorio.exportar'), catchAsync(async (req, res): Promise<void> => {
   try {
     const id = parseInt(String(req.params.id));
     const formato = String(req.query.formato || 'pdf').toLowerCase();
@@ -548,10 +550,10 @@ router.get('/:id/relatorio-presencas', authenticateToken, authorize('oficinas.re
     });
     doc.end();
   } catch (error: any) {
-    console.error('Relatório presenças error:', error);
+    loggerService.error('Relatório presenças error:', error);
     res.status(500).json(errorResponse('Erro ao gerar relatório de presenças'));
     return;
   }
-});
+}));
 
 export default router;

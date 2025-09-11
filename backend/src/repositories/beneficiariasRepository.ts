@@ -1,8 +1,7 @@
 import { Pool } from 'pg';
 import { PostgresBaseRepository } from './postgresBaseRepository';
 import { Beneficiaria } from '../models/beneficiaria';
-import { NotFoundError } from '../utils/errors';
-import { AppError } from '../utils/AppError';
+import { NotFoundError, AppError } from '../utils';
 
 export class BeneficiariasRepository extends PostgresBaseRepository<Beneficiaria> {
   constructor(pool: Pool) {

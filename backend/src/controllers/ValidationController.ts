@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { redis } from '../lib/redis';
 import { validate_cpf } from '../utils/cpf-validator';
 import { logger } from '../utils/logger';
-import { ValidationError } from '../utils/errors';
+import { ValidationError } from '../utils';
 
 export class ValidationController {
   private readonly CACHE_TTL = 60 * 5; // 5 minutos

@@ -1,5 +1,7 @@
 import { Pool } from 'pg';
 import Redis from 'ioredis';
+import { loggerService } from '../services/logger';
+import { cacheService } from './cache.service';
 import {
   Projeto,
   CreateProjetoDTO,
@@ -20,35 +22,30 @@ export class ProjetoService {
     this.redis = redis;
   }
 
-  private async getCacheKey(key: string) {
+  private async getCacheKey<T>(key: string): Promise<T | null> {
     try {
-      const data = await this.redis.get(`projetos:${key}`);
-      return data ? JSON.parse(data) : null;
+      return await cacheService.get<T>(`projetos:${key}`);
     } catch (error) {
-      console.error('Erro ao buscar cache:', error);
+      loggerService.warn('Erro ao buscar cache:', { error });
       return null;
     }
   }
 
   private async setCacheKey(key: string, data: any) {
     try {
-      await this.redis.setex(`projetos:${key}`, this.CACHE_TTL, JSON.stringify(data));
+      await cacheService.set(`projetos:${key}`, data, this.CACHE_TTL);
     } catch (error) {
-      console.error('Erro ao definir cache:', error);
+      loggerService.warn('Erro ao definir cache:', { error });
     }
   }
 
   private async invalidateCache(patterns: string[]) {
     try {
-      const keys = await Promise.all(
-        patterns.map(pattern => this.redis.keys(`projetos:${pattern}`))
-      );
-      const allKeys = keys.flat();
-      if (allKeys.length > 0) {
-        await this.redis.del(...allKeys);
+      for (const pattern of patterns) {
+        await cacheService.deletePattern(`projetos:${pattern}`);
       }
     } catch (error) {
-      console.error('Erro ao invalidar cache:', error);
+      loggerService.warn('Erro ao invalidar cache:', { error });
     }
   }
 
@@ -60,7 +57,7 @@ export class ProjetoService {
       // Tentar buscar do cache se não houver filtros complexos
       if (!search && page === 1) {
         const cacheKey = `list:${status || 'all'}:${limit}`;
-        const cachedData = await this.getCacheKey(cacheKey);
+        const cachedData = await this.getCacheKey<any>(cacheKey);
         if (cachedData) {
           return cachedData;
         }
@@ -126,7 +123,7 @@ export class ProjetoService {
 
       return response;
     } catch (error) {
-      console.error('Erro ao listar projetos:', error);
+      loggerService.error('Erro ao listar projetos:', { error });
       throw new Error('Erro ao buscar projetos');
     }
   }
@@ -135,7 +132,7 @@ export class ProjetoService {
     try {
       // Tentar buscar do cache
       const cacheKey = `id:${id}`;
-      const cachedData = await this.getCacheKey(cacheKey);
+      const cachedData = await this.getCacheKey<any>(cacheKey);
       if (cachedData) {
         return cachedData;
       }
@@ -159,7 +156,7 @@ export class ProjetoService {
 
       return projeto;
     } catch (error) {
-      console.error('Erro ao buscar projeto:', error);
+      loggerService.error('Erro ao buscar projeto:', { error });
       throw error;
     }
   }
@@ -201,7 +198,7 @@ export class ProjetoService {
 
       return projeto;
     } catch (error) {
-      console.error('Erro ao criar projeto:', error);
+      loggerService.error('Erro ao criar projeto:', { error });
       throw error;
     }
   }
@@ -243,7 +240,7 @@ export class ProjetoService {
 
       return projeto;
     } catch (error) {
-      console.error('Erro ao atualizar projeto:', error);
+      loggerService.error('Erro ao atualizar projeto:', { error });
       throw error;
     }
   }
@@ -278,7 +275,7 @@ export class ProjetoService {
       await this.invalidateCache(['list:*', `id:${id}`]);
 
     } catch (error) {
-      console.error('Erro ao excluir projeto:', error);
+      loggerService.error('Erro ao excluir projeto:', { error });
       throw error;
     }
   }

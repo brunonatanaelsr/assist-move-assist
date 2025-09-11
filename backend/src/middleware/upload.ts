@@ -2,7 +2,7 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { Request } from 'express';
-import { AppError } from '../utils/AppError';
+import { AppError } from '../utils';
 
 // Criar diretório de uploads se não existir
 const uploadDir = path.join(__dirname, '../../uploads');
