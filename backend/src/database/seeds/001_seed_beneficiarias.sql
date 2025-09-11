@@ -27,7 +27,7 @@ INSERT INTO beneficiarias (
     'medio_completo',
     'Vendedora Autônoma',
     2500.00,
-    'ativa',
+    'ATIVO',
     'Participante do projeto de empreendedorismo',
     1,
     1
@@ -44,7 +44,7 @@ INSERT INTO beneficiarias (
     'superior_incompleto',
     'Estudante',
     1800.00,
-    'ativa',
+    'ATIVO',
     'Interessada em cursos de tecnologia',
     1,
     1
@@ -61,7 +61,7 @@ INSERT INTO beneficiarias (
     'fundamental_completo',
     'Diarista',
     1500.00,
-    'pendente',
+    'ATIVO',
     'Em processo de análise para programa de qualificação',
     1,
     1
