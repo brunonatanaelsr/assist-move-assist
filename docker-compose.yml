@@ -71,9 +71,9 @@ services:
     ports:
       - "5173:5173"
     environment:
-      # Container talks to backend by service name on the bridge network
-      - VITE_API_URL=http://backend:3000/api
-      - VITE_API_BASE_URL=http://backend:3000/api
+      # Use relative base in browser; Vite proxy forwards to backend
+      - VITE_API_URL=/api
+      - VITE_API_BASE_URL=/api
     depends_on:
       - backend
     volumes:
