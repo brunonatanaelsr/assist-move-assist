@@ -1,26 +1,30 @@
 name: Deploy to VPS
 
 on:
+  # Deploy only after CI/CD Pipeline completes successfully on main
+  workflow_run:
+    workflows: [CI/CD Pipeline]
+    types: [completed]
+  # Manual trigger remains available
   workflow_dispatch:
     inputs:
       run_migrations:
         description: "Run DB migrations"
         required: false
         default: "true"
-  push:
-    branches: [ main ]
-    paths:
-      - 'backend/**'
-      - 'src/**'
-      - 'scripts/**'
-      - '.github/workflows/deploy-vps.yml'
 
 jobs:
   deploy:
+    # Only on success and main when triggered by workflow_run, always when manual
+    if: |
+      (github.event_name == 'workflow_dispatch') ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-latest
     steps:
       - name: Prepare secrets (support single JSON bundle)
         shell: bash
+        env:
+          SECRETS_MOVEMARIAS: ${{ secrets.SECRETS_MOVEMARIAS }}
         run: |
           set -euo pipefail
           # Seed with individual secrets if provided
@@ -38,15 +42,27 @@ jobs:
           echo "ADMIN_EMAIL=${{ secrets.ADMIN_EMAIL }}" >> $GITHUB_ENV
           echo "ADMIN_PASSWORD=${{ secrets.ADMIN_PASSWORD }}" >> $GITHUB_ENV
           echo "API_PORT=${{ secrets.API_PORT }}" >> $GITHUB_ENV
-          # If a bundled JSON secret is provided, override from it
-          if [ -n "${{ secrets.SECRETS_MOVEMARIAS }}" ]; then
-            printf '%s' "${{ secrets.SECRETS_MOVEMARIAS }}" > /tmp/deploy_secrets.json
-            for key in VPS_HOST VPS_USER VPS_PASSWORD VPS_PORT DOMAIN LETSENCRYPT_EMAIL DB_NAME DB_USER DB_PASS SUPERADMIN_EMAIL SUPERADMIN_PASSWORD ADMIN_EMAIL ADMIN_PASSWORD API_PORT; do
-              val=$(jq -r --arg k "$key" '.[$k] // empty' /tmp/deploy_secrets.json || true)
-              if [ -n "$val" ] && [ "$val" != "null" ]; then
-                echo "$key=$val" >> $GITHUB_ENV
-              fi
-            done
+          # If a bundled JSON secret is provided, override from it (no jq dependency)
+          if [ -n "${SECRETS_MOVEMARIAS}" ]; then
+            python3 - "$GITHUB_ENV" <<'PY'
+import os, sys, json
+out = sys.argv[1]
+raw = os.environ.get('SECRETS_MOVEMARIAS') or ''
+try:
+    data = json.loads(raw)
+except Exception:
+    data = {}
+keys = [
+  'VPS_HOST','VPS_USER','VPS_PASSWORD','VPS_PORT','DOMAIN','LETSENCRYPT_EMAIL',
+  'DB_NAME','DB_USER','DB_PASS','SUPERADMIN_EMAIL','SUPERADMIN_PASSWORD',
+  'ADMIN_EMAIL','ADMIN_PASSWORD','API_PORT'
+]
+with open(out, 'a') as f:
+    for k in keys:
+        v = data.get(k)
+        if v not in (None, ''):
+            f.write(f"{k}={v}\n")
+PY
           fi
       - name: Deploy via SSH (bootstrap script)
         uses: appleboy/ssh-action@v1.0.3

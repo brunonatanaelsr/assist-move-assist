@@ -293,25 +293,4 @@ jobs:
           cd backend
           RUN_INTEGRATION=1 npm run test:integration
 
-  deploy:
-    needs: [unit, api-smoke, e2e]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: Deploy (systemd via update script)
-        run: |
-          echo "🚀 Iniciando deploy..."
-          chmod +x scripts/update-production.sh || true
-          sudo ./scripts/update-production.sh
-        env:
-          NODE_ENV: production
-          # Variáveis de ambiente adicionais devem ser configuradas via GitHub Secrets
+  # Deployment is handled by deploy-vps.yml via SSH to the server
