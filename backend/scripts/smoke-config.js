@@ -35,7 +35,19 @@ async function run() {
 
   let superAdmin, c;
   await step('Login superadmin', async () => {
-    superAdmin = await login(SUPER_EMAIL, SUPER_PASS);
+    try {
+      superAdmin = await login(SUPER_EMAIL, SUPER_PASS);
+    } catch (e) {
+      // Try to register superadmin if login fails (fresh DB)
+      const axios = require('axios');
+      await axios.post(`${API}/auth/register`, {
+        email: SUPER_EMAIL,
+        password: SUPER_PASS,
+        nome_completo: 'Super Admin',
+        role: 'superadmin'
+      }).catch(()=>{});
+      superAdmin = await login(SUPER_EMAIL, SUPER_PASS);
+    }
     c = client(superAdmin.token);
   });
 
