@@ -8,6 +8,7 @@
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/app.js",
     "migrate": "bash scripts/migrate.sh",
+    "premigrate:node": "node scripts/bootstrap-migration-tables.js",
     "migrate:node": "node scripts/migrate-node.js",
     "smoke": "node scripts/smoke-tests.js",
     "seed": "node scripts/create-initial-data.js",
