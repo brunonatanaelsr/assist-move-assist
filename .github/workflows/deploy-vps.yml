@@ -31,12 +31,26 @@ jobs:
       DB_NAME: movemarias
       DB_USER: assist_user
       DB_PASS: change-me-please
-      SUPERADMIN_EMAIL: superadmin@example.com
-      SUPERADMIN_PASSWORD: ChangeMe!123
+      SUPERADMIN_EMAIL: bruno@move.com
+      SUPERADMIN_PASSWORD: 15002031
       ADMIN_EMAIL: admin@example.com
       ADMIN_PASSWORD: ChangeMe!123
       API_PORT: '3000'
     steps:
+      - name: Checkout repository (to read optional .github/deploy.env)
+        uses: actions/checkout@v4
+
+      - name: Load .github/deploy.env overrides (if present)
+        shell: bash
+        run: |
+          if [ -f .github/deploy.env ]; then
+            echo "Loading .github/deploy.env overrides"
+            while IFS='=' read -r k v; do
+              [ -z "$k" ] && continue
+              case "$k" in \#*) continue;; esac
+              echo "$k=$v" >> $GITHUB_ENV
+            done < .github/deploy.env
+          fi
       - name: Deploy via SSH (bootstrap script)
         uses: appleboy/ssh-action@v1.0.3
         with:
