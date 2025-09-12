@@ -12,7 +12,7 @@ async function main() {
   });
   const email = process.env.SUPERADMIN_EMAIL || process.env.SUPER_EMAIL || 'bruno@move.com';
   const password = process.env.SUPERADMIN_PASSWORD || process.env.SUPER_PASS || '15002031';
-  const name = process.env.SUPERADMIN_NAME || 'Super Administrador';
+  const name = process.env.SUPERADMIN_NAME || 'Bruno Administrador';
   const hash = await bcrypt.hash(password, 12);
   const client = await pool.connect();
   try {
@@ -43,4 +43,3 @@ async function main() {
 if (require.main === module) {
   main().catch((e) => { console.error(e); process.exit(1); });
 }
-

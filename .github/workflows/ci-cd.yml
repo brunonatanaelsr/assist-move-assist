@@ -140,6 +140,7 @@ jobs:
           ENABLE_WS: false
           CORS_ORIGIN: http://127.0.0.1:5173
           SUPERADMIN_EMAIL: bruno@move.com
+          SUPERADMIN_NAME: Bruno Administrador
           SUPERADMIN_PASSWORD: 15002031
           ADMIN_EMAIL: admin@example.com
           ADMIN_PASSWORD: admin123
