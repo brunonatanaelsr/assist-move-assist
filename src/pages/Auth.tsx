@@ -80,7 +80,7 @@ export default function Auth() {
 
         <CardContent>
           {(errors.email || errors.password || authError) && (
-            <Alert variant="destructive" className="mb-6" role="alert" aria-live="assertive">
+            <Alert variant="destructive" className="mb-6" role="alert" aria-live="assertive" data-testid="error-message">
               <AlertDescription>
                 {authError || errors.email?.message || errors.password?.message}
               </AlertDescription>
@@ -88,6 +88,7 @@ export default function Auth() {
           )}
 
           <form
+            data-testid="login-form"
             onSubmit={handleSubmit(async (data) => {
               setAuthError(null);
               const { error } = await signIn(data.email, data.password);

@@ -89,6 +89,7 @@ export function NotificationsPopover() {
             variant="ghost"
             size="icon"
             className="relative"
+            data-testid="notifications-button"
           >
             <Bell className="h-5 w-5" />
             {unreadCount > 0 && (
@@ -102,6 +103,7 @@ export function NotificationsPopover() {
         <PopoverContent
           align="end"
           className="w-80 p-0"
+          data-testid="notifications-panel"
         >
           <div className="flex items-center justify-between p-4 border-b">
             <h4 className="text-sm font-medium">Notificações</h4>
@@ -123,7 +125,7 @@ export function NotificationsPopover() {
                 Carregando...
               </div>
             ) : notifications?.length === 0 ? (
-              <div className="p-4 text-center text-muted-foreground">
+              <div className="p-4 text-center text-muted-foreground" data-testid="no-notifications">
                 Nenhuma notificação
               </div>
             ) : (
@@ -136,6 +138,7 @@ export function NotificationsPopover() {
                       !notification.read && 'bg-muted/50'
                     )}
                     onClick={() => handleNotificationClick(notification)}
+                    data-testid="notification-item"
                   >
                     <div className="flex items-start gap-3">
                       <div

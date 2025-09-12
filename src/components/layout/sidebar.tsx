@@ -109,6 +109,7 @@ export default function Sidebar() {
         size="icon"
         className="fixed top-4 left-4 z-50 md:hidden"
         onClick={() => setIsOpen(!isOpen)}
+        data-testid="mobile-menu-toggle"
       >
         {isOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
       </Button>
@@ -125,7 +126,7 @@ export default function Sidebar() {
       <aside className={cn(
         "fixed left-0 top-0 z-40 h-full w-64 transform bg-sidebar border-r border-sidebar-border transition-transform duration-200 ease-in-out md:translate-x-0",
         isOpen ? "translate-x-0" : "-translate-x-full"
-      )}>
+      )} data-testid="mobile-navigation">
         <div className="flex flex-col h-full">
           {/* Header */}
           <div className="p-6 border-b border-sidebar-border">
@@ -191,6 +192,14 @@ export default function Sidebar() {
                         : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                     )}
                     onClick={() => setIsOpen(false)}
+                    data-testid={
+                      item.href === '/' ? 'menu-dashboard' :
+                      item.href === '/beneficiarias' ? 'menu-beneficiarias' :
+                      item.href === '/oficinas' ? 'menu-oficinas' :
+                      item.href === '/projetos' ? 'menu-projetos' :
+                      item.href === '/feed' ? 'menu-feed' :
+                      item.href === '/relatorios' ? 'menu-relatorios' : undefined
+                    }
                   >
                     <item.icon className="h-4 w-4" />
                     {item.title}

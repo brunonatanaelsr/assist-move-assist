@@ -12,8 +12,7 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/hooks/useAuth";
 import { Badge } from "@/components/ui/badge";
-// Centro de notificações simplificado pode ser adicionado depois
-const NotificationCenterSimple = () => null as any;
+import { NotificationsPopover } from "@/components/NotificationsPopover";
 
 export default function Header() {
   const { profile, signOut } = useAuth();
@@ -49,13 +48,18 @@ export default function Header() {
       </div>
       
       <div className="flex items-center gap-4">
+        {/* Welcome message */}
+        <span data-testid="welcome-message" className="hidden md:inline text-sm text-muted-foreground">
+          Olá, {String(profile?.nome || '').split(' ')[0]}
+        </span>
+
         {/* Notifications */}
-        <NotificationCenterSimple />
+        <NotificationsPopover />
 
         {/* User menu */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+            <Button variant="ghost" className="relative h-8 w-8 rounded-full" data-testid="user-menu">
               <Avatar className="h-8 w-8">
                 <AvatarFallback className="bg-primary text-primary-foreground text-sm">
                   {getInitials(profile.nome || '')}
@@ -89,7 +93,7 @@ export default function Header() {
               <User className="mr-2 h-4 w-4" />
               <span>Perfil</span>
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={handleLogout}>
+            <DropdownMenuItem onClick={handleLogout} data-testid="logout-button">
               <LogOut className="mr-2 h-4 w-4" />
               <span>Sair</span>
             </DropdownMenuItem>

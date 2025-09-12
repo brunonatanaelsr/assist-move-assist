@@ -204,7 +204,7 @@ export default function Beneficiarias() {
             Gerencie o cadastro das beneficiárias do instituto
           </p>
         </div>
-        <Button className="w-fit" size="lg" onClick={() => navigate('/beneficiarias/nova')}>
+        <Button className="w-fit" size="lg" onClick={() => navigate('/beneficiarias/nova')} data-testid="cadastrar-beneficiaria">
           <Plus className="h-4 w-4 mr-2" />
           Nova Beneficiária
         </Button>
@@ -253,6 +253,7 @@ export default function Beneficiarias() {
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10"
+                  data-testid="search-input"
                 />
               </div>
               <Button 
@@ -261,6 +262,13 @@ export default function Beneficiarias() {
                 onClick={() => setShowFilters(!showFilters)}
               >
                 <Filter className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="default"
+                onClick={() => setSearchTerm(searchTerm)}
+                data-testid="search-button"
+              >
+                Buscar
               </Button>
             </div>
           </div>
@@ -317,7 +325,7 @@ export default function Beneficiarias() {
           )}
 
           {/* Table */}
-          <div className="rounded-md border border-border overflow-hidden">
+          <div className="rounded-md border border-border overflow-hidden" data-testid="beneficiaria-lista">
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50">
@@ -353,7 +361,7 @@ export default function Beneficiarias() {
                   </TableRow>
                 ) : (
                   paginatedBeneficiarias.map((beneficiaria) => (
-                    <TableRow key={beneficiaria.id} className="hover:bg-muted/30">
+                    <TableRow key={beneficiaria.id} className="hover:bg-muted/30" data-testid="beneficiaria-item">
                       <TableCell>
                         <div className="flex items-center gap-3">
                           <Avatar className="h-8 w-8">

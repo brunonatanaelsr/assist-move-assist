@@ -17,6 +17,7 @@ export default function CadastroBeneficiaria() {
   const { profile } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<{ nome?: string; cpf?: string }>({});
   const [success, setSuccess] = useState(false);
 
   // Form state
@@ -45,12 +46,16 @@ export default function CadastroBeneficiaria() {
   };
 
   const validateForm = () => {
+    const errs: { nome?: string; cpf?: string } = {};
     if (!formData.nome_completo.trim()) {
-      setError('Nome completo é obrigatório');
-      return false;
+      errs.nome = 'Nome completo é obrigatório';
     }
     if (!formData.cpf.replace(/\D/g, '')) {
-      setError('CPF é obrigatório');
+      errs.cpf = 'CPF é obrigatório';
+    }
+    setFieldErrors(errs);
+    if (Object.keys(errs).length > 0) {
+      setError(Object.values(errs)[0] || null);
       return false;
     }
     if (!formData.data_nascimento) {
@@ -138,16 +143,17 @@ export default function CadastroBeneficiaria() {
 
       {/* Success Message */}
       {success && (
-        <Alert className="border-success">
+        <Alert className="border-success" data-testid="success-message">
           <AlertDescription className="text-success">
             Beneficiária cadastrada com sucesso! Redirecionando...
+            <Button variant="link" className="ml-2 p-0" onClick={() => navigate('/beneficiarias')} data-testid="voltar-lista">Voltar à lista</Button>
           </AlertDescription>
         </Alert>
       )}
 
       {/* Error Message */}
       {error && (
-        <Alert variant="destructive">
+        <Alert variant="destructive" data-testid="error-message">
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
@@ -167,25 +173,31 @@ export default function CadastroBeneficiaria() {
           <CardContent className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="nome_completo">Nome Completo *</Label>
-                <Input
-                  id="nome_completo"
-                  value={formData.nome_completo}
-                  onChange={(e) => handleInputChange('nome_completo', e.target.value)}
-                  placeholder="Nome completo da beneficiária"
-                  required
-                />
+              <Label htmlFor="nome_completo">Nome Completo *</Label>
+              <Input
+                id="nome_completo"
+                value={formData.nome_completo}
+                onChange={(e) => handleInputChange('nome_completo', e.target.value)}
+                placeholder="Nome completo da beneficiária"
+                required
+              />
+              {fieldErrors.nome && (
+                <p className="text-sm text-destructive" data-testid="error-nome">{fieldErrors.nome}</p>
+              )}
               </div>
               <div className="space-y-2">
-                <Label htmlFor="cpf">CPF *</Label>
-                <Input
-                  id="cpf"
-                  value={formData.cpf}
-                  onChange={(e) => handleInputChange('cpf', formatCpf(e.target.value))}
-                  placeholder="000.000.000-00"
-                  maxLength={14}
-                  required
-                />
+              <Label htmlFor="cpf">CPF *</Label>
+              <Input
+                id="cpf"
+                value={formData.cpf}
+                onChange={(e) => handleInputChange('cpf', formatCpf(e.target.value))}
+                placeholder="000.000.000-00"
+                maxLength={14}
+                required
+              />
+              {fieldErrors.cpf && (
+                <p className="text-sm text-destructive" data-testid="error-cpf">{fieldErrors.cpf}</p>
+              )}
               </div>
             </div>
 
