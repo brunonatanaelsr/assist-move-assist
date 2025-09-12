@@ -49,10 +49,10 @@ export const useSocket = () => {
     }
 
     // Conectar ao socket apenas se estiver autenticado
+    const WS_URL = (import.meta as any)?.env?.VITE_WS_URL 
+      || (import.meta.env.DEV ? 'http://localhost:3000' : 'http://127.0.0.1:3000');
     const socket = io(
-      process.env.NODE_ENV === 'production' 
-        ? 'https://seu-dominio.com' 
-        : 'http://localhost:3000',
+      WS_URL,
       {
         auth: { token },
         transports: ['websocket', 'polling']

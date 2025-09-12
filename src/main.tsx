@@ -1,5 +1,6 @@
 import { createRoot } from 'react-dom/client'
 import App from './App' // official entry component
+import axios from 'axios'
 import './index.css'
 
 // Adicionar tratamento de erro global
@@ -12,6 +13,21 @@ window.addEventListener('unhandledrejection', (e) => {
 });
 
 try {
+  // Configure API base URL for axios and fetch
+  const API_BASE = (import.meta as any)?.env?.VITE_API_BASE_URL || 'http://localhost:3000/api';
+  axios.defaults.baseURL = API_BASE;
+  // Patch window.fetch to rewrite relative /api calls to absolute API_BASE
+  const origFetch = window.fetch.bind(window);
+  window.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
+    let url: any = input as any;
+    if (typeof url === 'string' && url.startsWith('/api')) {
+      url = API_BASE.replace(/\/$/, '') + url;
+    } else if (url instanceof URL && url.pathname.startsWith('/api')) {
+      url = new URL(API_BASE.replace(/\/$/, '') + url.pathname + url.search);
+    }
+    return origFetch(url, init);
+  }) as any;
+
   createRoot(document.getElementById("root")!).render(<App />);
 } catch (error: any) {
   console.error('Erro ao renderizar App:', error);

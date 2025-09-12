@@ -299,7 +299,12 @@ jobs:
           ADMIN_PASSWORD: admin123
 
       - name: Build frontend (para vite preview)
-        run: npm run build
+        run: |
+          cat > .env.e2e << 'EOF'
+          VITE_API_BASE_URL=http://127.0.0.1:3000/api
+          VITE_WS_URL=http://127.0.0.1:3000
+          EOF
+          npm run build -- --mode e2e
       - name: Conferir dist existe
         run: |
           ls -la dist || (echo "dist não existe! Falhou o build?" && exit 1)
