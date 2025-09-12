@@ -107,6 +107,7 @@ export default function Auth() {
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
+                name="email"
                 type="email"
                 placeholder="email"
                 autoComplete="email"
@@ -128,6 +129,7 @@ export default function Auth() {
               <div className="relative">
                 <Input
                   id="password"
+                  name="password"
                   type={showPassword ? "text" : "password"}
                   placeholder="senha"
                   autoComplete="current-password"
