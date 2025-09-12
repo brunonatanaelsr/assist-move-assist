@@ -1,9 +1,8 @@
 import { defineConfig, devices } from '@playwright/test';
 
-// Allow overriding the application port/base URL for local or CI runs
-const PORT = process.env.PORT || '5173';
-const BASE_URL = process.env.PLAYWRIGHT_BASE_URL || `http://127.0.0.1:${PORT}`;
-const API_URL = process.env.PLAYWRIGHT_API_URL || 'http://127.0.0.1:3000';
+// Dedicated port for Playwright-managed preview server (avoid clashing with backend PORT)
+const WEB_PORT = process.env.PLAYWRIGHT_WEB_PORT || '4173';
+const BASE_URL = process.env.PLAYWRIGHT_BASE_URL || `http://127.0.0.1:${WEB_PORT}`;
 
 export default defineConfig({
   testDir: './tests',
@@ -56,11 +55,11 @@ export default defineConfig({
     },
   ],
 
-  // Start the application automatically for both local runs and CI.
+  // Let Playwright manage the frontend preview server on its own port
   webServer: {
-    command: `bash -c "npm run build && npm run preview -- --port ${PORT} & pid=\\$!; npx wait-on http://127.0.0.1:${PORT} -t 180000 && wait \\$pid"`,
+    command: `npm run preview -- --port ${WEB_PORT}`,
     url: BASE_URL,
-    reuseExistingServer: !process.env.CI,
-    timeout: 180000,
+    reuseExistingServer: true,
+    timeout: 120000,
   },
 });

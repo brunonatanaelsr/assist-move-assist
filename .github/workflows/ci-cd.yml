@@ -149,7 +149,6 @@ jobs:
           POSTGRES_PASSWORD: postgres
           JWT_SECRET: test_secret
           ENABLE_WS: false
-          # ATENÇÃO: CORS aponta pro front que o Playwright vai usar (4173)
           CORS_ORIGIN: http://127.0.0.1:4173
           SUPERADMIN_EMAIL: bruno@move.com
           SUPERADMIN_NAME: Bruno Administrador
@@ -305,13 +304,12 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps
 
-      - name: Liberar porta 4173 (se algo deixou ocupada)
+      - name: Free port 4173 if occupied
         run: (lsof -ti :4173 | xargs -r kill -9) || true
 
-      - name: Run E2E tests (Playwright gerencia o server)
+      - name: Run E2E tests (Playwright manages web server)
         run: npm run test:e2e
         env:
-          # O Playwright vai usar isso como baseURL e subir 'vite preview' na mesma porta
           PLAYWRIGHT_BASE_URL: http://127.0.0.1:4173
 
   integration:
