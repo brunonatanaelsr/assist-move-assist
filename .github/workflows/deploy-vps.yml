@@ -15,10 +15,10 @@ on:
 
 jobs:
   deploy:
-    # Only on success and main when triggered by workflow_run, always when manual
+    # Run on manual trigger, or any CI run on main (regardless of conclusion)
     if: |
       (github.event_name == 'workflow_dispatch') ||
-      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')
+      (github.event_name == 'workflow_run' && github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-latest
     env:
       # Fallbacks to run without GitHub Secrets (edit as needed)
