@@ -300,6 +300,9 @@ jobs:
 
       - name: Build frontend (para vite preview)
         run: npm run build
+      - name: Conferir dist existe
+        run: |
+          ls -la dist || (echo "dist não existe! Falhou o build?" && exit 1)
 
       - name: Install Playwright browsers
         run: npx playwright install --with-deps

@@ -57,9 +57,10 @@ export default defineConfig({
 
   // Let Playwright manage the frontend preview server on its own port
   webServer: {
-    command: `npm run preview -- --port ${WEB_PORT}`,
+    // Force host/port and fail fast if port is taken
+    command: `npx vite preview --port ${WEB_PORT} --host 127.0.0.1 --strictPort`,
     url: BASE_URL,
     reuseExistingServer: true,
-    timeout: 120000,
+    timeout: 180000,
   },
 });
