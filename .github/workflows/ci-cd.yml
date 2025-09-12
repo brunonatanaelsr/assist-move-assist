@@ -291,7 +291,7 @@ jobs:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
           JWT_SECRET: test_secret
-          ENABLE_WS: false
+          ENABLE_WS: true
           # ATENÇÃO: CORS pro front do E2E (4173)
           CORS_ORIGIN: http://127.0.0.1:4173
           SUPERADMIN_EMAIL: bruno@move.com
@@ -303,7 +303,7 @@ jobs:
         run: |
           cat > .env.e2e << 'EOF'
           VITE_API_BASE_URL=http://127.0.0.1:3000/api
-          VITE_WS_URL=http://127.0.0.1:3000
+          VITE_WS_URL=ws://127.0.0.1:3000
           EOF
           npm run build -- --mode e2e
       - name: Conferir dist existe

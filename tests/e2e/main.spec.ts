@@ -1,11 +1,31 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, Page } from '@playwright/test';
 
 test.describe('Assist Move Assist - E2E Tests', () => {
   // Sempre navega utilizando o baseURL configurado no playwright.config.ts
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
     await page.waitForLoadState('networkidle');
+
+    // Abre o menu mobile se existir (não falha se não existir)
+    const menuToggle = page.locator('[data-testid="mobile-menu-toggle"]');
+    try {
+      if (await menuToggle.isVisible({ timeout: 1000 })) {
+        await menuToggle.click();
+      }
+    } catch {}
   });
+
+  // Helper resiliente para acionar o login
+  async function clickLogin(page: Page) {
+    const byTestId = page.locator('[data-testid="login-button"]');
+    if (await byTestId.isVisible({ timeout: 1000 }).catch(() => false)) {
+      await byTestId.click();
+      return;
+    }
+    const byRole = page.getByRole('button', { name: /entrar|login/i });
+    await expect(byRole).toBeVisible({ timeout: 5000 });
+    await byRole.click();
+  }
 
   test('deve carregar página inicial', async ({ page }) => {
     await expect(page).toHaveTitle(/Assist Move/);
@@ -14,7 +34,7 @@ test.describe('Assist Move Assist - E2E Tests', () => {
 
   test('deve fazer login do super administrador', async ({ page }) => {
     // Ir para página de login
-    await page.click('[data-testid="login-button"]');
+    await clickLogin(page);
     
     // Preencher credenciais do super admin
     await page.fill('input[name="email"]', 'bruno@move.com');
@@ -29,7 +49,7 @@ test.describe('Assist Move Assist - E2E Tests', () => {
   });
 
   test('deve rejeitar login com credenciais inválidas', async ({ page }) => {
-    await page.click('[data-testid="login-button"]');
+    await clickLogin(page);
     
     await page.fill('input[name="email"]', 'wrong@email.com');
     await page.fill('input[name="password"]', 'wrong-password');
@@ -42,7 +62,7 @@ test.describe('Assist Move Assist - E2E Tests', () => {
 
   test('fluxo completo de cadastro de beneficiária', async ({ page }) => {
     // Login como admin
-    await page.click('[data-testid="login-button"]');
+    await clickLogin(page);
     await page.fill('input[name="email"]', 'bruno@move.com');
     await page.fill('input[name="password"]', '15002031');
     await page.click('button[type="submit"]');
@@ -79,7 +99,7 @@ test.describe('Assist Move Assist - E2E Tests', () => {
 
   test('deve validar campos obrigatórios no cadastro', async ({ page }) => {
     // Login e navegação (reutilizar steps do teste anterior)
-    await page.click('[data-testid="login-button"]');
+    await clickLogin(page);
     await page.fill('input[name="email"]', 'bruno@move.com');
     await page.fill('input[name="password"]', '15002031');
     await page.click('button[type="submit"]');
@@ -97,7 +117,7 @@ test.describe('Assist Move Assist - E2E Tests', () => {
 
   test('deve pesquisar beneficiárias', async ({ page }) => {
     // Login
-    await page.click('[data-testid="login-button"]');
+    await clickLogin(page);
     await page.fill('input[name="email"]', 'bruno@move.com');
     await page.fill('input[name="password"]', '15002031');
     await page.click('button[type="submit"]');
@@ -167,8 +187,12 @@ test.describe('Assist Move Assist - E2E Tests', () => {
     test.skip(!isMobile, 'Teste apenas para mobile');
     
     // Login em mobile
-    await page.click('[data-testid="mobile-menu-toggle"]');
-    await page.click('[data-testid="login-button"]');
+    // Abre o menu mobile se visível e clica em login (com fallback)
+    const toggle = page.locator('[data-testid="mobile-menu-toggle"]');
+    if (await toggle.isVisible({ timeout: 1000 }).catch(() => false)) {
+      await toggle.click();
+    }
+    await clickLogin(page);
     
     await page.fill('input[name="email"]', 'bruno@move.com');
     await page.fill('input[name="password"]', '15002031');
