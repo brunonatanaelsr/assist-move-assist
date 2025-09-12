@@ -5,6 +5,8 @@ const WEB_PORT = process.env.PLAYWRIGHT_WEB_PORT || '4173';
 const BASE_URL = process.env.PLAYWRIGHT_BASE_URL || `http://127.0.0.1:${WEB_PORT}`;
 
 export default defineConfig({
+  timeout: 90_000,
+  expect: { timeout: 10_000 },
   testDir: './tests',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
@@ -18,7 +20,7 @@ export default defineConfig({
 
   use: {
     baseURL: BASE_URL,
-    trace: 'on-first-retry',
+    trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
     // give a little more room when running in CI

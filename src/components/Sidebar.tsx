@@ -57,29 +57,24 @@ export default function Sidebar() {
       path: '/beneficiarias'
     },
     {
+      icon: <FormsIcon />,
+      text: 'Oficinas',
+      path: '/oficinas'
+    },
+    {
+      icon: <NotificationsIcon />,
+      text: 'Feed',
+      path: '/feed'
+    },
+    {
       icon: <ProjectsIcon />,
       text: 'Projetos',
       path: '/projetos'
     },
     {
-      icon: <FormsIcon />,
-      text: 'Formulários',
-      path: '/forms',
-      roles: ['admin', 'coordinator']
-    },
-    {
       icon: <ReportsIcon />,
       text: 'Relatórios',
-      subItems: [
-        {
-          text: 'Dashboard',
-          path: '/dashboard'
-        },
-        {
-          text: 'Templates',
-          path: '/dashboard/reports'
-        }
-      ],
+      path: '/relatorios',
       roles: ['admin', 'coordinator']
     },
     {
@@ -104,36 +99,6 @@ export default function Sidebar() {
             return null;
           }
 
-          // Itens com subitens
-          if (item.subItems) {
-            return (
-              <Box key={item.text}>
-                <ListItemButton onClick={() => setReportsOpen(!reportsOpen)}>
-                  <ListItemIcon>{item.icon}</ListItemIcon>
-                  <ListItemText primary={item.text} />
-                  {reportsOpen ? <ExpandLess /> : <ExpandMore />}
-                </ListItemButton>
-                <Collapse in={reportsOpen} timeout="auto" unmountOnExit>
-                  <List component="div" disablePadding>
-                    {item.subItems.map((subItem) => (
-                      <ListItemButton
-                        key={subItem.text}
-                        sx={{ pl: 4 }}
-                        selected={isSelected(subItem.path)}
-                        onClick={() => {
-                          navigate(subItem.path);
-                          if (isMobile) setMobileOpen(false);
-                        }}
-                      >
-                        <ListItemText primary={subItem.text} />
-                      </ListItemButton>
-                    ))}
-                  </List>
-                </Collapse>
-              </Box>
-            );
-          }
-
           // Itens simples
           return (
             <ListItem
@@ -146,6 +111,15 @@ export default function Sidebar() {
                   navigate(item.path);
                   if (isMobile) setMobileOpen(false);
                 }}
+                data-testid={
+                  item.path === '/dashboard' ? 'menu-dashboard'
+                  : item.path === '/beneficiarias' ? 'menu-beneficiarias'
+                  : item.path === '/oficinas' ? 'menu-oficinas'
+                  : item.path === '/projetos' ? 'menu-projetos'
+                  : item.path === '/feed' ? 'menu-feed'
+                  : item.path === '/relatorios' ? 'menu-relatorios'
+                  : undefined
+                }
               >
                 <ListItemIcon>{item.icon}</ListItemIcon>
                 <ListItemText primary={item.text} />
@@ -169,6 +143,7 @@ export default function Sidebar() {
           edge="start"
           onClick={handleDrawerToggle}
           sx={{ mr: 2, display: { md: 'none' } }}
+          data-testid="mobile-menu-toggle"
         >
           <MenuIcon />
         </IconButton>
@@ -186,6 +161,7 @@ export default function Sidebar() {
           display: { xs: 'block', md: 'none' },
           '& .MuiDrawer-paper': { boxSizing: 'border-box', width: DRAWER_WIDTH }
         }}
+        data-testid="mobile-navigation"
       >
         {drawer}
       </Drawer>
@@ -198,6 +174,7 @@ export default function Sidebar() {
           '& .MuiDrawer-paper': { boxSizing: 'border-box', width: DRAWER_WIDTH }
         }}
         open
+        data-testid="desktop-sidebar"
       >
         {drawer}
       </Drawer>

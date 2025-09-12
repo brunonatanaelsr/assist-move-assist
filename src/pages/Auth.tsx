@@ -42,7 +42,7 @@ export default function Auth() {
     mode: "onSubmit",
   });
 
-  const from = state?.from?.pathname || "/";
+  const from = state?.from?.pathname || "/dashboard";
 
   useEffect(() => {
     if (user) {
@@ -65,6 +65,7 @@ export default function Auth() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-primary p-4">
+      <h1 className="sr-only">Assist Move</h1>
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
           <div className="flex items-center justify-center mb-4">

@@ -18,6 +18,7 @@ import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 
 // Lazy loaded pages
 const Index = lazy(() => import("@/pages/Index"));
+const Dashboard = lazy(() => import("@/pages/Dashboard"));
 const Auth = lazy(() => import("@/pages/Auth"));
 const Beneficiarias = lazy(() => import("@/pages/BeneficiariasFixed"));
 const CadastroBeneficiaria = lazy(() => import("@/pages/CadastroBeneficiaria"));
@@ -82,6 +83,7 @@ const App = () => (
                 <Route path="/" element={<ProtectedLayoutOutlet />}>
                   {/* Home */}
                   <Route index element={<Index />} />
+                  <Route path="dashboard" element={<Dashboard />} />
 
                   {/* Beneficiárias (agrupadas) */}
                   <Route path="beneficiarias">

@@ -47,9 +47,23 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     );
   }
 
-  // Don't render children if user is not authenticated
+  // Render a minimal public landing with login CTA when not authenticated
   if (!user) {
-    return null;
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center p-6">
+        <h1 className="text-3xl font-bold mb-4">Assist Move</h1>
+        <p className="text-muted-foreground mb-6 text-center max-w-md">
+          Sistema de gestão do Instituto Move Marias. Faça login para acessar o dashboard.
+        </p>
+        <button
+          onClick={() => navigate('/auth')}
+          data-testid="login-button"
+          className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-primary-foreground hover:opacity-90"
+        >
+          Entrar
+        </button>
+      </div>
+    );
   }
 
   return <>{children}</>;

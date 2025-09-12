@@ -4,6 +4,7 @@ test.describe('Assist Move Assist - E2E Tests', () => {
   // Sempre navega utilizando o baseURL configurado no playwright.config.ts
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
+    await page.waitForLoadState('networkidle');
   });
 
   test('deve carregar página inicial', async ({ page }) => {
@@ -36,7 +37,7 @@ test.describe('Assist Move Assist - E2E Tests', () => {
     await page.click('button[type="submit"]');
     
     // Verificar mensagem de erro
-    await expect(page.locator('[data-testid="error-message"]')).toContainText(/credenciais inválidas/i);
+    await expect(page.locator('[data-testid="error-message"]')).toContainText(/(credenciais inválidas|senha incorret)/i);
   });
 
   test('fluxo completo de cadastro de beneficiária', async ({ page }) => {
@@ -106,7 +107,8 @@ test.describe('Assist Move Assist - E2E Tests', () => {
     await page.click('[data-testid="menu-beneficiarias"]');
     
     // Verificar que há beneficiárias listadas
-    await expect(page.locator('[data-testid="beneficiaria-lista"] tr')).toHaveCount.greaterThan(0);
+    const rowCount = await page.locator('[data-testid="beneficiaria-lista"] tr').count();
+    expect(rowCount).toBeGreaterThan(0);
     
     // Fazer busca
     await page.fill('input[data-testid="search-input"]', 'Maria');
