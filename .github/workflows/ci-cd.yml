@@ -282,13 +282,6 @@ jobs:
           ADMIN_PASSWORD: admin123
       - name: Build frontend
         run: npm run build
-      - name: Start frontend (Vite dev server)
-        run: |
-          nohup npm run dev -- --port 5173 --host 0.0.0.0 >/tmp/vite.out 2>&1 &
-          for i in {1..60}; do curl -sf http://127.0.0.1:5173 >/dev/null && break || sleep 1; done
-      - name: Install Playwright browsers
-        run: |
-          npx playwright install --with-deps
       - name: Install Playwright browsers
         run: |
           npx playwright install --with-deps
