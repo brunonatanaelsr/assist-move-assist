@@ -17,6 +17,10 @@ test.describe('Assist Move Assist - E2E Tests', () => {
 
   // Helper resiliente para acionar o login
   async function clickLogin(page: Page) {
+    // Se já está na página de auth, não tente clicar em nada (evita submit acidental)
+    const loginForm = page.locator('[data-testid="login-form"]');
+    if (await loginForm.isVisible({ timeout: 500 }).catch(() => false)) return;
+
     const byTestId = page.locator('[data-testid="login-button"]');
     if (await byTestId.isVisible({ timeout: 1000 }).catch(() => false)) {
       await byTestId.click();
@@ -140,7 +144,7 @@ test.describe('Assist Move Assist - E2E Tests', () => {
 
   test('deve navegar pelo sistema usando menu', async ({ page }) => {
     // Login
-    await page.click('[data-testid="login-button"]');
+    await clickLogin(page);
     await page.fill('input[name="email"]', 'bruno@move.com');
     await page.fill('input[name="password"]', '15002031');
     await page.click('button[type="submit"]');
@@ -165,7 +169,7 @@ test.describe('Assist Move Assist - E2E Tests', () => {
 
   test('deve fazer logout corretamente', async ({ page }) => {
     // Login
-    await page.click('[data-testid="login-button"]');
+    await clickLogin(page);
     await page.fill('input[name="email"]', 'bruno@move.com');
     await page.fill('input[name="password"]', '15002031');
     await page.click('button[type="submit"]');
@@ -197,15 +201,20 @@ test.describe('Assist Move Assist - E2E Tests', () => {
     await page.fill('input[name="email"]', 'bruno@move.com');
     await page.fill('input[name="password"]', '15002031');
     await page.click('button[type="submit"]');
-    
-    // Verificar layout mobile
+    await page.waitForURL(/.*dashboard/);
+
+    // Abrir navegação mobile e verificar layout mobile
+    const postLoginToggle = page.locator('[data-testid="mobile-menu-toggle"]');
+    if (await postLoginToggle.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await postLoginToggle.click();
+    }
     await expect(page.locator('[data-testid="mobile-navigation"]')).toBeVisible();
     await expect(page.locator('[data-testid="desktop-sidebar"]')).not.toBeVisible();
   });
 
   test('deve carregar dashboard com estatísticas', async ({ page }) => {
     // Login
-    await page.click('[data-testid="login-button"]');
+    await clickLogin(page);
     await page.fill('input[name="email"]', 'bruno@move.com');
     await page.fill('input[name="password"]', '15002031');
     await page.click('button[type="submit"]');
@@ -223,7 +232,7 @@ test.describe('Assist Move Assist - E2E Tests', () => {
 
   test('deve mostrar notificações em tempo real', async ({ page }) => {
     // Login
-    await page.click('[data-testid="login-button"]');
+    await clickLogin(page);
     await page.fill('input[name="email"]', 'bruno@move.com');
     await page.fill('input[name="password"]', '15002031');
     await page.click('button[type="submit"]');
