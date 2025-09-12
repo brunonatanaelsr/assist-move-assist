@@ -11,23 +11,27 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
+
       - name: Install dependencies (root + backend)
         run: |
           npm ci
           npm --prefix backend ci
+
       - name: Run frontend unit tests
         run: npm test
+
       - name: Run backend unit tests
         run: |
           cd backend
           npm test
         env:
-          REDIS_DISABLED: "true"
+          REDIS_DISABLED: "true"  # Se quiser Redis real aqui, remova isso e adicione services.
 
   api-smoke:
     needs: unit
@@ -42,25 +46,29 @@ jobs:
         ports:
           - 5432:5432
         options: >-
-          --health-cmd pg_isready
+          --health-cmd "pg_isready -h localhost -p 5432 -U postgres -d movemarias_test"
           --health-interval 10s
           --health-timeout 5s
-          --health-retries 5
+          --health-retries 10
       redis:
         image: redis:7
         ports:
           - 6379:6379
+
     steps:
       - uses: actions/checkout@v4
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
+
       - name: Install backend deps
         run: |
           cd backend
           npm ci
+
       - name: Bootstrap migration compat tables
         run: |
           cd backend
@@ -122,6 +130,7 @@ jobs:
           POSTGRES_DB: movemarias_test
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
+
       - name: Build + Migrate + Start API
         run: |
           cd backend
@@ -140,12 +149,14 @@ jobs:
           POSTGRES_PASSWORD: postgres
           JWT_SECRET: test_secret
           ENABLE_WS: false
-          CORS_ORIGIN: http://127.0.0.1:5173
+          # ATENÇÃO: CORS aponta pro front que o Playwright vai usar (4173)
+          CORS_ORIGIN: http://127.0.0.1:4173
           SUPERADMIN_EMAIL: bruno@move.com
           SUPERADMIN_NAME: Bruno Administrador
           SUPERADMIN_PASSWORD: 15002031
           ADMIN_EMAIL: admin@example.com
           ADMIN_PASSWORD: admin123
+
       - name: Run config smoke
         run: |
           cd backend
@@ -154,6 +165,7 @@ jobs:
           API_BASE: http://localhost:3000/api
           SUPER_EMAIL: bruno@move.com
           SUPER_PASS: 15002031
+
       - name: Run reports smoke
         run: |
           cd backend
@@ -177,25 +189,29 @@ jobs:
         ports:
           - 5432:5432
         options: >-
-          --health-cmd pg_isready
+          --health-cmd "pg_isready -h localhost -p 5432 -U postgres -d movemarias_test"
           --health-interval 10s
           --health-timeout 5s
-          --health-retries 5
+          --health-retries 10
       redis:
         image: redis:7
         ports:
           - 6379:6379
+
     steps:
       - uses: actions/checkout@v4
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
+
       - name: Install deps (root + backend)
         run: |
           npm ci
           npm --prefix backend ci
+
       - name: Bootstrap migration compat tables
         run: |
           cd backend
@@ -257,6 +273,7 @@ jobs:
           POSTGRES_DB: movemarias_test
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
+
       - name: Build + Migrate + Start API
         run: |
           cd backend
@@ -275,20 +292,27 @@ jobs:
           POSTGRES_PASSWORD: postgres
           JWT_SECRET: test_secret
           ENABLE_WS: false
-          CORS_ORIGIN: http://127.0.0.1:5173
+          # ATENÇÃO: CORS pro front do E2E (4173)
+          CORS_ORIGIN: http://127.0.0.1:4173
           SUPERADMIN_EMAIL: bruno@move.com
           SUPERADMIN_PASSWORD: 15002031
           ADMIN_EMAIL: admin@example.com
           ADMIN_PASSWORD: admin123
-      - name: Build frontend
+
+      - name: Build frontend (para vite preview)
         run: npm run build
+
       - name: Install Playwright browsers
-        run: |
-          npx playwright install --with-deps
-      - name: Run E2E tests
+        run: npx playwright install --with-deps
+
+      - name: Liberar porta 4173 (se algo deixou ocupada)
+        run: (lsof -ti :4173 | xargs -r kill -9) || true
+
+      - name: Run E2E tests (Playwright gerencia o server)
         run: npm run test:e2e
         env:
-          PLAYWRIGHT_BASE_URL: http://127.0.0.1:5173
+          # O Playwright vai usar isso como baseURL e subir 'vite preview' na mesma porta
+          PLAYWRIGHT_BASE_URL: http://127.0.0.1:4173
 
   integration:
     needs: unit
@@ -296,18 +320,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
+
       - name: Install backend deps
         run: |
           cd backend
           npm ci
+
       - name: Run integration tests (testcontainers)
         run: |
           cd backend
           RUN_INTEGRATION=1 npm run test:integration
 
-  # Deployment is handled by deploy-vps.yml via SSH to the server
+  # Deployment é feito pelo deploy-vps.yml via SSH no servidor
