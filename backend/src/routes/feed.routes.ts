@@ -7,6 +7,8 @@ import { FeedService } from '../services/feed.service';
 import { pool } from '../config/database';
 import { loggerService } from '../services/logger';
 import { catchAsync } from '../middleware/errorHandler';
+import { validateRequest } from '../middleware/validationMiddleware';
+import { z } from 'zod';
 
 const router = Router();
 
@@ -85,6 +87,16 @@ router.get(
 router.get(
   '/',
   authenticateToken,
+  validateRequest(z.object({
+    query: z.object({
+      limit: z.coerce.number().min(1).max(100).optional(),
+      page: z.coerce.number().min(1).optional(),
+      tipo: z.string().min(1).optional(),
+      autor_id: z.string().optional(),
+    }).passthrough(),
+    params: z.any().optional(),
+    body: z.any().optional(),
+  })),
   catchAsync(async (req: AuthenticatedRequest, res: Response): Promise<Response> => {
     try {
       const limit = parseInt((req.query.limit as string) || '10');
@@ -105,6 +117,7 @@ router.get(
 router.get(
   '/:id',
   authenticateToken,
+  validateRequest(z.object({ params: z.object({ id: z.coerce.number() }), query: z.any().optional(), body: z.any().optional() })),
   catchAsync(async (req: AuthenticatedRequest, res: Response): Promise<Response> => {
     try {
       const { id } = req.params as any;
@@ -122,6 +135,16 @@ router.get(
 router.post(
   '/',
   authenticateToken,
+  validateRequest(z.object({
+    body: z.object({
+      tipo: z.enum(['anuncio','evento','noticia','conquista']),
+      titulo: z.string().min(3).max(200),
+      conteudo: z.string().max(5000).optional(),
+      imagem_url: z.string().url().optional(),
+    }),
+    params: z.any().optional(),
+    query: z.any().optional(),
+  })),
   catchAsync(async (req: AuthenticatedRequest, res: Response) => {
     try {
       const { tipo, titulo, conteudo, imagem_url } = req.body;
@@ -150,6 +173,7 @@ router.post(
 router.post(
   '/:id/curtir',
   authenticateToken,
+  validateRequest(z.object({ params: z.object({ id: z.coerce.number() }), query: z.any().optional(), body: z.any().optional() })),
   catchAsync(async (req: AuthenticatedRequest, res: Response): Promise<Response> => {
     try {
       const { id } = req.params as any;
@@ -168,6 +192,7 @@ router.post(
 router.post(
   '/:id/compartilhar',
   authenticateToken,
+  validateRequest(z.object({ params: z.object({ id: z.coerce.number() }), query: z.any().optional(), body: z.any().optional() })),
   catchAsync(async (req: AuthenticatedRequest, res: Response): Promise<Response> => {
     try {
       const { id } = req.params as any;
@@ -201,6 +226,11 @@ router.get(
 router.get(
   '/:postId/comentarios',
   authenticateToken,
+  validateRequest(z.object({
+    params: z.object({ postId: z.coerce.number() }),
+    query: z.object({ limit: z.coerce.number().min(1).max(100).optional(), page: z.coerce.number().min(1).optional() }).passthrough(),
+    body: z.any().optional(),
+  })),
   catchAsync(async (req: AuthenticatedRequest, res: Response): Promise<Response> => {
     try {
       const { postId } = req.params as any;
@@ -219,6 +249,7 @@ router.get(
 router.post(
   '/:postId/comentarios',
   authenticateToken,
+  validateRequest(z.object({ params: z.object({ postId: z.coerce.number() }), body: z.object({ conteudo: z.string().min(1).max(1000) }) })),
   catchAsync(async (req: AuthenticatedRequest, res: Response) => {
     try {
       const { postId } = req.params as any;
@@ -248,6 +279,7 @@ router.post(
 router.put(
   '/comentarios/:id',
   authenticateToken,
+  validateRequest(z.object({ params: z.object({ id: z.coerce.number() }), body: z.object({ conteudo: z.string().min(1).max(1000) }) })),
   catchAsync(async (req: AuthenticatedRequest, res: Response): Promise<Response> => {
     try {
       const { id } = req.params as any;
@@ -288,6 +320,7 @@ router.delete(
 router.delete(
   '/:id',
   authenticateToken,
+  validateRequest(z.object({ params: z.object({ id: z.coerce.number() }) })),
   catchAsync(async (req: AuthenticatedRequest, res: Response) => {
     try {
       const { id } = req.params as any;
@@ -304,6 +337,16 @@ router.delete(
 router.put(
   '/:id',
   authenticateToken,
+  validateRequest(z.object({
+    params: z.object({ id: z.coerce.number() }),
+    body: z.object({
+      tipo: z.enum(['anuncio','evento','noticia','conquista']).optional(),
+      titulo: z.string().min(3).max(200).optional(),
+      conteudo: z.string().max(5000).optional(),
+      imagem_url: z.string().url().optional(),
+      ativo: z.boolean().optional(),
+    }).partial(),
+  })),
   catchAsync(async (req: AuthenticatedRequest, res: Response): Promise<Response> => {
     try {
       const { id } = req.params as any;

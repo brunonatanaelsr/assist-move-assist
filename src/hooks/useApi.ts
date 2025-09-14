@@ -17,6 +17,8 @@ export const useBeneficiarias = (params?: { page?: number; limit?: number }) => 
       }
       return response.data;
     },
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
   });
 };
 
@@ -31,6 +33,8 @@ export const useBeneficiaria = (id: string) => {
       return response.data;
     },
     enabled: !!id,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
   });
 };
 
@@ -82,14 +86,15 @@ export const useAtividades = (beneficiariaId: string) => {
   return useQuery({
     queryKey: ['atividades', beneficiariaId],
     queryFn: async () => {
-      // Placeholder: backend não possui endpoint dedicado; retornamos atividades recentes do dashboard
-      const response = await apiService.getDashboardActivities();
+      const response = await apiService.get<any>(`/beneficiarias/${beneficiariaId}/atividades`);
       if (!response.success) {
         throw new Error(response.message || 'Erro ao carregar atividades');
       }
-      return response.data;
+      return response.data?.data;
     },
     enabled: !!beneficiariaId,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
   });
 };
 
@@ -105,6 +110,8 @@ export const useParticipacoes = (beneficiariaId: string) => {
       return response.data;
     },
     enabled: !!beneficiariaId,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
   });
 };
 

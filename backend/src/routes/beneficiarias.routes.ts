@@ -140,6 +140,49 @@ router.get(
   }
 );
 
+// GET /:id/atividades - Lista atividades recentes da beneficiária (formularios + específicos)
+router.get(
+  '/:id/atividades',
+  authenticateToken,
+  async (req: ExtendedRequest, res: Response): Promise<void> => {
+    try {
+      const { id } = req.params as any;
+      const page = parseInt((req.query.page as string) || '1', 10);
+      const limit = Math.min(parseInt((req.query.limit as string) || '20', 10), 100);
+      const offset = (Math.max(1, page) - 1) * Math.max(1, limit);
+
+      const result = await pool.query(
+        `SELECT * FROM (
+           SELECT 'formulario' as type, id, created_at, usuario_id as created_by, null::text as created_by_name
+             FROM formularios WHERE beneficiaria_id = $1
+           UNION ALL
+           SELECT 'anamnese' as type, id, created_at, created_by, null::text as created_by_name
+             FROM anamnese_social WHERE beneficiaria_id = $1
+           UNION ALL
+           SELECT 'ficha_evolucao' as type, id, created_at, created_by, null::text as created_by_name
+             FROM ficha_evolucao WHERE beneficiaria_id = $1
+           UNION ALL
+           SELECT 'termos_consentimento' as type, id, created_at, created_by, null::text as created_by_name
+             FROM termos_consentimento WHERE beneficiaria_id = $1
+           UNION ALL
+           SELECT 'visao_holistica' as type, id, created_at, created_by, null::text as created_by_name
+             FROM visao_holistica WHERE beneficiaria_id = $1
+         ) acts
+         ORDER BY created_at DESC
+         LIMIT $2 OFFSET $3`,
+        [id, limit, offset]
+      );
+
+      res.json(successResponse({ data: result.rows, pagination: { page, limit, total: null } }));
+      return;
+    } catch (error) {
+      loggerService.error('Erro ao listar atividades da beneficiária:', error);
+      res.status(500).json(errorResponse('Erro ao listar atividades'));
+      return;
+    }
+  }
+);
+
 // POST / - Criar nova beneficiária
 router.post(
   '/',
