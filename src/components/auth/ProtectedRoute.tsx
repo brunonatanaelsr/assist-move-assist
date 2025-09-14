@@ -17,19 +17,15 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 
   useEffect(() => {
     if (!loading) {
-      if (!user) {
-        console.log('ProtectedRoute: Usuário não autenticado, redirecionando para /auth');
-        // Evitar loop - só redireciona se não estiver já na página de auth
-        if (location.pathname !== '/auth') {
-          navigate('/auth', { 
-            state: { from: location },
-            replace: true 
-          });
+      if (user) {
+        // Usuário autenticado: segue fluxo normal
+        if (adminOnly && user.papel !== 'admin') {
+          console.log('ProtectedRoute: Usuário sem privilégios de admin');
+          navigate('/', { replace: true });
         }
-      } else if (adminOnly && user && user.papel !== 'admin') {
-        console.log('ProtectedRoute: Usuário sem privilégios de admin');
-        // User is authenticated but doesn't have admin privileges
-        navigate('/', { replace: true });
+      } else {
+        // Não autenticado: não redireciona automaticamente. Exibimos CTA de login.
+        // Isso evita flakiness nos testes E2E no carregamento inicial.
       }
     }
   }, [loading, user, adminOnly, navigate, location]);

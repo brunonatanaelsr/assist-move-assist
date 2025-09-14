@@ -3,6 +3,13 @@ import { test, expect, Page } from '@playwright/test';
 test.describe('Assist Move Assist - E2E Tests', () => {
   // Sempre navega utilizando o baseURL configurado no playwright.config.ts
   test.beforeEach(async ({ page }) => {
+    // Debug console/network in failures
+    page.on('console', (m) => console.log('BROWSER:', m.type(), m.text()));
+    page.on('pageerror', (e) => console.log('PAGEERROR:', e.message));
+    page.on('response', (r) => {
+      if (r.status() >= 400) console.log('HTTP', r.status(), r.url());
+    });
+
     await page.goto('/');
     await page.waitForLoadState('networkidle');
 
