@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '../lib/api';
+import { apiService } from '@/services/apiService';
 import { toast } from 'sonner';
 import { z } from 'zod';
 import { beneficiariaSchema } from '../validation/zodSchemas';
@@ -11,7 +11,7 @@ export const useBeneficiarias = (params?: { page?: number; limit?: number }) => 
   return useQuery({
     queryKey: ['beneficiarias', params],
     queryFn: async () => {
-      const response = await api.getBeneficiarias();
+      const response = await apiService.getBeneficiarias();
       if (!response.success) {
         throw new Error(response.message);
       }
@@ -24,7 +24,7 @@ export const useBeneficiaria = (id: string) => {
   return useQuery({
     queryKey: ['beneficiaria', id],
     queryFn: async () => {
-      const response = await api.getBeneficiaria(id);
+      const response = await apiService.getBeneficiaria(id);
       if (!response.success) {
         throw new Error(response.message);
       }
@@ -39,7 +39,7 @@ export const useCreateBeneficiaria = () => {
 
   return useMutation({
     mutationFn: async (data: Beneficiaria) => {
-      const response = await api.createBeneficiaria(data);
+      const response = await apiService.createBeneficiaria(data as any);
       if (!response.success) {
         throw new Error(response.message);
       }
@@ -60,7 +60,7 @@ export const useUpdateBeneficiaria = (id: string) => {
 
   return useMutation({
     mutationFn: async (data: Partial<Beneficiaria>) => {
-      const response = await api.updateBeneficiaria(id, data);
+      const response = await apiService.updateBeneficiaria(id, data as any);
       if (!response.success) {
         throw new Error(response.message);
       }
@@ -82,9 +82,10 @@ export const useAtividades = (beneficiariaId: string) => {
   return useQuery({
     queryKey: ['atividades', beneficiariaId],
     queryFn: async () => {
-      const response = await api.getAtividades(beneficiariaId);
+      // Placeholder: backend não possui endpoint dedicado; retornamos atividades recentes do dashboard
+      const response = await apiService.getDashboardActivities();
       if (!response.success) {
-        throw new Error(response.message);
+        throw new Error(response.message || 'Erro ao carregar atividades');
       }
       return response.data;
     },
@@ -97,7 +98,7 @@ export const useParticipacoes = (beneficiariaId: string) => {
   return useQuery({
     queryKey: ['participacoes', beneficiariaId],
     queryFn: async () => {
-      const response = await api.getParticipacoes(beneficiariaId);
+      const response = await apiService.getParticipacoes(beneficiariaId);
       if (!response.success) {
         throw new Error(response.message);
       }
@@ -112,7 +113,7 @@ export const useCreateParticipacao = () => {
 
   return useMutation({
     mutationFn: async (data: any) => {
-      const response = await api.createParticipacao(data);
+      const response = await apiService.createParticipacao(data);
       if (!response.success) {
         throw new Error(response.message);
       }
@@ -135,7 +136,7 @@ export const useUpdateParticipacao = () => {
 
   return useMutation({
     mutationFn: async ({ id, data }: { id: string; data: any }) => {
-      const response = await api.updateParticipacao(id, data);
+      const response = await apiService.updateParticipacao(id, data);
       if (!response.success) {
         throw new Error(response.message);
       }

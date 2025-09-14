@@ -11,7 +11,6 @@ import { ArrowLeft, Eye, Target, TrendingUp, AlertCircle, CheckCircle, Brain, He
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { apiService } from '@/services/apiService';
-import { api } from '@/lib/api';
 
 interface VisaoHolistica {
   beneficiaria_id: number;
@@ -165,7 +164,7 @@ export default function VisaoHolistica() {
   const salvarVisaoHolistica = async () => {
     try {
       setLoading(true);
-      const response = await api.saveVisaoHolistica(visaoData);
+      const response = await apiService.post('/formularios/visao-holistica', visaoData);
 
       if (response.success) {
         alert('Visão Holística salva com sucesso!');

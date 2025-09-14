@@ -9,10 +9,11 @@ Sistema de gestão para institutos sociais que auxilia no acompanhamento de bene
 - Gestão de tarefas, projetos e oficinas
 
 ## Requisitos
-- Node.js 18+
+- Node.js 20+
 - npm
-- PostgreSQL 15+
-- Redis (opcional, para cache)
+- Docker Desktop (recomendado para E2E local e ambiente dev completo)
+- PostgreSQL 15+ (se não usar Docker)
+- Redis 7 (se não usar Docker)
 
 ## Instalação
 1. **Clone o repositório**
@@ -38,7 +39,9 @@ Sistema de gestão para institutos sociais que auxilia no acompanhamento de bene
    Edite os arquivos `.env` com suas configurações:
    ```env
    # Frontend (.env.local)
-   VITE_API_URL=http://localhost:3000
+   # Em desenvolvimento puro (sem Docker), use base absoluta
+   VITE_API_BASE_URL=http://127.0.0.1:3000/api
+   VITE_WS_URL=ws://127.0.0.1:3000
    
    # Backend (.env)
    PORT=3000
@@ -70,21 +73,22 @@ Sistema de gestão para institutos sociais que auxilia no acompanhamento de bene
    npm run dev            # inicia API em http://localhost:3000
    
   # Terminal 3 (Frontend)
-  npm run dev            # inicia em http://localhost:8080
+  npm run dev            # inicia em http://localhost:5173 (Vite dev)
    ```
-   Frontend: [http://localhost:8080](http://localhost:8080)
+   Frontend: [http://localhost:5173](http://localhost:5173)
    Backend: [http://localhost:3000](http://localhost:3000)
 
 ## Scripts Úteis
 ```bash
-npm run dev           # Dev (frontend:8080, backend:3000)
+npm run dev           # Dev (frontend:5173, backend:3000)
 npm run build         # Build de produção
-npm run preview       # Preview do build
+npm run preview       # Preview do build (frontend:4173)
 npm run lint          # Linter ESLint
 npm run type-check    # Verificação de tipos TypeScript
 npm test              # Executar testes (frontend)
 npm run test:backend  # Testes backend (rodar dentro de /backend)
 npm run test:e2e      # Testes E2E (Playwright)
+npm run test:e2e:local # E2E completo com Docker local (scripts/run-e2e-local.sh)
 ```
 
 ## Testes
@@ -94,13 +98,24 @@ npm run test:e2e      # Testes E2E (Playwright)
 - Backend: `cd backend && npm test`
 
 ### E2E
-Os testes end-to-end usam Playwright e requerem build prévio do frontend e API rodando em 3000:
+Há duas formas de rodar os testes end-to-end (Playwright):
+
+1) Completo com Docker (recomendado)
 
 ```bash
-npm run build
-npm run dev # em outro terminal, ou use o webServer do Playwright
-npm run test:e2e
+# Pré-requisito: Docker Desktop instalado
+bash scripts/run-e2e-local.sh
 ```
+
+O script sobe Postgres/Redis, roda migrações + seeds, inicia a API, builda o frontend (modo e2e), instala browsers e roda Chromium.
+
+2) Somente camada de UI (sem API)
+
+```bash
+npm run build -- --mode e2e
+npx playwright test --project=chromium -g "deve carregar página inicial"
+```
+Os testes de fluxo são pulados quando a API não está ativa.
 
 ## Arquitetura
 
@@ -182,12 +197,24 @@ Para documentação detalhada consulte:
 - Audit trail de ações
 
 ## Docker (Produção)
+Este repositório já inclui Dockerfiles de produção e um `docker-compose.prod.yml` para subir todo o stack (Postgres, Redis, Backend e Frontend):
+
+```bash
+docker compose -f docker-compose.prod.yml up --build
+```
+
+URLs padrões:
+- API: http://localhost:3000/api
+- Frontend (preview): http://localhost:4173
+
+Variáveis úteis no compose:
+- JWT_SECRET, POSTGRES_*, REDIS_*, CORS_ORIGIN, VITE_API_BASE_URL, VITE_WS_URL
 
 ## Realtime (WebSocket)
 - Backend usa Socket.IO embutido em `backend/src/websocket/server.ts`.
 - Para habilitar, defina no `backend/.env`:
 - `ENABLE_WS=true`
-  - `FRONTEND_URL=http://localhost:8080` (ou URL do frontend)
+  - `FRONTEND_URL=http://localhost:5173` (dev) ou a URL de produção do frontend
 - Eventos principais de chat expostos:
   - Cliente → servidor: `join_groups`, `send_message`, `read_message`, `typing`.
   - Servidor → cliente: `new_message`, `message_sent`, `message_read`, `user_status`, `user_typing`.

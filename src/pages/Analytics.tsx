@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { api } from '@/lib/api';
+import { apiService } from '@/services/apiService';
 
 const Analytics = () => {
   const [loading, setLoading] = useState(true);
@@ -17,9 +17,9 @@ const Analytics = () => {
     const load = async () => {
       try {
         setLoading(true);
-        const data = await api.dashboard.getStats();
-
-        if (data) {
+        const resp = await apiService.getDashboardStats();
+        if (resp.success && resp.data) {
+          const data: any = resp.data;
           setStats({
             totalBeneficiarias: Number(data.totalBeneficiarias || 0),
             activeBeneficiarias: Number(data.activeBeneficiarias || 0),
@@ -119,4 +119,3 @@ const Analytics = () => {
 };
 
 export default Analytics;
-

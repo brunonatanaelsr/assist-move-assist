@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ArrowLeft, Save, UserPlus, Loader2 } from 'lucide-react';
-import { api } from '@/lib/api';
+import { apiService } from '@/services/apiService';
 import { useAuth } from '@/hooks/useAuth';
 import type { Beneficiaria } from '@/types/shared';
 
@@ -97,7 +97,7 @@ export default function CadastroBeneficiaria() {
         programa_servico: formData.programa_servico || null,
       };
 
-      const data = await api.createBeneficiaria(cleanData);
+      const data = await apiService.createBeneficiaria(cleanData);
 
       setSuccess(true);
       setTimeout(() => {
