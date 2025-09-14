@@ -21,7 +21,7 @@ export function useNotifications(filters?: {
       const response = await api.get('/notifications', {
         params: filters,
       });
-      return response.data;
+      return response.data.data || []; // Acessa response.data.data e garante array vazio se undefined
     },
     refetchInterval: 30000, // Refetch a cada 30 segundos
   });

@@ -27,7 +27,7 @@ import { ptBR } from 'date-fns/locale';
 export function NotificationsPopover() {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
-  const { data: notifications, isLoading } = useNotifications({
+  const { data: notifications = [], isLoading } = useNotifications({
     limit: 10,
   });
   const { data: unreadCount = 0 } = useUnreadNotificationsCount();
@@ -124,13 +124,13 @@ export function NotificationsPopover() {
               <div className="p-4 text-center text-muted-foreground">
                 Carregando...
               </div>
-            ) : notifications?.length === 0 ? (
+            ) : notifications.length === 0 ? (
               <div className="p-4 text-center text-muted-foreground" data-testid="no-notifications">
                 Nenhuma notificação
               </div>
             ) : (
               <div className="divide-y">
-                {notifications?.map((notification: any) => (
+                {notifications.map((notification: any) => (
                   <div
                     key={notification.id}
                     className={cn(

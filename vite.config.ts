@@ -82,14 +82,14 @@ export default defineConfig(({ mode }) => {
       open: true,
       proxy: {
         '/api': {
-          target: 'http://backend:3000',
+          target: 'http://localhost:3000',
           changeOrigin: true,
           secure: false,
           ws: true,
         },
         // Proxy para WebSockets do backend (Socket.IO)
         '/socket.io': {
-          target: 'http://backend:3000',
+          target: 'http://localhost:3000',
           changeOrigin: true,
           secure: false,
           ws: true,
