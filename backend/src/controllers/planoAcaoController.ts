@@ -1,6 +1,6 @@
 import { TypedRequest, TypedResponse } from '../types/express';
 import pool from '../config/database';
-import { logger } from '../config/logger';
+import { logger } from '../services/logger';
 import { PlanoAcao, PlanoAcaoInput, PlanoAcaoResponse } from '../models/PlanoAcao';
 
 interface PlanoAcaoParams {

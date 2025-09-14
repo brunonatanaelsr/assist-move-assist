@@ -1,5 +1,5 @@
 import { Pool } from 'pg';
-import { logger } from '../config/logger';
+import { logger } from '../services/logger';
 
 interface WebhookEvent {
   id: string;

@@ -1,5 +1,5 @@
 import { Pool } from 'pg';
-import { logger } from '../utils/logger';
+import { logger } from '../services/logger';
 import { AppError } from '../utils';
 
 interface Documento {

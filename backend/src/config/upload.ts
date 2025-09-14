@@ -4,7 +4,7 @@ import fs from 'fs';
 import crypto from 'crypto';
 import { Request } from 'express';
 import { AppError } from '../utils';
-import { logger } from '../utils/logger';
+import { logger } from '../services/logger';
 
 // Configurações básicas
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB

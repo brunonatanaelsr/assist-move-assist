@@ -1,6 +1,6 @@
 import { db } from '../database';
 import { redis } from '../lib/redis';
-import { logger } from '../utils/logger';
+import { logger } from '../services/logger';
 import puppeteer from 'puppeteer';
 import ExcelJS from 'exceljs';
 import { renderTemplate } from '../templates/reports/render';

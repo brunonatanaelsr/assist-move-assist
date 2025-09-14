@@ -1,6 +1,6 @@
 import nodemailer from 'nodemailer';
 import { redis } from '../lib/redis';
-import { logger } from '../utils/logger';
+import { logger } from '../services/logger';
 import { config } from '../config';
 import { renderTemplate } from '../templates/email/render';
 import { RateLimiter } from '../utils/rate-limiter';

@@ -1,6 +1,6 @@
 import { Pool } from 'pg';
 import { Router } from 'express';
-import { logger } from '../config/logger';
+import { logger } from '../services/logger';
 
 export class HealthCheck {
   private pool: Pool;

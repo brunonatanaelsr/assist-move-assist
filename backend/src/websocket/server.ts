@@ -2,7 +2,7 @@ import { Server as HttpServer } from 'http';
 import { Server, Socket } from 'socket.io';
 import jwt from 'jsonwebtoken';
 import { Pool } from 'pg';
-import { logger } from '../utils/logger';
+import { logger } from '../services/logger';
 import { config } from '../config';
 import { redis } from '../lib/redis';
 

@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { redis } from '../lib/redis';
 import { validate_cpf } from '../utils/cpf-validator';
-import { logger } from '../utils/logger';
+import { logger } from '../services/logger';
 import { ValidationError } from '../utils';
 
 export class ValidationController {

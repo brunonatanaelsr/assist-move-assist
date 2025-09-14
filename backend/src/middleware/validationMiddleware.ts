@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { z, ZodError } from 'zod';
-import { logger } from '../config/logger';
+import { logger } from '../services/logger';
 
 interface ExtendedRequest extends Request {
     body: Record<string, any>;

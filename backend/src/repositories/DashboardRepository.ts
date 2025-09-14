@@ -1,6 +1,6 @@
 import { Pool } from 'pg';
 import { Redis } from 'ioredis';
-import { logger } from '../utils/logger';
+import { logger } from '../services/logger';
 
 interface DashboardPeriodo {
   inicio: Date;

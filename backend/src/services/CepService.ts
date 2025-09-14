@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { redis } from '../lib/redis';
-import { logger } from '../utils/logger';
+import { logger } from '../services/logger';
 
 interface ViaCepResponse {
   cep: string;

@@ -1,6 +1,6 @@
 import { db } from '../database';
 import { redis } from '../lib/redis';
-import { logger } from '../utils/logger';
+import { logger } from '../services/logger';
 import { NotificationJob } from '../jobs/NotificationJob';
 import { ReminderJob } from '../jobs/ReminderJob';
 import { ReportJob } from '../jobs/ReportJob';

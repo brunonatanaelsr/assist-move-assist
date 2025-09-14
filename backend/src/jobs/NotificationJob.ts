@@ -2,7 +2,7 @@ import { Job } from '../types/Job';
 import { NotificationService } from '../services/NotificationService';
 import { EmailService } from '../services/EmailService';
 import { WhatsAppService } from '../services/WhatsAppService';
-import { logger } from '../utils/logger';
+import { logger } from '../services/logger';
 import { db } from '../database';
 
 export class NotificationJob implements Job {
