@@ -14,6 +14,7 @@ dist-ssr
 
 # Test artifacts
 playwright-report/
+test-results/
 coverage/
 
 # Editor/OS backups
