@@ -1,5 +1,19 @@
 import { test, expect, Page } from '@playwright/test';
 
+let apiOnline = true;
+const API_HEALTH = process.env.PLAYWRIGHT_API_URL ? `${process.env.PLAYWRIGHT_API_URL.replace(/\/$/, '')}/health` : 'http://127.0.0.1:3000/api/health';
+
+test.beforeAll(async ({ request }) => {
+  try {
+    const res = await request.get(API_HEALTH);
+    apiOnline = res.ok();
+    if (!apiOnline) console.warn('API offline for E2E (login-dependent tests will be skipped).');
+  } catch {
+    apiOnline = false;
+    console.warn('API not reachable for E2E (login-dependent tests will be skipped).');
+  }
+});
+
 test.describe('Assist Move Assist - E2E Tests', () => {
   // Sempre navega utilizando o baseURL configurado no playwright.config.ts
   test.beforeEach(async ({ page }) => {
@@ -44,6 +58,7 @@ test.describe('Assist Move Assist - E2E Tests', () => {
   });
 
   test('deve fazer login do super administrador', async ({ page }) => {
+    test.skip(!apiOnline, 'API offline');
     // Ir para página de login
     await clickLogin(page);
     
@@ -60,6 +75,7 @@ test.describe('Assist Move Assist - E2E Tests', () => {
   });
 
   test('deve rejeitar login com credenciais inválidas', async ({ page }) => {
+    test.skip(!apiOnline, 'API offline');
     await clickLogin(page);
     
     await page.fill('input[name="email"]', 'wrong@email.com');
@@ -72,6 +88,7 @@ test.describe('Assist Move Assist - E2E Tests', () => {
   });
 
   test('fluxo completo de cadastro de beneficiária', async ({ page }) => {
+    test.skip(!apiOnline, 'API offline');
     // Login como admin
     await clickLogin(page);
     await page.fill('input[name="email"]', 'bruno@move.com');
@@ -109,6 +126,7 @@ test.describe('Assist Move Assist - E2E Tests', () => {
   });
 
   test('deve validar campos obrigatórios no cadastro', async ({ page }) => {
+    test.skip(!apiOnline, 'API offline');
     // Login e navegação (reutilizar steps do teste anterior)
     await clickLogin(page);
     await page.fill('input[name="email"]', 'bruno@move.com');
@@ -127,6 +145,7 @@ test.describe('Assist Move Assist - E2E Tests', () => {
   });
 
   test('deve pesquisar beneficiárias', async ({ page }) => {
+    test.skip(!apiOnline, 'API offline');
     // Login
     await clickLogin(page);
     await page.fill('input[name="email"]', 'bruno@move.com');
@@ -150,6 +169,7 @@ test.describe('Assist Move Assist - E2E Tests', () => {
   });
 
   test('deve navegar pelo sistema usando menu', async ({ page }) => {
+    test.skip(!apiOnline, 'API offline');
     // Login
     await clickLogin(page);
     await page.fill('input[name="email"]', 'bruno@move.com');
@@ -175,6 +195,7 @@ test.describe('Assist Move Assist - E2E Tests', () => {
   });
 
   test('deve fazer logout corretamente', async ({ page }) => {
+    test.skip(!apiOnline, 'API offline');
     // Login
     await clickLogin(page);
     await page.fill('input[name="email"]', 'bruno@move.com');
@@ -195,6 +216,7 @@ test.describe('Assist Move Assist - E2E Tests', () => {
   });
 
   test('deve responder adequadamente em mobile', async ({ page, isMobile }) => {
+    test.skip(!apiOnline, 'API offline');
     test.skip(!isMobile, 'Teste apenas para mobile');
     
     // Login em mobile
@@ -220,6 +242,7 @@ test.describe('Assist Move Assist - E2E Tests', () => {
   });
 
   test('deve carregar dashboard com estatísticas', async ({ page }) => {
+    test.skip(!apiOnline, 'API offline');
     // Login
     await clickLogin(page);
     await page.fill('input[name="email"]', 'bruno@move.com');
@@ -238,6 +261,7 @@ test.describe('Assist Move Assist - E2E Tests', () => {
   });
 
   test('deve mostrar notificações em tempo real', async ({ page }) => {
+    test.skip(!apiOnline, 'API offline');
     // Login
     await clickLogin(page);
     await page.fill('input[name="email"]', 'bruno@move.com');

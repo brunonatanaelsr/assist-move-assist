@@ -179,7 +179,7 @@ jobs:
   e2e:
     needs: api-smoke
     runs-on: ubuntu-latest
-    continue-on-error: true
+    continue-on-error: false
     services:
       postgres:
         image: postgres:16

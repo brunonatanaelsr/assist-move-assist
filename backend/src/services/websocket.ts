@@ -1,10 +1,11 @@
 import WebSocket, { WebSocketServer } from 'ws';
 import { IncomingMessage } from 'http';
-import { AuthService, JWTPayload } from '../middleware/auth';
+import { authService } from '../services';
+import type { TokenPayload } from './auth.service';
 import { loggerService } from '../services/logger';
 
 export interface AuthenticatedWebSocket extends WebSocket {
-  user?: JWTPayload;
+  user?: TokenPayload;
   isAlive?: boolean;
 }
 
@@ -36,14 +37,14 @@ export class WebSocketService {
       }
 
       // Verificar token
-      const user = AuthService.verifyToken(token);
-      ws.user = user;
+      const user = await authService.validateToken(token);
+      ws.user = user as any;
       ws.isAlive = true;
 
       // Adicionar cliente ao mapa
-      this.clients.set(user.id, ws);
+      this.clients.set(String((user as any).id), ws);
 
-      loggerService.info('WebSocket conectado', { userId: user.id, email: user.email });
+      loggerService.info('WebSocket conectado', { userId: (user as any).id, email: (user as any).email });
 
       // Configurar handlers
       ws.on('message', (data: WebSocket.Data) => {
@@ -63,7 +64,7 @@ export class WebSocketService {
       });
 
       // Enviar mensagem de boas-vindas
-      this.sendToClient(user.id, {
+      this.sendToClient(String((user as any).id), {
         type: 'connected',
         message: 'Conectado ao sistema em tempo real',
         timestamp: new Date().toISOString()
