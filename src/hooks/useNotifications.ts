@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import axios from 'axios';
+import api from '@/config/api';
 import { toast } from 'sonner';
 import type {
   Notification,
@@ -18,7 +18,7 @@ export function useNotifications(filters?: {
   return useQuery({
     queryKey: ['notifications', filters],
     queryFn: async () => {
-      const response = await axios.get('/api/notifications', {
+      const response = await api.get('/notifications', {
         params: filters,
       });
       return response.data;
@@ -32,7 +32,7 @@ export function useUnreadNotificationsCount() {
   return useQuery({
     queryKey: ['notifications', 'unread', 'count'],
     queryFn: async () => {
-      const response = await axios.get('/api/notifications/unread/count');
+      const response = await api.get('/notifications/unread/count');
       return response.data.count as number;
     },
     refetchInterval: 30000,
@@ -51,7 +51,7 @@ export function useMarkNotificationAsRead() {
       id: number;
       data: UpdateNotificationInput;
     }) => {
-      const response = await axios.patch(`/api/notifications/${id}`, data);
+      const response = await api.patch(`/notifications/${id}`, data);
       return response.data;
     },
     onSuccess: () => {
@@ -66,7 +66,7 @@ export function useMarkAllNotificationsAsRead() {
 
   return useMutation({
     mutationFn: async () => {
-      await axios.post('/api/notifications/mark-all-read');
+      await api.post('/notifications/mark-all-read');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
@@ -81,7 +81,7 @@ export function useDeleteNotification() {
 
   return useMutation({
     mutationFn: async (id: number) => {
-      await axios.delete(`/api/notifications/${id}`);
+      await api.delete(`/notifications/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
@@ -94,7 +94,7 @@ export function useNotificationPreferences() {
   return useQuery({
     queryKey: ['notification-preferences'],
     queryFn: async () => {
-      const response = await axios.get('/api/notifications/preferences');
+      const response = await api.get('/notifications/preferences');
       return response.data as NotificationPreferences;
     },
   });
@@ -106,7 +106,7 @@ export function useUpdateNotificationPreferences() {
 
   return useMutation({
     mutationFn: async (data: Partial<NotificationPreferences>) => {
-      const response = await axios.put('/api/notifications/preferences', data);
+      const response = await api.put('/notifications/preferences', data);
       return response.data;
     },
     onSuccess: () => {
@@ -120,7 +120,7 @@ export function useUpdateNotificationPreferences() {
 export function useSendNotification() {
   return useMutation({
     mutationFn: async (data: CreateNotificationInput) => {
-      const response = await axios.post('/api/notifications', data);
+      const response = await api.post('/notifications', data);
       return response.data;
     },
   });
@@ -146,7 +146,7 @@ export function useSubscribeToPushNotifications() {
       });
 
       // Envia subscription para o backend
-      await axios.post('/api/notifications/push-subscription', subscription);
+      await api.post('/notifications/push-subscription', subscription);
     },
     onSuccess: () => {
       toast.success('Notificações push ativadas com sucesso');

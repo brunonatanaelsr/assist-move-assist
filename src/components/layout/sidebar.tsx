@@ -26,7 +26,7 @@ const menuItems = [
   {
     title: "Dashboard", 
     icon: Home,
-    href: "/"
+    href: "/dashboard"
   },
   {
     title: "Beneficiárias",
@@ -193,7 +193,7 @@ export default function Sidebar() {
                     )}
                     onClick={() => setIsOpen(false)}
                     data-testid={
-                      item.href === '/' ? 'menu-dashboard' :
+                      item.href === '/dashboard' ? 'menu-dashboard' :
                       item.href === '/beneficiarias' ? 'menu-beneficiarias' :
                       item.href === '/oficinas' ? 'menu-oficinas' :
                       item.href === '/projetos' ? 'menu-projetos' :

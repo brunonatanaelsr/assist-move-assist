@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import { Formulario, FormularioFiltros, TipoFormulario } from '../types/formularios';
+import { apiService } from '@/services/apiService';
 
 interface FormulariosContextData {
   formularios: Formulario[];
@@ -32,19 +33,22 @@ export const FormulariosProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const carregarFormularios = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/formularios?' + new URLSearchParams({
-        page: page.toString(),
-        limit: pageSize.toString(),
-        ...filtros.tipo && { tipo: filtros.tipo },
-        ...filtros.beneficiaria_id && { beneficiaria_id: filtros.beneficiaria_id.toString() },
-        ...filtros.data_inicio && { data_inicio: filtros.data_inicio.toISOString() },
-        ...filtros.data_fim && { data_fim: filtros.data_fim.toISOString() },
-        ...filtros.responsavel && { responsavel: filtros.responsavel }
-      }));
+      const params: any = {
+        page,
+        limit: pageSize,
+      };
+      if (filtros.tipo) params.tipo = filtros.tipo;
+      if (filtros.beneficiaria_id) params.beneficiaria_id = filtros.beneficiaria_id;
+      if (filtros.data_inicio) params.data_inicio = filtros.data_inicio.toISOString();
+      if (filtros.data_fim) params.data_fim = filtros.data_fim.toISOString();
+      if (filtros.responsavel) params.responsavel = filtros.responsavel;
 
-      const data = await response.json();
-      setFormularios(data.data);
-      setTotal(data.pagination.total);
+      const resp = await apiService.listFormularios(params);
+      if (resp.success) {
+        const d: any = resp.data || {};
+        setFormularios(d.data || []);
+        setTotal(d.pagination?.total || 0);
+      }
     } catch (error) {
       console.error('Erro ao carregar formulários:', error);
     } finally {
@@ -54,9 +58,8 @@ export const FormulariosProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   const carregarFormulario = useCallback(async (id: number, tipo: TipoFormulario) => {
     try {
-      const response = await fetch(`/api/formularios/${tipo}/${id}`);
-      const data = await response.json();
-      return data.success ? data.data : null;
+      const resp = await apiService.getFormulario(String(tipo), id);
+      return resp.success ? (resp.data as any) : null;
     } catch (error) {
       console.error('Erro ao carregar formulário:', error);
       return null;
@@ -65,21 +68,18 @@ export const FormulariosProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   const salvarFormulario = useCallback(async (formulario: Partial<Formulario>) => {
     try {
-      const response = await fetch('/api/formularios', {
-        method: formulario.id ? 'PUT' : 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formulario),
-      });
-
-      const data = await response.json();
-      if (!data.success) {
-        throw new Error(data.message);
+      if (!formulario.tipo) throw new Error('tipo é obrigatório');
+      if (formulario.id) {
+        const resp = await apiService.updateFormulario(String(formulario.tipo), Number(formulario.id), formulario);
+        if (!resp.success) throw new Error(resp.message || 'Falha ao atualizar formulário');
+        await carregarFormularios();
+        return resp.data as any;
+      } else {
+        const resp = await apiService.createFormulario(String(formulario.tipo), formulario);
+        if (!resp.success) throw new Error(resp.message || 'Falha ao criar formulário');
+        await carregarFormularios();
+        return resp.data as any;
       }
-
-      await carregarFormularios();
-      return data.data;
     } catch (error) {
       console.error('Erro ao salvar formulário:', error);
       throw error;
@@ -88,15 +88,9 @@ export const FormulariosProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   const excluirFormulario = useCallback(async (id: number) => {
     try {
-      const response = await fetch(`/api/formularios/${id}`, {
-        method: 'DELETE',
-      });
-
-      const data = await response.json();
-      if (!data.success) {
-        throw new Error(data.message);
-      }
-
+      // Endpoint de exclusão para formulários genéricos
+      const resp = await apiService.delete<any>(`/formularios/${id}`);
+      if (resp && (resp as any).success === false) throw new Error((resp as any).message || 'Falha ao excluir formulário');
       await carregarFormularios();
     } catch (error) {
       console.error('Erro ao excluir formulário:', error);

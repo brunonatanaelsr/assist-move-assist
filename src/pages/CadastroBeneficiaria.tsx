@@ -80,12 +80,18 @@ export default function CadastroBeneficiaria() {
     setError(null);
 
     try {
-      const cleanData = {
-        ...formData,
+      const cleanData: any = {
+        // Backend expects telefone/endereco fields
+        nome_completo: formData.nome_completo,
         cpf: formData.cpf.replace(/\D/g, ''),
-        contato1: formData.contato1.replace(/\D/g, ''),
-        contato2: formData.contato2.replace(/\D/g, '') || null,
+        rg: formData.rg || undefined,
+        orgao_emissor_rg: formData.orgao_emissor_rg || undefined,
         data_emissao_rg: formData.data_emissao_rg || null,
+        data_nascimento: formData.data_nascimento,
+        endereco: formData.endereco || undefined,
+        telefone: formData.contato1.replace(/\D/g, ''),
+        contato2: formData.contato2 ? formData.contato2.replace(/\D/g, '') : null,
+        bairro: formData.bairro || undefined,
         nis: formData.nis || null,
         referencia: formData.referencia || null,
         programa_servico: formData.programa_servico || null,
@@ -300,6 +306,7 @@ export default function CadastroBeneficiaria() {
                 <Label htmlFor="contato1">Telefone Principal *</Label>
                 <Input
                   id="contato1"
+                  name="telefone"
                   value={formData.contato1}
                   onChange={(e) => handleInputChange('contato1', formatPhone(e.target.value))}
                   placeholder="(11) 99999-9999"

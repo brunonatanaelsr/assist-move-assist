@@ -466,3 +466,17 @@ router.get('/:tipo/:id/pdf', authenticateToken, async (req: AuthenticatedRequest
     return;
   }
 });
+
+// Excluir formulário genérico por ID
+router.delete('/:id', authenticateToken, async (req: AuthenticatedRequest, res): Promise<void> => {
+  try {
+    const { id } = req.params as any;
+    const result = await pool.query('DELETE FROM formularios WHERE id = $1 RETURNING id', [id]);
+    if (result.rowCount === 0) { res.status(404).json(errorResponse('Formulário não encontrado')); return; }
+    res.json(successResponse({ id }));
+    return;
+  } catch (error) {
+    res.status(500).json(errorResponse('Erro ao excluir formulário'));
+    return;
+  }
+});

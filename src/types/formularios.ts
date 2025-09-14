@@ -38,7 +38,7 @@ export interface AnamneseSocial extends FormularioBase {
 }
 
 export interface RodaDaVida extends FormularioBase {
-  tipo: 'roda_da_vida';
+  tipo: 'roda_vida';
   saude_bem_estar: number;
   desenvolvimento_pessoal: number;
   vida_social: number;
@@ -71,7 +71,7 @@ export interface PlanoDesenvolvimento extends FormularioBase {
   observacoes: string | null;
 }
 
-export type TipoFormulario = 'anamnese_social' | 'roda_da_vida' | 'plano_desenvolvimento';
+export type TipoFormulario = 'anamnese_social' | 'roda_vida' | 'plano_desenvolvimento';
 
 export type Formulario = AnamneseSocial | RodaDaVida | PlanoDesenvolvimento;
 
@@ -85,6 +85,6 @@ export interface FormularioFiltros {
 
 export const TIPOS_FORMULARIO = {
   anamnese_social: 'Anamnese Social',
-  roda_da_vida: 'Roda da Vida',
+  roda_vida: 'Roda da Vida',
   plano_desenvolvimento: 'Plano de Desenvolvimento'
 } as const;

@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MessageSquare, Send, User, Clock } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { apiService } from "@/services/apiService";
 import { useAuth } from "@/hooks/useAuth";
 
 // Interfaces
@@ -47,39 +48,13 @@ export default function ChatInterno() {
     try {
       setLoading(true);
       
-      const token = localStorage.getItem('token');
-      if (!token) {
-        toast({
-          title: 'Erro',
-          description: 'Token de autenticação não encontrado',
-          variant: 'destructive',
-        });
-        return;
-      }
-      
-      // Carregar usuários
-      const responseUsuarios = await fetch('/api/mensagens/usuarios', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      
-      if (responseUsuarios.ok) {
-        const dataUsuarios = await responseUsuarios.json();
-        setUsuarios(dataUsuarios);
-      }
+      // Carregar usuários de conversa
+      const usuariosResp = await apiService.getUsuariosConversa();
+      if (usuariosResp.success) setUsuarios(usuariosResp.data || []);
 
-      // Carregar conversas
-      const responseConversas = await fetch('/api/mensagens/conversas', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      
-      if (responseConversas.ok) {
-        const dataConversas = await responseConversas.json();
-        setConversas(dataConversas.data || []);
-      }
+      // Carregar conversas do usuário logado
+      const conversasResp = await apiService.getConversasUsuario();
+      if (conversasResp.success) setConversas(conversasResp.data || []);
       
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
@@ -98,17 +73,8 @@ export default function ChatInterno() {
     try {
       setUsuarioSelecionado(usuario);
       
-      const token = localStorage.getItem('token');
-      const response = await fetch(`/api/mensagens/conversa/${usuario.id}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setMensagensConversa(data.data || []);
-      }
+      const resp = await apiService.getMensagensUsuario(usuario.id);
+      if (resp.success) setMensagensConversa(resp.data || []);
       
     } catch (error) {
       console.error('Erro ao carregar conversa:', error);
@@ -125,22 +91,9 @@ export default function ChatInterno() {
     if (!novaMensagem.trim() || !usuarioSelecionado) return;
 
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch('/api/mensagens/enviar', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          destinatario_id: usuarioSelecionado.id,
-          conteudo: novaMensagem.trim()
-        })
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setMensagensConversa(prev => [...prev, data.data]);
+      const resp = await apiService.enviarMensagemUsuario({ destinatario_id: usuarioSelecionado.id, conteudo: novaMensagem.trim() });
+      if (resp.success) {
+        setMensagensConversa(prev => [...prev, (resp.data as any)]);
         setNovaMensagem("");
         
         toast({
