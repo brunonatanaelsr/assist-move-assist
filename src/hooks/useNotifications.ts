@@ -142,7 +142,7 @@ export function useSubscribeToPushNotifications() {
       // Gera subscription
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: process.env.VITE_VAPID_PUBLIC_KEY,
+        applicationServerKey: (import.meta as any)?.env?.VITE_VAPID_PUBLIC_KEY,
       });
 
       // Envia subscription para o backend
