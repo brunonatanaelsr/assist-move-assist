@@ -347,7 +347,7 @@ export const requireRole = (roles: string | string[]) => {
 };
 
 // Middleware para profissionais
-export const requireProfissional = requireRole(['admin', 'profissional']);
+export const requireProfissional = requireRole(['admin', 'profissional', 'superadmin', 'super_admin']);
 
 // Middleware para administradores
 export const requireAdmin = requireRole('admin');

@@ -1,6 +1,6 @@
 import IORedis from 'ioredis';
 import { config } from '../config';
-import { logger } from '../utils/logger';
+import { loggerService as logger } from '../services/logger';
 
 type Primitive = string | number | null;
 

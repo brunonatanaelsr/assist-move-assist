@@ -138,6 +138,7 @@ jobs:
           npm run build
           npm run migrate:node
           node scripts/seed-superadmin.js
+          node scripts/create-initial-data.js
           nohup npm start &
           for i in {1..30}; do curl -sf http://localhost:3000/api/health && break || sleep 2; done
         env:
@@ -280,6 +281,7 @@ jobs:
           npm run build
           npm run migrate:node
           node scripts/seed-superadmin.js
+          node scripts/create-initial-data.js
           nohup npm start &
           for i in {1..30}; do curl -sf http://localhost:3000/api/health && break || sleep 2; done
         env:

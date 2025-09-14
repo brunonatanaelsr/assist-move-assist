@@ -4,9 +4,7 @@
  */
 
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
-
-// Base URL configurável via env; fallback para '/api'
-const API_URL = (import.meta as any)?.env?.VITE_API_URL || '/api';
+import { API_URL } from '@/config';
 const IS_DEV = (import.meta as any)?.env?.DEV === true || (import.meta as any)?.env?.MODE === 'development';
 
 function getCookie(name: string): string | null {
@@ -97,7 +95,10 @@ class ApiService {
         if (error.response && error.response.status === 401) {
           localStorage.removeItem('token');
           localStorage.removeItem('user');
-          window.location.href = '/auth';
+          // HashRouter-safe redirect
+          if (typeof window !== 'undefined') {
+            window.location.hash = '#/auth';
+          }
         }
         
         // Criar resposta de erro padronizada

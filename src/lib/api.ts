@@ -1,12 +1,5 @@
 // Frontend API client para comunicação com o backend PostgreSQL
-const getApiBaseUrl = () => {
-  // Em desenvolvimento, usar o proxy do Vite. Em produção, usar URL completa
-  return import.meta.env.DEV 
-    ? '/api' 
-    : (import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api');
-};
-
-const API_BASE_URL = getApiBaseUrl();
+import { API_URL as API_BASE_URL } from '@/config';
 
 const apiFetch = async <T = any>(url: string, options: RequestInit = {}): Promise<T> => {
   try {
