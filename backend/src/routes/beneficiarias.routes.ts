@@ -7,6 +7,8 @@ import { catchAsync } from '../middleware/errorHandler';
 import { formatObjectDates } from '../utils/dateFormatter';
 import { AppError } from '../utils';
 import { loggerService } from '../services/logger';
+import { validateRequest } from '../middleware/validationMiddleware';
+import { beneficiariaSchema } from '../validators/beneficiaria.validator';
 import { db } from '../services/db';
 import { pool } from '../config/database';
 
@@ -144,6 +146,13 @@ router.post(
   authenticateToken,
   requireProfissional,
   authorize('beneficiarias.criar'),
+  validateRequest(
+    require('zod').z.object({
+      body: beneficiariaSchema,
+      query: require('zod').z.any().optional(),
+      params: require('zod').z.any().optional(),
+    })
+  ),
   async (req: ExtendedRequest, res: Response): Promise<void> => {
     try {
       const {
@@ -211,6 +220,13 @@ router.put(
   authenticateToken,
   requireProfissional,
   authorize('beneficiarias.editar'),
+  validateRequest(
+    require('zod').z.object({
+      body: beneficiariaSchema.partial(),
+      query: require('zod').z.any().optional(),
+      params: require('zod').z.any().optional(),
+    })
+  ),
   async (req: ExtendedRequest, res: Response): Promise<void> => {
     try {
       const { id } = req.params;

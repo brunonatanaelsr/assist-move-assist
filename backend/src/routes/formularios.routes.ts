@@ -2,6 +2,8 @@ import { Router } from 'express';
 import { authenticateToken, AuthenticatedRequest } from '../middleware/auth';
 import { pool } from '../config/database';
 import { successResponse, errorResponse } from '../utils/responseFormatter';
+import { validateRequest } from '../middleware/validationMiddleware';
+import { z } from 'zod';
 import { renderFormPdf, renderAnamnesePdf, renderFichaEvolucaoPdf, renderTermosPdf, renderVisaoHolisticaPdf } from '../services/formsExport.service';
 
 const router = Router();
@@ -401,7 +403,18 @@ router.get('/beneficiaria/:beneficiariaId', authenticateToken, async (req: Authe
 });
 
 // Criar formulário genérico por tipo
-router.post('/:tipo', authenticateToken, async (req: AuthenticatedRequest, res): Promise<void> => {
+router.post('/:tipo', authenticateToken,
+  validateRequest(z.object({
+    body: z.object({
+      beneficiaria_id: z.coerce.number({ required_error: 'beneficiaria_id é obrigatório' }),
+      dados: z.any().optional(),
+      status: z.string().optional(),
+      observacoes: z.string().optional(),
+    }),
+    params: z.object({ tipo: z.string().min(1) }),
+    query: z.any().optional(),
+  })),
+  async (req: AuthenticatedRequest, res): Promise<void> => {
   try {
     const { tipo } = req.params as any;
     const { beneficiaria_id, dados, status, observacoes } = (req.body || {}) as any;

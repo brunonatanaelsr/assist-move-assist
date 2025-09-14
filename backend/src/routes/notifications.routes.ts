@@ -2,6 +2,8 @@ import { Router } from 'express';
 import { authenticateToken, AuthenticatedRequest } from '../middleware/auth';
 import { pool } from '../config/database';
 import { successResponse, errorResponse } from '../utils/responseFormatter';
+import { validateRequest } from '../middleware/validationMiddleware';
+import { z } from 'zod';
 
 const router = Router();
 
@@ -50,7 +52,13 @@ router.get('/unread/count', authenticateToken, async (req: AuthenticatedRequest,
 });
 
 // PATCH /notifications/:id
-router.patch('/:id', authenticateToken, async (req: AuthenticatedRequest, res): Promise<void> => {
+router.patch('/:id', authenticateToken,
+  validateRequest(z.object({
+    params: z.object({ id: z.coerce.number() }),
+    body: z.object({ read: z.boolean().optional() }),
+    query: z.any().optional(),
+  })),
+  async (req: AuthenticatedRequest, res): Promise<void> => {
   try {
     const userId = Number(req.user!.id);
     const { id } = req.params as any;
@@ -95,7 +103,13 @@ router.get('/preferences', authenticateToken, async (req: AuthenticatedRequest, 
 });
 
 // PUT /notifications/preferences
-router.put('/preferences', authenticateToken, async (req: AuthenticatedRequest, res): Promise<void> => {
+router.put('/preferences', authenticateToken,
+  validateRequest(z.object({
+    body: z.object({}).passthrough(),
+    query: z.any().optional(),
+    params: z.any().optional(),
+  })),
+  async (req: AuthenticatedRequest, res): Promise<void> => {
   try {
     const userId = Number(req.user!.id);
     const fields = req.body || {};
@@ -137,7 +151,20 @@ router.put('/preferences', authenticateToken, async (req: AuthenticatedRequest, 
 });
 
 // POST /notifications - criar notificação manual
-router.post('/', authenticateToken, async (req: AuthenticatedRequest, res): Promise<void> => {
+router.post('/', authenticateToken,
+  validateRequest(z.object({
+    body: z.object({
+      user_id: z.coerce.number(),
+      title: z.string().min(1),
+      message: z.string().min(1),
+      type: z.string().optional(),
+      action_url: z.string().url().optional().nullable(),
+      data: z.any().optional(),
+    }),
+    query: z.any().optional(),
+    params: z.any().optional(),
+  })),
+  async (req: AuthenticatedRequest, res): Promise<void> => {
   try {
     const { user_id, title, message, type = 'info', action_url, data } = req.body || {};
     if (!user_id || !title || !message) {
