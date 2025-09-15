@@ -44,6 +44,7 @@ import healthRoutes from './health.routes';
 // Rotas de mensagens
 import mensagensRoutes from './mensagens.routes';
 import gruposRoutes from './grupos.routes';
+import messagesAliasRoutes from './messages.alias.routes';
 
 // Rotas de oficinas
 import oficinasRoutes from './oficina.routes';
@@ -59,10 +60,12 @@ import projetosRoutes from './projeto.routes';
 
 // Rotas de relatórios
 import relatoriosRoutes from './relatorios.routes';
+import uploadRoutes from './upload.routes';
 // Rotas de notificações
 import notificationsRoutes from './notifications.routes';
 // Rotas de calendário
 import calendarRoutes from './calendar.routes';
+import organizacoesRoutes from './organizacoes.routes';
 
 // ========== CONFIGURAÇÃO DO ROUTER ==========
 const router = createRouterInstance();
@@ -112,6 +115,7 @@ router.use('/matriculas-projetos', matriculasRoutes);
 // 4. Rotas de conteúdo e comunicação
 router.use('/feed', feedRoutes);
 router.use('/mensagens', mensagensRoutes);
+router.use('/messages', messagesAliasRoutes);
 router.use('/grupos', gruposRoutes);
 router.use('/notifications', notificationsRoutes);
 router.use('/calendar', calendarRoutes);
@@ -121,6 +125,8 @@ router.use('/formularios', formulariosRoutes);
 router.use('/declaracoes', declaracoesRoutes);
 router.use('/recibos', recibosRoutes);
 router.use('/documentos', documentosRoutes);
+router.use('/upload', uploadRoutes);
+router.use('/organizacoes', organizacoesRoutes);
 
 // 6. Rotas administrativas
 router.use('/dashboard', dashboardRoutes);

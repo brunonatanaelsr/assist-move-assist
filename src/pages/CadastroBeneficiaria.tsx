@@ -11,13 +11,17 @@ import { ArrowLeft, Save, UserPlus, Loader2 } from 'lucide-react';
 import { apiService } from '@/services/apiService';
 import { useAuth } from '@/hooks/useAuth';
 import type { Beneficiaria } from '@/types/shared';
+import { MaskedInput } from '@/components/form/MaskedInput';
+import { useBeneficiariaValidation } from '@/hooks/useFormValidation';
+import { translateErrorMessage } from '@/lib/apiError';
+import useCEP from '@/hooks/useCEP';
 
 export default function CadastroBeneficiaria() {
   const navigate = useNavigate();
   const { profile } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [fieldErrors, setFieldErrors] = useState<{ nome?: string; cpf?: string }>({});
+  const [fieldErrors, setFieldErrors] = useState<{ nome_completo?: string; cpf?: string; contato1?: string; data_nascimento?: string }>({});
   const [success, setSuccess] = useState(false);
 
   // Form state
@@ -30,6 +34,9 @@ export default function CadastroBeneficiaria() {
     data_nascimento: '',
     endereco: '',
     bairro: '',
+    cep: '',
+    cidade: '',
+    estado: '',
     nis: '',
     contato1: '',
     contato2: '',
@@ -38,32 +45,29 @@ export default function CadastroBeneficiaria() {
     programa_servico: ''
   });
 
+  const { validateField, validateForm, clearFieldError } = useBeneficiariaValidation();
+  const { fetchCEP, loading: loadingCEP, error: cepError } = useCEP();
+
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
     }));
+    // Limpa erro do campo ao alterar
+    if (fieldErrors[field as keyof typeof fieldErrors]) {
+      setFieldErrors(prev => ({ ...prev, [field]: undefined }));
+    }
   };
 
-  const validateForm = () => {
-    const errs: { nome?: string; cpf?: string } = {};
-    if (!formData.nome_completo.trim()) {
-      errs.nome = 'Nome completo é obrigatório';
-    }
-    if (!formData.cpf.replace(/\D/g, '')) {
-      errs.cpf = 'CPF é obrigatório';
-    }
-    setFieldErrors(errs);
-    if (Object.keys(errs).length > 0) {
-      setError(Object.values(errs)[0] || null);
-      return false;
-    }
-    if (!formData.data_nascimento) {
-      setError('Data de nascimento é obrigatória');
-      return false;
-    }
-    if (!formData.contato1.replace(/\D/g, '')) {
-      setError('Pelo menos um telefone de contato é obrigatório');
+  const doValidateForm = () => {
+    const ok = validateForm(formData as any);
+    const newFieldErrors: any = {};
+    // Campos adicionais
+    if (!formData.contato1?.replace(/\D/g, '')) newFieldErrors.contato1 = 'Telefone é obrigatório';
+    if (!formData.data_nascimento) newFieldErrors.data_nascimento = 'Data de nascimento é obrigatória';
+    setFieldErrors((prev) => ({ ...prev, ...newFieldErrors }));
+    if (!ok || Object.keys(newFieldErrors).length > 0) {
+      setError('Verifique os campos destacados');
       return false;
     }
     return true;
@@ -72,7 +76,7 @@ export default function CadastroBeneficiaria() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!validateForm()) {
+    if (!doValidateForm()) {
       return;
     }
 
@@ -106,26 +110,43 @@ export default function CadastroBeneficiaria() {
 
     } catch (error: any) {
       console.error('Erro ao cadastrar beneficiária:', error);
-      if (error.message?.includes('CPF já existe')) {
-        setError('Este CPF já está cadastrado no sistema');
-      } else {
-        setError(`Erro ao cadastrar beneficiária: ${error.message || 'Erro interno'}`);
-      }
+      const friendly = translateErrorMessage(error?.message);
+      setError(`Erro ao cadastrar beneficiária: ${friendly}`);
     } finally {
       setLoading(false);
     }
   };
 
-  const formatCpf = (value: string) => {
-    const numbers = value.replace(/\D/g, '');
-    const formatted = numbers.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
-    return formatted.slice(0, 14);
+  const onBlurValidate = (field: string, value: string) => {
+    const msg = validateField(field, value);
+    setFieldErrors((prev) => ({ ...prev, [field]: msg || undefined }));
+    if (!msg) clearFieldError(field);
   };
 
-  const formatPhone = (value: string) => {
-    const numbers = value.replace(/\D/g, '');
-    const formatted = numbers.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
-    return formatted.slice(0, 15);
+  // CEP autocomplete
+  const handleCepBlur = async () => {
+    const data = await fetchCEP(formData.cep);
+    if (data) {
+      setFormData(prev => ({
+        ...prev,
+        endereco: data.logradouro || prev.endereco,
+        bairro: data.bairro || prev.bairro,
+        cidade: data.localidade || prev.cidade,
+        estado: data.uf || prev.estado,
+      }));
+    }
+  };
+
+  // Atalhos de teclado: salvar (Ctrl/Cmd+S), cancelar (Esc)
+  const onKeyDown = (e: React.KeyboardEvent<HTMLFormElement>) => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+      e.preventDefault();
+      (e.currentTarget as HTMLFormElement).requestSubmit();
+    }
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      navigate('/beneficiarias');
+    }
   };
 
   return (
@@ -164,7 +185,7 @@ export default function CadastroBeneficiaria() {
         </Alert>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit} onKeyDown={onKeyDown} className="space-y-6">
         {/* Dados Pessoais */}
         <Card className="shadow-soft">
           <CardHeader>
@@ -184,22 +205,27 @@ export default function CadastroBeneficiaria() {
                 id="nome_completo"
                 value={formData.nome_completo}
                 onChange={(e) => handleInputChange('nome_completo', e.target.value)}
+                onBlur={(e) => onBlurValidate('nome_completo', e.target.value)}
                 placeholder="Nome completo da beneficiária"
                 required
+                aria-invalid={!!fieldErrors.nome_completo}
               />
-              {fieldErrors.nome && (
-                <p className="text-sm text-destructive" data-testid="error-nome">{fieldErrors.nome}</p>
+              {fieldErrors.nome_completo && (
+                <p className="text-sm text-destructive" data-testid="error-nome">{fieldErrors.nome_completo}</p>
               )}
               </div>
               <div className="space-y-2">
               <Label htmlFor="cpf">CPF *</Label>
-              <Input
+              <MaskedInput
+                mask="cpf"
                 id="cpf"
                 value={formData.cpf}
-                onChange={(e) => handleInputChange('cpf', formatCpf(e.target.value))}
+                onValueChange={(masked, unmasked) => handleInputChange('cpf', masked)}
+                onBlur={(e: any) => onBlurValidate('cpf', e.target.value)}
                 placeholder="000.000.000-00"
                 maxLength={14}
                 required
+                aria-invalid={!!fieldErrors.cpf}
               />
               {fieldErrors.cpf && (
                 <p className="text-sm text-destructive" data-testid="error-cpf">{fieldErrors.cpf}</p>
@@ -245,8 +271,13 @@ export default function CadastroBeneficiaria() {
                   type="date"
                   value={formData.data_nascimento}
                   onChange={(e) => handleInputChange('data_nascimento', e.target.value)}
+                  onBlur={(e) => onBlurValidate('data_nascimento', e.target.value)}
                   required
+                  aria-invalid={!!fieldErrors.data_nascimento}
                 />
+              {fieldErrors.data_nascimento && (
+                <p className="text-sm text-destructive">{fieldErrors.data_nascimento}</p>
+              )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="nis">NIS</Label>
@@ -270,6 +301,29 @@ export default function CadastroBeneficiaria() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="space-y-2">
+                <Label htmlFor="cep">CEP</Label>
+                <Input
+                  id="cep"
+                  value={formData.cep}
+                  onChange={(e) => handleInputChange('cep', e.target.value)}
+                  onBlur={handleCepBlur}
+                  placeholder="00000-000"
+                  maxLength={9}
+                />
+                {loadingCEP && <p className="text-xs text-muted-foreground">Buscando endereço…</p>}
+                {cepError && <p className="text-xs text-destructive">{cepError}</p>}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="cidade">Cidade</Label>
+                <Input id="cidade" value={formData.cidade} onChange={(e) => handleInputChange('cidade', e.target.value)} placeholder="Cidade" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="estado">Estado</Label>
+                <Input id="estado" value={formData.estado} onChange={(e) => handleInputChange('estado', e.target.value)} placeholder="UF" maxLength={2} />
+              </div>
+            </div>
             <div className="space-y-2">
               <Label htmlFor="endereco">Endereço Completo</Label>
               <Textarea
@@ -304,22 +358,29 @@ export default function CadastroBeneficiaria() {
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="contato1">Telefone Principal *</Label>
-                <Input
+                <MaskedInput
+                  mask="telefone"
                   id="contato1"
                   name="telefone"
                   value={formData.contato1}
-                  onChange={(e) => handleInputChange('contato1', formatPhone(e.target.value))}
+                  onValueChange={(masked) => handleInputChange('contato1', masked)}
+                  onBlur={(e: any) => onBlurValidate('telefone', e.target.value)}
                   placeholder="(11) 99999-9999"
                   maxLength={15}
                   required
+                  aria-invalid={!!fieldErrors.contato1}
                 />
+              {fieldErrors.contato1 && (
+                <p className="text-sm text-destructive">{fieldErrors.contato1}</p>
+              )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="contato2">Telefone Secundário</Label>
-                <Input
+                <MaskedInput
+                  mask="telefone"
                   id="contato2"
                   value={formData.contato2}
-                  onChange={(e) => handleInputChange('contato2', formatPhone(e.target.value))}
+                  onValueChange={(masked) => handleInputChange('contato2', masked)}
                   placeholder="(11) 99999-9999"
                   maxLength={15}
                 />

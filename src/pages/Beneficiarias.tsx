@@ -20,6 +20,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { ListSkeleton } from "@/components/ui/list-skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
+import usePersistedFilters from "@/hooks/usePersistedFilters";
 import { apiService } from "@/services/apiService";
 
 // Tipo local simplificado baseado no banco real
@@ -51,11 +54,15 @@ interface Beneficiaria {
 
 export default function Beneficiarias() {
   const navigate = useNavigate();
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedStatus, setSelectedStatus] = useState("Todas");
   const [showFilters, setShowFilters] = useState(false);
-  const [programaFilter, setProgramaFilter] = useState("Todos");
-  const [currentPage, setCurrentPage] = useState(1);
+  const { state: filterState, set: setFilters } = usePersistedFilters({
+    key: 'beneficiarias:filters',
+    initial: { search: '', status: 'Todas', programa: 'Todos', page: 1 },
+  });
+  const searchTerm = filterState.search as string;
+  const selectedStatus = filterState.status as string;
+  const programaFilter = filterState.programa as string;
+  const currentPage = Number(filterState.page || 1);
   const [itemsPerPage] = useState(10);
   const [beneficiarias, setBeneficiarias] = useState<Beneficiaria[]>([]);
   const [loading, setLoading] = useState(true);
@@ -80,6 +87,7 @@ export default function Beneficiarias() {
 
   useEffect(() => {
     loadBeneficiarias();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadBeneficiarias = async () => {
@@ -93,6 +101,10 @@ export default function Beneficiarias() {
       if (response.success && response.data) {
         const data = response.data;
         setBeneficiarias(data);
+        // Prefetch: carregar detalhes do primeiro item
+        if (Array.isArray(data) && data.length > 0) {
+          void apiService.getBeneficiaria(data[0].id);
+        }
         
         // Calculate stats com status real do banco
         const total = data.length;
@@ -119,19 +131,6 @@ export default function Beneficiarias() {
       setLoading(false);
     }
   };
-      console.error('Erro ao carregar beneficiárias:', error);
-      // Em caso de erro, definir valores padrão
-      setBeneficiarias([]);
-      setStats({
-        total: 0,
-        ativas: 0,
-        aguardando: 0,
-        inativas: 0
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const filteredBeneficiarias = beneficiarias.filter(beneficiaria => {
     const matchesSearch = beneficiaria.nome_completo.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -154,7 +153,7 @@ export default function Beneficiarias() {
 
   // Reset page when filters change
   useEffect(() => {
-    setCurrentPage(1);
+    setFilters({ page: 1 });
   }, [searchTerm, selectedStatus, programaFilter]);
 
   const getStatusVariant = (status: string) => {
@@ -183,7 +182,9 @@ export default function Beneficiarias() {
 
   const generatePaedi = (beneficiaria: Beneficiaria) => {
     try {
-      const dataCadastro = beneficiaria.data_cadastro ? new Date(beneficiaria.data_cadastro) : new Date();
+      const dataCadastro = (beneficiaria as any).data_cadastro
+        ? new Date((beneficiaria as any).data_cadastro)
+        : (beneficiaria.data_criacao ? new Date(beneficiaria.data_criacao) : new Date());
       const year = isNaN(dataCadastro.getTime()) ? new Date().getFullYear() : dataCadastro.getFullYear();
       const sequence = beneficiaria.id.toString().padStart(3, '0').slice(-3);
       return `MM-${year}-${sequence}`;
@@ -251,21 +252,26 @@ export default function Beneficiarias() {
                 <Input
                   placeholder="Buscar por nome, CPF ou PAEDI..."
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={(e) => setFilters({ search: e.target.value })}
                   className="pl-10"
                   data-testid="search-input"
                 />
               </div>
-              <Button 
-                variant="outline" 
-                size="icon"
-                onClick={() => setShowFilters(!showFilters)}
-              >
-                <Filter className="h-4 w-4" />
-              </Button>
+              <div className="relative">
+                <Button 
+                  variant="outline" 
+                  size="icon"
+                  onClick={() => setShowFilters(!showFilters)}
+                >
+                  <Filter className="h-4 w-4" />
+                </Button>
+                {(() => { const c = (selectedStatus !== 'Todas' ? 1 : 0) + (programaFilter !== 'Todos' ? 1 : 0) + (searchTerm ? 1 : 0); return c ? (
+                  <span aria-label="Quantidade de filtros ativos" className="absolute -top-1 -right-1 h-5 min-w-[20px] px-1 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center">{c}</span>
+                ) : null; })()}
+              </div>
               <Button
                 variant="default"
-                onClick={() => setSearchTerm(searchTerm)}
+                onClick={() => setFilters({ search: searchTerm })}
                 data-testid="search-button"
               >
                 Buscar
@@ -285,7 +291,7 @@ export default function Beneficiarias() {
                     <label className="text-sm font-medium mb-2 block">Status</label>
                     <select
                       value={selectedStatus}
-                      onChange={(e) => setSelectedStatus(e.target.value)}
+                      onChange={(e) => setFilters({ status: e.target.value })}
                       className="w-full p-2 border rounded-md"
                     >
                       <option value="Todas">Todas</option>
@@ -298,7 +304,7 @@ export default function Beneficiarias() {
                     <label className="text-sm font-medium mb-2 block">Programa/Serviço</label>
                     <select
                       value={programaFilter}
-                      onChange={(e) => setProgramaFilter(e.target.value)}
+                      onChange={(e) => setFilters({ programa: e.target.value })}
                       className="w-full p-2 border rounded-md"
                     >
                       <option value="Todos">Todos</option>
@@ -311,9 +317,7 @@ export default function Beneficiarias() {
                     <Button 
                       variant="outline" 
                       onClick={() => {
-                        setSelectedStatus("Todas");
-                        setProgramaFilter("Todos");
-                        setSearchTerm("");
+                        setFilters({ status: 'Todas', programa: 'Todos', search: '', page: 1 });
                       }}
                     >
                       Limpar Filtros
@@ -341,22 +345,19 @@ export default function Beneficiarias() {
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8">
-                      <p className="text-muted-foreground">Carregando beneficiárias...</p>
+                    <TableCell colSpan={7} className="py-4">
+                      <ListSkeleton rows={6} columns={6} />
                     </TableCell>
                   </TableRow>
                 ) : filteredBeneficiarias.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8">
-                      <p className="text-muted-foreground">
-                        {searchTerm ? 'Nenhuma beneficiária encontrada para sua busca.' : 'Nenhuma beneficiária cadastrada ainda.'}
-                      </p>
-                      {!searchTerm && (
-                        <Button className="mt-4" onClick={() => navigate('/beneficiarias/nova')}>
-                          <Plus className="h-4 w-4 mr-2" />
-                          Cadastrar primeira beneficiária
-                        </Button>
-                      )}
+                    <TableCell colSpan={7} className="py-8">
+                      <EmptyState
+                        title={searchTerm ? 'Nenhuma beneficiária encontrada' : 'Nenhuma beneficiária cadastrada'}
+                        description={searchTerm ? 'Ajuste sua busca ou filtros e tente novamente.' : 'Comece cadastrando a primeira beneficiária.'}
+                        actionLabel={!searchTerm ? 'Cadastrar beneficiária' : undefined}
+                        onAction={!searchTerm ? () => navigate('/beneficiarias/nova') : undefined}
+                      />
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -426,7 +427,7 @@ export default function Beneficiarias() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setCurrentPage(currentPage - 1)}
+                  onClick={() => setFilters({ page: currentPage - 1 })}
                   disabled={currentPage === 1}
                 >
                   Anterior
@@ -437,7 +438,7 @@ export default function Beneficiarias() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setCurrentPage(currentPage + 1)}
+                  onClick={() => setFilters({ page: currentPage + 1 })}
                   disabled={currentPage === totalPages}
                 >
                   Próxima

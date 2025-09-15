@@ -406,7 +406,7 @@ router.get('/beneficiaria/:beneficiariaId', authenticateToken, async (req: Authe
 router.post('/:tipo', authenticateToken,
   validateRequest(z.object({
     body: z.object({
-      beneficiaria_id: z.coerce.number({ required_error: 'beneficiaria_id é obrigatório' }),
+      beneficiaria_id: z.coerce.number(),
       dados: z.any().optional(),
       status: z.string().optional(),
       observacoes: z.string().optional(),

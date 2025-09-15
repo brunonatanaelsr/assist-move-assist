@@ -1,6 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/services/api';
 import { toast } from '../components/ui/use-toast';
+import { ToastAction } from '@/components/ui/toast';
+import { useRef, useState } from 'react';
 
 interface Documento {
   id: number;
@@ -44,10 +46,12 @@ interface AtualizarDocumentoParams {
 
 export function useDocumentos(beneficiariaId: number) {
   const queryClient = useQueryClient();
+  const [isExcluindo, setIsExcluindo] = useState(false);
+  const pendingTimers = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
 
   const { data: documentos, isLoading } = useQuery<Documento[]>({
     queryKey: ['documentos', beneficiariaId],
-    queryFn: () => api.get(`/documentos/${beneficiariaId}`).then(res => res.data),
+    queryFn: (): Promise<Documento[]> => api.get<Documento[]>(`/documentos/${beneficiariaId}`).then(res => res.data as Documento[]),
     enabled: !!beneficiariaId
   });
 
@@ -110,32 +114,61 @@ export function useDocumentos(beneficiariaId: number) {
     }
   });
 
-  const excluirMutation = useMutation({
-    mutationFn: (documentoId: number) =>
-      api.delete(`/documentos/${documentoId}`).then(res => res.data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['documentos', beneficiariaId] });
-      toast({
-        title: 'Sucesso!',
-        description: 'Documento excluído com sucesso.',
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: 'Erro!',
-        description: error.response?.data?.error || 'Erro ao excluir documento.',
-        variant: 'destructive'
-      });
-    }
-  });
+  // Exclusão com opção de desfazer (apenas cliente por 4s)
+  const excluirComUndo = (documentoId: number) => {
+    const cacheKey = ['documentos', beneficiariaId] as const;
+    const previous = queryClient.getQueryData<Documento[]>(cacheKey) || [];
+    const updated = previous.filter((d) => d.id !== documentoId);
+
+    // Otimista: remove do cache
+    queryClient.setQueryData(cacheKey, updated);
+    setIsExcluindo(true);
+
+    // Programar exclusão real após 4s
+    const timer = setTimeout(async () => {
+      try {
+        await api.delete(`/documentos/${documentoId}`);
+        queryClient.invalidateQueries({ queryKey: cacheKey });
+      } catch (error: any) {
+        // Recarregar estado e informar erro
+        queryClient.setQueryData(cacheKey, previous);
+        toast({
+          title: 'Erro!',
+          description: error?.response?.data?.error || 'Erro ao excluir documento.',
+          variant: 'destructive',
+        });
+      } finally {
+        setIsExcluindo(false);
+        delete pendingTimers.current[documentoId];
+      }
+    }, 4000);
+
+    pendingTimers.current[documentoId] = timer;
+
+    const { dismiss } = toast({
+      title: 'Documento excluído',
+      description: 'Você pode desfazer esta ação.',
+      action: (
+        <ToastAction altText="Desfazer" onClick={() => {
+          // Cancelar exclusão e restaurar cache
+          const t = pendingTimers.current[documentoId];
+          if (t) clearTimeout(t);
+          queryClient.setQueryData(cacheKey, previous);
+          setIsExcluindo(false);
+          delete pendingTimers.current[documentoId];
+        }}>Desfazer</ToastAction>
+      ),
+    });
+
+    // Auto-dismiss em 4s (sincronizado com execução)
+    setTimeout(() => dismiss(), 4100);
+  };
 
   const downloadDocumento = async (documentoId: number, nomeArquivo: string) => {
     try {
-      const response = await api.get(`/documentos/${documentoId}/download`, {
-        responseType: 'blob'
-      });
-
-      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const response = await api.get<Blob>(`/documentos/${documentoId}/download`, { responseType: 'blob' });
+      const blob = response.data as unknown as Blob;
+      const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
       link.setAttribute('download', nomeArquivo);
@@ -153,7 +186,7 @@ export function useDocumentos(beneficiariaId: number) {
 
   const { data: versoes, isLoading: loadingVersoes } = useQuery<DocumentoVersao[]>({
     queryKey: ['documentos', 'versoes', beneficiariaId],
-    queryFn: () => api.get(`/documentos/${beneficiariaId}/versoes`).then(res => res.data),
+    queryFn: (): Promise<DocumentoVersao[]> => api.get<DocumentoVersao[]>(`/documentos/${beneficiariaId}/versoes`).then(res => res.data as DocumentoVersao[]),
     enabled: !!beneficiariaId
   });
 
@@ -164,8 +197,8 @@ export function useDocumentos(beneficiariaId: number) {
     isUploading: (uploadMutation as any).isPending ?? (uploadMutation as any).isLoading,
     atualizar: atualizarMutation.mutate,
     isAtualizando: (atualizarMutation as any).isPending ?? (atualizarMutation as any).isLoading,
-    excluir: excluirMutation.mutate,
-    isExcluindo: (excluirMutation as any).isPending ?? (excluirMutation as any).isLoading,
+    excluir: excluirComUndo,
+    isExcluindo,
     download: downloadDocumento,
     versoes,
     loadingVersoes

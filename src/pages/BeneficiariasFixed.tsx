@@ -21,6 +21,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { apiService } from "@/services/apiService";
+import { ListSkeleton } from "@/components/ui/list-skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
+import usePersistedFilters from "@/hooks/usePersistedFilters";
 
 // Tipo correto baseado no banco real
 interface Beneficiaria {
@@ -51,11 +54,12 @@ interface Beneficiaria {
 
 export default function BeneficiariasFixed() {
   const navigate = useNavigate();
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedStatus, setSelectedStatus] = useState("Todas");
   const [showFilters, setShowFilters] = useState(false);
-  const [programaFilter, setProgramaFilter] = useState("Todos");
-  const [currentPage, setCurrentPage] = useState(1);
+  const { state: filterState, set: setFilters } = usePersistedFilters({ key: 'beneficiarias:filters', initial: { search: '', status: 'Todas', programa: 'Todos', page: 1 }});
+  const searchTerm = filterState.search as string;
+  const selectedStatus = filterState.status as string;
+  const programaFilter = filterState.programa as string;
+  const currentPage = Number(filterState.page || 1);
   const [itemsPerPage] = useState(10);
   const [beneficiarias, setBeneficiarias] = useState<Beneficiaria[]>([]);
   const [loading, setLoading] = useState(true);
@@ -80,6 +84,7 @@ export default function BeneficiariasFixed() {
 
   useEffect(() => {
     loadBeneficiarias();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadBeneficiarias = async () => {
@@ -93,6 +98,10 @@ export default function BeneficiariasFixed() {
       if (response.success && response.data) {
         const data = response.data;
         setBeneficiarias(data);
+        // Prefetch detalhes do primeiro item
+        if (Array.isArray(data) && data.length > 0) {
+          void apiService.getBeneficiaria(data[0].id);
+        }
         
         // Calculate stats com status real do banco
         const total = data.length;
@@ -141,7 +150,7 @@ export default function BeneficiariasFixed() {
 
   // Reset page when filters change
   useEffect(() => {
-    setCurrentPage(1);
+    setFilters({ page: 1 });
   }, [searchTerm, selectedStatus, programaFilter]);
 
   const getStatusVariant = (status: string) => {
@@ -239,21 +248,26 @@ export default function BeneficiariasFixed() {
                 <Input
                   placeholder="Buscar por nome, CPF ou PAEDI..."
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={(e) => setFilters({ search: e.target.value })}
                   className="pl-10"
                   data-testid="search-input"
                 />
               </div>
-              <Button 
-                variant="outline" 
-                size="icon"
-                onClick={() => setShowFilters(!showFilters)}
-              >
-                <Filter className="h-4 w-4" />
-              </Button>
+              <div className="relative">
+                <Button 
+                  variant="outline" 
+                  size="icon"
+                  onClick={() => setShowFilters(!showFilters)}
+                >
+                  <Filter className="h-4 w-4" />
+                </Button>
+                {(() => { const c = (selectedStatus !== 'Todas' ? 1 : 0) + (programaFilter !== 'Todos' ? 1 : 0) + (searchTerm ? 1 : 0); return c ? (
+                  <span aria-label="Quantidade de filtros ativos" className="absolute -top-1 -right-1 h-5 min-w-[20px] px-1 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center">{c}</span>
+                ) : null; })()}
+              </div>
               <Button
                 variant="default"
-                onClick={() => setSearchTerm(searchTerm)}
+                onClick={() => setFilters({ search: searchTerm })}
                 data-testid="search-button"
               >
                 Buscar
@@ -273,7 +287,7 @@ export default function BeneficiariasFixed() {
                     <label className="text-sm font-medium mb-2 block">Status</label>
                     <select
                       value={selectedStatus}
-                      onChange={(e) => setSelectedStatus(e.target.value)}
+                      onChange={(e) => setFilters({ status: e.target.value })}
                       className="w-full p-2 border rounded-md"
                     >
                       <option value="Todas">Todas</option>
@@ -286,7 +300,7 @@ export default function BeneficiariasFixed() {
                     <label className="text-sm font-medium mb-2 block">Programa/Serviço</label>
                     <select
                       value={programaFilter}
-                      onChange={(e) => setProgramaFilter(e.target.value)}
+                      onChange={(e) => setFilters({ programa: e.target.value })}
                       className="w-full p-2 border rounded-md"
                     >
                       <option value="Todos">Todos</option>
@@ -298,11 +312,7 @@ export default function BeneficiariasFixed() {
                   <div className="flex items-end">
                     <Button 
                       variant="outline" 
-                      onClick={() => {
-                        setSelectedStatus("Todas");
-                        setProgramaFilter("Todos");
-                        setSearchTerm("");
-                      }}
+                      onClick={() => setFilters({ status: 'Todas', programa: 'Todos', search: '', page: 1 })}
                     >
                       Limpar Filtros
                     </Button>
@@ -329,22 +339,19 @@ export default function BeneficiariasFixed() {
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8">
-                      <p className="text-muted-foreground">Carregando beneficiárias...</p>
+                    <TableCell colSpan={7} className="py-4">
+                      <ListSkeleton rows={6} columns={6} />
                     </TableCell>
                   </TableRow>
                 ) : filteredBeneficiarias.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8">
-                      <p className="text-muted-foreground">
-                        {searchTerm ? 'Nenhuma beneficiária encontrada para sua busca.' : 'Nenhuma beneficiária cadastrada ainda.'}
-                      </p>
-                      {!searchTerm && (
-                        <Button className="mt-4" onClick={() => navigate('/beneficiarias/nova')}>
-                          <Plus className="h-4 w-4 mr-2" />
-                          Cadastrar primeira beneficiária
-                        </Button>
-                      )}
+                    <TableCell colSpan={7} className="py-8">
+                      <EmptyState
+                        title={searchTerm ? 'Nenhuma beneficiária encontrada' : 'Nenhuma beneficiária cadastrada'}
+                        description={searchTerm ? 'Ajuste sua busca ou filtros e tente novamente.' : 'Comece cadastrando a primeira beneficiária.'}
+                        actionLabel={!searchTerm ? 'Cadastrar beneficiária' : undefined}
+                        onAction={!searchTerm ? () => navigate('/beneficiarias/nova') : undefined}
+                      />
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -414,7 +421,7 @@ export default function BeneficiariasFixed() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setCurrentPage(currentPage - 1)}
+                  onClick={() => setFilters({ page: currentPage - 1 })}
                   disabled={currentPage === 1}
                 >
                   Anterior
@@ -425,7 +432,7 @@ export default function BeneficiariasFixed() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setCurrentPage(currentPage + 1)}
+                  onClick={() => setFilters({ page: currentPage + 1 })}
                   disabled={currentPage === totalPages}
                 >
                   Próxima

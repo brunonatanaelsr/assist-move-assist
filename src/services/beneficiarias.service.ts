@@ -1,5 +1,6 @@
 import type { Beneficiaria } from '@/types/shared';
 import { api } from '@/services/api';
+import { normalizeCpf, normalizePhone } from '@/lib/format';
 export interface ApiResponse<T=any> { success: boolean; data?: T; message?: string }
 
 export const BeneficiariasService = {
@@ -19,12 +20,26 @@ export const BeneficiariasService = {
     },
 
     criar: async (beneficiaria: Partial<Beneficiaria>): Promise<ApiResponse<Beneficiaria>> => {
-        const response = await api.post('/beneficiarias', beneficiaria);
+        const payload = {
+            ...beneficiaria,
+            cpf: beneficiaria?.cpf ? normalizeCpf(String(beneficiaria.cpf)) : undefined,
+            telefone: (beneficiaria as any)?.telefone ? normalizePhone(String((beneficiaria as any).telefone)) : undefined,
+            contato1: (beneficiaria as any)?.contato1 ? normalizePhone(String((beneficiaria as any).contato1)) : undefined,
+            contato2: (beneficiaria as any)?.contato2 ? normalizePhone(String((beneficiaria as any).contato2)) : undefined,
+        } as any;
+        const response = await api.post('/beneficiarias', payload);
         return response.data;
     },
 
     atualizar: async (id: number, beneficiaria: Partial<Beneficiaria>): Promise<ApiResponse<Beneficiaria>> => {
-        const response = await api.put(`/beneficiarias/${id}`, beneficiaria);
+        const payload = {
+            ...beneficiaria,
+            cpf: beneficiaria?.cpf ? normalizeCpf(String(beneficiaria.cpf)) : undefined,
+            telefone: (beneficiaria as any)?.telefone ? normalizePhone(String((beneficiaria as any).telefone)) : undefined,
+            contato1: (beneficiaria as any)?.contato1 ? normalizePhone(String((beneficiaria as any).contato1)) : undefined,
+            contato2: (beneficiaria as any)?.contato2 ? normalizePhone(String((beneficiaria as any).contato2)) : undefined,
+        } as any;
+        const response = await api.put(`/beneficiarias/${id}`, payload);
         return response.data;
     },
 

@@ -7,8 +7,11 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ArrowLeft, Save, FileText, User, Home, Heart, Users, Briefcase, GraduationCap } from 'lucide-react';
+import { ArrowLeft, Save, FileText, User, Home, Heart, Users, Briefcase, GraduationCap, ChevronLeft, ChevronRight } from 'lucide-react';
 import { apiService } from '@/services/apiService';
+import useAutosave from '@/hooks/useAutosave';
+import { useToast } from '@/components/ui/use-toast';
+import { Stepper } from '@/components/ui/stepper';
 
 interface AnamneseSocialData {
   beneficiaria_id: number;
@@ -66,12 +69,27 @@ export default function AnamneseSocial() {
     responsavel_preenchimento: 'Usuário Logado'
   });
 
+  const autosaveKey = `autosave:anamnese:${id}`;
+  const { toast } = useToast();
+  const { hasDraft, restored, restore, clear } = useAutosave({ key: autosaveKey, data: formData, debounceMs: 1000, enabled: true });
+  const [step, setStep] = useState(0);
+
   useEffect(() => {
     if (id) {
       carregarBeneficiaria();
       carregarAnamnese();
     }
   }, [id]);
+
+  // Oferece restauração de rascunho ao carregar
+  useEffect(() => {
+    if (hasDraft && !restored) {
+      toast({
+        title: 'Rascunho disponível',
+        description: 'Detectamos um rascunho não enviado. Deseja restaurar?',
+      });
+    }
+  }, [hasDraft, restored, toast]);
 
   const carregarBeneficiaria = async () => {
     try {
@@ -94,9 +112,18 @@ export default function AnamneseSocial() {
           setFormData({ ...anamneseData.dados, beneficiaria_id: parseInt(id || '0') });
         }
       }
+      // Se não houver registro no backend, tenta restaurar rascunho local
+      else if (hasDraft && !restored) {
+        restore(setFormData as any);
+        toast({ title: 'Rascunho restaurado', description: 'Continue de onde parou.' });
+      }
     } catch (error) {
       // Se não existir, mantém os dados vazios
       console.log('Anamnese não encontrada, criando nova');
+      if (hasDraft && !restored) {
+        restore(setFormData as any);
+        toast({ title: 'Rascunho restaurado', description: 'Continue de onde parou.' });
+      }
     }
   };
 
@@ -106,6 +133,8 @@ export default function AnamneseSocial() {
       const response = await apiService.post('/formularios/anamnese', formData);
 
       if (response.success) {
+        clear();
+        toast({ title: 'Anamnese salva', description: 'Seus dados foram salvos com sucesso.' });
         navigate(`/beneficiarias/${id}`);
       }
     } catch (error) {
@@ -129,6 +158,24 @@ export default function AnamneseSocial() {
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-4xl mx-auto space-y-6">
+        {/* Steps */}
+        <div className="bg-card border rounded p-4">
+          <div className="flex items-center gap-3">
+            <Stepper
+              steps={[{label:'Familiar/Habitacional'},{label:'Socioeconômico/Saúde/Educação'},{label:'Social/Objetivos/Finalizar'}]}
+              current={step}
+              onChange={setStep}
+            />
+            <div className="ml-auto flex items-center gap-2">
+              <button className="text-sm px-2 py-1 border rounded disabled:opacity-50" onClick={() => setStep(s => Math.max(0, s-1))} disabled={step===0}>
+                <ChevronLeft className="inline h-4 w-4" /> Voltar
+              </button>
+              <button className="text-sm px-2 py-1 border rounded disabled:opacity-50" onClick={() => setStep(s => Math.min(2, s+1))} disabled={step===2}>
+                Avançar <ChevronRight className="inline h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        </div>
         {/* Header */}
         <div className="flex items-center gap-4">
           <Button variant="outline" onClick={() => navigate(`/beneficiarias/${id}`)}>

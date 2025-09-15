@@ -36,6 +36,7 @@ const Atividades = lazy(() => import("@/pages/Atividades"));
 const FeedNew = lazy(() => import("@/pages/FeedNew"));
 const ProjetosNew = lazy(() => import("@/pages/ProjetosNew"));
 const Relatorios = lazy(() => import("@/pages/Relatorios"));
+const NotificationsPage = lazy(() => import("@/pages/Notifications"));
 const FormulariosNavegacao = lazy(() => import("@/pages/FormulariosNavegacao"));
 const FormularioGenerico = lazy(() => import("@/pages/FormularioGenerico"));
 const DeclaracoesReciboGeral = lazy(() => import("@/pages/DeclaracoesReciboGeral"));
@@ -122,6 +123,7 @@ const App = () => (
                   <Route path="feed" element={<FeedNew />} />
                   <Route path="projetos" element={<ProjetosNew />} />
                   <Route path="relatorios" element={<Relatorios />} />
+                  <Route path="notifications" element={<NotificationsPage />} />
 
                   {/* Formulários genéricos - Redirecionamento para beneficiárias */}
                   <Route path="formularios">

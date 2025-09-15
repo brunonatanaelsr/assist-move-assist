@@ -4,6 +4,7 @@
  */
 
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
+import { translateErrorMessage } from '@/lib/apiError';
 import { API_URL } from '@/config';
 const IS_DEV = (import.meta as any)?.env?.DEV === true || (import.meta as any)?.env?.MODE === 'development';
 
@@ -102,9 +103,10 @@ class ApiService {
         }
         
         // Criar resposta de erro padronizada
+        const rawMessage = error.response?.data?.message || error.message;
         const errorResponse: ApiResponse = {
           success: false,
-          message: error.response?.data?.message || error.message || 'Erro de comunicação com o servidor'
+          message: translateErrorMessage(rawMessage)
         };
         
         // Atualizar a resposta de erro
@@ -119,10 +121,25 @@ class ApiService {
 
   // Métodos genéricos para API
   async get<T>(url: string, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
-    try {
+    const attempt = async (): Promise<ApiResponse<T>> => {
       const response = await this.api.get<ApiResponse<T>>(url, config);
       return response.data;
+    };
+    const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+    try {
+      return await attempt();
     } catch (error: any) {
+      // Retry GETs once with backoff if network or 5xx
+      const status = error?.response?.status;
+      if (!config?.method && (!status || status >= 500)) {
+        try {
+          await sleep(300);
+          return await attempt();
+        } catch (err2: any) {
+          if (err2.response && err2.response.data) return err2.response.data;
+          return { success: false, message: err2.message || 'Erro na requisição' };
+        }
+      }
       if (error.response && error.response.data) {
         return error.response.data;
       }

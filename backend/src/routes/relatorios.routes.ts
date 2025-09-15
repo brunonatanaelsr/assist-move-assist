@@ -11,6 +11,25 @@ import { stringify } from 'csv-stringify/sync';
 
 const router = express.Router();
 
+// Índice de relatórios: GET /relatorios
+router.get('/', authenticateToken, async (_req, res) => {
+  try {
+    res.json(successResponse({
+      endpoints: [
+        '/api/relatorios/beneficiarias',
+        '/api/relatorios/oficinas',
+        '/api/relatorios/projetos',
+        '/api/relatorios/participacao',
+        '/api/relatorios/consolidado',
+        '/api/relatorios/templates',
+        '/api/relatorios/export/:id'
+      ]
+    }, 'Índice de relatórios'));
+  } catch (error) {
+    res.status(500).json(errorResponse('Erro ao listar relatórios'));
+  }
+});
+
 // Relatório geral de beneficiárias
 router.get('/beneficiarias', authenticateToken, auth.authorize('relatorios.beneficiarias.gerar'), async (req, res) => {
   try {

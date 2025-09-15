@@ -122,6 +122,21 @@ CORS_ORIGIN=http://localhost:5173
 - `POST /dashboard/notifications/mark-all-read` - Marcar todas como lidas
 - `GET /dashboard/quick-access` - Links de acesso rápido
 
+### Uploads
+- `GET /upload/test` - Verifica disponibilidade do endpoint de upload
+- `POST /upload` - Upload genérico (`multipart/form-data` campo `file`)
+- `GET /upload/files/:filename` - Baixar arquivo enviado (autenticado)
+
+### Organizações
+- `GET /organizacoes` - Listar organizações
+- `GET /organizacoes/:id` - Obter organização
+- `POST /organizacoes` - Criar organização
+- `PUT /organizacoes/:id` - Atualizar organização
+- `DELETE /organizacoes/:id` - Remoção lógica (soft delete)
+
+### Relatórios
+- `GET /relatorios` - Índice com endpoints disponíveis
+
 ## WebSocket
 
 ### Conexão

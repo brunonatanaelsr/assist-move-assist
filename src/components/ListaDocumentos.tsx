@@ -25,6 +25,8 @@ import {
   DialogTitle,
 } from './ui/dialog';
 import { useState } from 'react';
+import { ListSkeleton } from '@/components/ui/list-skeleton';
+import { EmptyState } from '@/components/ui/empty-state';
 
 interface ListaDocumentosProps {
   beneficiariaId: number;
@@ -45,11 +47,16 @@ export function ListaDocumentos({ beneficiariaId }: ListaDocumentosProps) {
   } = useDocumentos(beneficiariaId);
 
   if (isLoading) {
-    return <div>Carregando documentos...</div>;
+    return <ListSkeleton rows={5} columns={6} />;
   }
 
   if (!documentos?.length) {
-    return <div>Nenhum documento encontrado.</div>;
+    return (
+      <EmptyState
+        title="Nenhum documento encontrado"
+        description="Envie seu primeiro documento para esta beneficiária."
+      />
+    );
   }
 
   const handleVerVersoes = (docId: number) => {

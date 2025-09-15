@@ -11,6 +11,8 @@ import { ArrowLeft, Save, Plus, TrendingUp, Calendar, User, Activity, Target } f
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { apiService } from '@/services/apiService';
+import useAutosave from '@/hooks/useAutosave';
+import { useToast } from '@/components/ui/use-toast';
 
 interface RegistroEvolucao {
   id?: number;
@@ -45,6 +47,9 @@ export default function FichaEvolucao() {
     data_inicio_acompanhamento: new Date().toISOString().split('T')[0],
     responsavel_tecnico: 'Usuário Logado'
   });
+  const autosaveKey = `autosave:ficha_evolucao:${id}`;
+  const { toast } = useToast();
+  const { hasDraft, restored, restore, clear } = useAutosave({ key: autosaveKey, data: fichaData, debounceMs: 1000, enabled: true });
   
   const [novoRegistro, setNovoRegistro] = useState<Partial<RegistroEvolucao>>({
     data_registro: new Date().toISOString().split('T')[0],
@@ -66,6 +71,12 @@ export default function FichaEvolucao() {
     }
   }, [id]);
 
+  useEffect(() => {
+    if (hasDraft && !restored) {
+      toast({ title: 'Rascunho disponível', description: 'Deseja restaurar o rascunho desta ficha?' });
+    }
+  }, [hasDraft, restored, toast]);
+
   const carregarBeneficiaria = async () => {
     try {
       const response = await apiService.getBeneficiaria(id!);
@@ -85,6 +96,10 @@ export default function FichaEvolucao() {
       }
     } catch (error) {
       console.log('Ficha de Evolução não encontrada, criando nova');
+      if (hasDraft && !restored) {
+        restore(setFichaData as any);
+        toast({ title: 'Rascunho restaurado', description: 'Continue de onde parou.' });
+      }
     }
   };
 
@@ -132,6 +147,8 @@ export default function FichaEvolucao() {
       const response = await apiService.post('/formularios/ficha-evolucao', fichaData);
 
       if (response.success) {
+        clear();
+        toast({ title: 'Ficha de evolução salva', description: 'Seus dados foram salvos com sucesso.' });
         navigate(`/beneficiarias/${id}`);
       }
     } catch (error) {
