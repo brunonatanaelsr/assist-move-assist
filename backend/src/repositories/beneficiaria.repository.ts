@@ -75,7 +75,7 @@ export class BeneficiariaRepository extends BaseRepository<Beneficiaria> {
         dataInicio?: Date;
         dataFim?: Date;
     }): Promise<Beneficiaria[]> {
-        let conditions: string[] = ['deleted_at IS NULL'];
+        const conditions: string[] = ['deleted_at IS NULL'];
         const values: any[] = [];
         let paramCount = 1;
 

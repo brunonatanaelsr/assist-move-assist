@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 
-export function useMaskedInput(type: 'cpf' | 'telefone') {
+export default function useMaskedInput(type: 'cpf' | 'telefone') {
   const [value, setValue] = useState('');
 
   const mask = useCallback((value: string) => {

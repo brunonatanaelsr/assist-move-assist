@@ -115,7 +115,7 @@ export const useFormValidation = (rules: ValidationRules): UseFormValidationRetu
     clearErrors,
     clearFieldError,
   };
-};
+}
 
 // Regras de validação predefinidas para documentos brasileiros
 export const createDocumentValidationRules = () => ({
@@ -187,4 +187,4 @@ export const useBeneficiariaValidation = () => {
   };
 
   return useFormValidation(rules);
-};
+

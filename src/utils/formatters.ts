@@ -1,3 +1,18 @@
+export function formatCPF(cpf: string): string {
+    const numeros = cpf.replace(/\D/g, '');
+    return numeros.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+}
+
+export function formatPhone(phone: string): string {
+    const numeros = phone.replace(/\D/g, '');
+    if (numeros.length === 11) {
+        return `(${numeros.slice(0,2)}) ${numeros.slice(2,7)}-${numeros.slice(7)}`;
+    }
+    if (numeros.length === 10) {
+        return `(${numeros.slice(0,2)}) ${numeros.slice(2,6)}-${numeros.slice(6)}`;
+    }
+    return phone;
+}
 // Funções utilitárias para formatação de dados de beneficiárias
 
 import type { Beneficiaria } from '@/types/shared';

@@ -77,8 +77,8 @@ export class BeneficiariasRepository extends PostgresBaseRepository<Beneficiaria
       data_fim?: Date;
     }
   ) {
-    let whereConditions = ['deleted_at IS NULL'];
-    let params: any[] = [];
+    const whereConditions = ['deleted_at IS NULL'];
+    const params: any[] = [];
     let paramCount = 1;
 
     if (filtros?.status) {

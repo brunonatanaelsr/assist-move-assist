@@ -9,7 +9,7 @@ import type {
 } from '@/types/notification';
 
 // Hook para buscar notificações
-export function useNotifications(filters?: {
+export default function useNotifications(filters?: {
   read?: boolean;
   type?: string[];
   page?: number;

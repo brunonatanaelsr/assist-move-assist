@@ -59,7 +59,7 @@ export interface AddParticipanteDTO {
   observacoes?: string;
 }
 
-export const oficinasService = {
+export const OficinasService = {
   // Listar oficinas com filtros e paginação
   listar: async (params: ListOficinasParams = {}) => {
     const searchParams = new URLSearchParams();

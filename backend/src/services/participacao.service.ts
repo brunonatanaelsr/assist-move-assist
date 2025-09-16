@@ -79,8 +79,8 @@ export class ParticipacaoService {
         }
       }
 
-      let whereConditions = ['p.ativo = true'];
-      let params: any[] = [];
+      const whereConditions = ['p.ativo = true'];
+      const params: any[] = [];
       let paramCount = 0;
 
       if (beneficiaria_id) {

@@ -35,14 +35,11 @@ export const formatDisplayDate = (isoDate?: string | null): string => {
  */
 export const formatLongDate = (isoDate?: string | null): string => {
   if (!isoDate) return '-';
-  
   try {
     const date = new Date(isoDate);
-    
     if (isNaN(date.getTime())) {
       return '-';
     }
-    
     return date.toLocaleDateString('pt-BR', {
       year: 'numeric',
       month: 'long',
@@ -53,6 +50,17 @@ export const formatLongDate = (isoDate?: string | null): string => {
     return '-';
   }
 };
+
+/**
+ * Formata data para DD/MM/YYYY
+ */
+export function formatDate(date: Date): string {
+  const d = date instanceof Date ? date : new Date(date);
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  return `${day}/${month}/${year}`;
+}
 
 /**
  * Converte data local (DD/MM/YYYY) para ISO (YYYY-MM-DD)

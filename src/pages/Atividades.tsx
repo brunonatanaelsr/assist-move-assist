@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,7 @@ interface Activity {
   type: string;
   description: string;
   time: string;
-  icon: any;
+  icon: React.ComponentType<{ className?: string }>;
   status?: string;
 }
 
@@ -22,21 +22,18 @@ export default function Atividades() {
   const [filter, setFilter] = useState("todas");
   const navigate = useNavigate();
 
-  useEffect(() => {
-    loadActivities();
-  }, [filter]);
-
-  const loadActivities = async () => {
+  const loadActivities = useCallback(async () => {
     try {
       setLoading(true);
 
       const data = await api.dashboard.getRecentActivities(20);
-      const source: any[] = Array.isArray(data?.activities) ? data.activities : [];
+      const source: unknown[] = Array.isArray(data?.activities) ? data.activities : [];
 
-      const mapped: Activity[] = source.map((item, idx) => {
-        const typeRaw = String(item.type || '').toLowerCase();
+      const mapped: Activity[] = source.map((item: unknown, idx) => {
+        const activityItem = item as Record<string, unknown>;
+        const typeRaw = String(activityItem.type || '').toLowerCase();
         let typeLabel = 'Outros';
-        let icon: any = FileText;
+        let icon: React.ComponentType<{ className?: string }> = FileText;
 
         if (typeRaw.includes('beneficiaria')) {
           typeLabel = 'Cadastro';
@@ -77,7 +74,11 @@ export default function Atividades() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filter]);
+
+  useEffect(() => {
+    loadActivities();
+  }, [loadActivities]);
 
   const formatDateTime = (dateString: string) => {
     const date = new Date(dateString);

@@ -4,7 +4,7 @@ import { api } from '../services/api';
 
 const REPORTS_CACHE_KEY = 'reports';
 
-export function useReports() {
+export default function useReports() {
   const queryClient = useQueryClient();
 
   const getDashboardMetrics = (filters?: FilterParams) => {

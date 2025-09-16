@@ -24,7 +24,7 @@ const server = createServer(app);
 
 if (process.env.ENABLE_WS === 'true') {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
+     
     const { WebSocketServer } = require('./websocket/server');
     webSocketServer = new WebSocketServer(server, pool);
   } catch (err) {

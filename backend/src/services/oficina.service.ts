@@ -64,8 +64,8 @@ export class OficinaService {
         }
       }
 
-      let whereConditions = ['o.ativo = true'];
-      let params: any[] = [];
+      const whereConditions = ['o.ativo = true'];
+      const params: any[] = [];
       let paramCount = 0;
 
       // Aplicar filtros

@@ -429,3 +429,8 @@ export const exportarDados = async (options: ExportOptions) => {
     alert('Erro ao exportar dados. Tente novamente.');
   }
 };
+
+  export function exportCSV(data: object[], filename: string) {
+    // Simulação de exportação
+    return `${filename} exportado`;
+  }

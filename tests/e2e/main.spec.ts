@@ -33,7 +33,10 @@ test.describe('Assist Move Assist - E2E Tests', () => {
       if (await menuToggle.isVisible({ timeout: 1000 })) {
         await menuToggle.click();
       }
-    } catch {}
+    } catch (error) {
+      // Menu mobile não disponível, ignorar
+      console.debug('Menu mobile não encontrado:', error);
+    }
   });
 
   // Helper resiliente para acionar o login
@@ -282,7 +285,7 @@ test.describe('Assist Move Assist - E2E Tests', () => {
 
   test('deve validar SSL e segurança', async ({ page, baseURL }) => {
     // Em ambientes locais (HTTP) este teste não é aplicável
-    test.skip(baseURL?.startsWith('http://'), 'SSL não disponível em ambiente local');
+    test.skip(Boolean(baseURL?.startsWith('http://')), 'SSL não disponível em ambiente local');
 
     const response = await page.goto('/');
     const headers = response?.headers();

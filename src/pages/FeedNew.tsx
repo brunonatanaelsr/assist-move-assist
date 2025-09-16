@@ -208,16 +208,11 @@ export default function Feed() {
   }, [posts, filtroTipo, searchTerm]);
 
   // WebSocket: atualizar feed em tempo real
-  try {
-    // Lazy import para evitar falhas de SSR
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    var useSock = require('@/hooks/useSocket');
-  } catch {}
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-  const sockHook = (useSock && useSock.useSocket) ? useSock.useSocket : null;
-  const socketCtx = sockHook ? sockHook() : { socket: null, isConnected: false } as any;
-  const socket = socketCtx?.socket as any;
-  const isSockConnected = !!socketCtx?.isConnected;
+  // Lazy import removido - usar import estático para melhor tipagem
+  // const sockHook = null; // Desabilitado temporariamente
+  // const socketCtx = { socket: null, isConnected: false };
+  // const socket = null;
+  // const isSockConnected = false;
 
   useEffect(() => {
     if (!socket || !isSockConnected) return;

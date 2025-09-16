@@ -60,7 +60,7 @@ export class OficinaRepository extends BaseRepository<Oficina> {
         local?: string;
         instrutor?: string;
     }): Promise<Oficina[]> {
-        let conditions: string[] = ['deleted_at IS NULL'];
+        const conditions: string[] = ['deleted_at IS NULL'];
         const values: any[] = [];
         let paramCount = 1;
 

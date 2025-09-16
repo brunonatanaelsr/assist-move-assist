@@ -26,7 +26,9 @@ export function useAutosave<T>({ key, data, debounceMs = 800, enabled = true }: 
     timer.current = window.setTimeout(() => {
       try {
         localStorage.setItem(key, JSON.stringify(data));
-      } catch {}
+      } catch (error) {
+        console.warn('Failed to save to localStorage:', error);
+      }
     }, debounceMs);
     return () => window.clearTimeout(timer.current);
   }, [key, data, debounceMs, enabled]);
@@ -41,7 +43,8 @@ export function useAutosave<T>({ key, data, debounceMs = 800, enabled = true }: 
       setRestored(true);
       setHasDraft(false);
       return true;
-    } catch {
+    } catch (error) {
+      console.warn('Failed to parse localStorage data:', error);
       return false;
     }
   }, [key, enabled]);

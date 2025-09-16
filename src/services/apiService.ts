@@ -4,6 +4,8 @@
  */
 
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
+import type { Beneficiaria, BeneficiariaFiltros } from '../../backend/src/types/beneficiarias';
+import type { Oficina } from '../../backend/src/types/oficina';
 import { translateErrorMessage } from '@/lib/apiError';
 import { API_URL } from '@/config';
 const IS_DEV = (import.meta as any)?.env?.DEV === true || (import.meta as any)?.env?.MODE === 'development';
@@ -207,40 +209,40 @@ class ApiService {
 
   // Métodos específicos para oficinas
   async getOficinas(params?: any): Promise<ApiResponse<any[]>> {
-    return this.get('/oficinas', { params });
+  return this.get<Oficina[]>('/oficinas', { params });
   }
 
   async createOficina(data: any): Promise<ApiResponse<any>> {
-    return this.post('/oficinas', data);
+  return this.post<Oficina>('/oficinas', data);
   }
 
   async updateOficina(id: string, data: any): Promise<ApiResponse<any>> {
-    return this.put(`/oficinas/${id}`, data);
+  return this.put<Oficina>(`/oficinas/${id}`, data);
   }
 
   async deleteOficina(id: string): Promise<ApiResponse<any>> {
-    return this.delete(`/oficinas/${id}`);
+  return this.delete<void>(`/oficinas/${id}`);
   }
 
   // Métodos específicos para beneficiárias
   async getBeneficiarias(params?: any): Promise<ApiResponse<any[]>> {
-    return this.get('/beneficiarias', { params });
+  return this.get<Beneficiaria[]>('/beneficiarias', { params });
   }
 
   async getBeneficiaria(id: string | number): Promise<ApiResponse<any>> {
-    return this.get(`/beneficiarias/${id}`);
+  return this.get<Beneficiaria>(`/beneficiarias/${id}`);
   }
 
   async createBeneficiaria(data: any): Promise<ApiResponse<any>> {
-    return this.post('/beneficiarias', data);
+  return this.post<Beneficiaria>('/beneficiarias', data);
   }
 
   async updateBeneficiaria(id: string, data: any): Promise<ApiResponse<any>> {
-    return this.put(`/beneficiarias/${id}`, data);
+  return this.put<Beneficiaria>(`/beneficiarias/${id}`, data);
   }
 
   async deleteBeneficiaria(id: string): Promise<ApiResponse<any>> {
-    return this.delete(`/beneficiarias/${id}`);
+  return this.delete<void>(`/beneficiarias/${id}`);
   }
 
   // Dashboard methods

@@ -88,6 +88,9 @@ export async function downloadPdf(options: DownloadPdfOptions): Promise<boolean>
   }
 }
 
+export { downloadPdf as downloadPDF };
+export default downloadPdf;
+
 /**
  * Download de declaração por ID
  */

@@ -21,6 +21,7 @@ export const useOficinas = (params: ListOficinasParams = {}) => {
     queryFn: () => oficinasService.listar(params),
   });
 };
+export default useOficinas;
 
 // Buscar oficina por ID
 export const useOficina = (id: number) => {

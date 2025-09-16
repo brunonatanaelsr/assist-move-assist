@@ -1,3 +1,6 @@
+export function normalizeString(str: string): string {
+  return str.normalize('NFD').replace(/\p{Diacritic}/gu, '');
+}
 export const onlyDigits = (value: string | number | null | undefined): string => {
   if (value === null || value === undefined) return '';
   return String(value).replace(/\D/g, '');

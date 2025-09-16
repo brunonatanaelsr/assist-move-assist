@@ -20,23 +20,8 @@ export const useBeneficiarias = (params?: { page?: number; limit?: number }) => 
     staleTime: 60_000,
     refetchOnWindowFocus: false,
   });
-};
+}
 
-export const useBeneficiaria = (id: string) => {
-  return useQuery({
-    queryKey: ['beneficiaria', id],
-    queryFn: async () => {
-      const response = await apiService.getBeneficiaria(id);
-      if (!response.success) {
-        throw new Error(response.message);
-      }
-      return response.data;
-    },
-    enabled: !!id,
-    staleTime: 60_000,
-    refetchOnWindowFocus: false,
-  });
-};
 
 export const useCreateBeneficiaria = () => {
   const queryClient = useQueryClient();
@@ -57,7 +42,7 @@ export const useCreateBeneficiaria = () => {
       toast.error(`Erro ao cadastrar beneficiária: ${error.message}`);
     },
   });
-};
+}
 
 export const useUpdateBeneficiaria = (id: string) => {
   const queryClient = useQueryClient();
@@ -96,7 +81,8 @@ export const useAtividades = (beneficiariaId: string) => {
     staleTime: 60_000,
     refetchOnWindowFocus: false,
   });
-};
+}
+export default useBeneficiarias;
 
 // Hooks para participações
 export const useParticipacoes = (beneficiariaId: string) => {

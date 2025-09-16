@@ -25,7 +25,7 @@ interface UserStatus {
   online: boolean;
 }
 
-export const useSocket = () => {
+const useSocket = () => {
   const { isAuthenticated, profile } = useAuth();
   const [isConnected, setIsConnected] = useState(false);
   const [onlineUsers, setOnlineUsers] = useState<UserStatus[]>([]);
@@ -339,3 +339,4 @@ export const useSocket = () => {
     clearUnreadCount
   };
 };
+export default useSocket;
