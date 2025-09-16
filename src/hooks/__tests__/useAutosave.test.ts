@@ -1,26 +1,78 @@
 import { renderHook, act } from '@testing-library/react';
+import { useState } from 'react';
+import { vi } from 'vitest';
 import useAutosave from '../useAutosave';
 
 describe('useAutosave', () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('deve salvar e restaurar valor', () => {
-    const { result } = renderHook(() => useAutosave('autosave-key', 'valor-inicial'));
-    act(() => {
-      result.current.save('novo-valor');
+    vi.useFakeTimers();
+
+    const { result } = renderHook(() => {
+      const [value, setValue] = useState('valor-inicial');
+      const autosave = useAutosave({ key: 'autosave-key', data: value, debounceMs: 0 });
+      return { value, setValue, ...autosave };
     });
+
+    act(() => {
+      vi.runAllTimers();
+    });
+
+    act(() => {
+      result.current.setValue('novo-valor');
+    });
+
+    act(() => {
+      vi.runAllTimers();
+    });
+
+    expect(JSON.parse(localStorage.getItem('autosave-key')!)).toBe('novo-valor');
+
+    act(() => {
+      const restored = result.current.restore(result.current.setValue);
+      expect(restored).toBe(true);
+    });
+
     expect(result.current.value).toBe('novo-valor');
-    act(() => {
-      result.current.restore((v: string) => {
-        expect(v).toBe('novo-valor');
-      });
-    });
+    expect(result.current.hasDraft).toBe(false);
+    expect(result.current.restored).toBe(true);
   });
 
   it('deve limpar valor salvo', () => {
-    const { result } = renderHook(() => useAutosave('autosave-key', 'valor-inicial'));
+    vi.useFakeTimers();
+
+    const { result } = renderHook(() => {
+      const [value, setValue] = useState('valor-inicial');
+      const autosave = useAutosave({ key: 'autosave-key', data: value, debounceMs: 0 });
+      return { value, setValue, ...autosave };
+    });
+
     act(() => {
-      result.current.save('teste');
+      vi.runAllTimers();
+    });
+
+    act(() => {
+      result.current.setValue('teste');
+    });
+
+    act(() => {
+      vi.runAllTimers();
+    });
+
+    expect(localStorage.getItem('autosave-key')).not.toBeNull();
+
+    act(() => {
       result.current.clear();
     });
-    expect(result.current.value).toBe('valor-inicial');
+
+    expect(localStorage.getItem('autosave-key')).toBeNull();
+    expect(result.current.hasDraft).toBe(false);
   });
 });

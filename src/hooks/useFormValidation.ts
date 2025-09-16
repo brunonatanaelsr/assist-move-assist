@@ -152,7 +152,7 @@ export const createDocumentValidationRules = () => ({
 // Hook específico para validação de beneficiárias
 export const useBeneficiariaValidation = () => {
   const baseRules = createDocumentValidationRules();
-  
+
   const rules: ValidationRules = {
     ...baseRules,
     nome_completo: {
@@ -187,4 +187,6 @@ export const useBeneficiariaValidation = () => {
   };
 
   return useFormValidation(rules);
+};
 
+export default useFormValidation;
