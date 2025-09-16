@@ -21,7 +21,7 @@ export default function CadastroBeneficiaria() {
   const { profile } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [fieldErrors, setFieldErrors] = useState<{ nome_completo?: string; cpf?: string; contato1?: string; data_nascimento?: string }>({});
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string | undefined>>({});
   const [success, setSuccess] = useState(false);
 
   // Form state
@@ -54,22 +54,32 @@ export default function CadastroBeneficiaria() {
       [field]: value
     }));
     // Limpa erro do campo ao alterar
-    if (fieldErrors[field as keyof typeof fieldErrors]) {
-      setFieldErrors(prev => ({ ...prev, [field]: undefined }));
-    }
+    setFieldErrors(prev => {
+      if (!prev[field]) return prev;
+      const { [field]: _removed, ...rest } = prev;
+      return rest;
+    });
   };
 
   const doValidateForm = () => {
-    const ok = validateForm(formData as any);
-    const newFieldErrors: any = {};
-    // Campos adicionais
-    if (!formData.contato1?.replace(/\D/g, '')) newFieldErrors.contato1 = 'Telefone é obrigatório';
-    if (!formData.data_nascimento) newFieldErrors.data_nascimento = 'Data de nascimento é obrigatória';
-    setFieldErrors((prev) => ({ ...prev, ...newFieldErrors }));
-    if (!ok || Object.keys(newFieldErrors).length > 0) {
+    const { isValid, errors: validationErrors } = validateForm(formData as any);
+    const combinedErrors: { [key: string]: string } = { ...validationErrors };
+
+    if (!formData.contato1?.replace(/\D/g, '')) {
+      combinedErrors.contato1 = 'Telefone é obrigatório';
+    }
+    if (!formData.data_nascimento) {
+      combinedErrors.data_nascimento = 'Data de nascimento é obrigatória';
+    }
+
+    setFieldErrors(combinedErrors);
+
+    if (!isValid || Object.keys(combinedErrors).length > 0) {
       setError('Verifique os campos destacados');
       return false;
     }
+
+    setError(null);
     return true;
   };
 
@@ -119,7 +129,15 @@ export default function CadastroBeneficiaria() {
 
   const onBlurValidate = (field: string, value: string) => {
     const msg = validateField(field, value);
-    setFieldErrors((prev) => ({ ...prev, [field]: msg || undefined }));
+    setFieldErrors((prev) => {
+      const next = { ...prev };
+      if (msg) {
+        next[field] = msg;
+      } else {
+        delete next[field];
+      }
+      return next;
+    });
     if (!msg) clearFieldError(field);
   };
 
