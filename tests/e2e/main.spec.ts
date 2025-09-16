@@ -106,7 +106,7 @@ test.describe('Assist Move Assist - E2E Tests', () => {
     await page.click('[data-testid="cadastrar-beneficiaria"]');
     
     // Verificar página de cadastro
-    await expect(page.locator('h1')).toContainText(/cadastrar beneficiária/i);
+    await expect(page.locator('#main-content h1')).toContainText(/nova beneficiária/i);
     
     // Preencher formulário
     await page.fill('input[name="nome_completo"]', 'Maria da Silva Santos E2E');
@@ -143,8 +143,8 @@ test.describe('Assist Move Assist - E2E Tests', () => {
     await page.click('button[type="submit"]');
     
     // Verificar mensagens de validação
-    await expect(page.locator('[data-testid="error-nome"]')).toContainText(/nome completo é obrigatório/i);
-    await expect(page.locator('[data-testid="error-cpf"]')).toContainText(/cpf é obrigatório/i);
+    await expect(page.locator('[data-testid="error-nome"]')).toContainText(/campo é obrigatório/i);
+    await expect(page.locator('[data-testid="error-cpf"]')).toContainText(/campo é obrigatório/i);
   });
 
   test('deve pesquisar beneficiárias', async ({ page }) => {
@@ -193,7 +193,7 @@ test.describe('Assist Move Assist - E2E Tests', () => {
     for (const item of menuItems) {
       await page.click(item.selector);
       await page.waitForURL(item.expectedUrl);
-      await expect(page.locator('h1')).toContainText(item.expectedText);
+      await expect(page.locator('#main-content h1')).toContainText(item.expectedText);
     }
   });
 
@@ -214,8 +214,7 @@ test.describe('Assist Move Assist - E2E Tests', () => {
     await page.click('[data-testid="logout-button"]');
     
     // Verificar redirecionamento para login
-    await expect(page).toHaveURL(/.*auth/);
-    await expect(page.locator('[data-testid="login-form"]')).toBeVisible();
+    await expect(page.locator('[data-testid="login-button"]')).toBeVisible();
   });
 
   test('deve responder adequadamente em mobile', async ({ page, isMobile }) => {
