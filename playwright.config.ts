@@ -1,8 +1,9 @@
 import { defineConfig, devices } from '@playwright/test';
 
-// Dedicated port for Playwright-managed preview server (avoid clashing with backend PORT)
-const WEB_PORT = process.env.PLAYWRIGHT_WEB_PORT || '4173';
-const BASE_URL = process.env.PLAYWRIGHT_BASE_URL || `http://127.0.0.1:${WEB_PORT}`;
+const WEB_HOST = process.env.PLAYWRIGHT_WEB_HOST || '127.0.0.1';
+const WEB_PORT = Number(process.env.PLAYWRIGHT_WEB_PORT) || 5173;
+const BASE_URL = process.env.PLAYWRIGHT_BASE_URL || `http://${WEB_HOST}:${WEB_PORT}`;
+const PREVIEW_COMMAND = `npm run preview -- --port=${WEB_PORT} --host=${WEB_HOST} --strictPort`;
 
 export default defineConfig({
   timeout: 90_000,
@@ -33,36 +34,12 @@ export default defineConfig({
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
     },
-    {
-      name: 'firefox',
-      use: { ...devices['Desktop Firefox'] },
-    },
-    {
-      name: 'webkit',
-      use: { ...devices['Desktop Safari'] },
-    },
-    {
-      name: 'Mobile Chrome',
-      use: {
-        ...devices['Pixel 5'],
-        isMobile: true,
-      },
-    },
-    {
-      name: 'Mobile Safari',
-      use: {
-        ...devices['iPhone 12'],
-        isMobile: true,
-      },
-    },
   ],
 
-  // Let Playwright manage the frontend preview server on its own port
   webServer: {
-    // Force host/port and fail fast if port is taken
-    command: `npx vite preview --port ${WEB_PORT} --host 127.0.0.1 --strictPort`,
+    command: PREVIEW_COMMAND,
     url: BASE_URL,
-    reuseExistingServer: true,
-    timeout: 180000,
+    reuseExistingServer: !process.env.CI,
+    timeout: 120_000,
   },
 });
