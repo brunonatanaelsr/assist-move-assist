@@ -12,22 +12,16 @@ CREATE TABLE IF NOT EXISTS organizacoes (
   deleted_at TIMESTAMPTZ
 );
 
--- Trigger simples para updated_at
-DO $$
+-- Função para manter o updated_at atualizado
+CREATE OR REPLACE FUNCTION organizacoes_set_updated_at()
+RETURNS TRIGGER AS $BODY$
 BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_proc WHERE proname = 'organizacoes_set_updated_at'
-  ) THEN
-    CREATE FUNCTION organizacoes_set_updated_at()
-    RETURNS TRIGGER AS $$
-    BEGIN
-      NEW.updated_at = NOW();
-      RETURN NEW;
-    END;
-    $$ LANGUAGE plpgsql;
-  END IF;
-END $$;
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$BODY$ LANGUAGE plpgsql;
 
+-- Trigger simples para updated_at
 DO $$
 BEGIN
   IF NOT EXISTS (
@@ -38,4 +32,3 @@ BEGIN
     FOR EACH ROW EXECUTE FUNCTION organizacoes_set_updated_at();
   END IF;
 END $$;
-
