@@ -8,6 +8,9 @@ import type {
   UpdateNotificationInput,
 } from '@/types/notification';
 
+const disablePolling = import.meta.env.VITE_DISABLE_POLLING === 'true';
+const NOTIFICATION_POLLING: false | number = disablePolling ? false : 30_000;
+
 // Hook para buscar notificações
 export function useNotifications(filters?: {
   read?: boolean;
@@ -23,7 +26,7 @@ export function useNotifications(filters?: {
       });
       return response.data.data || []; // Acessa response.data.data e garante array vazio se undefined
     },
-    refetchInterval: 30000, // Refetch a cada 30 segundos
+    refetchInterval: NOTIFICATION_POLLING, // Refetch a cada 30 segundos (desativado no E2E)
   });
 }
 
@@ -35,7 +38,7 @@ export function useUnreadNotificationsCount() {
       const response = await api.get('/notifications/unread/count');
       return response.data.count as number;
     },
-    refetchInterval: 30000,
+    refetchInterval: NOTIFICATION_POLLING,
   });
 }
 

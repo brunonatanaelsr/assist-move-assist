@@ -9,6 +9,7 @@ export default defineConfig({
   timeout: 90_000,
   expect: { timeout: 10_000 },
   testDir: './tests',
+  globalSetup: './tests/e2e/global-setup.ts',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
@@ -21,6 +22,7 @@ export default defineConfig({
 
   use: {
     baseURL: BASE_URL,
+    storageState: 'tests/.auth/admin.json',
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
