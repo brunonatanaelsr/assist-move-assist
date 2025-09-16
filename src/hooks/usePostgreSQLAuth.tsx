@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { apiService } from '@/services/apiService';
 
+const IS_DEV = (import.meta as any)?.env?.DEV === true || (import.meta as any)?.env?.MODE === 'development';
+
 interface User {
   id: number;
   nome: string;
@@ -158,4 +160,5 @@ export const PostgreSQLAuthProvider: React.FC<AuthProviderProps> = ({ children }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
-  const IS_DEV = (import.meta as any)?.env?.DEV === true || (import.meta as any)?.env?.MODE === 'development';
+export { PostgreSQLAuthProvider as AuthProvider };
+export default PostgreSQLAuthProvider;

@@ -10,12 +10,14 @@ interface ErrorBoundaryState {
   errorInfo?: React.ErrorInfo;
 }
 
+type FallbackComponent = React.ComponentType<{ error: Error; retry: () => void }>;
+
 interface ErrorBoundaryProps {
   children: React.ReactNode;
-  fallback?: React.ComponentType<{ error: Error; retry: () => void }>;
+  fallback?: React.ReactNode | FallbackComponent;
 }
 
-export default class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
   constructor(props: ErrorBoundaryProps) {
     super(props);
     this.state = { hasError: false };
@@ -51,9 +53,15 @@ export default class ErrorBoundary extends React.Component<ErrorBoundaryProps, E
   render() {
     if (this.state.hasError) {
       const { error } = this.state;
-      
-      if (this.props.fallback) {
-        return <this.props.fallback error={error!} retry={this.handleRetry} />;
+      const { fallback } = this.props;
+
+      if (fallback) {
+        if (React.isValidElement(fallback)) {
+          return fallback;
+        }
+
+        const FallbackComponent = fallback as FallbackComponent;
+        return <FallbackComponent error={error!} retry={this.handleRetry} />;
       }
 
       return (
@@ -131,3 +139,6 @@ export const useErrorHandler = () => {
 
   return { handleError };
 };
+
+export { ErrorBoundary };
+export default ErrorBoundary;
