@@ -10,7 +10,7 @@ export interface TokenPayload {
   role: string;
 }
 
-interface User {
+export interface User {
   id: number;
   email: string;
   senha_hash: string;
@@ -23,7 +23,7 @@ interface User {
   data_atualizacao: Date;
 }
 
-interface AuthResponse {
+export interface AuthResponse {
   token: string;
   user: Partial<User>;
 }
