@@ -24,8 +24,8 @@ export default function Relatorios() {
   const load = async () => {
     setLoading(true);
     try {
-      const { data } = await api.get(`/relatorios/templates`);
-      setTemplates(data?.data || []);
+      const response = await api.get<ReportTemplate[]>(`/relatorios/templates`);
+      setTemplates(response.data ?? []);
     } finally {
       setLoading(false);
     }
@@ -60,8 +60,13 @@ export default function Relatorios() {
   };
 
   const exportTemplate = async (id: number, format: 'pdf'|'csv'|'xlsx') => {
-    const response = await api.post(`/relatorios/export/${id}`, { format }, { responseType: 'blob' });
-    const blob = new Blob([response.data], { type: response.headers['content-type'] || 'application/octet-stream' });
+    const response = await api.post<Blob>(`/relatorios/export/${id}`, { format }, { responseType: 'blob' });
+    const mimeTypes: Record<'pdf' | 'csv' | 'xlsx', string> = {
+      pdf: 'application/pdf',
+      csv: 'text/csv',
+      xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    };
+    const blob = new Blob([response.data], { type: mimeTypes[format] ?? 'application/octet-stream' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;

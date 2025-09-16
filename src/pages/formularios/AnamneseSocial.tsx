@@ -104,8 +104,10 @@ export default function AnamneseSocial() {
 
   const carregarAnamnese = async () => {
     try {
-      const response = await apiService.get(`/formularios/anamnese/beneficiaria/${id}`);
-      if (response.success && response.data && response.data.length > 0) {
+      const response = await apiService.get<Array<{ dados?: Record<string, unknown> }>>(
+        `/formularios/anamnese/beneficiaria/${id}`
+      );
+      if (response.success && Array.isArray(response.data) && response.data.length > 0) {
         // Pegar a anamnese mais recente se existir
         const anamneseData = response.data[0];
         if (anamneseData.dados) {

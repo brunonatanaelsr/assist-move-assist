@@ -1,4 +1,5 @@
 import api from '@/config/api';
+import axios from 'axios';
 
 export interface AuthResponse {
   token: string;

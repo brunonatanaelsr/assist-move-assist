@@ -144,7 +144,7 @@ export const oficinasService = {
 
   // Gerar relatório de presenças
   gerarRelatorioPresencas: async (id: number, formato: 'pdf' | 'excel' = 'pdf') => {
-    const response = await api.get(`/oficinas/${id}/relatorio-presencas?formato=${formato}`, {
+    const response = await api.get<Blob>(`/oficinas/${id}/relatorio-presencas?formato=${formato}`, {
       responseType: 'blob'
     });
     return response.data;

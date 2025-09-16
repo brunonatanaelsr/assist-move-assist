@@ -71,10 +71,10 @@ export function useReports() {
   });
 
   const exportReport = async (templateId: number, format: ExportFormat) => {
-    const response = await api.post(`/relatorios/export/${templateId}`, format, {
+    const response = await api.post<Blob>(`/relatorios/export/${templateId}`, format, {
       responseType: 'blob'
     });
-    
+
     const blob = new Blob([response.data], {
       type: format.type === 'pdf' ? 'application/pdf' : 
             format.type === 'xlsx' ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' :

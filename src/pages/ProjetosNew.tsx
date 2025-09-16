@@ -56,7 +56,7 @@ export default function Projetos() {
     try {
       setLoading(true);
       // Adicionando timestamp para evitar cache
-      const response = await apiService.get(`/projetos?_t=${Date.now()}`);
+      const response = await apiService.get<Projeto[]>(`/projetos?_t=${Date.now()}`);
       console.log('Resposta completa da API:', response);
       if (response.success) {
         console.log('Projetos carregados:', response.data);
