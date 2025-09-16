@@ -10,7 +10,7 @@ import {
 
 const CALENDAR_CACHE_KEY = 'calendar';
 
-export default function useCalendar() {
+export function useCalendar() {
   const queryClient = useQueryClient();
 
   const getEvents = (filter: CalendarFilter) => {
@@ -112,3 +112,5 @@ export default function useCalendar() {
     markAttendance
   };
 }
+
+export default useCalendar;

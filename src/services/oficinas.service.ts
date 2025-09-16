@@ -169,3 +169,7 @@ export const OficinasService = {
     return response.data;
   }
 };
+
+export const oficinasService = OficinasService;
+
+export default OficinasService;

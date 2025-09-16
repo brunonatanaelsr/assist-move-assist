@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 
-export default function useMaskedInput(type: 'cpf' | 'telefone') {
+export function useMaskedInput(type: 'cpf' | 'telefone') {
   const [value, setValue] = useState('');
 
   const mask = useCallback((value: string) => {
@@ -74,3 +74,5 @@ export default function useMaskedInput(type: 'cpf' | 'telefone') {
     unmaskedValue
   };
 }
+
+export default useMaskedInput;
