@@ -2,7 +2,7 @@
 
 ## Descrição
 
-Backend Node.js/Express desenvolvido para substituir completamente o Supabase, oferecendo uma solução 100% PostgreSQL nativa para o sistema Assist Move Assist.
+Backend Node.js/Express 100% PostgreSQL nativo projetado para atender todas as funcionalidades do Assist Move Assist.
 
 ## Funcionalidades
 
@@ -154,7 +154,7 @@ const ws = new WebSocket('ws://localhost:3001?token=seu_jwt_token');
 
 ## Migração do Frontend
 
-### Substituir Cliente Supabase
+### Integrar Cliente HTTP Dedicado
 
 1. **Criar cliente API:**
 ```typescript
@@ -324,7 +324,7 @@ curl http://localhost:3001/health
 - [ ] Deploy e CI/CD
 
 ### 📋 Migração do Frontend
-- [ ] Substituir cliente Supabase
+- [ ] Integrar cliente HTTP dedicado
 - [ ] Adaptar hooks de autenticação
 - [ ] Implementar WebSocket client
 - [ ] Testar todas as funcionalidades

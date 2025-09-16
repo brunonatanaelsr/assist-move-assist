@@ -22,7 +22,7 @@
 - **Integridade**: Verificação automática de backups
 
 ### Componentes do Sistema de Backup
-1. **Supabase Backups**: Backups automáticos diários
+1. **Backups Automatizados do PostgreSQL**: Execuções periódicas via `pg_dump`
 2. **Backups Customizados**: Scripts próprios para dados específicos
 3. **Storage Backup**: Arquivos e documentos
 4. **Configuration Backup**: Variáveis de ambiente e configurações
@@ -40,7 +40,7 @@ set -e
 
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 BACKUP_DIR="/backup/full"
-DATABASE_URL="$VITE_SUPABASE_URL"
+DATABASE_URL="${DATABASE_URL:?DATABASE_URL não definido}"
 
 echo "🗄️  Iniciando Backup Completo - $TIMESTAMP"
 
@@ -177,38 +177,23 @@ set -e
 
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 BACKUP_DIR="/backup/storage"
-SUPABASE_PROJECT_ID="seu-project-id"
+STORAGE_SOURCE="/opt/assist-move-assist/storage"
 
 echo "📁 Iniciando Backup de Storage - $TIMESTAMP"
 
-mkdir -p $BACKUP_DIR
+mkdir -p "$BACKUP_DIR"
 
-# Backup usando Supabase CLI (se disponível)
-if command -v supabase &> /dev/null; then
-    echo "📦 Fazendo backup via Supabase CLI..."
-    supabase storage download \
-        --project-ref $SUPABASE_PROJECT_ID \
-        --bucket images \
-        --destination "$BACKUP_DIR/images_$TIMESTAMP/"
-    
-    supabase storage download \
-        --project-ref $SUPABASE_PROJECT_ID \
-        --bucket documents \
-        --destination "$BACKUP_DIR/documents_$TIMESTAMP/"
+if [ -d "$STORAGE_SOURCE" ]; then
+    rsync -av --delete "$STORAGE_SOURCE/" "$BACKUP_DIR/storage_$TIMESTAMP/"
 else
-    echo "⚠️  Supabase CLI não disponível, usando método alternativo..."
-    # Implementar backup via API REST se necessário
+    echo "⚠️  Diretório de storage não encontrado: $STORAGE_SOURCE"
 fi
 
-# Compressão dos arquivos
 echo "🗜️  Comprimindo arquivos..."
 tar -czf "$BACKUP_DIR/storage_backup_$TIMESTAMP.tar.gz" \
-    "$BACKUP_DIR/images_$TIMESTAMP/" \
-    "$BACKUP_DIR/documents_$TIMESTAMP/" 2>/dev/null || true
+    -C "$BACKUP_DIR" "storage_$TIMESTAMP" 2>/dev/null || true
 
-# Cleanup
-rm -rf "$BACKUP_DIR/images_$TIMESTAMP/"
-rm -rf "$BACKUP_DIR/documents_$TIMESTAMP/"
+rm -rf "$BACKUP_DIR/storage_$TIMESTAMP/"
 
 echo "✅ Backup de storage concluído"
 ```
