@@ -1,14 +1,7 @@
-
 import { render, act } from '@testing-library/react';
 import React from 'react';
+import { MemoryRouter } from 'react-router-dom';
 import usePersistedFilters from '../usePersistedFilters';
-import { vi } from 'vitest';
-
-const mockNavigate = vi.fn();
-vi.mock('react-router-dom', () => ({
-  useNavigate: () => mockNavigate,
-  useLocation: () => ({ search: '', pathname: '/test' })
-}));
 
 function TestComponent({ keyName, initial }: { keyName: string; initial: any }) {
   const { state, set, reset } = usePersistedFilters({ key: keyName, initial });
@@ -21,19 +14,25 @@ function TestComponent({ keyName, initial }: { keyName: string; initial: any }) 
 describe('usePersistedFilters', () => {
   beforeEach(() => {
     localStorage.clear();
-    mockNavigate.mockClear();
     delete (window as any).testState;
     delete (window as any).testSet;
     delete (window as any).testReset;
   });
 
+  const renderWithRouter = (element: React.ReactElement) =>
+    render(
+      <MemoryRouter initialEntries={['/test']}>
+        {element}
+      </MemoryRouter>
+    );
+
   it('deve inicializar com o valor inicial', () => {
-    render(<TestComponent keyName="filtros" initial={{ a: 1, b: 'x' }} />);
+    renderWithRouter(<TestComponent keyName="filtros" initial={{ a: 1, b: 'x' }} />);
     expect((window as any).testState).toEqual({ a: 1, b: 'x' });
   });
 
   it('deve atualizar o estado e persistir no localStorage', () => {
-    render(<TestComponent keyName="filtros" initial={{ a: 1, b: 'x' }} />);
+    renderWithRouter(<TestComponent keyName="filtros" initial={{ a: 1, b: 'x' }} />);
     act(() => {
       (window as any).testSet({ a: 2 });
     });
@@ -42,7 +41,7 @@ describe('usePersistedFilters', () => {
   });
 
   it('deve resetar o estado para o valor inicial', () => {
-    render(<TestComponent keyName="filtros" initial={{ a: 1, b: 'x' }} />);
+    renderWithRouter(<TestComponent keyName="filtros" initial={{ a: 1, b: 'x' }} />);
     act(() => {
       (window as any).testSet({ a: 2 });
       (window as any).testReset();
