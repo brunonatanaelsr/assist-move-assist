@@ -52,7 +52,14 @@ const limiter = rateLimit({
   max: 100, // máximo 100 requests por IP
   message: 'Muitas tentativas, tente novamente em 15 minutos.',
 });
-app.use('/api/', limiter);
+
+const rateLimitDisabled = process.env.RATE_LIMIT_DISABLE === 'true';
+
+if (!rateLimitDisabled) {
+  app.use('/api/', limiter);
+} else {
+  logger.info('Rate limiting desativado via RATE_LIMIT_DISABLE');
+}
 
 // Logging
 app.use(morgan('combined', { stream: { write: (message) => logger.info(message.trim()) } }));

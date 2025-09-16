@@ -1,5 +1,9 @@
 import { test, expect, Page } from '@playwright/test';
 
+const TEST_EMAIL = process.env.E2E_TEST_EMAIL || 'e2e@assist.local';
+const TEST_PASSWORD = process.env.E2E_TEST_PASSWORD || 'e2e_password';
+const TEST_NAME = process.env.E2E_TEST_NAME || 'E2E User';
+
 let apiOnline = true;
 const API_HEALTH = process.env.PLAYWRIGHT_API_URL ? `${process.env.PLAYWRIGHT_API_URL.replace(/\/$/, '')}/health` : 'http://127.0.0.1:3000/api/health';
 
@@ -55,52 +59,61 @@ test.describe('Assist Move Assist - E2E Tests', () => {
     await byRole.click();
   }
 
+  async function ensureAuthenticated(page: Page) {
+    const userMenu = page.locator('[data-testid="user-menu"]');
+    if (!(await userMenu.isVisible({ timeout: 1000 }).catch(() => false))) {
+      await clickLogin(page);
+      await page.fill('input[name="email"]', TEST_EMAIL);
+      await page.fill('input[name="password"]', TEST_PASSWORD);
+      await page.click('button[type="submit"]');
+      await page.waitForURL(/.*dashboard/);
+    }
+
+    if (!page.url().includes('#/dashboard')) {
+      await page.goto('/#/dashboard');
+    }
+    await page.waitForLoadState('networkidle');
+  }
+
   test('deve carregar página inicial', async ({ page }) => {
     await expect(page).toHaveTitle(/Assist Move/);
     await expect(page.getByRole('heading', { name: /Assist Move/i })).toBeVisible();
   });
 
-  test('deve fazer login do super administrador', async ({ page }) => {
-    test.skip(!apiOnline, 'API offline');
-    // Ir para página de login
-    await clickLogin(page);
-    
-    // Preencher credenciais do super admin
-    await page.fill('input[name="email"]', 'bruno@move.com');
-    await page.fill('input[name="password"]', '15002031');
-    
-    // Fazer login
-    await page.click('button[type="submit"]');
-    
-    // Verificar redirecionamento para dashboard
-    await expect(page).toHaveURL(/.*dashboard/);
-    await expect(page.locator('[data-testid="welcome-message"]')).toContainText('Bruno');
-  });
+  test.describe('Fluxos de autenticação', () => {
+    test.use({ storageState: { cookies: [], origins: [] } });
 
-  test('deve rejeitar login com credenciais inválidas', async ({ page }) => {
-    test.skip(!apiOnline, 'API offline');
-    await clickLogin(page);
-    
-    await page.fill('input[name="email"]', 'wrong@email.com');
-    await page.fill('input[name="password"]', 'wrong-password');
-    
-    await page.click('button[type="submit"]');
-    
-    // Verificar mensagem de erro
-    await expect(page.locator('[data-testid="error-message"]')).toContainText(/(credenciais inválidas|senha incorret)/i);
+    test('deve fazer login do usuário de teste', async ({ page }) => {
+      test.skip(!apiOnline, 'API offline');
+      await clickLogin(page);
+
+      await page.fill('input[name="email"]', TEST_EMAIL);
+      await page.fill('input[name="password"]', TEST_PASSWORD);
+      await page.click('button[type="submit"]');
+
+      await expect(page).toHaveURL(/.*dashboard/);
+      const welcome = page.locator('[data-testid="welcome-message"]');
+      const expectedName = TEST_NAME.split(' ')[0] || TEST_NAME;
+      const welcomeText = (await welcome.textContent()) || '';
+      expect(welcomeText.toLowerCase()).toContain(expectedName.toLowerCase());
+    });
+
+    test('deve rejeitar login com credenciais inválidas', async ({ page }) => {
+      test.skip(!apiOnline, 'API offline');
+      await clickLogin(page);
+
+      await page.fill('input[name="email"]', 'wrong@email.com');
+      await page.fill('input[name="password"]', 'wrong-password');
+      await page.click('button[type="submit"]');
+
+      await expect(page.locator('[data-testid="error-message"]')).toContainText(/(credenciais inválidas|senha incorret)/i);
+    });
   });
 
   test('fluxo completo de cadastro de beneficiária', async ({ page }) => {
     test.skip(!apiOnline, 'API offline');
-    // Login como admin
-    await clickLogin(page);
-    await page.fill('input[name="email"]', 'bruno@move.com');
-    await page.fill('input[name="password"]', '15002031');
-    await page.click('button[type="submit"]');
-    
-    // Aguardar dashboard carregar
-    await page.waitForURL(/.*dashboard/);
-    
+    await ensureAuthenticated(page);
+
     // Navegar para cadastro de beneficiárias
     await page.click('[data-testid="menu-beneficiarias"]');
     await page.click('[data-testid="cadastrar-beneficiaria"]');
@@ -128,15 +141,10 @@ test.describe('Assist Move Assist - E2E Tests', () => {
 
   test('deve validar campos obrigatórios no cadastro', async ({ page }) => {
     test.skip(!apiOnline, 'API offline');
-    // Login e navegação (reutilizar steps do teste anterior)
-    await clickLogin(page);
-    await page.fill('input[name="email"]', 'bruno@move.com');
-    await page.fill('input[name="password"]', '15002031');
-    await page.click('button[type="submit"]');
-    await page.waitForURL(/.*dashboard/);
+    await ensureAuthenticated(page);
     await page.click('[data-testid="menu-beneficiarias"]');
     await page.click('[data-testid="cadastrar-beneficiaria"]');
-    
+
     // Tentar submeter sem preencher
     await page.click('button[type="submit"]');
     
@@ -145,66 +153,58 @@ test.describe('Assist Move Assist - E2E Tests', () => {
 
   test('deve pesquisar beneficiárias', async ({ page }) => {
     test.skip(!apiOnline, 'API offline');
-    // Login
-    await clickLogin(page);
-    await page.fill('input[name="email"]', 'bruno@move.com');
-    await page.fill('input[name="password"]', '15002031');
-    await page.click('button[type="submit"]');
-    await page.waitForURL(/.*dashboard/);
-    
+    await ensureAuthenticated(page);
+
     // Ir para lista de beneficiárias
     await page.click('[data-testid="menu-beneficiarias"]');
-    
+
     // Verificar que há beneficiárias listadas
     const rowCount = await page.locator('[data-testid="beneficiaria-lista"] tr').count();
     expect(rowCount).toBeGreaterThan(0);
-    
+
     // Fazer busca
     await page.fill('input[data-testid="search-input"]', 'Maria');
     await page.click('[data-testid="search-button"]');
-    
+
     // Verificar resultados filtrados
-    await expect(page.locator('[data-testid="beneficiaria-item"]')).toContainText(/Maria/i);
+    const filteredResults = page.getByTestId('beneficiaria-item').filter({ hasText: /Maria/i });
+    await expect(filteredResults.first()).toBeVisible();
   });
 
   test('deve navegar pelo sistema usando menu', async ({ page }) => {
     test.skip(!apiOnline, 'API offline');
-    // Login
-    await clickLogin(page);
-    await page.fill('input[name="email"]', 'bruno@move.com');
-    await page.fill('input[name="password"]', '15002031');
-    await page.click('button[type="submit"]');
-    await page.waitForURL(/.*dashboard/);
-    
+    await ensureAuthenticated(page);
+
     // Testar navegação principal
     const menuItems = [
-      { selector: '[data-testid="menu-dashboard"]', expectedUrl: /.*dashboard/, expectedHeading: /Dashboard/i },
-      { selector: '[data-testid="menu-beneficiarias"]', expectedUrl: /.*beneficiarias/, expectedHeading: /Beneficiárias/i },
-      { selector: '[data-testid="menu-oficinas"]', expectedUrl: /.*oficinas/, expectedHeading: /Oficinas/i },
-      { selector: '[data-testid="menu-projetos"]', expectedUrl: /.*projetos/, expectedHeading: /Projetos/i },
-      { selector: '[data-testid="menu-feed"]', expectedUrl: /.*feed/, expectedHeading: /Feed da Comunidade/i },
-      { selector: '[data-testid="menu-relatorios"]', expectedUrl: /.*relatorios/, expectedHeading: /Relatórios/i }
+      { testId: 'menu-dashboard', expectedUrl: /.*#\/dashboard/, expectedHeading: /Dashboard/i },
+      { testId: 'menu-beneficiarias', expectedUrl: /.*#\/beneficiarias/, expectedHeading: /Beneficiárias/i },
+      { testId: 'menu-oficinas', expectedUrl: /.*#\/oficinas/, expectedHeading: /Oficinas/i },
+      { testId: 'menu-projetos', expectedUrl: /.*#\/projetos/, expectedHeading: /Projetos/i },
+      { testId: 'menu-feed', expectedUrl: /.*#\/feed/, expectedHeading: /Feed da Comunidade/i },
+      { testId: 'menu-relatorios', expectedUrl: /.*#\/relatorios/, expectedHeading: /Relatórios/i }
     ];
 
     for (const item of menuItems) {
-      await page.click(item.selector);
-      await page.waitForURL(item.expectedUrl);
-
+      const link = page.getByTestId(item.testId);
+      await link.scrollIntoViewIfNeeded();
+      await Promise.all([
+        page.waitForURL(item.expectedUrl, { timeout: 15000 }),
+        link.click(),
+      ]);
+      if (item.expectedHeading) {
+        await expect(page.getByRole('heading', { name: item.expectedHeading })).toBeVisible();
+      }
     }
   });
 
   test('deve fazer logout corretamente', async ({ page }) => {
     test.skip(!apiOnline, 'API offline');
-    // Login
-    await clickLogin(page);
-    await page.fill('input[name="email"]', 'bruno@move.com');
-    await page.fill('input[name="password"]', '15002031');
-    await page.click('button[type="submit"]');
-    await page.waitForURL(/.*dashboard/);
-    
+    await ensureAuthenticated(page);
+
     // Verificar que está logado
     await expect(page.locator('[data-testid="user-menu"]')).toBeVisible();
-    
+
     // Fazer logout
     await page.click('[data-testid="user-menu"]');
     await page.click('[data-testid="logout-button"]');
@@ -216,19 +216,8 @@ test.describe('Assist Move Assist - E2E Tests', () => {
   test('deve responder adequadamente em mobile', async ({ page, isMobile }) => {
     test.skip(!apiOnline, 'API offline');
     test.skip(!isMobile, 'Teste apenas para mobile');
-    
-    // Login em mobile
-    // Abre o menu mobile se visível e clica em login (com fallback)
-    const toggle = page.locator('[data-testid="mobile-menu-toggle"]');
-    if (await toggle.isVisible({ timeout: 1000 }).catch(() => false)) {
-      await toggle.click();
-    }
-    await clickLogin(page);
-    
-    await page.fill('input[name="email"]', 'bruno@move.com');
-    await page.fill('input[name="password"]', '15002031');
-    await page.click('button[type="submit"]');
-    await page.waitForURL(/.*dashboard/);
+
+    await ensureAuthenticated(page);
 
     // Abrir navegação mobile e verificar layout mobile
     const postLoginToggle = page.locator('[data-testid="mobile-menu-toggle"]');
@@ -241,13 +230,8 @@ test.describe('Assist Move Assist - E2E Tests', () => {
 
   test('deve carregar dashboard com estatísticas', async ({ page }) => {
     test.skip(!apiOnline, 'API offline');
-    // Login
-    await clickLogin(page);
-    await page.fill('input[name="email"]', 'bruno@move.com');
-    await page.fill('input[name="password"]', '15002031');
-    await page.click('button[type="submit"]');
-    await page.waitForURL(/.*dashboard/);
-    
+    await ensureAuthenticated(page);
+
     // Verificar widgets de estatísticas
     await expect(page.locator('[data-testid="stats-beneficiarias"]')).toBeVisible();
     await expect(page.locator('[data-testid="stats-oficinas"]')).toBeVisible();
@@ -260,13 +244,8 @@ test.describe('Assist Move Assist - E2E Tests', () => {
 
   test('deve mostrar notificações em tempo real', async ({ page }) => {
     test.skip(!apiOnline, 'API offline');
-    // Login
-    await clickLogin(page);
-    await page.fill('input[name="email"]', 'bruno@move.com');
-    await page.fill('input[name="password"]', '15002031');
-    await page.click('button[type="submit"]');
-    await page.waitForURL(/.*dashboard/);
-    
+    await ensureAuthenticated(page);
+
     // Verificar centro de notificações
     await page.click('[data-testid="notifications-button"]');
     await expect(page.locator('[data-testid="notifications-panel"]')).toBeVisible();
