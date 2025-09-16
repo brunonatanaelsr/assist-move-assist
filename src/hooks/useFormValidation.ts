@@ -18,11 +18,16 @@ interface ValidationErrors {
   [fieldName: string]: string;
 }
 
+interface ValidationResult {
+  isValid: boolean;
+  errors: ValidationErrors;
+}
+
 interface UseFormValidationReturn {
   errors: ValidationErrors;
   isValid: boolean;
   validateField: (fieldName: string, value: any) => string | null;
-  validateForm: (formData: Record<string, any>) => boolean;
+  validateForm: (formData: Record<string, any>) => ValidationResult;
   clearErrors: () => void;
   clearFieldError: (fieldName: string) => void;
 }
@@ -70,7 +75,7 @@ export const useFormValidation = (rules: ValidationRules): UseFormValidationRetu
     return null;
   }, [rules]);
 
-  const validateForm = useCallback((formData: Record<string, any>): boolean => {
+  const validateForm = useCallback((formData: Record<string, any>): ValidationResult => {
     const newErrors: ValidationErrors = {};
     let hasErrors = false;
 
@@ -92,7 +97,7 @@ export const useFormValidation = (rules: ValidationRules): UseFormValidationRetu
       });
     }
 
-    return !hasErrors;
+    return { isValid: !hasErrors, errors: newErrors };
   }, [validateField, rules]);
 
   const clearErrors = useCallback(() => {
@@ -154,7 +159,9 @@ export const useBeneficiariaValidation = () => {
   const baseRules = createDocumentValidationRules();
 
   const rules: ValidationRules = {
-    ...baseRules,
+    cpf: baseRules.cpf,
+    telefone: baseRules.telefone,
+    cep: baseRules.cep,
     nome_completo: {
       required: true,
       minLength: 3,
