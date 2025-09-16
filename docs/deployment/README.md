@@ -1,827 +1,103 @@
 # Deploy em Produção - Assist Move Assist
 
-## 🚀 Deploy Automático Completo
-
-Este guia descreve o processo de deploy completamente automatizado para o sistema Assist Move Assist em produção usando Ubuntu 24.04 LTS.
-
-### 🎯 Configuração do Deploy
-
-- **Domínio**: `<SEU_DOMINIO>`
-- **Sistema**: Ubuntu 24.04 LTS
-- **Super Admin**: definido via seed/migrações (configure por env/seed)
-- **SSL**: Let's Encrypt com renovação automática
-- **Database**: PostgreSQL puro (sem Supabase)
-
-### 📋 Pré-requisitos
-
-1. **Servidor Ubuntu 24.04 LTS** (mínimo 2GB RAM, 20GB disco)
-2. **Domínio configurado** apontando para o IP do servidor
-3. **Acesso root/sudo** no servidor
-4. **Porta 80 e 443** liberadas no firewall
-
-### 🔧 Execução do Deploy
-
-#### 1. Clone o repositório no servidor:
-```bash
-git clone https://github.com/brunonatanaelsr/assist-move-assist.git
-cd assist-move-assist
-```
-
-#### 2. Executar pré-checks e preparar ambiente
-```bash
-chmod +x scripts/pre-deploy-check.sh
-sudo ./scripts/pre-deploy-check.sh
-```
-
-#### 3. Siga o guia PM2 para provisionamento e serviço
-Consulte `docs/PM2_DEPLOYMENT.md` para criar diretórios, instalar dependências, configurar o serviço PM2/systemd e variáveis de ambiente.
-
-#### 4. Atualizações futuras (deploy contínuo)
-Use:
-```bash
-sudo ./scripts/update-production.sh
-```
-
-### 🏗️ O que o script faz automaticamente:
-
-#### **Sistema Base**
-- ✅ Atualiza Ubuntu 24.04
-- ✅ Instala Node.js 20 LTS
-- ✅ Instala PostgreSQL 14+
-- ✅ Instala Nginx
-- ✅ Configura Firewall UFW
-- ✅ Configura Fail2Ban
-
-#### **Banco de Dados**
-- ✅ Cria usuário e banco PostgreSQL
-- ✅ Executa migrações do schema
-- ✅ Cria super administrador
-- ✅ Configura permissões
-
-#### **Backend Node.js**
-- ✅ Instala dependências
-- ✅ Configura variáveis de ambiente
-- ✅ Compila TypeScript
-- ✅ Cria serviço systemd
-- ✅ Inicia automaticamente
-
-#### **Frontend React**
-- ✅ Builda para produção
-- ✅ Configura para API backend
-- ✅ Otimiza assets estáticos
-
-#### **Nginx + SSL**
-- ✅ Configura proxy reverso
-- ✅ Instala certificado SSL
-- ✅ Configura renovação automática
-- ✅ Headers de segurança
-- ✅ Rate limiting
-- ✅ Compressão gzip
-
-### 🔐 Credenciais Geradas
-
-O script gera automaticamente:
-
-- **Usuário PostgreSQL**: `assist_user`
-- **Senha PostgreSQL**: (gerada automaticamente)
-- **JWT Secret**: (gerado automaticamente)
-- **Session Secret**: (gerado automaticamente)
-
-### 👤 Super Administrador
-
-Defina via variáveis de ambiente/seed de migração. Nunca versione credenciais.
-
-### 🌐 URLs de Acesso
-
-Após o deploy:
-- **Site**: https://<SEU_DOMINIO>
-- **API**: https://<SEU_DOMINIO>/api
-- **Health Check**: https://<SEU_DOMINIO>/health
-
-### 🛠️ Scripts de Manutenção
-
-O deploy cria scripts úteis para manutenção:
-
-#### Status do Sistema
-```bash
-sudo /usr/local/bin/assist-status.sh
-```
-
-#### Health Check Completo
-```bash
-sudo /usr/local/bin/assist-health-check.sh
-```
-
-#### Backup Manual
-```bash
-sudo /usr/local/bin/assist-backup.sh
-```
-
-#### Atualização do Sistema
-```bash
-sudo /workspaces/assist-move-assist/scripts/update-production.sh
-```
-
-### 📊 Monitoramento Automático
-
-#### **Logs**
-- Backend: `journalctl -u assist-move-assist -f`
-- Nginx: `tail -f /var/log/nginx/assist-move-assist-error.log`
-- Sistema: `/var/log/assist-move-assist/`
-
-#### **Backups Automáticos**
-- **Frequência**: Diário às 02:00
-- **Localização**: `/var/backups/assist-move-assist/`
-- **Retenção**: 7 dias
-- **Conteúdo**: Banco de dados + arquivos
-
-#### **SSL Renovação**
-- **Frequência**: Diário às 12:00
-- **Comando**: `certbot renew --quiet`
-- **Reload**: Nginx recarregado automaticamente
-
----
-
-**✅ Deploy completamente automatizado e pronto para produção!**
-
-O sistema está configurado com todas as melhores práticas de segurança, monitoramento e backup automático.
-- **Git**
-- Conta no **Supabase**
-- Conta no **Vercel** ou **Netlify**
-
-### Conhecimentos Técnicos
-- React/TypeScript
-- PostgreSQL básico
-- Configuração de DNS
-- Conceitos de CI/CD
-
----
-
-## Configuração do Supabase
-
-### 1. Criar Projeto Supabase
-
-1. Acesse [supabase.com](https://supabase.com)
-2. Crie uma conta ou faça login
-3. Clique em "New Project"
-4. Configure:
-   ```
-   Nome: assist-move-assist-prod
-   Database Password: [senha segura]
-   Região: East US (ou mais próxima)
-   ```
-
-### 2. Configurar Banco de Dados
-
-#### Executar Migrações
-```bash
-# Instalar Supabase CLI
-npm install -g supabase
-
-# Login no Supabase
-supabase login
-
-# Conectar ao projeto
-supabase link --project-ref [SEU_PROJECT_REF]
-
-# Executar migrações
-supabase db push
-```
-
-#### Aplicar Schema Completo
-```sql
--- Execute no SQL Editor do Supabase Dashboard
--- Arquivo: /migrations/complete_schema.sql
-
--- Habilitar RLS em todas as tabelas
-ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE beneficiarias ENABLE ROW LEVEL SECURITY;
-ALTER TABLE feed_posts ENABLE ROW LEVEL SECURITY;
-ALTER TABLE feed_comments ENABLE ROW LEVEL SECURITY;
-ALTER TABLE tarefas ENABLE ROW LEVEL SECURITY;
-ALTER TABLE oficinas ENABLE ROW LEVEL SECURITY;
--- ... outras tabelas
-```
-
-### 3. Configurar Autenticação
-
-#### Configurações de Auth
-```javascript
-// No Supabase Dashboard > Authentication > Settings
-{
-  "site_url": "https://seudominio.com",
-  "redirect_urls": [
-    "https://seudominio.com/auth/callback",
-    "http://localhost:3000/auth/callback"
-  ],
-  "jwt_expiry": 3600,
-  "refresh_token_rotation": true,
-  "email_confirm_required": true
-}
-```
-
-#### Criar Usuário Admin Inicial
-```sql
--- No SQL Editor
-INSERT INTO auth.users (
-  instance_id,
-  id,
-  aud,
-  role,
-  email,
-  encrypted_password,
-  email_confirmed_at,
-  created_at,
-  updated_at,
-  raw_app_meta_data,
-  raw_user_meta_data,
-  is_super_admin,
-  confirmation_token,
-  email_change,
-  email_change_token_new,
-  recovery_token
-) VALUES (
-  '00000000-0000-0000-0000-000000000000',
-  gen_random_uuid(),
-  'authenticated',
-  'authenticated',
-  'admin@seudominio.com',
-  crypt('sua_senha_segura', gen_salt('bf')),
-  NOW(),
-  NOW(),
-  NOW(),
-  '{"provider":"email","providers":["email"]}',
-  '{}',
-  FALSE,
-  '',
-  '',
-  '',
-  ''
-);
-
--- Criar perfil admin
-INSERT INTO profiles (id, email, nome_completo, role) 
-SELECT id, email, 'Administrador', 'admin' 
-FROM auth.users 
-WHERE email = 'admin@seudominio.com';
-```
-
-### 4. Configurar Storage
-
-#### Buckets Necessários
-```sql
--- Criar buckets no SQL Editor
-INSERT INTO storage.buckets (id, name, public)
-VALUES 
-  ('images', 'images', true),
-  ('documents', 'documents', false),
-  ('exports', 'exports', false);
-```
-
-#### Políticas de Storage
-```sql
--- Política para imagens públicas
-CREATE POLICY "Imagens são públicas" ON storage.objects
-FOR SELECT USING (bucket_id = 'images');
-
--- Política para upload de imagens (usuários autenticados)
-CREATE POLICY "Usuários podem fazer upload de imagens" ON storage.objects
-FOR INSERT WITH CHECK (
-  bucket_id = 'images' 
-  AND auth.role() = 'authenticated'
-);
-```
-
-### 5. Configurar Functions (Opcional)
-
-#### Deploy Functions
-```bash
-# Fazer deploy das functions
-supabase functions deploy generate-document
-
-# Configurar secrets
-supabase secrets set OPENAI_API_KEY=sua_chave_openai
-```
-
----
-
-## Configuração do Frontend
-
-### 1. Configurar Variáveis de Ambiente
-
-#### Arquivo: `.env.production`
-```env
-VITE_SUPABASE_URL=https://seu-projeto.supabase.co
-VITE_SUPABASE_ANON_KEY=sua_chave_publica_supabase
-VITE_SUPABASE_SERVICE_ROLE_KEY=sua_chave_service_role
-
-# API
-VITE_API_BASE_URL=https://seu-dominio/api
-
-# Opcional: Monitoramento
-VITE_SENTRY_DSN=https://sua-chave@sentry.io/projeto
-VITE_LOGROCKET_APP_ID=seu-app-id
-
-# Configurações da aplicação
-VITE_APP_NAME="Assist Move Assist"
-VITE_APP_VERSION="1.0.0"
-VITE_ENVIRONMENT="production"
-```
-
-### 2. Build de Produção
-
-```bash
-# Instalar dependências
-npm install
-
-# Build de produção
-npm run build
-
-# Testar build localmente
-npm run preview
-```
-
-### 3. Verificar Configurações
-
-#### Arquivo: `vite.config.ts`
-```typescript
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react-swc'
-import path from 'path'
-
-export default defineConfig({
-  plugins: [react()],
-  resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
-    },
-  },
-  build: {
-    outDir: 'dist',
-    sourcemap: true,
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom'],
-          supabase: ['@supabase/supabase-js'],
-          ui: ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu']
-        }
-      }
-    }
-  },
-  server: {
-    port: 3000,
-    host: true
-  }
-})
-```
-
----
-
-## Deploy Vercel/Netlify
-
-### Deploy na Vercel (Recomendado)
-
-#### 1. Configuração Inicial
-```bash
-# Instalar Vercel CLI
-npm install -g vercel
-
-# Login
-vercel login
-
-# Deploy inicial
-vercel
-
-# Configurar projeto
-vercel --prod
-```
-
-#### 2. Arquivo `vercel.json`
-```json
-{
-  "framework": "vite",
-  "buildCommand": "npm run build",
-  "outputDirectory": "dist",
-  "installCommand": "npm install",
-  "env": {
-    "VITE_API_BASE_URL": "@vite_api_base_url",
-    "VITE_SUPABASE_URL": "@vite_supabase_url",
-    "VITE_SUPABASE_ANON_KEY": "@vite_supabase_anon_key"
-  },
-  "functions": {
-    "app/api/**/*.ts": {
-      "runtime": "nodejs18.x"
-    }
-  },
-  "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": "/index.html"
-    }
-  ],
-  "headers": [
-    {
-      "source": "/(.*)",
-      "headers": [
-        {
-          "key": "X-Content-Type-Options",
-          "value": "nosniff"
-        },
-        {
-          "key": "X-Frame-Options",
-          "value": "DENY"
-        },
-        {
-          "key": "X-XSS-Protection",
-          "value": "1; mode=block"
-        }
-      ]
-    }
-  ]
-}
-```
-
-#### 3. Configurar Variáveis de Ambiente na Vercel
-```bash
-# Via CLI
-vercel env add VITE_SUPABASE_URL production
-vercel env add VITE_SUPABASE_ANON_KEY production
-vercel env add VITE_API_BASE_URL production
-
-# Ou via Dashboard: vercel.com > Project > Settings > Environment Variables
-```
-
-### Deploy na Netlify
-
-#### 1. Arquivo `netlify.toml`
-```toml
-[build]
-  command = "npm run build"
-  publish = "dist"
-
-[build.environment]
-  NODE_VERSION = "18"
-  VITE_API_BASE_URL = "https://seu-dominio/api"
-
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
-
-[[headers]]
-  for = "/*"
-  [headers.values]
-    X-Frame-Options = "DENY"
-    X-XSS-Protection = "1; mode=block"
-    X-Content-Type-Options = "nosniff"
-    Referrer-Policy = "strict-origin-when-cross-origin"
-```
-
-#### 2. Deploy via Git
-1. Conecte repositório GitHub
-2. Configure build settings:
-   ```
-   Build command: npm run build
-   Publish directory: dist
-   ```
-3. Adicione variáveis de ambiente no dashboard
-
----
-
-## Configurações de Produção
-
-### 1. Configurar Domínio Personalizado
-
-#### DNS Settings
-```
-# Registrar CNAME ou A record
-CNAME: www.seudominio.com -> cname.vercel-dns.com
-A: seudominio.com -> 76.76.19.61
-```
-
-#### SSL/HTTPS
-- Vercel: SSL automático
-- Netlify: SSL automático
-- Cloudflare: Configuração manual
-
-### 2. Configurar CDN e Cache
-
-#### Vercel Edge Caching
-```javascript
-// Arquivo: vercel.json
-{
-  "headers": [
-    {
-      "source": "/assets/(.*)",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=31536000, immutable"
-        }
-      ]
-    }
-  ]
-}
-```
-
-### 3. Configurar Analytics
-
-#### Google Analytics
-```typescript
-// src/lib/analytics.ts
-import { gtag } from 'ga-gtag';
-
-export const trackPageView = (url: string) => {
-  gtag('config', 'GA_MEASUREMENT_ID', {
-    page_path: url,
-  });
-};
-
-export const trackEvent = (eventName: string, parameters: any) => {
-  gtag('event', eventName, parameters);
-};
-```
-
----
-
-## Monitoramento
-
-### 1. Configurar Sentry (Error Tracking)
-
-#### Instalação
-```bash
-npm install @sentry/react @sentry/tracing
-```
-
-#### Configuração
-```typescript
-// src/lib/sentry.ts
-import * as Sentry from "@sentry/react";
-
-Sentry.init({
-  dsn: import.meta.env.VITE_SENTRY_DSN,
-  environment: import.meta.env.VITE_ENVIRONMENT,
-  integrations: [
-    new Sentry.BrowserTracing(),
-  ],
-  tracesSampleRate: 1.0,
-});
-```
-
-### 2. Configurar Monitoramento de Performance
-
-#### Web Vitals
-```typescript
-// src/lib/webVitals.ts
-import { getCLS, getFID, getFCP, getLCP, getTTFB } from 'web-vitals';
-
-export function sendToAnalytics(metric: any) {
-  // Enviar métricas para analytics
-  gtag('event', metric.name, {
-    value: Math.round(metric.name === 'CLS' ? metric.value * 1000 : metric.value),
-    event_category: 'Web Vitals',
-    event_label: metric.id,
-    non_interaction: true,
-  });
-}
-
-getCLS(sendToAnalytics);
-getFID(sendToAnalytics);
-getFCP(sendToAnalytics);
-getLCP(sendToAnalytics);
-getTTFB(sendToAnalytics);
-```
-
-### 3. Configurar Uptime Monitoring
-
-#### UptimeRobot (Gratuito)
-```
-URL: https://seudominio.com/health
-Intervalo: 5 minutos
-Alertas: Email, SMS
-```
-
-#### Health Check Endpoint
-```typescript
-// pages/api/health.ts
-export default function handler(req: any, res: any) {
-  res.status(200).json({
-    status: 'healthy',
-    timestamp: new Date().toISOString(),
-    version: process.env.VITE_APP_VERSION
-  });
-}
-```
-
----
-
-## Backup e Segurança
-
-### 1. Backup do Banco de Dados
-
-#### Backup Automático Supabase
-```bash
-# Via CLI (diário)
-supabase db dump -f backup-$(date +%Y%m%d).sql
-
-# Configurar cron job
-0 2 * * * cd /path/to/project && supabase db dump -f backup-$(date +%Y%m%d).sql
-```
-
-#### Backup para S3
-```bash
-# Script de backup
-#!/bin/bash
-DATE=$(date +%Y%m%d)
-supabase db dump -f backup-$DATE.sql
-aws s3 cp backup-$DATE.sql s3://seu-bucket/backups/
-rm backup-$DATE.sql
-```
-
-### 2. Configurações de Segurança
-
-#### Headers de Segurança
-```javascript
-// vercel.json
-{
-  "headers": [
-    {
-      "source": "/(.*)",
-      "headers": [
-        {
-          "key": "Strict-Transport-Security",
-          "value": "max-age=63072000; includeSubDomains; preload"
-        },
-        {
-          "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://sua-instancia.supabase.co wss://sua-instancia.supabase.co;"
-        }
-      ]
-    }
-  ]
-}
-```
-
-### 3. Configurar WAF (Web Application Firewall)
-
-#### Cloudflare WAF
-```
-# Regras recomendadas:
-- Rate limiting: 100 requests/minute por IP
-- Geo blocking: Bloquear países suspeitos
-- Bot protection: Ativado
-- DDoS protection: Ativado
-```
-
----
-
-## Troubleshooting
-
-### Problemas Comuns
-
-#### 1. Erro de CORS
-```typescript
-// Verificar configuração no Supabase
-// Dashboard > Settings > API > CORS Origins
-// Adicionar: https://seudominio.com
-```
-
-#### 2. Build Falha
-```bash
-# Limpar cache
-rm -rf node_modules package-lock.json
-npm install
-
-# Verificar versões Node
-node --version  # Deve ser 18+
-npm --version
-
-# Build verbose
-npm run build --verbose
-```
-
-#### 3. Erro de Autenticação
-```typescript
-// Verificar redirect URLs
-// Supabase > Auth > Settings > Redirect URLs
-// Deve incluir: https://seudominio.com/auth/callback
-```
-
-#### 4. Performance Lenta
-```bash
-# Analisar bundle
-npm install -g @next/bundle-analyzer
-npm run analyze
-
-# Otimizar imagens
-npm install sharp
-# Converter para WebP
-```
-
-### Logs e Debugging
-
-#### Vercel Logs
-```bash
-# Ver logs em tempo real
-vercel logs --follow
-
-# Logs de deploy
-vercel logs --deployment [DEPLOYMENT_ID]
-```
-
-#### Supabase Logs
-```bash
-# Logs da API
-supabase logs api
-
-# Logs de autenticação
-supabase logs auth
-```
-
-### Scripts de Manutenção
-
-#### Script de Deploy
-```bash
-#!/bin/bash
-# deploy.sh
-
-echo "🚀 Iniciando deploy..."
-
-# Verificar testes
-npm test
-
-# Build de produção
-npm run build
-
-# Deploy
-vercel --prod
-
-# Verificar saúde
-curl -f https://seudominio.com/health || exit 1
-
-echo "✅ Deploy concluído com sucesso!"
-```
-
-#### Script de Rollback
-```bash
-#!/bin/bash
-# rollback.sh
-
-echo "⏪ Executando rollback..."
-
-# Obter deployment anterior
-PREVIOUS=$(vercel list --limit 2 | grep READY | tail -n 1 | awk '{print $1}')
-
-# Promover deployment anterior
-vercel promote $PREVIOUS --scope seu-team
-
-echo "✅ Rollback concluído!"
-```
-
----
-
-## Checklist de Deploy
-
-### Pré-Deploy
-- [ ] Testes passando
-- [ ] Build de produção funcionando
-- [ ] Variáveis de ambiente configuradas
-- [ ] Backup do banco criado
-- [ ] DNS configurado
-
-### Deploy
-- [ ] Deploy realizado com sucesso
-- [ ] SSL/HTTPS funcionando
-- [ ] Autenticação testada
-- [ ] Funcionalidades críticas testadas
-- [ ] Performance verificada
-
-### Pós-Deploy
-- [ ] Monitoramento configurado
-- [ ] Alertas funcionando
-- [ ] Backup automático ativo
-- [ ] Documentação atualizada
-- [ ] Equipe notificada
-
----
-
-## Contatos e Suporte
-
-### Em Caso de Emergência
-1. **Verificar status**: https://status.vercel.com
-2. **Logs**: `vercel logs --follow`
-3. **Rollback**: Executar script de rollback
-4. **Suporte Supabase**: support@supabase.com
-
-### Recursos Úteis
-- [Documentação Vercel](https://vercel.com/docs)
-- [Documentação Supabase](https://supabase.com/docs)
-- [React DevTools](https://react.dev/learn/react-developer-tools)
-- [Supabase Status](https://status.supabase.com)
-
----
-
-**Data da última atualização**: Agosto 2025
-**Versão do sistema**: 1.0.0
-**Responsável**: Equipe de Desenvolvimento
+## Visão Geral
+Este guia resume o processo de implantação em produção do Assist Move Assist utilizando Ubuntu 24.04 LTS, Docker Compose e a stack Node.js/React comunicando-se com PostgreSQL e Redis gerenciados. Todas as instruções assumem um pipeline GitHub Actions realizando build e deploy automático para um VPS com Nginx atuando como proxy reverso TLS.
+
+## Pré-requisitos
+- Servidor Ubuntu 24.04 LTS com acesso root e ao menos 2 vCPUs, 4 GB de RAM e 40 GB de armazenamento.
+- Domínio público apontando os registros A/AAAA para o VPS.
+- Instâncias gerenciadas de PostgreSQL 15+ e Redis 7+ (pode ser um serviço como RDS, Cloud SQL, Render ou instâncias Docker dedicadas).
+- Conta de e-mail transacional (SMTP) para envio de notificações.
+- Repositório GitHub com secrets/variables configurados para deploy automatizado (`VPS_HOST`, `VPS_USER`, `VPS_PORT`, `VPS_SSH_KEY`, `DOCKER_IMAGE`).
+- Certificados TLS emitidos automaticamente via Let's Encrypt (o arquivo `config/nginx/nginx-ssl-production.conf` já contém os headers e regras necessárias).
+
+## Passo a Passo Resumido
+1. Clone o repositório no servidor destino e execute `scripts/pre-deploy-check.sh` para validar pacotes base.
+2. Copie `backend/.env.example` para `backend/.env` e `.env.example` para `.env.production`, preenchendo credenciais reais (URLs do domínio, `NODE_ENV=production`, `JWT_SECRET`, SMTP, chaves de monitoramento etc.).
+3. Ajuste o arquivo `docker-compose.prod.yml` para apontar para os serviços gerenciados de banco/Redis via variáveis de ambiente.
+4. Rode `npm install` na raiz e em `backend/`, depois `npm run build` (frontend) e `npm --prefix backend run build`.
+5. Execute `npm --prefix backend run migrate` para aplicar as migrações SQL e `npm --prefix backend run seed` para criar dados iniciais.
+6. Configure o serviço systemd/PM2 ou utilize Docker Compose para iniciar `frontend`, `backend`, `db` (se autogerenciado) e `redis` (se local) em modo produção.
+7. Habilite o Nginx com o virtual host seguro (`config/nginx/nginx-ssl-production.conf`) e renove certificados com `certbot renew --quiet`.
+8. Configure monitoramento (Sentry, Google Analytics, LogRocket) e alertas de uptime com as variáveis presentes nos templates `.env`.
+
+## Banco de Dados PostgreSQL
+- Crie usuário e base:
+  ```bash
+  sudo -u postgres psql <<'SQL'
+  CREATE ROLE assist_user WITH LOGIN PASSWORD 'senha-super-segura';
+  CREATE DATABASE assist_db OWNER assist_user;
+  GRANT ALL PRIVILEGES ON DATABASE assist_db TO assist_user;
+  SQL
+  ```
+- Habilite extensões necessárias (`uuid-ossp`, `pgcrypto`) e aplique migrações com `npm --prefix backend run migrate`.
+- Após o deploy inicial rode `npm --prefix backend run seed` para criar o usuário administrador e dados de referência.
+- Configure rotinas de backup conforme `docs/database/BACKUP_STRATEGY.md`.
+
+## Redis
+- Utilize uma instância gerenciada com TLS habilitado ou configure `redis.conf` local com `requirepass` e `appendonly yes`.
+- Atualize `backend/.env` com `REDIS_URL` e `REDIS_PASSWORD` coerentes. O backend aplica cache TTL e filas em canais `notifications:*` e `sessions:*`.
+
+## Backend Node.js
+- Scripts principais:
+  ```bash
+  npm --prefix backend install
+  npm --prefix backend run build
+  npm --prefix backend run migrate
+  npm --prefix backend run seed   # opcional
+  npm --prefix backend run start
+  ```
+- O serviço expõe `PORT=4000` (configurável). Utilize `pm2`, `systemd` ou Docker Compose para mantê-lo ativo.
+- Middleware de segurança habilitados: Helmet, Rate Limiter, HPP, CORS com whitelists (`CORS_ALLOWED_ORIGINS`).
+- Configure logging (`LOG_LEVEL`, rotação diária em `/var/log/assist-backend/*.log`).
+
+## Frontend React + Vite
+- Crie `.env.production` baseado em `.env.example`:
+  ```env
+  NODE_ENV=production
+  APP_NAME=assist-move-assist
+  APP_URL=https://seu-dominio
+  NEXT_PUBLIC_API_BASE_URL=https://seu-dominio/api
+  NEXT_PUBLIC_WS_URL=wss://seu-dominio/api
+  VITE_API_BASE_URL=https://seu-dominio/api
+  VITE_API_URL=https://seu-dominio/api
+  VITE_WS_URL=wss://seu-dominio/api
+  VITE_SENTRY_DSN=https://chave@sentry.io/projeto
+  VITE_GA_MEASUREMENT_ID=G-XXXXXXXXXX
+  ```
+- Build de produção: `npm install && npm run build`.
+- Os artefatos ficam em `dist/` e podem ser servidos via Nginx (`root /var/www/assist-move-assist/dist;`).
+
+## Automação com Docker Compose
+- O arquivo `docker-compose.prod.yml` utiliza `env_file` apontando para `backend/.env` e `.env.production` (renomeado para `.env` na raiz ao subir o stack).
+- Para atualizar imagens:
+  ```bash
+  docker compose -f docker-compose.prod.yml pull
+  docker compose -f docker-compose.prod.yml up -d --remove-orphans
+  ```
+- Ajuste volumes para apontar para diretórios persistentes de banco/redis ou utilize serviços externos removendo os containers locais.
+
+## CI/CD (GitHub Actions)
+- Workflow `deploy-vps.yml` executa build, testes e, após aprovação manual (`workflow_dispatch`), dispara deploy via SSH usando `appleboy/ssh-action`.
+- Garanta que os jobs de build/test (`npm run lint`, `npm run test`, `npm --prefix backend run test`) façam parte do pipeline antes da etapa de deploy.
+- Utilize environments no GitHub para proteger secrets e aprovações obrigatórias.
+
+## Monitoramento e Observabilidade
+- Ative Sentry (frontend/backend) e LogRocket usando as variáveis de ambiente correspondentes.
+- Configure Google Analytics 4 e expanda dashboards internos em `/admin/analytics`.
+- Para logs de servidor, integre o `backend` com serviços como Grafana Loki ou ELK (via `winston` transport HTTP) se necessário.
+- Crie checks externos (UptimeRobot, BetterStack) monitorando `/health` e `/api/status`.
+
+## Manutenção Preventiva
+- Automatize backups diários do PostgreSQL e Redis e guarde em armazenamento externo (S3, GCS) seguindo `docs/database/BACKUP_STRATEGY.md`.
+- Teste o processo de restauração trimestralmente.
+- Revise certificados TLS e regras de firewall mensalmente.
+- Execute `npm --prefix backend run smoke` e `npm run test:e2e` a cada release para garantir regressão mínima.
+
+## Troubleshooting Rápido
+- **Backend não inicia**: verificar `backend/logs/app.log`, conexão com PostgreSQL/Redis e variáveis `DATABASE_URL`/`REDIS_URL`.
+- **Frontend exibe erro de API**: confirmar CORS (`CORS_ALLOWED_ORIGINS`) e proxies Nginx apontando para `http://backend:4000` ou serviço equivalente.
+- **WebSocket não conecta**: validar que `NEXT_PUBLIC_WS_URL` usa `wss://` atrás de TLS e que o Nginx encaminha `upgrade`/`connection` corretamente.
+- **Deploy via Actions falha**: confira logs do job e permissões SSH. Rode `scripts/update-production.sh` manualmente para validar.
+
+> Todas as credenciais reais devem permanecer fora do controle de versão. Gere chaves fortes com `openssl rand -hex 32` e armazene-as em cofre apropriado.

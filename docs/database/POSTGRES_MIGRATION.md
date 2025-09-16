@@ -16,7 +16,7 @@
 ## Visão Geral da Migração
 
 ### Arquitetura Atual
-- **Supabase Cloud**: PostgreSQL 15+ gerenciado
+- **Infra Atual**: PostgreSQL 15+ gerenciado (RDS, CloudSQL, etc.)
 - **Extensões**: pgcrypto, uuid-ossp, postgis (se necessário)
 - **Conexões**: Pool de conexões configurado
 - **Replicação**: Multi-AZ automática
@@ -36,7 +36,7 @@
 
 #### 1. Autenticação e Usuários
 ```sql
--- Tabela de perfis (estende auth.users do Supabase)
+-- Tabela de perfis integrada ao serviço de autenticação interno
 CREATE TABLE profiles (
     id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
     email TEXT UNIQUE NOT NULL,

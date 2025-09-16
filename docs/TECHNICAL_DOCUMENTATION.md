@@ -155,7 +155,7 @@ class SessionManager {
 - Auto-refresh de tokens antes da expiração
 - Armazenamento seguro em cookies httpOnly
 - Limpeza automática de sessões expiradas
-- Integração com Supabase Auth
+- Integração com o serviço de autenticação do backend
 - Tratamento de erros de rede
 
 ### App Initializer
@@ -355,22 +355,25 @@ interface Tarefa {
 }
 ```
 
-### Supabase Types
-**Auto-gerados**: `src/integrations/supabase/types.ts`
+### Tipos do Banco de Dados
+**Fonte**: `src/types/api.ts`
 
 ```typescript
-// Tipos gerados automaticamente do schema do banco
-export interface Database {
-  public: {
-    Tables: {
-      beneficiarias: {
-        Row: BeneficiariaRow;
-        Insert: BeneficiariaInsert;
-        Update: BeneficiariaUpdate;
-      };
-      // ... outras tabelas
-    };
-  };
+// Tipagens alinhadas ao schema PostgreSQL
+export interface Beneficiaria {
+  id: string;
+  nome: string;
+  dataNascimento: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Projeto {
+  id: string;
+  nome: string;
+  descricao?: string;
+  dataInicio: string;
+  dataFim?: string;
 }
 ```
 
@@ -431,26 +434,22 @@ try {
 }
 ```
 
-### Integração com Supabase
+### Integração com o Backend Express
 ```typescript
-// Queries consistentes
-const { data, error } = await supabase
-  .from('tabela')
-  .select('*')
-  .order('created_at', { ascending: false });
+// Consultas consistentes via cliente HTTP
+const { data } = await apiClient.get<Projeto[]>('/api/projetos', {
+  params: { orderBy: 'createdAt', direction: 'desc' }
+});
 
-// Real-time subscriptions
+// Subscrições em tempo real com Socket.IO
 useEffect(() => {
-  const subscription = supabase
-    .channel('changes')
-    .on('postgres_changes', {
-      event: '*',
-      schema: 'public',
-      table: 'tabela'
-    }, handleChange)
-    .subscribe();
+  const socket = socketClient.connect();
+  socket.on('projetos:updated', handleChange);
 
-  return () => subscription.unsubscribe();
+  return () => {
+    socket.off('projetos:updated', handleChange);
+    socket.disconnect();
+  };
 }, []);
 ```
 
