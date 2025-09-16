@@ -109,13 +109,13 @@ test.describe('Assist Move Assist - E2E Tests', () => {
     await expect(page.locator('h1')).toContainText(/cadastrar beneficiária/i);
     
     // Preencher formulário
-    await page.fill('input[name="nome_completo"]', 'Maria da Silva Santos E2E');
-    await page.fill('input[name="cpf"]', '123.456.789-01');
-    await page.fill('input[name="data_nascimento"]', '01/01/1990');
-    await page.fill('input[name="telefone"]', '(11) 98765-4321');
-    await page.fill('input[name="endereco"]', 'Rua das Flores, 123');
-    await page.fill('input[name="cidade"]', 'São Paulo');
-    await page.selectOption('select[name="estado"]', 'SP');
+    await page.fill('#nome_completo', 'Maria da Silva Santos');
+    await page.fill('#cpf', '52998224725');
+    await page.fill('#data_nascimento', '1990-01-01');
+    await page.fill('#contato1', '(11) 98765-4321');
+    await page.fill('#endereco', 'Rua das Flores, 123');
+    await page.fill('#cidade', 'São Paulo');
+    await page.fill('#estado', 'SP');
     
     // Submeter formulário
     await page.click('button[type="submit"]');
@@ -125,7 +125,7 @@ test.describe('Assist Move Assist - E2E Tests', () => {
     
     // Verificar se beneficiária aparece na lista
     await page.click('[data-testid="voltar-lista"]');
-    await expect(page.locator('[data-testid="beneficiaria-lista"]')).toContainText('Maria da Silva Santos E2E');
+    await expect(page.locator('[data-testid="beneficiaria-lista"]')).toContainText('Maria da Silva Santos');
   });
 
   test('deve validar campos obrigatórios no cadastro', async ({ page }) => {
@@ -143,8 +143,8 @@ test.describe('Assist Move Assist - E2E Tests', () => {
     await page.click('button[type="submit"]');
     
     // Verificar mensagens de validação
-    await expect(page.locator('[data-testid="error-nome"]')).toContainText(/nome completo é obrigatório/i);
-    await expect(page.locator('[data-testid="error-cpf"]')).toContainText(/cpf é obrigatório/i);
+    await expect(page.locator('[data-testid="error-nome"]')).toContainText(/este campo é obrigatório/i);
+    await expect(page.locator('[data-testid="error-cpf"]')).toContainText(/cpf deve ter 11 dígitos/i);
   });
 
   test('deve pesquisar beneficiárias', async ({ page }) => {
