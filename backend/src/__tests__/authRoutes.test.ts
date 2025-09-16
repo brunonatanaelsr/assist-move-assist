@@ -8,7 +8,8 @@ jest.mock('../services', () => ({
   authService: {
     login: jest.fn(),
     getProfile: jest.fn(),
-    generateToken: jest.fn().mockReturnValue('test-token')
+    generateToken: jest.fn(),
+    validateToken: jest.fn()
   }
 }));
 import { authService } from '../services';
@@ -30,19 +31,29 @@ app.use(express.json());
 app.use('/auth', authRoutes);
 app.use('/beneficiarias', beneficiariasRoutes);
 
+const mockedAuthService = authService as jest.Mocked<typeof authService>;
+
 describe('Auth and protected routes', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockedAuthService.generateToken.mockReturnValue('test-token');
+    mockedAuthService.validateToken.mockResolvedValue({
+      id: 1,
+      email: 'user@example.com',
+      role: 'user'
+    });
+  });
+
   describe('POST /auth/login', () => {
     it('should authenticate with valid credentials', async () => {
       const user = {
-        id: '1',
+        id: 1,
         email: 'user@example.com',
-        password_hash: 'hashed',
-        role: 'user',
-        nome_completo: 'Usuário Teste',
-        avatar_url: null,
-        active: true
+        nome: 'Usuário Teste',
+        papel: 'user' as const,
+        ativo: true
       };
-      (authService.login as jest.Mock).mockResolvedValue({ user, token: 'jwt-token' });
+      mockedAuthService.login.mockResolvedValue({ user, token: 'jwt-token' });
 
       const res = await request(app)
         .post('/auth/login')
@@ -56,15 +67,13 @@ describe('Auth and protected routes', () => {
 
     it('should reject invalid credentials', async () => {
       const user = {
-        id: '1',
+        id: 1,
         email: 'user@example.com',
-        password_hash: 'hashed',
-        role: 'user',
-        nome_completo: 'Usuário Teste',
-        avatar_url: null,
-        active: true
+        nome: 'Usuário Teste',
+        papel: 'user' as const,
+        ativo: true
       };
-      (authService.login as jest.Mock).mockResolvedValue(null);
+      mockedAuthService.login.mockResolvedValue(null);
 
       const res = await request(app)
         .post('/auth/login')
@@ -86,14 +95,19 @@ describe('Auth and protected routes', () => {
   describe('GET /auth/profile', () => {
     it('should return profile when authenticated', async () => {
       const profile = {
-        id: '1',
+        id: 1,
         email: 'user@example.com',
-        nome_completo: 'Usuário Teste',
-        role: 'user',
-        avatar_url: null
+        nome: 'Usuário Teste',
+        role: 'user' as const
       };
-      (authService.getProfile as jest.Mock).mockResolvedValue(profile);
-      const token = AuthService.generateToken({ id: Number(profile.id), email: profile.email, role: profile.role });
+      mockedAuthService.getProfile.mockResolvedValue(profile);
+      mockedAuthService.validateToken.mockResolvedValue({
+        id: profile.id,
+        email: profile.email,
+        role: profile.role
+      });
+      mockedAuthService.generateToken.mockReturnValue('jwt-token');
+      const token = AuthService.generateToken({ id: profile.id, email: profile.email, role: profile.role });
 
       const res = await request(app)
         .get('/auth/profile')
@@ -109,6 +123,7 @@ describe('Auth and protected routes', () => {
     });
 
     it('should reject an invalid token', async () => {
+      mockedAuthService.validateToken.mockRejectedValueOnce(new Error('invalid token'));
       const res = await request(app)
         .get('/auth/profile')
         .set('Authorization', 'Bearer invalid');
@@ -118,6 +133,11 @@ describe('Auth and protected routes', () => {
 
   describe('Protected resource authorization', () => {
     it('should deny access when role is insufficient', async () => {
+      mockedAuthService.validateToken.mockResolvedValue({
+        id: 1,
+        email: 'user@example.com',
+        role: 'user'
+      });
       const token = AuthService.generateToken({ id: 1, email: 'user@example.com', role: 'user' });
       const res = await request(app)
         .post('/beneficiarias')

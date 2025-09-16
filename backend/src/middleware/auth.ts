@@ -180,3 +180,7 @@ export const authorize = (required: string | string[]) => {
     }
   };
 };
+
+// Mantém compatibilidade com testes e utilitários que ainda importam AuthService
+// diretamente deste módulo. Reexporta a instância configurada no services/index.
+export const AuthService = authService;
