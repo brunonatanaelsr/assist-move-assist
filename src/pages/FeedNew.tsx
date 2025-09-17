@@ -29,6 +29,7 @@ import {
   Edit2
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import useSocket from '@/hooks/useSocket';
 import { useToast } from '@/components/ui/use-toast';
 import apiService from '@/services/apiService';
 
@@ -78,9 +79,12 @@ const tiposPost = [
   { value: 'conquista', label: 'Conquista', icon: Trophy, color: 'bg-yellow-100 text-yellow-800' }
 ];
 
+// ...restante do código existente...
+
 export default function Feed() {
   const { isAdmin, profile, user } = useAuth();
   const { toast } = useToast();
+  const { socket, isConnected: isSockConnected } = useSocket();
   
   const [posts, setPosts] = useState<(Post & { liked_by_user?: boolean })[]>([]);
   const [filteredPosts, setFilteredPosts] = useState<Post[]>([]);
@@ -211,8 +215,7 @@ export default function Feed() {
   // Lazy import removido - usar import estático para melhor tipagem
   // const sockHook = null; // Desabilitado temporariamente
   // const socketCtx = { socket: null, isConnected: false };
-  // const socket = null;
-  // const isSockConnected = false;
+  // socket e isSockConnected vêm do hook useSocket()
 
   useEffect(() => {
     if (!socket || !isSockConnected) return;

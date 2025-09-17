@@ -1,8 +1,10 @@
 import { Pool } from 'pg';
 import dotenv from 'dotenv';
+import path from 'path';
 import { logger } from '../services/logger';
 
-dotenv.config();
+// Garante que usamos o .env do diretório do backend (não o da raiz)
+dotenv.config({ path: path.resolve(__dirname, '..', '..', '.env') });
 
 const host = process.env.POSTGRES_HOST || 'localhost';
 const port = parseInt(process.env.POSTGRES_PORT || '5432');

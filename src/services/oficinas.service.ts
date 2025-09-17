@@ -13,30 +13,22 @@ export interface Oficina {
   vagas_total: number;
   vagas_ocupadas?: number;
   status: 'ativa' | 'inativa' | 'pausada' | 'concluida';
-  ativo: boolean;
-  projeto_id?: number | null;
-  projeto_nome?: string | null;
-  responsavel_id?: number | null;
-  responsavel_nome?: string | null;
-  total_participantes?: number;
-  data_criacao: string;
-  data_atualizacao: string;
-  dias_semana?: string | null;
+  dias_semana?: string;
 }
 
 export interface CreateOficinaDTO {
   nome: string;
-  descricao?: string;
-  instrutor?: string;
+  descricao?: string | null;
+  instrutor?: string | null;
   data_inicio: string;
-  data_fim?: string;
+  data_fim?: string | null;
   horario_inicio: string;
   horario_fim: string;
-  local?: string;
+  local?: string | null;
   vagas_total: number;
-  status?: 'ativa' | 'inativa' | 'pausada' | 'concluida';
-  projeto_id?: number;
   dias_semana?: string;
+  projeto_id?: number;
+  status?: 'ativa' | 'inativa' | 'pausada' | 'concluida';
 }
 
 export interface UpdateOficinaDTO extends Partial<CreateOficinaDTO> {}
@@ -170,6 +162,6 @@ export const OficinasService = {
   }
 };
 
+// Alias de export para compatibilidade
 export const oficinasService = OficinasService;
-
 export default OficinasService;

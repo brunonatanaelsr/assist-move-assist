@@ -30,6 +30,8 @@ export function useNotifications(filters?: {
   });
 }
 
+export default useNotifications;
+
 // Hook para buscar número de notificações não lidas
 export function useUnreadNotificationsCount() {
   return useQuery({

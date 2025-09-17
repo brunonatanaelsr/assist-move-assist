@@ -28,23 +28,34 @@ export function usePersistedFilters<T extends Record<string, unknown>>({ key, in
         console.warn('Failed to load filters from localStorage:', error);
       }
     }
-  }, [location.pathname, initial]);
+  }, [location.pathname, location.search, initial, key]);
 
   // Persist to localStorage and URL
   useEffect(() => {
     if (firstLoad.current) { firstLoad.current = false; return; }
+
+    // Persist to localStorage only if changed
     try {
-      localStorage.setItem(key, JSON.stringify(state));
+      const nextSerialized = JSON.stringify(state);
+      const prevSerialized = localStorage.getItem(key);
+      if (prevSerialized !== nextSerialized) {
+        localStorage.setItem(key, nextSerialized);
+      }
     } catch (error) {
       console.warn('Failed to save filters to localStorage:', error);
     }
 
+    // Compute next search and compare to current to avoid redundant replaceState
     const params = new URLSearchParams();
     Object.entries(state).forEach(([k, v]) => {
       if (v !== undefined && v !== null && String(v) !== '') params.set(k, String(v));
     });
-    navigate({ search: params.toString() }, { replace: true });
-  }, [key, state, navigate]);
+    const nextSearch = params.toString();
+    const currentSearch = new URLSearchParams(location.search).toString();
+    if (nextSearch !== currentSearch) {
+      navigate({ search: nextSearch }, { replace: true });
+    }
+  }, [key, state, navigate, location.search]);
 
   const set = useCallback((patch: Partial<T>) => setState((prev) => ({ ...prev, ...patch })), []);
   const reset = useCallback(() => setState(initial), [initial]);
