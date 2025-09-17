@@ -4,45 +4,23 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import StatCard from "@/components/ui/stat-card";
 import { apiService } from "@/services/apiService";
-import { ReactNode } from "react";
 
-// Componente StatCard local
-interface StatCardProps {
-  title: string;
-  value: string | number;
-  description?: string;
-  icon?: ReactNode;
-  variant?: "default" | "primary" | "success" | "warning";
+interface DashboardActivity {
+  id: string | number;
+  type: string;
+  description: string;
+  time: string;
+  icon?: string;
 }
 
-const StatCard = ({ title, value, description, icon, variant = "default" }: StatCardProps) => {
-  const variantStyles = {
-    default: "border-border",
-    primary: "border-primary/20 bg-primary/10",
-    success: "border-green-200 bg-green-50", 
-    warning: "border-yellow-200 bg-yellow-50"
-  };
-
-  return (
-    <Card className={`${variantStyles[variant]}`}>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">
-          {title}
-        </CardTitle>
-        {icon && <div>{icon}</div>}
-      </CardHeader>
-      <CardContent>
-        <div className="text-2xl font-bold">{value}</div>
-        {description && (
-          <p className="text-xs text-muted-foreground mt-1">
-            {description}
-          </p>
-        )}
-      </CardContent>
-    </Card>
-  );
-};
+interface DashboardTask {
+  id: string | number;
+  title: string;
+  due: string;
+  priority: "Alta" | "Média" | "Baixa" | string;
+}
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -54,8 +32,8 @@ export default function Dashboard() {
     atendimentosMes: 0,
     engajamento: "0%"
   });
-  const [recentActivities, setRecentActivities] = useState<any[]>([]);
-  const [upcomingTasks, setUpcomingTasks] = useState<any[]>([]);
+  const [recentActivities, setRecentActivities] = useState<DashboardActivity[]>([]);
+  const [upcomingTasks, setUpcomingTasks] = useState<DashboardTask[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -131,10 +109,6 @@ export default function Dashboard() {
           description={loading ? "Carregando..." : `${stats.beneficiariasAtivas} ativas • ${stats.beneficiariasInativas} inativas`}
           icon={<Users className="h-4 w-4" />}
           variant="primary"
-          // test ids
-          // container and count for E2E
-          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-          // @ts-ignore
           data-testid="stats-beneficiarias"
         />
         {/* count element for tests */}
@@ -145,8 +119,6 @@ export default function Dashboard() {
           description={loading ? "Carregando..." : "Total preenchidos"}
           icon={<FileText className="h-4 w-4" />}
           variant="success"
-          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-          // @ts-ignore
           data-testid="stats-usuarios"
         />
         <StatCard
@@ -155,8 +127,6 @@ export default function Dashboard() {
           description={loading ? "Carregando..." : "Este mês"}
           icon={<Calendar className="h-4 w-4" />}
           variant="warning"
-          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-          // @ts-ignore
           data-testid="stats-oficinas"
         />
         <StatCard

@@ -178,7 +178,7 @@ test.describe('Assist Move Assist - E2E Tests', () => {
     // Testar navegação principal
     const menuItems = [
       { testId: 'menu-dashboard', expectedUrl: /.*#\/dashboard/, expectedHeading: /Dashboard/i },
-      { testId: 'menu-beneficiarias', expectedUrl: /.*#\/beneficiarias/, expectedHeading: /Beneficiárias/i },
+      { testId: 'menu-beneficiarias', expectedUrl: /.*#\/beneficiarias/, expectedHeading: 'Beneficiárias' },
       { testId: 'menu-oficinas', expectedUrl: /.*#\/oficinas/, expectedHeading: /Oficinas/i },
       { testId: 'menu-projetos', expectedUrl: /.*#\/projetos/, expectedHeading: /Projetos/i },
       { testId: 'menu-feed', expectedUrl: /.*#\/feed/, expectedHeading: /Feed da Comunidade/i },
@@ -193,7 +193,8 @@ test.describe('Assist Move Assist - E2E Tests', () => {
         link.click(),
       ]);
       if (item.expectedHeading) {
-        await expect(page.getByRole('heading', { name: item.expectedHeading })).toBeVisible();
+        const headingLocator = page.getByRole('heading', { name: item.expectedHeading });
+        await expect(headingLocator.first()).toBeVisible();
       }
     }
   });
