@@ -2,13 +2,13 @@ import { Users, FileText, Calendar, TrendingUp, Heart, ClipboardCheck } from "lu
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useEffect, useState } from "react";
+import { useEffect, useState, HTMLAttributes, ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { apiService } from "@/services/apiService";
-import { ReactNode } from "react";
+import { cn } from "@/lib/utils";
 
 // Componente StatCard local
-interface StatCardProps {
+interface StatCardProps extends HTMLAttributes<HTMLDivElement> {
   title: string;
   value: string | number;
   description?: string;
@@ -16,16 +16,24 @@ interface StatCardProps {
   variant?: "default" | "primary" | "success" | "warning";
 }
 
-const StatCard = ({ title, value, description, icon, variant = "default" }: StatCardProps) => {
+const StatCard = ({
+  title,
+  value,
+  description,
+  icon,
+  variant = "default",
+  className,
+  ...cardProps
+}: StatCardProps) => {
   const variantStyles = {
     default: "border-border",
     primary: "border-primary/20 bg-primary/10",
-    success: "border-green-200 bg-green-50", 
+    success: "border-green-200 bg-green-50",
     warning: "border-yellow-200 bg-yellow-50"
   };
 
   return (
-    <Card className={`${variantStyles[variant]}`}>
+    <Card className={cn(variantStyles[variant], className)} {...cardProps}>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-sm font-medium">
           {title}

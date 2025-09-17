@@ -1,8 +1,8 @@
-import { ReactNode } from "react";
+import { HTMLAttributes, ReactNode } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
-interface StatCardProps {
+interface StatCardProps extends HTMLAttributes<HTMLDivElement> {
   title: string;
   value: string | number;
   description?: string;
@@ -11,13 +11,14 @@ interface StatCardProps {
   className?: string;
 }
 
-const StatCard = ({ 
-  title, 
-  value, 
-  description, 
-  icon, 
+const StatCard = ({
+  title,
+  value,
+  description,
+  icon,
   variant = "default",
-  className 
+  className,
+  ...cardProps
 }: StatCardProps) => {
   const variantStyles = {
     default: "border-border",
@@ -27,7 +28,7 @@ const StatCard = ({
   };
 
   return (
-    <Card className={cn(
+    <Card {...cardProps} className={cn(
       "transition-smooth hover:shadow-soft",
       variantStyles[variant],
       className
