@@ -26,10 +26,15 @@ async function createInitialUsers() {
     const ADMIN_NAME = process.env.ADMIN_NAME || 'Administrador';
     const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@example.com';
     const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'ChangeMe!123';
+    const E2E_NAME = process.env.E2E_TEST_NAME || 'E2E User';
+    const E2E_EMAIL = process.env.E2E_TEST_EMAIL || 'e2e@assist.local';
+    const E2E_PASSWORD = process.env.E2E_TEST_PASSWORD || 'e2e_password';
+    const E2E_ROLE = process.env.E2E_TEST_ROLE || 'admin';
 
     // Hash das senhas
     const brunoPasswordHash = await bcrypt.hash(SUPERADMIN_PASSWORD, 12);
     const adminPasswordHash = await bcrypt.hash(ADMIN_PASSWORD, 12);
+    const e2ePasswordHash = await bcrypt.hash(E2E_PASSWORD, 12);
 
     // Criar superadmin
     const upsertUser = `
@@ -61,6 +66,20 @@ async function createInitialUsers() {
     ]);
 
     console.log('✅ Admin criado:', adminResult.rows[0]);
+
+    const e2eResult = await pool.query(upsertUser, [
+      E2E_NAME,
+      E2E_EMAIL,
+      e2ePasswordHash,
+      E2E_ROLE
+    ]);
+
+    console.log('✅ Usuário E2E criado:', {
+      id: e2eResult.rows[0]?.id,
+      nome: e2eResult.rows[0]?.nome,
+      email: E2E_EMAIL,
+      papel: E2E_ROLE
+    });
 
     // Verificar se beneficiárias já existem
     await pool.query(`

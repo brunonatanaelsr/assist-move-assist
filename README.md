@@ -97,6 +97,13 @@ npm run test:e2e:local # E2E completo com Docker local (scripts/run-e2e-local.sh
 
 ## Testes
 
+### Credenciais padrão
+
+As rotinas de seed garantem contas prontas para uso durante o desenvolvimento e
+execução dos testes (unitários, integração e E2E). Consulte
+[`docs/TEST_CREDENTIALS.md`](docs/TEST_CREDENTIALS.md) para ver a lista completa
+de usuários e senhas padrão.
+
 ### Unitários
 - Frontend: `npm run test:frontend`
 - Backend: `cd backend && npm test`
