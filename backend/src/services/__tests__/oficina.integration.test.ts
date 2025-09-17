@@ -5,17 +5,30 @@ import type { Pool } from 'pg';
 import { setupTestDatabase, teardownTestDatabase } from '../../__tests__/helpers/database';
 import { OficinaService } from '../oficina.service';
 
-let pool: Pool;
-let redisContainer: StartedTestContainer;
-let redis: Redis;
-let service: OficinaService;
+type SqlParam = string | number | boolean | null | Date;
+
+let pool: Pool | null = null;
+let redisContainer: StartedTestContainer | null = null;
+let redis: Redis | null = null;
+let service: OficinaService | null = null;
 
 const runOnlyIfEnabled = process.env.RUN_INTEGRATION === '1';
 
 // Minimal helper to insert records directly
-async function insert(sql: string, params: any[] = []) {
-  // @ts-ignore
+async function insert(sql: string, params: ReadonlyArray<SqlParam> = []): Promise<void> {
+  if (!pool) {
+    throw new Error('Database pool not initialized');
+  }
+
   await pool.query(sql, params);
+}
+
+function getService(): OficinaService {
+  if (!service) {
+    throw new Error('OficinaService not initialized');
+  }
+
+  return service;
 }
 
 describe('OficinaService (integration)', () => {
@@ -27,7 +40,7 @@ describe('OficinaService (integration)', () => {
     const host = redisContainer.getHost();
     const port = redisContainer.getMappedPort(6379);
     redis = new Redis({ host, port });
-    service = new OficinaService(pool as any, redis as any);
+    service = new OficinaService(pool, redis);
   });
 
   afterAll(async () => {
@@ -39,26 +52,29 @@ describe('OficinaService (integration)', () => {
 
   it('lista e busca oficinas com cache', async () => {
     if (!runOnlyIfEnabled) return;
+    const oficinaService = getService();
     // Inserir projeto e oficina
     await insert(`INSERT INTO projetos (id, nome, ativo) VALUES (1,'Proj',true)`);
     await insert(`INSERT INTO oficinas (id, nome, projeto_id, ativo, status) VALUES (10,'Of A',1,true,'ativa')`);
 
     // 1ª chamada (sem cache)
-    const page = await service.listarOficinas({ page: 1, limit: 10 } as any);
+    const paginationFilters: Parameters<OficinaService['listarOficinas']>[0] = { page: 1, limit: 10 };
+    const page = await oficinaService.listarOficinas(paginationFilters);
     expect(page.data.length).toBeGreaterThan(0);
 
     // 2ª chamada (com cache) — deve retornar mesmo resultado rapidamente
-    const cached = await service.listarOficinas({ page: 1, limit: 10 } as any);
+    const cached = await oficinaService.listarOficinas(paginationFilters);
     expect(cached.data.length).toBe(page.data.length);
 
     // Buscar detalhe
-    const of = await service.buscarOficina(10);
+    const of = await oficinaService.buscarOficina(10);
     expect(of).toBeTruthy();
-    expect((of as any).nome).toBe('Of A');
+    expect(of.nome).toBe('Of A');
   });
 
   it('lista participantes por projeto da oficina', async () => {
     if (!runOnlyIfEnabled) return;
+    const oficinaService = getService();
     // projeto 2
     await insert(`INSERT INTO projetos (id, nome, ativo) VALUES (2,'Proj 2',true)`);
     await insert(`INSERT INTO oficinas (id, nome, projeto_id, ativo, status) VALUES (20,'Of B',2,true,'ativa')`);
@@ -68,7 +84,7 @@ describe('OficinaService (integration)', () => {
     // participação ligada ao projeto 2
     await insert(`INSERT INTO participacoes (beneficiaria_id, projeto_id, status, ativo) VALUES (101,2,'inscrita',true)`);
 
-    const participantes = await service.listarParticipantes(20);
+    const participantes = await oficinaService.listarParticipantes(20);
     expect(Array.isArray(participantes)).toBe(true);
     expect(participantes.length).toBeGreaterThan(0);
   });
