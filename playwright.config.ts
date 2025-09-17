@@ -3,7 +3,9 @@ import { defineConfig, devices } from '@playwright/test';
 const WEB_HOST = process.env.PLAYWRIGHT_WEB_HOST || '127.0.0.1';
 const WEB_PORT = Number(process.env.PLAYWRIGHT_WEB_PORT) || 5173;
 const BASE_URL = process.env.PLAYWRIGHT_BASE_URL || `http://${WEB_HOST}:${WEB_PORT}`;
-const PREVIEW_COMMAND = `npm run preview -- --port=${WEB_PORT} --host=${WEB_HOST} --strictPort`;
+const PREVIEW_COMMAND =
+  process.env.PLAYWRIGHT_WEB_COMMAND ||
+  `npm run build -- --mode e2e && npm run preview -- --port=${WEB_PORT} --host=${WEB_HOST} --strictPort`;
 
 export default defineConfig({
   timeout: 90_000,
