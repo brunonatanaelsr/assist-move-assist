@@ -1,10 +1,6 @@
-import { createRoot } from 'react-dom/client'
-import App from './App' // official entry component
-import './index.css'
-
-import { createRoot } from 'react-dom/client'
-import App from './App' // official entry component
-import './index.css'
+import { createRoot } from 'react-dom/client';
+import App from './App';
+import './index.css';
 
 // Adicionar tratamento de erro global
 window.addEventListener('error', (e) => {
@@ -15,15 +11,8 @@ window.addEventListener('unhandledrejection', (e) => {
   console.error('Unhandled Promise Rejection:', e.reason);
 });
 
-interface ImportMeta {
-  env: Record<string, string>;
-}
-
 try {
-  // Configure API base URL for axios
-  const API_BASE = (import.meta as ImportMeta)?.env?.VITE_API_BASE_URL || 'http://localhost:3000/api';
-
-  createRoot(document.getElementById("root")!).render(<App />);
+  createRoot(document.getElementById('root')!).render(<App />);
 } catch (error: unknown) {
   console.error('Erro ao renderizar App:', error);
   // Fallback seguro sem innerHTML

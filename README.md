@@ -48,10 +48,14 @@ Sistema de gestão para institutos sociais que auxilia no acompanhamento de bene
    DATABASE_URL=postgres://user:pass@localhost:5432/assist_move
    REDIS_URL=redis://localhost:6379
    JWT_SECRET=seu_jwt_secret
+   AUTH_COOKIE_SAMESITE=lax # opcional: lax|strict|none (usa strict em produção por padrão)
    UPLOAD_PATH=./uploads
    ENABLE_WS=true
    FRONTEND_URL=http://localhost:8080
    ```
+   > **Observação:** Em desenvolvimento, o backend avisa e usa um segredo fraco padrão
+   > (`dev-only-secret`) quando `JWT_SECRET` não é informado. Em produção, a aplicação
+   > falha no boot se a variável não estiver definida.
 4. **Configure o banco de dados**
    ```bash
    # Criar banco
