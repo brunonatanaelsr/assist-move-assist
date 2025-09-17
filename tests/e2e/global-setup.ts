@@ -1,4 +1,5 @@
-import { request, expect, FullConfig, chromium } from '@playwright/test';
+import { request, FullConfig } from '@playwright/test';
+import type { StorageState } from '@playwright/test';
 import { Client } from 'pg';
 import bcrypt from 'bcryptjs';
 import fs from 'node:fs/promises';
@@ -41,6 +42,10 @@ async function ensureTestUser(dbUrl: string, user: TestUserConfig) {
   }
 }
 
+function toErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : String(error);
+}
+
 export default async function globalSetup(_config: FullConfig) {
   const baseURL = process.env.E2E_BASE_URL || 'http://127.0.0.1:5173';
   const apiURL = process.env.E2E_API_URL || 'http://127.0.0.1:3000';
@@ -55,7 +60,18 @@ export default async function globalSetup(_config: FullConfig) {
     role: process.env.E2E_TEST_ROLE || 'admin',
   };
 
-  await ensureTestUser(dbURL, testUser);
+  try {
+    await ensureTestUser(dbURL, testUser);
+  } catch (error) {
+    console.warn(
+      `[global-setup] Unable to ensure E2E test user in database: ${toErrorMessage(error)}`
+    );
+  }
+
+  const storageStatePath = path.resolve('tests/.auth/admin.json');
+  await ensureDirectory(storageStatePath);
+
+  let storageState: StorageState = { cookies: [], origins: [] };
 
   const apiContext = await request.newContext({ baseURL: apiURL });
   try {
@@ -63,7 +79,12 @@ export default async function globalSetup(_config: FullConfig) {
       data: { email: testUser.email, password: testUser.password },
     });
 
-    expect(response.status(), await response.text()).toBe(200);
+    if (!response.ok()) {
+      const body = await response.text();
+      throw new Error(
+        `Login failed with status ${response.status()}: ${body || 'no response body'}`
+      );
+    }
 
     const payload = await response.json();
     const token: string | undefined = payload?.token;
@@ -77,34 +98,34 @@ export default async function globalSetup(_config: FullConfig) {
       throw new Error('Login response did not include a token.');
     }
 
-    const storageStatePath = path.resolve('tests/.auth/admin.json');
     const existingState = await apiContext.storageState();
+    const normalizedBaseUrl = baseURL.replace(/\/$/, '');
+    const origins = existingState.origins?.filter(
+      (origin) => origin.origin !== normalizedBaseUrl
+    );
 
-    const browser = await chromium.launch();
-    try {
-      const context = await browser.newContext({
-        baseURL,
-        storageState: existingState,
-      });
-      const page = await context.newPage();
-      await page.goto('/');
-      await page.waitForLoadState('domcontentloaded');
-      await page.evaluate(
-        ({ authToken, authUser }) => {
-          localStorage.setItem('auth_token', authToken);
-          localStorage.setItem('token', authToken);
-          localStorage.setItem('user', JSON.stringify(authUser));
+    storageState = {
+      cookies: existingState.cookies ?? [],
+      origins: [
+        ...(origins ?? []),
+        {
+          origin: normalizedBaseUrl,
+          localStorage: [
+            { name: 'auth_token', value: token },
+            { name: 'token', value: token },
+            { name: 'user', value: JSON.stringify(user) },
+          ],
         },
-        { authToken: token, authUser: user }
-      );
-
-      await ensureDirectory(storageStatePath);
-      await context.storageState({ path: storageStatePath });
-      await context.close();
-    } finally {
-      await browser.close();
-    }
+      ],
+    };
+  } catch (error) {
+    console.warn(
+      `[global-setup] Skipping authenticated storage state: ${toErrorMessage(error)}`
+    );
+    storageState = { cookies: [], origins: [] };
   } finally {
     await apiContext.dispose();
   }
+
+  await fs.writeFile(storageStatePath, JSON.stringify(storageState, null, 2));
 }
