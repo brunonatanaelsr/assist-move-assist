@@ -45,12 +45,19 @@ router.use((req, res, next) => {
 });
 
 const isProduction = process.env.NODE_ENV === 'production';
+const configuredSameSiteRaw = process.env.AUTH_COOKIE_SAMESITE;
+const configuredSameSite = configuredSameSiteRaw?.toLowerCase();
+const allowedSameSite = ['lax', 'strict', 'none'] as const;
+const defaultSameSite = (isProduction ? 'strict' : 'lax') as (typeof allowedSameSite)[number];
+const sameSite = (allowedSameSite.includes(configuredSameSite as any)
+  ? (configuredSameSite as (typeof allowedSameSite)[number])
+  : defaultSameSite);
 const COOKIE_OPTIONS = {
   httpOnly: true,
-  secure: isProduction, // em dev, permitir cookies sem HTTPS
-  sameSite: (isProduction ? 'strict' : 'lax') as 'strict' | 'lax',
+  secure: isProduction || sameSite === 'none',
+  sameSite,
   maxAge: 24 * 60 * 60 * 1000, // 1 dia
-};
+} as const;
 
 // POST /auth/login
 router.post('/login', async (req: RequestWithBody<LoginRequestBody>, res: Response): Promise<void> => {
@@ -105,8 +112,7 @@ router.post('/logout', async (_req, res: Response): Promise<void> => {
   try {
     res.clearCookie('auth_token', {
       ...COOKIE_OPTIONS,
-      // limpar funciona melhor sem sameSite muito restrito em dev
-      sameSite: isProduction ? 'strict' : 'lax',
+      sameSite,
     } as any);
     res.json({ message: 'Logout realizado com sucesso' });
     return;
@@ -127,7 +133,7 @@ router.post('/refresh', authenticateToken, async (req: any, res: Response): Prom
     };
     const token = authService.generateToken(payload);
     res.cookie('auth_token', token, COOKIE_OPTIONS);
-    res.json({ message: 'Token renovado', user: payload });
+    res.json({ message: 'Token renovado', token, user: payload });
     return;
   } catch (error) {
     loggerService.error('Erro ao renovar token:', error);

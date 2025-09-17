@@ -54,7 +54,7 @@ export class AuthService {
 
   async refreshToken(): Promise<string> {
     try {
-      const response = await api.post<{ token: string }>('/auth/refresh-token', undefined, { withCredentials: true });
+      const response = await api.post<{ message: string; token: string }>('/auth/refresh', undefined, { withCredentials: true });
       return response.data.token;
     } catch (error) {
       throw new Error('Erro ao renovar token');

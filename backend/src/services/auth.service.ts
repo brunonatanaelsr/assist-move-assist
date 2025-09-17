@@ -37,11 +37,23 @@ export class AuthService {
     private pool: Pool,
     private redis: Redis
   ) {
-    // Exigir JWT_SECRET em produção para evitar segredos embutidos
-    if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {
-      throw new Error('JWT_SECRET não definido em produção');
+    const resolvedSecret =
+      process.env.JWT_SECRET ||
+      (process.env.NODE_ENV === 'test'
+        ? 'test-secret'
+        : process.env.NODE_ENV !== 'production'
+          ? 'dev-only-secret'
+          : '');
+
+    if (!resolvedSecret) {
+      throw new Error('JWT_SECRET deve ser definido');
     }
-    this.JWT_SECRET = process.env.JWT_SECRET || 'dev-only-secret';
+
+    if (!process.env.JWT_SECRET && process.env.NODE_ENV !== 'test') {
+      loggerService.warn('JWT_SECRET não definido; usando fallback inseguro apenas para desenvolvimento.');
+    }
+
+    this.JWT_SECRET = resolvedSecret;
     this.JWT_EXPIRY = process.env.JWT_EXPIRY || '24h';
   }
 

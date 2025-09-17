@@ -35,7 +35,24 @@ export interface AuthenticatedRequest extends Request {
   headers: Request['headers'];
 }
 
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-only-secret';
+const resolveJwtSecret = () => {
+  if (process.env.JWT_SECRET) {
+    return process.env.JWT_SECRET;
+  }
+
+  if (process.env.NODE_ENV === 'test') {
+    return 'test-secret';
+  }
+
+  if (process.env.NODE_ENV !== 'production') {
+    loggerService.warn('JWT_SECRET não definido; usando fallback inseguro apenas para desenvolvimento.');
+    return 'dev-only-secret';
+  }
+
+  throw new Error('JWT_SECRET must be defined');
+};
+
+const JWT_SECRET = resolveJwtSecret();
 const JWT_EXPIRY = process.env.JWT_EXPIRY || '24h';
 
 const isMockFunction = (fn: unknown): fn is { mock: unknown } =>
