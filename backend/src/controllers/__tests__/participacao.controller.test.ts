@@ -14,6 +14,7 @@ jest.mock('../../services/participacao.service');
 describe('ParticipacaoController', () => {
   let mockReq: any;
   let mockRes: any;
+  let mockNext: any;
   let mockParticipacaoService: any;
 
   beforeEach(() => {
@@ -27,6 +28,7 @@ describe('ParticipacaoController', () => {
       status: jest.fn().mockReturnThis(),
       send: jest.fn()
     };
+    mockNext = jest.fn();
     mockParticipacaoService = ParticipacaoService as jest.MockedClass<typeof ParticipacaoService>;
     mockParticipacaoService.prototype.listarParticipacoes = jest.fn();
     mockParticipacaoService.prototype.criarParticipacao = jest.fn();
@@ -53,7 +55,7 @@ describe('ParticipacaoController', () => {
         limit: '10'
       };
 
-      await listarParticipacoes(mockReq, mockRes);
+      await listarParticipacoes(mockReq, mockRes, mockNext);
 
       expect(mockRes.json).toHaveBeenCalledWith(mockResult);
       expect(mockParticipacaoService.prototype.listarParticipacoes).toHaveBeenCalledWith({
@@ -65,7 +67,7 @@ describe('ParticipacaoController', () => {
     it('deve tratar erro ao listar participações', async () => {
       mockParticipacaoService.prototype.listarParticipacoes.mockRejectedValue(new Error());
 
-      await listarParticipacoes(mockReq, mockRes);
+      await listarParticipacoes(mockReq, mockRes, mockNext);
 
       expect(mockRes.status).toHaveBeenCalledWith(500);
       expect(mockRes.json).toHaveBeenCalledWith({ 
@@ -88,7 +90,7 @@ describe('ParticipacaoController', () => {
         projeto_id: 1
       };
 
-      await criarParticipacao(mockReq, mockRes);
+      await criarParticipacao(mockReq, mockRes, mockNext);
 
       expect(mockRes.status).toHaveBeenCalledWith(201);
       expect(mockRes.json).toHaveBeenCalledWith(mockParticipacao);
@@ -99,7 +101,7 @@ describe('ParticipacaoController', () => {
         new Error('Beneficiária não encontrada')
       );
 
-      await criarParticipacao(mockReq, mockRes);
+      await criarParticipacao(mockReq, mockRes, mockNext);
 
       expect(mockRes.status).toHaveBeenCalledWith(404);
       expect(mockRes.json).toHaveBeenCalledWith({ 
@@ -119,7 +121,7 @@ describe('ParticipacaoController', () => {
       mockReq.params = { id: '1' };
       mockReq.body = { status: 'em_andamento' };
 
-      await atualizarParticipacao(mockReq, mockRes);
+      await atualizarParticipacao(mockReq, mockRes, mockNext);
 
       expect(mockRes.json).toHaveBeenCalledWith(mockParticipacao);
     });
@@ -131,7 +133,7 @@ describe('ParticipacaoController', () => {
 
       mockReq.params = { id: '999' };
 
-      await atualizarParticipacao(mockReq, mockRes);
+      await atualizarParticipacao(mockReq, mockRes, mockNext);
 
       expect(mockRes.status).toHaveBeenCalledWith(404);
       expect(mockRes.json).toHaveBeenCalledWith({ 
@@ -146,7 +148,7 @@ describe('ParticipacaoController', () => {
 
       mockReq.params = { id: '1' };
 
-      await excluirParticipacao(mockReq, mockRes);
+      await excluirParticipacao(mockReq, mockRes, mockNext);
 
       expect(mockRes.status).toHaveBeenCalledWith(204);
       expect(mockRes.send).toHaveBeenCalled();
@@ -159,7 +161,7 @@ describe('ParticipacaoController', () => {
 
       mockReq.params = { id: '999' };
 
-      await excluirParticipacao(mockReq, mockRes);
+      await excluirParticipacao(mockReq, mockRes, mockNext);
 
       expect(mockRes.status).toHaveBeenCalledWith(404);
       expect(mockRes.json).toHaveBeenCalledWith({ 
@@ -179,7 +181,7 @@ describe('ParticipacaoController', () => {
       mockReq.params = { id: '1' };
       mockReq.body = { presenca: 80 };
 
-      await registrarPresenca(mockReq, mockRes);
+      await registrarPresenca(mockReq, mockRes, mockNext);
 
       expect(mockRes.json).toHaveBeenCalledWith(mockParticipacao);
     });
@@ -188,7 +190,7 @@ describe('ParticipacaoController', () => {
       mockReq.params = { id: '1' };
       mockReq.body = {};
 
-      await registrarPresenca(mockReq, mockRes);
+      await registrarPresenca(mockReq, mockRes, mockNext);
 
       expect(mockRes.status).toHaveBeenCalledWith(400);
       expect(mockRes.json).toHaveBeenCalledWith({ 
@@ -204,7 +206,7 @@ describe('ParticipacaoController', () => {
       mockReq.params = { id: '1' };
       mockReq.body = { presenca: 101 };
 
-      await registrarPresenca(mockReq, mockRes);
+      await registrarPresenca(mockReq, mockRes, mockNext);
 
       expect(mockRes.status).toHaveBeenCalledWith(400);
       expect(mockRes.json).toHaveBeenCalledWith({ 
@@ -224,7 +226,7 @@ describe('ParticipacaoController', () => {
 
       mockReq.params = { id: '1' };
 
-      await emitirCertificado(mockReq, mockRes);
+      await emitirCertificado(mockReq, mockRes, mockNext);
 
       expect(mockRes.json).toHaveBeenCalledWith(mockParticipacao);
     });
@@ -236,7 +238,7 @@ describe('ParticipacaoController', () => {
 
       mockReq.params = { id: '1' };
 
-      await emitirCertificado(mockReq, mockRes);
+      await emitirCertificado(mockReq, mockRes, mockNext);
 
       expect(mockRes.status).toHaveBeenCalledWith(400);
       expect(mockRes.json).toHaveBeenCalledWith({ 

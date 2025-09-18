@@ -1,5 +1,5 @@
 import { db } from '../services/db';
-import type { Redis } from 'ioredis';
+import type Redis from 'ioredis';
 import redis from '../lib/redis';
 import { loggerService } from '../services/logger';
 
@@ -42,7 +42,7 @@ class DashboardService {
     }
 
     // Query principal usando SQL parametrizado
-    const stats = await db.query<DashboardStats>(`
+    const stats = await db.query(`
       SELECT
         (SELECT COUNT(*) FROM beneficiarias WHERE ativo = true) as total_beneficiarias,
         (SELECT COUNT(*) FROM oficinas WHERE ativo = true) as total_oficinas,
@@ -50,7 +50,7 @@ class DashboardService {
     `);
 
     // Estatísticas mensais
-    const monthlyStats = await db.query<MonthlyStats>(`
+    const monthlyStats = await db.query(`
       SELECT 
         date_trunc('month', created_at) as month,
         COUNT(*) as count
@@ -61,7 +61,7 @@ class DashboardService {
     `);
 
     // Distribuição por status
-    const statusDistribution = await db.query<StatusCount>(`
+    const statusDistribution = await db.query(`
       SELECT 
         status,
         COUNT(*) as count
@@ -69,10 +69,13 @@ class DashboardService {
       GROUP BY status
     `);
 
-    const result = {
-      ...stats[0],
-      monthlyStats,
-      statusDistribution
+    const statsRow = stats[0];
+    const result: DashboardStats = {
+      totalBeneficiarias: parseInt(statsRow?.total_beneficiarias || '0'),
+      totalOficinas: parseInt(statsRow?.total_oficinas || '0'),
+      totalAtendimentos: parseInt(statsRow?.total_atendimentos || '0'),
+      monthlyStats: monthlyStats,
+      statusDistribution: statusDistribution
     };
 
     // Salvar no cache
@@ -89,7 +92,7 @@ class DashboardService {
     const offset = (page - 1) * limit;
 
     // Buscar total de atividades
-    const [totalCount] = await db.query<{count: number}>(`
+    const totalCountResult = await db.query(`
       SELECT COUNT(*) as count
       FROM (
         SELECT id FROM beneficiarias
@@ -99,7 +102,7 @@ class DashboardService {
     `);
 
     // Buscar atividades paginadas
-    const activities = await db.query<Activity>(`
+    const activitiesResult = await db.query(`
       SELECT * FROM (
         SELECT 
           'beneficiaria_created' as type,
@@ -125,13 +128,16 @@ class DashboardService {
       LIMIT $1 OFFSET $2
     `, [limit, offset]);
 
+    const totalCount = parseInt(totalCountResult[0]?.count || '0');
+    const activities = activitiesResult;
+
     return {
       activities: activities.map(activity => ({
         ...activity,
         description: this.getActivityDescription(activity)
       })),
-      total: parseInt(totalCount.count),
-      hasMore: totalCount.count > offset + activities.length
+      total: totalCount,
+      hasMore: totalCount > offset + activities.length
     };
   }
 

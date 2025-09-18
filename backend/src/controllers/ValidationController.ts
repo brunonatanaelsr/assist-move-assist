@@ -30,7 +30,7 @@ export class ValidationController {
     } catch (error) {
       logger.error('Erro ao validar CPF', { 
         cpf,
-        error: error.message
+        error: error instanceof Error ? error.message : String(error)
       });
       
       throw new ValidationError('Erro ao validar CPF');
@@ -66,7 +66,7 @@ export class ValidationController {
     } catch (error) {
       logger.error('Erro ao validar email', {
         email,
-        error: error.message
+        error: error instanceof Error ? error.message : String(error)
       });
       
       throw new ValidationError('Erro ao validar email');
@@ -112,7 +112,7 @@ export class ValidationController {
     } catch (error) {
       logger.error('Erro ao validar telefone', {
         telefone,
-        error: error.message
+        error: error instanceof Error ? error.message : String(error)
       });
       
       throw new ValidationError('Erro ao validar telefone');
@@ -136,7 +136,14 @@ export class ValidationController {
       }
 
       // Executar busca no banco
-      const results = await this.searchService.searchBeneficiarias(query);
+      const { db } = await import('../services/db');
+      const results = await db.query(`
+        SELECT id, nome_completo, cpf, status
+        FROM beneficiarias 
+        WHERE ativo = true 
+          AND (nome_completo ILIKE $1 OR cpf ILIKE $1)
+        LIMIT 10
+      `, [`%${query}%`]);
       
       // Cachear resultados
       await redis.setex(cacheKey, 60, JSON.stringify(results));
@@ -146,7 +153,7 @@ export class ValidationController {
     } catch (error) {
       logger.error('Erro na busca de beneficiárias', {
         query,
-        error: error.message
+        error: error instanceof Error ? error.message : String(error)
       });
       
       throw new ValidationError('Erro ao realizar busca');

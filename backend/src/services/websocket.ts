@@ -126,7 +126,7 @@ export class WebSocketService {
 
   private handleDisconnection(ws: AuthenticatedWebSocket): void {
     if (ws.user) {
-      this.clients.delete(ws.user.id);
+      this.clients.delete(String(ws.user.id));
       loggerService.info('WebSocket desconectado', { userId: ws.user.id });
     }
   }
@@ -137,7 +137,7 @@ export class WebSocketService {
         if (ws.isAlive === false) {
           ws.terminate();
           if (ws.user) {
-            this.clients.delete(ws.user.id);
+            this.clients.delete(String(ws.user.id));
           }
           return;
         }

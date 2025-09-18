@@ -1,6 +1,6 @@
 import { redis } from '../lib/redis';
 import { logger } from '../services/logger';
-import type { Redis } from 'ioredis';
+import type Redis from 'ioredis';
 
 export interface RateLimiterOptions {
   points: number;
