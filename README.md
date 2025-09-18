@@ -8,6 +8,10 @@ Sistema de gestão para institutos sociais que auxilia no acompanhamento de bene
 - Feed de comunicação e sistema de mensagens
 - Gestão de tarefas, projetos e oficinas
 
+## Documentação de execução
+- Consulte o [Guia Completo para Rodar o Assist Move Assist](docs/RUNNING_APP.md) para um passo a passo detalhado de configuração,
+  migrações, execução via Docker Compose ou manual, scripts úteis e soluções de problemas.
+
 ## Requisitos
 - Node.js 20+
 - npm
