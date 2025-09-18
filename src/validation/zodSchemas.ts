@@ -31,8 +31,9 @@ export const beneficiariaSchema = z.object({
   ]).optional(),
   status: z.enum([
     'ativa',
-    'inativa', 
+    'inativa',
     'pendente',
-    'desligada'
+    'desligada',
+    'arquivada'
   ]).default('pendente')
 });

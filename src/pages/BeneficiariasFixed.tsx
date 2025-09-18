@@ -84,7 +84,6 @@ export default function BeneficiariasFixed() {
 
   useEffect(() => {
     loadBeneficiarias();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadBeneficiarias = async () => {

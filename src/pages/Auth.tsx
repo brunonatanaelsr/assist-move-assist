@@ -57,7 +57,6 @@ export default function Auth() {
   const isDev = useMemo(() => {
     // Vite: import.meta.env.DEV / CRA: process.env.NODE_ENV === 'development'
     // Fazemos um fallback seguro que funciona em ambos.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const viteDev = typeof import.meta !== "undefined" && (import.meta as any)?.env?.DEV;
     const craDev = typeof process !== "undefined" && process.env?.NODE_ENV === "development";
     return Boolean(viteDev || craDev);

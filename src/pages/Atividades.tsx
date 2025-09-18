@@ -29,9 +29,17 @@ export default function Atividades() {
       const data = await api.dashboard.getRecentActivities(20);
       const source: unknown[] = Array.isArray(data?.activities) ? data.activities : [];
 
+      type RawActivity = {
+        created_at?: string;
+        createdAt?: string;
+        description?: string;
+        event?: string;
+        type?: string;
+      };
+
       const mapped: Activity[] = source.map((item: unknown, idx) => {
-        const activityItem = item as Record<string, unknown>;
-        const typeRaw = String(activityItem.type || '').toLowerCase();
+        const activityItem = item as RawActivity & Record<string, unknown>;
+        const typeRaw = String(activityItem.type ?? '').toLowerCase();
         let typeLabel = 'Outros';
         let icon: React.ComponentType<{ className?: string }> = FileText;
 
@@ -46,8 +54,12 @@ export default function Atividades() {
           icon = Calendar;
         }
 
-        const createdAt = item.created_at || item.createdAt || new Date().toISOString();
-        const description = item.description || item.event || 'Atividade registrada';
+        const createdAt = (typeof activityItem.created_at === 'string' && activityItem.created_at)
+          || (typeof activityItem.createdAt === 'string' && activityItem.createdAt)
+          || new Date().toISOString();
+        const description = (typeof activityItem.description === 'string' && activityItem.description)
+          || (typeof activityItem.event === 'string' && activityItem.event)
+          || 'Atividade registrada';
 
         return {
           id: `${typeRaw}-${idx}-${createdAt}`,
