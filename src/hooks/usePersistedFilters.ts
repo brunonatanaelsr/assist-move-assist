@@ -15,11 +15,64 @@ export function usePersistedFilters<T extends Record<string, unknown>>({ key, in
   // Load from URL or localStorage
   useEffect(() => {
     const params = new URLSearchParams(location.search);
-    const fromUrl: Record<string, unknown> = {};
-    params.forEach((v, k) => { fromUrl[k] = v; });
+    const hasParams = Array.from(params.keys()).length > 0;
 
-    if (Object.keys(fromUrl).length > 0) {
-      setState((prev) => ({ ...prev, ...(fromUrl as Partial<T>) }));
+    if (hasParams) {
+      setState((prev) => {
+        const next = { ...prev } as Record<string, unknown>;
+
+        params.forEach((value, paramKey) => {
+          const reference =
+            (prev as Record<string, unknown>)[paramKey] ??
+            (initial as Record<string, unknown>)[paramKey];
+
+          let parsed: unknown = value;
+
+          if (typeof reference === 'number') {
+            const numeric = Number(value);
+            parsed = Number.isNaN(numeric) ? reference : numeric;
+          } else if (typeof reference === 'boolean') {
+            if (/^(true|false)$/i.test(value)) {
+              parsed = value.toLowerCase() === 'true';
+            } else {
+              parsed = reference;
+            }
+          } else if (typeof reference === 'string') {
+            parsed = value;
+          } else if (Array.isArray(reference)) {
+            try {
+              const candidate = JSON.parse(value);
+              parsed = Array.isArray(candidate)
+                ? candidate
+                : value
+                    .split(',')
+                    .map((item) => item.trim())
+                    .filter((item) => item.length > 0);
+            } catch {
+              parsed = value
+                .split(',')
+                .map((item) => item.trim())
+                .filter((item) => item.length > 0);
+            }
+          } else if (reference && typeof reference === 'object') {
+            try {
+              parsed = JSON.parse(value);
+            } catch {
+              parsed = reference;
+            }
+          } else {
+            try {
+              parsed = JSON.parse(value);
+            } catch {
+              parsed = value;
+            }
+          }
+
+          next[paramKey] = parsed;
+        });
+
+        return next as T;
+      });
     } else {
       try {
         const raw = localStorage.getItem(key);
