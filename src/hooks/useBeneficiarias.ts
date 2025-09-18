@@ -18,7 +18,7 @@ export const useBeneficiarias = (params?: {
   page?: number;
   limit?: number;
   search?: string;
-  status?: 'ativa' | 'inativa' | 'pendente' | 'desligada';
+  status?: 'ativa' | 'inativa' | 'pendente' | 'desligada' | 'arquivada';
   escolaridade?: string;
 }) => {
   return useQuery({
@@ -68,7 +68,7 @@ export const useUpdateBeneficiaria = (id: string) => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: Partial<Beneficiaria>) => beneficiariasService.atualizar(id, data),
+    mutationFn: (data: Partial<Beneficiaria>) => beneficiariasService.atualizar(id, data as any),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: beneficiariasKeys.detail(id) });
       queryClient.invalidateQueries({ queryKey: beneficiariasKeys.lists() });
