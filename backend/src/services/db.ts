@@ -1,5 +1,15 @@
 import { db as client } from '../config/database';
 
+type QueryParam =
+  | string
+  | number
+  | boolean
+  | Date
+  | Buffer
+  | Array<unknown>
+  | Record<string, unknown>
+  | null;
+
 interface BeneficiariaFilters {
   search?: string;
   status?: string;
@@ -80,10 +90,43 @@ const getStats = async () => {
   };
 };
 
-const query = client.query.bind(client);
+const query = async <T = any>(text: string, params?: QueryParam[]): Promise<T[]> => {
+  return client.query(text, params) as Promise<T[]>;
+};
+
+const one = async <T = any>(text: string, params?: QueryParam[]): Promise<T> => {
+  const rows = await query<T>(text, params);
+  if (!rows || rows.length === 0) {
+    throw new Error('Query retornou nenhum resultado');
+  }
+  const [first] = rows;
+  if (first === undefined) {
+    throw new Error('Query retornou nenhum resultado');
+  }
+  return first;
+};
+
+const oneOrNone = async <T = any>(text: string, params?: QueryParam[]): Promise<T | null> => {
+  const rows = await query<T>(text, params);
+  const [first] = rows;
+  return first ?? null;
+};
+
+const manyOrNone = async <T = any>(text: string, params?: QueryParam[]): Promise<T[]> => {
+  const rows = await query<T>(text, params);
+  return rows ?? [];
+};
+
+const none = async (text: string, params?: QueryParam[]): Promise<void> => {
+  await query(text, params);
+};
 
 export const db = {
   query,
+  one,
+  oneOrNone,
+  none,
+  manyOrNone,
   insert,
   update,
   findById,

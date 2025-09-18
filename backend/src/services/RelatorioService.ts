@@ -4,8 +4,12 @@ import { logger } from '../services/logger';
 import puppeteer from 'puppeteer';
 import ExcelJS from 'exceljs';
 import { renderTemplate } from '../templates/reports/render';
-import { QueueService } from './QueueService';
-import { compress } from '../utils/compression';
+import type { QueueService } from './QueueService';
+import { compress, CompressibleFile } from '../utils/compression';
+
+export interface GeneratedReport extends CompressibleFile {
+  compressed?: boolean;
+}
 
 interface ReportOptions {
   template: string;
@@ -16,7 +20,7 @@ interface ReportOptions {
 }
 
 export class RelatorioService {
-  constructor(private queueService: QueueService) {}
+  constructor(private queueService?: QueueService) {}
 
   private async getCacheKey(template: string, filters: Record<string, any> = {}) {
     const filterHash = Object.entries(filters)
@@ -27,7 +31,7 @@ export class RelatorioService {
     return `report:${template}:${filterHash}`;
   }
 
-  async generateReport(options: ReportOptions) {
+  async generateReport(options: ReportOptions): Promise<GeneratedReport> {
     const {
       template,
       filters = {},
@@ -43,7 +47,11 @@ export class RelatorioService {
       
       if (cached) {
         logger.info('Relatório encontrado no cache', { template, filters });
-        return JSON.parse(cached);
+        const parsed = JSON.parse(cached) as GeneratedReport & { data: string };
+        return {
+          ...parsed,
+          data: Buffer.from(parsed.data, 'base64')
+        };
       }
 
       // Buscar dados conforme template
@@ -53,11 +61,11 @@ export class RelatorioService {
       const html = await renderTemplate(template, { data, filters });
 
       // Gerar arquivo no formato solicitado
-      let result;
+      let result: GeneratedReport;
       if (format === 'pdf') {
-        result = await this.generatePDF(html);
+        result = await this.generatePDF(html, template);
       } else {
-        result = await this.generateExcel(data);
+        result = await this.generateExcel(data, template);
       }
 
       // Comprimir se necessário
@@ -69,22 +77,27 @@ export class RelatorioService {
       await redis.setex(
         cacheKey,
         cacheTime,
-        JSON.stringify(result)
+        JSON.stringify({
+          ...result,
+          data: result.data.toString('base64')
+        })
       );
 
       return result;
 
     } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+
       logger.error('Erro ao gerar relatório', {
         template,
         filters,
-        error: error.message
+        error: message
       });
-      throw error;
+      throw error instanceof Error ? error : new Error(message);
     }
   }
 
-  private async getReportData(template: string, filters: Record<string, any>) {
+  private async getReportData(template: string, filters: Record<string, any>): Promise<any[]> {
     switch (template) {
       case 'beneficiarias_completo':
         return db.manyOrNone(`
@@ -125,17 +138,17 @@ export class RelatorioService {
     }
   }
 
-  private async generatePDF(html: string): Promise<Buffer> {
+  private async generatePDF(html: string, template: string): Promise<GeneratedReport> {
     const browser = await puppeteer.launch({
-      headless: 'new',
+      headless: true,
       args: ['--no-sandbox']
     });
 
     try {
       const page = await browser.newPage();
       await page.setContent(html, { waitUntil: 'networkidle0' });
-      
-      return await page.pdf({
+
+      const pdfData = await page.pdf({
         format: 'A4',
         printBackground: true,
         margin: {
@@ -146,12 +159,21 @@ export class RelatorioService {
         }
       });
 
+      const buffer = Buffer.isBuffer(pdfData) ? pdfData : Buffer.from(pdfData);
+
+      return {
+        data: buffer,
+        size: buffer.byteLength,
+        mimeType: 'application/pdf',
+        fileName: `${template}.pdf`
+      };
+
     } finally {
       await browser.close();
     }
   }
 
-  private async generateExcel(data: any[]): Promise<Buffer> {
+  private async generateExcel(data: any[], template: string): Promise<GeneratedReport> {
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('Relatório');
 
@@ -178,19 +200,31 @@ export class RelatorioService {
       fgColor: { argb: 'FF4F81BD' }
     };
 
-    return workbook.xlsx.writeBuffer();
+    const arrayBuffer = await workbook.xlsx.writeBuffer();
+    const buffer = Buffer.isBuffer(arrayBuffer) ? arrayBuffer : Buffer.from(arrayBuffer);
+
+    return {
+      data: buffer,
+      size: buffer.byteLength,
+      mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      fileName: `${template}.xlsx`
+    };
   }
 
-  async scheduleReport(schedule: string, options: ReportOptions) {
+  async scheduleReport(schedule: string, options: ReportOptions): Promise<any> {
+    if (!this.queueService) {
+      throw new Error('Serviço de fila não configurado para agendamento de relatórios');
+    }
+
     return this.queueService.enqueue('generate_report', {
       schedule,
       options
     });
   }
 
-  async getScheduledReports() {
+  async getScheduledReports(): Promise<any[]> {
     return db.manyOrNone(`
-      SELECT * FROM job_queue 
+      SELECT * FROM job_queue
       WHERE job_type = 'generate_report'
       AND status = 'pending'
       ORDER BY scheduled_at
