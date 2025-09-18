@@ -152,7 +152,7 @@ export default function BeneficiariasFixed() {
     if (currentPage !== 1) {
       setFilters({ page: 1 });
     }
-  }, [searchTerm, selectedStatus, programaFilter, currentPage]);
+  }, [searchTerm, selectedStatus, programaFilter, setFilters]);
 
   const getStatusVariant = (status: string) => {
     switch (status) {
