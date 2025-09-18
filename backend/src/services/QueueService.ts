@@ -9,6 +9,12 @@ import { CleanupJob } from '../jobs/CleanupJob';
 const LOCK_TTL = 60; // 60 segundos
 const BATCH_SIZE = 10;
 
+export interface JobQueueRecord {
+  id: number;
+  job_type: string;
+  payload: any;
+}
+
 export class QueueService {
   private jobs: Map<string, any>;
   private isProcessing: boolean = false;
@@ -37,7 +43,7 @@ export class QueueService {
       scheduledAt?: Date;
       maxRetries?: number;
     } = {}
-  ) {
+  ): Promise<JobQueueRecord> {
     const {
       priority = 1,
       scheduledAt = new Date(),
@@ -45,7 +51,7 @@ export class QueueService {
     } = options;
 
     try {
-      return await db.one(
+      return await db.one<JobQueueRecord>(
         `INSERT INTO job_queue (
           job_type,
           payload,
@@ -73,7 +79,7 @@ export class QueueService {
     try {
       while (this.isProcessing) {
         // Buscar próximo lote de jobs
-        const jobs = await db.manyOrNone(
+        const jobs = await db.manyOrNone<JobQueueRecord>(
           `UPDATE job_queue
           SET status = 'processing',
               locked_at = NOW(),

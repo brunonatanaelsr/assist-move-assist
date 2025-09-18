@@ -4,7 +4,7 @@ import { logger } from '../services/logger';
 import puppeteer from 'puppeteer';
 import ExcelJS from 'exceljs';
 import { renderTemplate } from '../templates/reports/render';
-import { QueueService } from './QueueService';
+import { QueueService, type JobQueueRecord } from './QueueService';
 import { compress } from '../utils/compression';
 
 interface ReportOptions {
@@ -14,6 +14,20 @@ interface ReportOptions {
   cacheTime?: number;
   compress?: boolean;
 }
+
+type ScheduledReportJob = JobQueueRecord & {
+  status: string;
+  scheduled_at: Date | string;
+  prioridade: number;
+  tentativas: number;
+  max_tentativas: number;
+  locked_at: Date | string | null;
+  locked_by: string | null;
+  last_error: string | null;
+  executed_at: Date | string | null;
+  created_at: Date | string;
+  updated_at: Date | string;
+};
 
 export class RelatorioService {
   constructor(private queueService: QueueService) {}
@@ -188,9 +202,9 @@ export class RelatorioService {
     });
   }
 
-  async getScheduledReports() {
-    return db.manyOrNone(`
-      SELECT * FROM job_queue 
+  async getScheduledReports(): Promise<ScheduledReportJob[]> {
+    return db.manyOrNone<ScheduledReportJob>(`
+      SELECT * FROM job_queue
       WHERE job_type = 'generate_report'
       AND status = 'pending'
       ORDER BY scheduled_at

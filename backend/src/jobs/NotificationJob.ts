@@ -5,6 +5,17 @@ import { WhatsAppService } from '../services/WhatsAppService';
 import { logger } from '../services/logger';
 import { db } from '../database';
 
+interface NotificationRecord {
+  id: string;
+  user_id: string;
+  canal: string[];
+  [key: string]: any;
+}
+
+interface NotificationPayload {
+  notificationId: string;
+}
+
 export class NotificationJob implements Job {
   constructor(
     private notificationService: NotificationService,
@@ -12,12 +23,12 @@ export class NotificationJob implements Job {
     private whatsAppService: WhatsAppService
   ) {}
 
-  async execute(payload: any): Promise<void> {
+  async execute(payload: NotificationPayload): Promise<void> {
     const { notificationId } = payload;
 
     try {
       // Buscar notificação
-      const notification = await db.one(
+      const notification = await db.one<NotificationRecord>(
         'SELECT * FROM notifications WHERE id = $1',
         [notificationId]
       );
