@@ -1,16 +1,15 @@
 import { redis } from '../lib/redis';
 import { logger } from '../services/logger';
-import type { Redis } from 'ioredis';
 
 export interface RateLimiterOptions {
   points: number;
   duration: number; // segundos
   keyPrefix?: string;
-  redisClient?: Redis;
+  redisClient?: any; // Use any since we have both IORedis and InMemoryRedis
 }
 
 export class RateLimiter {
-  private readonly redisClient: Redis;
+  private readonly redisClient: any;
   private readonly prefix: string;
   private readonly points: number;
   private readonly duration: number;
