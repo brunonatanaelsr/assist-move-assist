@@ -32,7 +32,7 @@ Este guia resume o processo de implantação em produção do Assist Move Assist
   ```
 - Habilite extensões necessárias (`uuid-ossp`, `pgcrypto`) e aplique migrações com `npm --prefix backend run migrate`.
 - Após o deploy inicial rode `npm --prefix backend run seed` para criar o usuário administrador e dados de referência.
-- Configure rotinas de backup conforme `docs/database/BACKUP_STRATEGY.md`.
+- Configure rotinas de backup automatizadas (ex.: `pg_dump` diário armazenado em bucket seguro).
 
 ## Redis
 - Utilize uma instância gerenciada com TLS habilitado ou configure `redis.conf` local com `requirepass` e `appendonly yes`.
@@ -89,7 +89,7 @@ Este guia resume o processo de implantação em produção do Assist Move Assist
 - Crie checks externos (UptimeRobot, BetterStack) monitorando `/health` e `/api/status`.
 
 ## Manutenção Preventiva
-- Automatize backups diários do PostgreSQL e Redis e guarde em armazenamento externo (S3, GCS) seguindo `docs/database/BACKUP_STRATEGY.md`.
+- Automatize backups diários do PostgreSQL e Redis e guarde em armazenamento externo (S3, GCS) seguindo políticas internas de retenção.
 - Teste o processo de restauração trimestralmente.
 - Revise certificados TLS e regras de firewall mensalmente.
 - Execute `npm --prefix backend run smoke` e `npm run test:e2e` a cada release para garantir regressão mínima.

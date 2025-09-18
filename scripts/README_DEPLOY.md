@@ -4,7 +4,7 @@
 
 ## Scripts de Deploy
 
-Este repositório inclui utilitários para suporte ao deploy, não um instalador automatizado completo. Use os scripts abaixo junto com o guia `docs/PM2_DEPLOYMENT.md`.
+Este repositório inclui utilitários para suporte ao deploy, não um instalador automatizado completo. Use os scripts abaixo junto com o guia `docs/deployment/README.md`.
 
 ### 1. Pré-checagens e preparação
 ```bash
@@ -76,7 +76,7 @@ O script instala automaticamente o `sshpass`:
 
 ## Como Usar
 
-1. Provisionar a VPS (Node.js, PostgreSQL, Nginx, firewall, SSL). Siga `docs/PM2_DEPLOYMENT.md`.
+1. Provisionar a VPS (Node.js, PostgreSQL, Nginx, firewall, SSL). Siga `docs/deployment/README.md`.
 2. Rodar `./scripts/pre-deploy-check.sh` para validar dependências.
 3. Configurar variáveis no servidor (`/var/www/assist-move-assist/backend/.env` e frontend `.env.production`).
 4. Rodar `sudo ./scripts/update-production.sh` para copiar, buildar e reiniciar.

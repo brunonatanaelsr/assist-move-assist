@@ -9,8 +9,8 @@ Sistema de gestão para institutos sociais que auxilia no acompanhamento de bene
 - Gestão de tarefas, projetos e oficinas
 
 ## Documentação de execução
-- Consulte o [Guia Completo para Rodar o Assist Move Assist](docs/RUNNING_APP.md) para um passo a passo detalhado de configuração,
-  migrações, execução via Docker Compose ou manual, scripts úteis e soluções de problemas.
+- As instruções a seguir cobrem o fluxo local padrão (instalação, configuração e scripts úteis).
+- Para orientações de publicação em produção consulte o [Guia de Deploy](docs/deployment/README.md).
 
 ## Requisitos
 - Node.js 20+
@@ -164,11 +164,10 @@ Os testes de fluxo são pulados quando a API não está ativa.
 - Armazenamento de notificações offline
 
 Para documentação detalhada consulte:
-- [Documentação Técnica](docs/TECHNICAL_DOCUMENTATION.md)
-- [Documentação da API](docs/API_DOCUMENTATION.md)
 - [Guia de Deploy](docs/deployment/README.md)
-- [Banco de Dados](docs/database/)
- - [Guia de Admin (RBAC, permissões e smokes)](README-ADMIN.md)
+- [Credenciais de Teste](docs/TEST_CREDENTIALS.md)
+- [Migração para Cookies HttpOnly e CSRF](docs/SECURITY_MIGRATION_COOKIES.md)
+- [Guia de Admin (RBAC, permissões e smokes)](README-ADMIN.md)
 
 ## Principais Funcionalidades
 
