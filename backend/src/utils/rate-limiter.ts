@@ -1,22 +1,28 @@
 import { redis } from '../lib/redis';
 import { logger } from '../services/logger';
-import type { Redis } from 'ioredis';
+// Interface mínima para o cliente Redis que usamos (evita conflito de tipos)
+type RedisLike = {
+  incr(key: string): Promise<number>;
+  expire(key: string, seconds: number): Promise<number>;
+  get(key: string): Promise<string | null>;
+  del(key: string): Promise<number>;
+};
 
 export interface RateLimiterOptions {
   points: number;
   duration: number; // segundos
   keyPrefix?: string;
-  redisClient?: Redis;
+  redisClient?: RedisLike;
 }
 
 export class RateLimiter {
-  private readonly redisClient: Redis;
+  private readonly redisClient: RedisLike;
   private readonly prefix: string;
   private readonly points: number;
   private readonly duration: number;
 
   constructor(options: RateLimiterOptions) {
-    this.redisClient = options.redisClient ?? redis;
+    this.redisClient = options.redisClient ?? (redis as unknown as RedisLike);
     this.prefix = options.keyPrefix ?? 'rate_limiter:';
     this.points = options.points;
     this.duration = options.duration;

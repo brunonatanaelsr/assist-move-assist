@@ -19,3 +19,15 @@ else
     echo "❌ Erro ao aplicar migrações"
     exit 1
 fi
+
+# Executar migração da tabela oficina_presencas
+echo "Aplicando migração oficina_presencas..."
+psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -f /workspaces/assist-move-assist/backend/src/database/migrations/040_criar_oficina_presencas.sql
+
+# Verificar se houve erro
+if [ $? -eq 0 ]; then
+    echo "✅ Migrações aplicadas com sucesso!"
+else
+    echo "❌ Erro ao aplicar migrações"
+    exit 1
+fi

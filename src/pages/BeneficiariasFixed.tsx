@@ -147,10 +147,12 @@ export default function BeneficiariasFixed() {
   const endIndex = startIndex + itemsPerPage;
   const paginatedBeneficiarias = filteredBeneficiarias.slice(startIndex, endIndex);
 
-  // Reset page when filters change
+  // Reset page quando filtros mudam, mas só se não estiver já na página 1
   useEffect(() => {
-    setFilters({ page: 1 });
-  }, [searchTerm, selectedStatus, programaFilter]);
+    if (currentPage !== 1) {
+      setFilters({ page: 1 });
+    }
+  }, [searchTerm, selectedStatus, programaFilter, currentPage]);
 
   const getStatusVariant = (status: string) => {
     switch (status) {
