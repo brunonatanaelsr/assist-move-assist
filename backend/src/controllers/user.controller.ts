@@ -4,12 +4,11 @@ import { loggerService } from '../services/logger';
 class UserController {
   async create(req: Request, res: Response) {
     try {
-      loggerService.setContext('UserController');
-      loggerService.info('Iniciando criação de usuário', { data: req.body });
+      loggerService.info('UserController: Iniciando criação de usuário', { data: req.body });
 
       // Lógica de criação do usuário aqui...
 
-      loggerService.audit('create_user', req.user?.id, {
+      loggerService.audit('create_user', String(req.user?.id), {
         ip: req.ip,
         userAgent: req.get('user-agent'),
         userId: 'novo_id_aqui'
@@ -17,7 +16,7 @@ class UserController {
 
       res.status(201).json({ message: 'Usuário criado com sucesso' });
     } catch (error) {
-      loggerService.errorWithStack(error as Error, 'Erro ao criar usuário');
+      loggerService.error('Erro ao criar usuário', { error: error instanceof Error ? error.message : String(error) });
       res.status(500).json({ message: 'Erro interno do servidor' });
     }
   }
@@ -25,8 +24,7 @@ class UserController {
   async get(req: Request, res: Response) {
     const start = Date.now();
     try {
-      loggerService.setContext('UserController');
-      loggerService.debug('Buscando usuário', { id: req.params.id });
+      loggerService.debug('UserController: Buscando usuário', { id: req.params.id });
 
       // Lógica de busca do usuário aqui...
 

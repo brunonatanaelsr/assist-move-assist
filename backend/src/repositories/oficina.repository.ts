@@ -143,7 +143,7 @@ export class OficinaRepository extends BaseRepository<Oficina> {
             `;
 
             const result = await query<{ total: number }>(sql, [participacao.oficina_id]);
-            const totalParticipantes = parseInt(result[0].total);
+            const totalParticipantes = parseInt(String(result[0]?.total || 0));
 
             if (totalParticipantes >= oficina.vagas) {
                 throw new Error('Não há vagas disponíveis nesta oficina');
@@ -162,6 +162,10 @@ export class OficinaRepository extends BaseRepository<Oficina> {
                 insertSql, 
                 [participacao.oficina_id, participacao.beneficiaria_id, participacao.status]
             );
+
+            if (!participacaoResult[0]) {
+                throw new Error('Falha ao criar participação');
+            }
 
             return participacaoResult[0];
         } catch (error) {
@@ -271,6 +275,10 @@ export class OficinaRepository extends BaseRepository<Oficina> {
                     [id, oficina.vagas]
                 )
             ]);
+
+            if (!estatisticasResult[0]) {
+                throw new Error('Falha ao obter estatísticas da oficina');
+            }
 
             return {
                 ...oficina,

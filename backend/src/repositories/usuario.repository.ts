@@ -90,7 +90,7 @@ export class UsuarioRepository extends BaseRepository<Usuario> {
   }
 
   // Método para validar credenciais
-  async validateCredentials(email: string, senha: string): Promise<Usuario | null> {
+  async validateCredentials(email: string, senha: string): Promise<Omit<Usuario, 'senha_hash'> | null> {
     try {
       const sql = `
         SELECT * FROM ${this.tableName}

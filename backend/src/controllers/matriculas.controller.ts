@@ -58,7 +58,7 @@ interface MatriculaData {
   data_aprovacao?: string;
 }
 
-export const listarMatriculas = async (req: Request, res: Response) => {
+export const listarMatriculas = async (req: Request, res: Response): Promise<void> => {
   try {
     const { 
       beneficiaria_id, 
@@ -130,7 +130,7 @@ export const listarMatriculas = async (req: Request, res: Response) => {
   }
 };
 
-export const criarMatricula = async (req: Request, res: Response) => {
+export const criarMatricula = async (req: Request, res: Response): Promise<void> => {
   const client = await pool.connect();
   
   try {
@@ -147,7 +147,7 @@ export const criarMatricula = async (req: Request, res: Response) => {
 
     if (beneficiariaCheck.rows.length === 0) {
       await client.query('ROLLBACK');
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         error: 'Beneficiária não encontrada'
       });
@@ -160,14 +160,14 @@ export const criarMatricula = async (req: Request, res: Response) => {
     );
 
     if (projetoCheck.rows.length === 0) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         error: 'Projeto não encontrado'
       });
     }
 
     if (projetoCheck.rows[0].status !== 'ativo') {
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         error: 'Projeto não está ativo para novas matrículas'
       });
@@ -180,7 +180,7 @@ export const criarMatricula = async (req: Request, res: Response) => {
     `, [data.beneficiaria_id, data.projeto_id]);
 
     if (matriculaExistente.rows.length > 0) {
-      return res.status(409).json({
+      res.status(409).json({
         success: false,
         error: 'Beneficiária já possui matrícula neste projeto'
       });
@@ -194,7 +194,7 @@ export const criarMatricula = async (req: Request, res: Response) => {
       data.avaliacao_periodica_aceita;
 
     if (!compromissosAceitos) {
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         error: 'Todos os compromissos devem ser aceitos para completar a matrícula'
       });
@@ -300,7 +300,7 @@ export const criarMatricula = async (req: Request, res: Response) => {
     console.error('Erro ao criar matrícula:', error);
     
     if (error instanceof Error && error.message.includes('duplicate key')) {
-      return res.status(409).json({
+      res.status(409).json({
         success: false,
         error: 'Beneficiária já possui matrícula neste projeto'
       });
@@ -315,7 +315,7 @@ export const criarMatricula = async (req: Request, res: Response) => {
   }
 };
 
-export const obterMatricula = async (req: Request, res: Response) => {
+export const obterMatricula = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
 
@@ -339,7 +339,7 @@ export const obterMatricula = async (req: Request, res: Response) => {
     const result = await pool.query(query, [id]);
 
     if (result.rows.length === 0) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         error: 'Matrícula não encontrada'
       });
@@ -358,7 +358,7 @@ export const obterMatricula = async (req: Request, res: Response) => {
   }
 };
 
-export const atualizarMatricula = async (req: Request, res: Response) => {
+export const atualizarMatricula = async (req: Request, res: Response): Promise<void> => {
   const client = await pool.connect();
   
   try {
@@ -374,7 +374,7 @@ export const atualizarMatricula = async (req: Request, res: Response) => {
     );
 
     if (matriculaCheck.rows.length === 0) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         error: 'Matrícula não encontrada'
       });
@@ -410,7 +410,7 @@ export const atualizarMatricula = async (req: Request, res: Response) => {
     });
 
     if (updateFields.length === 0) {
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         error: 'Nenhum campo para atualizar'
       });
@@ -454,12 +454,12 @@ export const atualizarMatricula = async (req: Request, res: Response) => {
   }
 };
 
-export const verificarElegibilidade = async (req: Request, res: Response) => {
+export const verificarElegibilidade = async (req: Request, res: Response): Promise<void> => {
   try {
     const { beneficiaria_id, projeto_id } = req.body;
 
     if (!beneficiaria_id || !projeto_id) {
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         error: 'beneficiaria_id e projeto_id são obrigatórios'
       });
@@ -472,7 +472,7 @@ export const verificarElegibilidade = async (req: Request, res: Response) => {
     );
 
     if (beneficiaria.rows.length === 0) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         error: 'Beneficiária não encontrada'
       });
@@ -485,7 +485,7 @@ export const verificarElegibilidade = async (req: Request, res: Response) => {
     );
 
     if (projeto.rows.length === 0) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         error: 'Projeto não encontrado'
       });
@@ -499,8 +499,8 @@ export const verificarElegibilidade = async (req: Request, res: Response) => {
 
     const resultado = {
       elegivel: true,
-      motivos: [],
-      warnings: [],
+      motivos: [] as string[],
+      warnings: [] as string[],
       matricula_existente: matriculaExistente.rows.length > 0 ? matriculaExistente.rows[0] : null
     };
 

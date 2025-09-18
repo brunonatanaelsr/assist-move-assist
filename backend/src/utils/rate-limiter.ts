@@ -6,11 +6,11 @@ export interface RateLimiterOptions {
   points: number;
   duration: number; // segundos
   keyPrefix?: string;
-  redisClient?: Redis;
+  redisClient?: any; // Use any for ioredis compatibility
 }
 
 export class RateLimiter {
-  private readonly redisClient: Redis;
+  private readonly redisClient: any; // Use any to avoid ioredis type issues
   private readonly prefix: string;
   private readonly points: number;
   private readonly duration: number;
