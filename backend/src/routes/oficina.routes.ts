@@ -234,6 +234,11 @@ router.put('/:id', authorize('oficinas.editar'), catchAsync(async (req, res): Pr
       return;
     }
 
+    if (error.message === "Nenhum campo para atualizar") {
+      res.status(400).json(errorResponse(error.message));
+      return;
+    }
+
     if (error.message === "Sem permissão para editar esta oficina") {
       res.status(403).json(errorResponse(error.message));
       return;
