@@ -2,8 +2,13 @@ import express from 'express';
 import { db } from '../services/db';
 import { authenticateToken } from '../middleware/auth';
 import { loggerService } from '../services/logger';
+import type Redis from 'ioredis';
+import { DashboardRepository } from '../repositories/DashboardRepository';
+import { pool } from '../config/database';
+import redis from '../lib/redis';
 
 const router = express.Router();
+const dashboardRepository = new DashboardRepository(pool, redis as Redis);
 
 // GET /dashboard/stats - Obter estatísticas do dashboard
 router.get('/stats', authenticateToken, async (req: express.Request, res: express.Response): Promise<void> => {
@@ -131,10 +136,52 @@ router.get('/activities', authenticateToken, async (req: express.Request, res: e
 // GET /dashboard/tasks - tarefas pendentes (stub simples)
 router.get('/tasks', authenticateToken, async (_req: express.Request, res: express.Response): Promise<void> => {
   try {
-    // Implementação simples: retornar array vazio por enquanto
-    res.json({ tasks: [] });
+    const tarefasStats = await dashboardRepository.getTarefasStats();
+
+    const tasks = tarefasStats.map((stat: any, index: number) => {
+      const totalPendentes = Number(stat.pendentes ?? 0);
+      const totalTarefas = Number(stat.total_tarefas ?? 0);
+      const totalConcluidas = Number(stat.concluidas ?? 0);
+      const mediaDiasConclusao =
+        stat.media_dias_conclusao !== null && stat.media_dias_conclusao !== undefined
+          ? Number(stat.media_dias_conclusao)
+          : null;
+      const taxaConclusao =
+        stat.taxa_conclusao !== null && stat.taxa_conclusao !== undefined
+          ? Number(stat.taxa_conclusao)
+          : null;
+
+      const priority = totalPendentes >= 10
+        ? 'Alta'
+        : totalPendentes >= 5
+          ? 'Média'
+          : 'Baixa';
+
+      const due = totalPendentes > 0
+        ? `Em aberto (${totalPendentes} pendente${totalPendentes === 1 ? '' : 's'})`
+        : 'Nenhuma pendência';
+
+      return {
+        id: stat.responsavel_id ? String(stat.responsavel_id) : `responsavel-${index}`,
+        title: stat.responsavel_nome
+          ? `Pendências de ${stat.responsavel_nome}`
+          : 'Pendências sem responsável',
+        due,
+        priority,
+        meta: {
+          total: totalTarefas,
+          pendentes: totalPendentes,
+          concluidas: totalConcluidas,
+          mediaDiasConclusao,
+          taxaConclusao
+        }
+      };
+    });
+
+    res.json(tasks);
     return;
   } catch (error) {
+    loggerService.error('Erro ao buscar tarefas do dashboard:', error);
     res.status(500).json({ error: 'Erro interno do servidor' });
     return;
   }
