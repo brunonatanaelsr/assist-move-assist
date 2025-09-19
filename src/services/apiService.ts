@@ -251,11 +251,43 @@ class ApiService {
   }
 
   async getDashboardActivities(): Promise<ApiResponse<any[]>> {
-    return this.get('/dashboard/activities');
+    const response = await this.get<any>('/dashboard/activities');
+
+    if (!response.success) {
+      return response;
+    }
+
+    const payload = response.data;
+    const activities = Array.isArray(payload)
+      ? payload
+      : Array.isArray(payload?.activities)
+        ? payload.activities
+        : [];
+
+    return {
+      ...response,
+      data: activities
+    };
   }
 
   async getDashboardTasks(): Promise<ApiResponse<any[]>> {
-    return this.get('/dashboard/tasks');
+    const response = await this.get<any>('/dashboard/tasks');
+
+    if (!response.success) {
+      return response;
+    }
+
+    const payload = response.data;
+    const tasks = Array.isArray(payload)
+      ? payload
+      : Array.isArray(payload?.tasks)
+        ? payload.tasks
+        : [];
+
+    return {
+      ...response,
+      data: tasks
+    };
   }
 
   // Métodos específicos para projetos

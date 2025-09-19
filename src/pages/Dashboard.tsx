@@ -91,13 +91,13 @@ export default function Dashboard() {
       // Carregar atividades recentes reais
       const activitiesResponse = await apiService.getDashboardActivities();
       if (activitiesResponse.success) {
-        setRecentActivities(activitiesResponse.data);
+        setRecentActivities(Array.isArray(activitiesResponse.data) ? activitiesResponse.data : []);
       }
 
       // Carregar tarefas pendentes reais
       const tasksResponse = await apiService.getDashboardTasks();
       if (tasksResponse.success) {
-        setUpcomingTasks(tasksResponse.data);
+        setUpcomingTasks(Array.isArray(tasksResponse.data) ? tasksResponse.data : []);
       }
       
     } catch (error) {

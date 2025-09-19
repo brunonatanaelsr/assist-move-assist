@@ -16,7 +16,8 @@ export const api = {
   dashboard: {
     getRecentActivities: async (limit = 20): Promise<DashboardResponse> => {
       const res = await apiService.getDashboardActivities();
-      const activities = (res.success && Array.isArray(res.data)) ? (res.data as DashboardActivity[]) : [];
+      const normalized = res.success ? res.data ?? [] : [];
+      const activities = Array.isArray(normalized) ? normalized as DashboardActivity[] : [];
       return { activities: activities.slice(0, limit) };
     }
   }
