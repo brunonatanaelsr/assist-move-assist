@@ -10,7 +10,7 @@ import type { AuthResponse, AuthenticatedSessionUser } from '../../backend/src/t
 import { translateErrorMessage } from '@/lib/apiError';
 import { API_URL } from '@/config';
 import type { DashboardStatsResponse } from '@/types/dashboard';
-import type { ApiResponse } from '@/types/api';
+import type { ApiResponse, Pagination } from '@/types/api';
 import type {
   ConfiguracaoUsuario,
   CreateUsuarioPayload,
@@ -216,20 +216,35 @@ class ApiService {
   }
 
   // Métodos específicos para oficinas
-  async getOficinas(params?: any): Promise<ApiResponse<any[]>> {
-  return this.get<Oficina[]>('/oficinas', { params });
+  async getOficinas(params?: any): Promise<ApiResponse<Oficina[]>> {
+    const response = await this.get<{ data: Oficina[]; pagination?: Pagination & { totalPages?: number } }>(
+      '/oficinas',
+      { params }
+    );
+
+    if (!response.success) {
+      return response as ApiResponse<Oficina[]>;
+    }
+
+    const payload = response.data;
+
+    return {
+      ...response,
+      data: payload?.data ?? [],
+      pagination: payload?.pagination,
+    };
   }
 
   async createOficina(data: any): Promise<ApiResponse<any>> {
-  return this.post<Oficina>('/oficinas', data);
+    return this.post<Oficina>('/oficinas', data);
   }
 
   async updateOficina(id: string, data: any): Promise<ApiResponse<any>> {
-  return this.put<Oficina>(`/oficinas/${id}`, data);
+    return this.put<Oficina>(`/oficinas/${id}`, data);
   }
 
   async deleteOficina(id: string): Promise<ApiResponse<any>> {
-  return this.delete<void>(`/oficinas/${id}`);
+    return this.delete<void>(`/oficinas/${id}`);
   }
 
   // Métodos específicos para beneficiárias

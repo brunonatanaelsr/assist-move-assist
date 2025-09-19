@@ -1,4 +1,5 @@
 import { api } from './api';
+import type { ApiResponse, Pagination } from '@/types/api';
 
 export interface Oficina {
   id: number;
@@ -51,6 +52,11 @@ export interface AddParticipanteDTO {
   observacoes?: string;
 }
 
+interface ListOficinasPayload {
+  data: Oficina[];
+  pagination?: Pagination & { totalPages?: number };
+}
+
 export const OficinasService = {
   // Listar oficinas com filtros e paginação
   listar: async (params: ListOficinasParams = {}) => {
@@ -62,8 +68,24 @@ export const OficinasService = {
       }
     });
 
-    const response = await api.get(`/oficinas?${searchParams.toString()}`);
-    return response.data;
+    const response = await api.get<ApiResponse<ListOficinasPayload>>(`/oficinas?${searchParams.toString()}`);
+    const payload = response.data;
+
+    if (!payload) {
+      return { success: false, data: [] } as ApiResponse<Oficina[]>;
+    }
+
+    if (!payload.success) {
+      return payload as ApiResponse<Oficina[]>;
+    }
+
+    const listData = payload.data;
+
+    return {
+      ...payload,
+      data: listData?.data ?? [],
+      pagination: listData?.pagination,
+    } satisfies ApiResponse<Oficina[]>;
   },
 
   // Buscar oficina por ID

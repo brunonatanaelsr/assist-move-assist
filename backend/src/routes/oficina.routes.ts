@@ -27,7 +27,7 @@ router.get('/', authorize('oficinas.ler'), catchAsync(async (req, res): Promise<
     const result = await oficinaService.listarOficinas(filters) as any;
     
     res.json(successResponse(
-      result.data,
+      result,
       "Oficinas carregadas com sucesso"
     ));
     return;

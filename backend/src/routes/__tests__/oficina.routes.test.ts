@@ -2,6 +2,7 @@ import supertest from 'supertest';
 import express from 'express';
 import { Pool } from 'pg';
 import oficinasRoutes from '../oficina.routes';
+import { OficinaService } from '../../services/oficina.service';
 
 jest.mock('pg');
 jest.mock('ioredis');
@@ -27,6 +28,33 @@ describe('Oficinas Routes', () => {
 
   afterEach(() => {
     jest.clearAllMocks();
+  });
+
+  it('GET /oficinas - retorna dados com paginação', async () => {
+    const mockResult = {
+      data: [
+        {
+          id: 1,
+          nome: 'Oficina Teste',
+        },
+      ],
+      pagination: { page: 1, limit: 50, total: 1, totalPages: 1 },
+    } as any;
+
+    const listarSpy = jest
+      .spyOn(OficinaService.prototype, 'listarOficinas')
+      .mockResolvedValue(mockResult);
+
+    const res = await supertest(app).get('/oficinas');
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data).toEqual(mockResult);
+    expect(res.body.data.pagination).toEqual(
+      expect.objectContaining({ page: 1, limit: 50, total: 1, totalPages: 1 })
+    );
+
+    listarSpy.mockRestore();
   });
 
   it('GET /oficinas/horarios-disponiveis - requer data válida', async () => {

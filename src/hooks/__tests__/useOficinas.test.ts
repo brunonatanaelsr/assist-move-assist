@@ -16,7 +16,11 @@ import useOficinas from '../useOficinas';
 import { createQueryClientWrapper } from './testUtils';
 
 beforeEach(() => {
-  vi.spyOn(OficinasService, 'listar').mockResolvedValue([] as any);
+  vi.spyOn(OficinasService, 'listar').mockResolvedValue({
+    success: true,
+    data: [],
+    pagination: { page: 1, limit: 50, total: 0, totalPages: 0 },
+  } as any);
 });
 
 afterEach(() => {
