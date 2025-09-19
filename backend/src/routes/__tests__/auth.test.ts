@@ -17,19 +17,22 @@ const authenticateToken = jest.fn((req: any, _res: any, next: any) => {
 });
 
 jest.mock('../../middleware/auth', () => ({
-  AuthService: {
-    login: jest.fn(),
-    getProfile: jest.fn()
-  },
   authenticateToken,
   requireProfissional: jest.fn(),
   authorize: () => (_req: any, _res: any, next: any) => next()
 }));
 
-import { AuthService } from '../../middleware/auth';
+jest.mock('../../services', () => ({
+  authService: {
+    login: jest.fn(),
+    getProfile: jest.fn()
+  }
+}));
+
+import { authService } from '../../services';
 import { apiRoutes } from '../api';
 
-const authServiceMock = AuthService as jest.Mocked<typeof AuthService>;
+const authServiceMock = authService as jest.Mocked<typeof authService>;
 const app = express();
 app.use(express.json());
 app.use(apiRoutes);
@@ -57,7 +60,8 @@ describe('Auth Routes', () => {
         .send({ password: 'secret' });
 
       expect(response.status).toBe(400);
-      expect(response.body.error).toBe('Email e senha são obrigatórios');
+      expect(response.body.success).toBe(false);
+      expect(response.body.message).toBe('Erro de validação');
     });
 
     it('deve rejeitar credenciais inválidas', async () => {

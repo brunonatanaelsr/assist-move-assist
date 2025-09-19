@@ -7,8 +7,6 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, FileText, Download, Calendar, User, Award, Receipt, CheckCircle } from 'lucide-react';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
 import { apiService } from '@/services/apiService';
 import { downloadDeclaracao, downloadRecibo } from '@/utils/pdfDownload';
 

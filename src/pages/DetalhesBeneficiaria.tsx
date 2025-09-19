@@ -11,8 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { AlertCircle, ArrowLeft, Edit, Save, X, Plus, FileText, Calendar, User, Phone, Mail, MapPin, GraduationCap, Heart, Users, Activity, Target, TrendingUp, Award, Shield, Eye, CheckCircle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { formatDate } from '@/lib/dayjs';
 import { apiService } from '@/services/apiService';
 
 type Beneficiaria = any;
@@ -314,7 +313,9 @@ export default function DetalhesBeneficiaria() {
                         />
                       ) : (
                         <p className="text-sm">
-                          {beneficiaria.data_nascimento ? format(new Date(beneficiaria.data_nascimento), 'dd/MM/yyyy', { locale: ptBR }) : 'Não informado'}
+                          {beneficiaria.data_nascimento
+                            ? formatDate(beneficiaria.data_nascimento, 'DD/MM/YYYY')
+                            : 'Não informado'}
                         </p>
                       )}
                     </div>
@@ -619,9 +620,9 @@ export default function DetalhesBeneficiaria() {
                           </Badge>
                         </div>
                         <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
-                          <p>Início: {format(new Date(participacao.data_inicio), 'dd/MM/yyyy', { locale: ptBR })}</p>
+                          <p>Início: {formatDate(participacao.data_inicio, 'DD/MM/YYYY')}</p>
                           {participacao.data_fim && (
-                            <p>Fim: {format(new Date(participacao.data_fim), 'dd/MM/yyyy', { locale: ptBR })}</p>
+                            <p>Fim: {formatDate(participacao.data_fim, 'DD/MM/YYYY')}</p>
                           )}
                         </div>
                         <div className="mt-2">
@@ -676,7 +677,7 @@ export default function DetalhesBeneficiaria() {
                           <div>
                             <h4 className="font-medium">{documento.nome}</h4>
                             <p className="text-sm text-muted-foreground">
-                              {documento.tipo} • {format(new Date(documento.data_upload), 'dd/MM/yyyy', { locale: ptBR })}
+                              {documento.tipo} • {formatDate(documento.data_upload, 'DD/MM/YYYY')}
                             </p>
                           </div>
                         </div>

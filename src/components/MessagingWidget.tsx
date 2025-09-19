@@ -9,8 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useAuth } from '@/hooks/useAuth';
-import { formatDistanceToNow } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { formatFromNow } from '@/lib/dayjs';
 
 interface Conversation {
   id: string;
@@ -243,10 +242,7 @@ const MessagingWidget = () => {
                       )}
                       <p className="text-sm">{message.conteudo}</p>
                       <p className="text-xs opacity-70 mt-1">
-                        {formatDistanceToNow(new Date(message.created_at), {
-                          addSuffix: true,
-                          locale: ptBR
-                        })}
+                        {formatFromNow(message.created_at)}
                       </p>
                     </div>
                   </div>

@@ -9,7 +9,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-assistmove}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-assistmove123}
     ports:
-      - "5432:5432"
+      - '5432:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
@@ -19,7 +19,7 @@ services:
     image: redis:7
     container_name: movemarias_redis
     ports:
-      - "6379:6379"
+      - '6379:6379'
     volumes:
       - redis_data:/data
     networks:
@@ -31,7 +31,7 @@ services:
       dockerfile: Dockerfile
     container_name: movemarias_backend
     ports:
-      - "3000:3000"
+      - '3000:3000'
     environment:
       - NODE_ENV=development
       - PORT=3000
@@ -69,7 +69,7 @@ services:
       dockerfile: Dockerfile.frontend
     container_name: movemarias_frontend
     ports:
-      - "5173:5173"
+      - '5173:5173'
     environment:
       # Use relative base in browser; Vite proxy forwards to backend
       - VITE_API_URL=/api

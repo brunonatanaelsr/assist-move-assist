@@ -3,8 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useNotifications, useMarkAllNotificationsAsRead, useDeleteNotification, useMarkNotificationAsRead } from '@/hooks/useNotifications';
-import { formatDistanceToNow } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { formatFromNow } from '@/lib/dayjs';
 
 const TYPES = [
   { value: 'all', label: 'Todas' },
@@ -64,9 +63,7 @@ export default function NotificationsPage() {
                       {n.title || 'Notificação'}
                     </div>
                     <div className="text-sm text-muted-foreground">{n.message}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {formatDistanceToNow(new Date(n.created_at), { addSuffix: true, locale: ptBR })}
-                    </div>
+                    <div className="text-xs text-muted-foreground">{formatFromNow(n.created_at)}</div>
                   </div>
                   <div className="flex items-center gap-2">
                     {!n.read && (

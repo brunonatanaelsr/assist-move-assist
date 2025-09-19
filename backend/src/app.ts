@@ -1,4 +1,4 @@
-import type { Express, Request, Response, NextFunction } from 'express';
+import type { Express } from 'express';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -6,7 +6,6 @@ import compression from 'compression';
 import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
 import { createServer } from 'http';
-import dotenv from 'dotenv';
 
 import apiRoutes from './routes/api';
 // WebSocket opcional em runtime
@@ -15,16 +14,14 @@ import feedRoutes from './routes/feed.routes';
 import { errorHandler } from './middleware/errorHandler';
 import { logger } from './services/logger';
 import { pool } from './config/database';
-
-// Carregar variáveis de ambiente
-dotenv.config();
+import { env } from './config/env';
 
 const app: Express = express();
 const server = createServer(app);
 
-if (process.env.ENABLE_WS === 'true') {
+if (env.ENABLE_WS) {
   try {
-     
+
     const { WebSocketServer } = require('./websocket/server');
     webSocketServer = new WebSocketServer(server, pool);
   } catch (err) {
@@ -37,7 +34,7 @@ app.use(helmet());
 app.use(compression());
 
 // CORS
-const corsOrigin = process.env.CORS_ORIGIN || (process.env.NODE_ENV === 'development' ? '*' : '');
+const corsOrigin = env.CORS_ORIGIN || (env.NODE_ENV === 'development' ? '*' : '');
 const corsOptions = {
   origin: corsOrigin === '*' || corsOrigin === '' ? true : corsOrigin.split(',').map((o) => o.trim()),
   credentials: true,
@@ -53,7 +50,7 @@ const limiter = rateLimit({
   message: 'Muitas tentativas, tente novamente em 15 minutos.',
 });
 
-const rateLimitDisabled = process.env.RATE_LIMIT_DISABLE === 'true';
+const rateLimitDisabled = env.RATE_LIMIT_DISABLE;
 
 if (!rateLimitDisabled) {
   app.use('/api/', limiter);
@@ -74,9 +71,9 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Health check
 app.get('/health', (req, res) => {
   res.status(200).json({ 
-    status: 'OK', 
+    status: 'OK',
     timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development'
+    environment: env.NODE_ENV
   });
 });
 
@@ -92,7 +89,7 @@ app.use('*', (req, res) => {
   res.status(404).json({ error: 'Endpoint não encontrado' });
 });
 
-const PORT = process.env.PORT || 3000;
+const PORT = env.PORT || 3000;
 
 // Trata erro de porta em uso com mensagem amigável
 server.on('error', (err: any) => {

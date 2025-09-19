@@ -60,10 +60,10 @@ jobs:
         env:
           SUPERADMIN_EMAIL: bruno@move.com
           SUPERADMIN_PASSWORD: 15002031
-          SUPERADMIN_NAME: "Bruno Administrador"
+          SUPERADMIN_NAME: 'Bruno Administrador'
           ADMIN_EMAIL: admin@example.com
           ADMIN_PASSWORD: admin123
-          ADMIN_NAME: "Administrador"
+          ADMIN_NAME: 'Administrador'
         run: |
           npm run migrate:node
           node scripts/seed-superadmin.js
@@ -80,10 +80,10 @@ jobs:
           CORS_ORIGIN: http://127.0.0.1:4173
           SUPERADMIN_EMAIL: bruno@move.com
           SUPERADMIN_PASSWORD: 15002031
-          SUPERADMIN_NAME: "Bruno Administrador"
+          SUPERADMIN_NAME: 'Bruno Administrador'
           ADMIN_EMAIL: admin@example.com
           ADMIN_PASSWORD: admin123
-          ADMIN_NAME: "Administrador"
+          ADMIN_NAME: 'Administrador'
         run: |
           nohup npm start > ../api.log 2>&1 &
           echo $! > ../api.pid

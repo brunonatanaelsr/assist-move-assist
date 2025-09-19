@@ -8,8 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Save, Plus, TrendingUp, Calendar, User, Activity, Target } from 'lucide-react';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { formatDate } from '@/lib/dayjs';
 import { apiService } from '@/services/apiService';
 import useAutosave from '@/hooks/useAutosave';
 import { useToast } from '@/components/ui/use-toast';
@@ -403,7 +402,7 @@ export default function FichaEvolucao() {
                       <div className="flex items-center gap-2">
                         <Calendar className="h-4 w-4 text-muted-foreground" />
                         <span className="font-medium">
-                          {format(new Date(registro.data_registro), 'dd/MM/yyyy', { locale: ptBR })}
+              {formatDate(registro.data_registro, 'DD/MM/YYYY')}
                         </span>
                         <Badge className={getTipoAtendimentoBadge(registro.tipo_atendimento)}>
                           {registro.tipo_atendimento.replace('_', ' ')}

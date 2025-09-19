@@ -21,8 +21,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import { formatDistanceToNow } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { formatFromNow } from '@/lib/dayjs';
 
 export function NotificationsPopover() {
   const navigate = useNavigate();
@@ -162,10 +161,7 @@ export function NotificationsPopover() {
                           {notification.message}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          {formatDistanceToNow(
-                            new Date(notification.created_at),
-                            { addSuffix: true, locale: ptBR }
-                          )}
+                          {formatFromNow(notification.created_at)}
                         </p>
                       </div>
 

@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Calendar, dayjsLocalizer, View } from 'react-big-calendar';
-import dayjs from 'dayjs';
-import 'dayjs/locale/pt-br';
+import dayjs from '@/lib/dayjs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { CalendarEvent } from '@/types/calendar';

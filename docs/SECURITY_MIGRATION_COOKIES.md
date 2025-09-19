@@ -10,16 +10,16 @@ Este guia descreve como operar a autenticação com cookies HttpOnly e proteçã
 
 ## Passos Recomendados
 
-1) Habilitar CORS com credenciais
+1. Habilitar CORS com credenciais
 
 - Em `backend/src/app.ts` CORS já está ativo. Garanta `credentials: true` e `origin` com a lista de domínios confiáveis (sem `*` em produção).
 
-2) Provisionar CSRF Token (cookie + header)
+2. Provisionar CSRF Token (cookie + header)
 
 - Adicionar middleware CSRF e registrar o cookie não HttpOnly `csrf_token` (apenas token aleatório). O cliente devolverá esse valor em `X-CSRF-Token` para métodos mutantes.
 - Exemplo de middleware em `backend/src/middleware/csrf.ts` (já incluído neste repo) — não habilitado por padrão.
 
-3) Ligar CSRF no app (opcional, por etapas)
+3. Ligar CSRF no app (opcional, por etapas)
 
 ```ts
 // backend/src/app.ts
@@ -29,12 +29,12 @@ Este guia descreve como operar a autenticação com cookies HttpOnly e proteçã
 
 - Ative inicialmente apenas em ambientes internos e/ou whitelist de rotas para diminuir impacto.
 
-4) Cookies HttpOnly
+4. Cookies HttpOnly
 
 - Já habilitados no login. Use HTTPS em produção: `secure: true` e `sameSite: 'strict'`.
 - Em dev, `secure: false` e `sameSite: 'lax'` facilitam testes locais.
 
-5) Política de Rotas
+5. Política de Rotas
 
 - Preferir downloads via endpoints autenticados com `Content-Disposition: attachment` (já adotado em documentos).
 - Evitar servir diretórios estaticamente para conteúdo de usuários. Imagens do feed passaram a ser servidas por rota autenticada `GET /api/feed/images/:filename`.
@@ -62,4 +62,3 @@ Este guia descreve como operar a autenticação com cookies HttpOnly e proteçã
 - 401 após login: verifique `CORS` (`origin` correto) e `withCredentials` no cliente.
 - CSRF falhando: confirme que o navegador tem `csrf_token` e que o header `X-CSRF-Token` é enviado em métodos mutantes.
 - Cookies não chegam: em dev sem HTTPS, use `sameSite: 'lax'` e `secure: false`.
-

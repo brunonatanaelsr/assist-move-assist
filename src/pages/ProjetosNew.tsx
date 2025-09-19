@@ -9,8 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Plus, FolderKanban, Edit, Trash2, Users, Calendar, MapPin, DollarSign, AlertCircle, CheckCircle } from "lucide-react";
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { formatDate } from '@/lib/dayjs';
 import { apiService } from '@/services/apiService';
 
 interface Projeto {
@@ -406,9 +405,9 @@ export default function Projetos() {
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <Calendar className="h-4 w-4" />
                     <span>
-                      {format(new Date(projeto.data_inicio), 'dd/MM/yyyy', { locale: ptBR })}
+                      {formatDate(projeto.data_inicio, 'DD/MM/YYYY')}
                       {projeto.data_fim_prevista && (
-                        <> até {format(new Date(projeto.data_fim_prevista), 'dd/MM/yyyy', { locale: ptBR })}</>
+                        <> até {formatDate(projeto.data_fim_prevista, 'DD/MM/YYYY')}</>
                       )}
                     </span>
                   </div>

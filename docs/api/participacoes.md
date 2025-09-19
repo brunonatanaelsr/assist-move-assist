@@ -10,17 +10,17 @@ Retorna uma lista paginada de participações.
 
 ### Parâmetros de Query
 
-| Parâmetro | Tipo | Descrição |
-|-----------|------|-----------|
-| page | number | Número da página (default: 1) |
-| limit | number | Registros por página (default: 10) |
-| beneficiaria_id | number | Filtrar por beneficiária |
-| projeto_id | number | Filtrar por projeto |
-| oficina_id | number | Filtrar por oficina |
-| status | string | Filtrar por status |
-| data_inicio | string | Data inicial (YYYY-MM-DD) |
-| data_fim | string | Data final (YYYY-MM-DD) |
-| search | string | Busca por nome da beneficiária ou projeto |
+| Parâmetro       | Tipo   | Descrição                                 |
+| --------------- | ------ | ----------------------------------------- |
+| page            | number | Número da página (default: 1)             |
+| limit           | number | Registros por página (default: 10)        |
+| beneficiaria_id | number | Filtrar por beneficiária                  |
+| projeto_id      | number | Filtrar por projeto                       |
+| oficina_id      | number | Filtrar por oficina                       |
+| status          | string | Filtrar por status                        |
+| data_inicio     | string | Data inicial (YYYY-MM-DD)                 |
+| data_fim        | string | Data final (YYYY-MM-DD)                   |
+| search          | string | Busca por nome da beneficiária ou projeto |
 
 ### Exemplo de Resposta
 

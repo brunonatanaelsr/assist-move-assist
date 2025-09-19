@@ -8,8 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, Shield, FileText, User, CheckCircle, AlertCircle, Eye, Download } from 'lucide-react';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { formatDate } from '@/lib/dayjs';
 import { apiService } from '@/services/apiService';
 
 interface TermoConsentimento {
@@ -467,7 +466,7 @@ export default function TermosConsentimento() {
                       </div>
                       <div className="text-sm text-muted-foreground space-y-1">
                         <p>
-                          <strong>Data do Aceite:</strong> {format(new Date(termo.data_aceite), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
+                          <strong>Data do Aceite:</strong> {formatDate(termo.data_aceite, 'DD/MM/YYYY HH:mm')}
                         </p>
                         <p>
                           <strong>Responsável:</strong> {termo.responsavel_aplicacao}

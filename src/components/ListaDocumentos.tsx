@@ -7,8 +7,7 @@ import {
   TableRow,
 } from './ui/table';
 import { Button } from './ui/button';
-import { formatDistanceToNow } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { formatFromNow } from '@/lib/dayjs';
 import { useDocumentos } from '../hooks/useDocumentos';
 import {
   DropdownMenu,
@@ -99,12 +98,7 @@ export function ListaDocumentos({ beneficiariaId }: ListaDocumentosProps) {
               <TableCell>{doc.categoria}</TableCell>
               <TableCell>{formatFileSize(doc.tamanho)}</TableCell>
               <TableCell>{doc.uploaded_by_nome}</TableCell>
-              <TableCell>
-                {formatDistanceToNow(new Date(doc.data_upload), {
-                  addSuffix: true,
-                  locale: ptBR
-                })}
-              </TableCell>
+              <TableCell>{formatFromNow(doc.data_upload)}</TableCell>
               <TableCell>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -166,10 +160,7 @@ export function ListaDocumentos({ beneficiariaId }: ListaDocumentosProps) {
                       <TableCell>v{versao.numero_versao}</TableCell>
                       <TableCell>{versao.modificado_por_nome}</TableCell>
                       <TableCell>
-                        {formatDistanceToNow(new Date(versao.data_modificacao), {
-                          addSuffix: true,
-                          locale: ptBR
-                        })}
+                        {formatFromNow(versao.data_modificacao)}
                       </TableCell>
                       <TableCell>{versao.motivo_modificacao || '-'}</TableCell>
                     </TableRow>
