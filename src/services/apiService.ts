@@ -6,10 +6,28 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import type { Beneficiaria, BeneficiariaFiltros } from '../../backend/src/types/beneficiarias';
 import type { Oficina } from '../../backend/src/types/oficina';
+import type { AuthResponse, AuthenticatedSessionUser } from '../../backend/src/types/auth';
 import { translateErrorMessage } from '@/lib/apiError';
 import { API_URL } from '@/config';
 import type { DashboardStatsResponse } from '@/types/dashboard';
+import type { ApiResponse } from '@/types/api';
+import type {
+  ConfiguracaoUsuario,
+  CreateUsuarioPayload,
+  PaginatedCollection,
+  PermissionSummary,
+  ResetPasswordPayload,
+  UpdateUsuarioPayload,
+  UsuarioPermissions,
+} from '@/types/configuracoes';
 const IS_DEV = (import.meta as any)?.env?.DEV === true || (import.meta as any)?.env?.MODE === 'development';
+
+type SessionUser = AuthenticatedSessionUser & { ativo?: boolean };
+type LoginSuccessPayload = Omit<AuthResponse, 'user'> & { user: SessionUser } & { message?: string };
+type ProfilePayload = { user: SessionUser };
+type PaginatedUsersPayload = PaginatedCollection<ConfiguracaoUsuario>;
+type PaginatedPermissionsPayload = PaginatedCollection<PermissionSummary>;
+type PaginationQuery = Partial<{ search: string; page: number; limit: number }>;
 
 function getCookie(name: string): string | null {
   if (typeof document === 'undefined') return null;
@@ -19,17 +37,6 @@ function getCookie(name: string): string | null {
   return null;
 }
 
-export interface ApiResponse<T = any> {
-  success: boolean;
-  data?: T;
-  message?: string;
-  total?: number;
-  pagination?: {
-    page: number;
-    limit: number;
-    totalPages: number;
-  };
-}
 
 class ApiService {
   private api: AxiosInstance;
@@ -197,15 +204,15 @@ class ApiService {
   }
 
   // Métodos específicos para autenticação
-  async login(email: string, password: string): Promise<ApiResponse<{token: string, user: any}>> {
+  async login(email: string, password: string): Promise<ApiResponse<LoginSuccessPayload>> {
     if (IS_DEV) console.log('Login attempt:', { email, apiUrl: API_URL });
-    const result = await this.post<{token: string, user: any}>('/auth/login', { email, password });
+    const result = await this.post<LoginSuccessPayload>('/auth/login', { email, password });
     if (IS_DEV) console.log('Login result:', result);
     return result;
   }
 
-  async getCurrentUser(): Promise<ApiResponse<any>> {
-    return this.get('/auth/me');
+  async getCurrentUser(): Promise<ApiResponse<ProfilePayload>> {
+    return this.get<ProfilePayload>('/auth/me');
   }
 
   // Métodos específicos para oficinas
@@ -486,22 +493,41 @@ class ApiService {
   }
 
   // Configurações: usuários, papéis, permissões
-  async listUsers(params?: any): Promise<ApiResponse<any>> { return this.get('/configuracoes/usuarios', { params }); }
-  async createUser(data: { email: string; password: string; nome: string; papel?: string }): Promise<ApiResponse<any>> {
-    return this.post('/configuracoes/usuarios', data);
+  async listUsers(params?: PaginationQuery): Promise<ApiResponse<PaginatedUsersPayload>> {
+    return this.get<PaginatedUsersPayload>('/configuracoes/usuarios', { params });
   }
-  async updateUser(id: number, data: any): Promise<ApiResponse<any>> { return this.put(`/configuracoes/usuarios/${id}`, data); }
-  async resetUserPassword(id: number, newPassword: string): Promise<ApiResponse<any>> {
-    return this.post(`/configuracoes/usuarios/${id}/reset-password`, { newPassword });
+
+  async createUser(data: CreateUsuarioPayload): Promise<ApiResponse<ConfiguracaoUsuario>> {
+    return this.post<ConfiguracaoUsuario>('/configuracoes/usuarios', data);
   }
-  async listRoles(): Promise<ApiResponse<string[]>> { return this.get('/configuracoes/roles'); }
-  async listPermissions(params?: any): Promise<ApiResponse<any>> { return this.get('/configuracoes/permissions', { params }); }
-  async createPermission(name: string, description?: string): Promise<ApiResponse<any>> {
-    return this.post('/configuracoes/permissions', { name, description });
+
+  async updateUser(id: number, data: UpdateUsuarioPayload): Promise<ApiResponse<ConfiguracaoUsuario>> {
+    return this.put<ConfiguracaoUsuario>(`/configuracoes/usuarios/${id}`, data);
   }
-  async getRolePermissions(role: string): Promise<ApiResponse<string[]>> { return this.get(`/configuracoes/roles/${role}/permissions`); }
-  async setRolePermissions(role: string, permissions: string[]): Promise<ApiResponse<any>> {
-    return this.put(`/configuracoes/roles/${role}/permissions`, { permissions });
+
+  async resetUserPassword(id: number, newPassword: string): Promise<ApiResponse<{ id: number }>> {
+    const payload: ResetPasswordPayload = { newPassword };
+    return this.post<{ id: number }>(`/configuracoes/usuarios/${id}/reset-password`, payload);
+  }
+
+  async listRoles(): Promise<ApiResponse<string[]>> {
+    return this.get<string[]>('/configuracoes/roles');
+  }
+
+  async listPermissions(params?: PaginationQuery): Promise<ApiResponse<PaginatedPermissionsPayload>> {
+    return this.get<PaginatedPermissionsPayload>('/configuracoes/permissions', { params });
+  }
+
+  async createPermission(name: string, description?: string): Promise<ApiResponse<PermissionSummary>> {
+    return this.post<PermissionSummary>('/configuracoes/permissions', { name, description });
+  }
+
+  async getRolePermissions(role: string): Promise<ApiResponse<UsuarioPermissions>> {
+    return this.get<UsuarioPermissions>(`/configuracoes/roles/${role}/permissions`);
+  }
+
+  async setRolePermissions(role: string, permissions: UsuarioPermissions): Promise<ApiResponse<{ role: string; permissions: UsuarioPermissions }>> {
+    return this.put<{ role: string; permissions: UsuarioPermissions }>(`/configuracoes/roles/${role}/permissions`, { permissions });
   }
 
   // Perfil
@@ -607,11 +633,12 @@ class ApiService {
   }
 
   // Permissões por usuário
-  async getUserPermissions(userId: number): Promise<ApiResponse<string[]>> {
-    return this.get(`/configuracoes/usuarios/${userId}/permissions`);
+  async getUserPermissions(userId: number): Promise<ApiResponse<UsuarioPermissions>> {
+    return this.get<UsuarioPermissions>(`/configuracoes/usuarios/${userId}/permissions`);
   }
-  async setUserPermissions(userId: number, permissions: string[]): Promise<ApiResponse<any>> {
-    return this.put(`/configuracoes/usuarios/${userId}/permissions`, { permissions });
+
+  async setUserPermissions(userId: number, permissions: UsuarioPermissions): Promise<ApiResponse<{ id: number; permissions: UsuarioPermissions }>> {
+    return this.put<{ id: number; permissions: UsuarioPermissions }>(`/configuracoes/usuarios/${userId}/permissions`, { permissions });
   }
 }
 

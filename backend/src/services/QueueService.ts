@@ -5,19 +5,35 @@ import { NotificationJob } from '../jobs/NotificationJob';
 import { ReminderJob } from '../jobs/ReminderJob';
 import { ReportJob } from '../jobs/ReportJob';
 import { CleanupJob } from '../jobs/CleanupJob';
+import type { JobConstructor } from '../types/Job';
+import type { JobPayloadMap, JobType } from '../types/jobRegistry';
 
 const LOCK_TTL = 60; // 60 segundos
 const BATCH_SIZE = 10;
 
+interface PersistedJob<K extends JobType = JobType> {
+  id: number;
+  job_type: K;
+  payload: JobPayloadMap[K];
+  tentativas: number;
+  max_tentativas: number;
+}
+
+interface EnqueueOptions {
+  priority?: number;
+  scheduledAt?: Date;
+  maxRetries?: number;
+}
+
 export class QueueService {
-  private jobs: Map<string, any>;
-  private isProcessing: boolean = false;
+  private jobs: Map<JobType, JobConstructor<JobPayloadMap[JobType]>>;
+  private isProcessing = false;
   private workerId: string;
 
   constructor() {
     this.jobs = new Map();
     this.workerId = `worker-${Math.random().toString(36).slice(2)}`;
-    
+
     // Registrar jobs disponíveis
     this.registerJobs();
   }
@@ -29,15 +45,11 @@ export class QueueService {
     this.jobs.set('cleanup_data', CleanupJob);
   }
 
-  async enqueue(
-    jobType: string,
-    payload: any,
-    options: {
-      priority?: number;
-      scheduledAt?: Date;
-      maxRetries?: number;
-    } = {}
-  ) {
+  async enqueue<K extends JobType>(
+    jobType: K,
+    payload: JobPayloadMap[K],
+    options: EnqueueOptions = {}
+  ): Promise<{ id: number }> {
     const {
       priority = 1,
       scheduledAt = new Date(),
@@ -45,7 +57,7 @@ export class QueueService {
     } = options;
 
     try {
-      return await db.one(
+      return await db.one<{ id: number }>(
         `INSERT INTO job_queue (
           job_type,
           payload,
@@ -58,11 +70,12 @@ export class QueueService {
       );
 
     } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
       logger.error('Erro ao enfileirar job', {
         jobType,
-        error: error.message
+        error: message
       });
-      throw error;
+      throw error instanceof Error ? error : new Error(message);
     }
   }
 
@@ -73,7 +86,7 @@ export class QueueService {
     try {
       while (this.isProcessing) {
         // Buscar próximo lote de jobs
-        const jobs = await db.manyOrNone(
+        const jobs = await db.manyOrNone<PersistedJob>(
           `UPDATE job_queue
           SET status = 'processing',
               locked_at = NOW(),
@@ -98,52 +111,7 @@ export class QueueService {
         }
 
         // Processar jobs em paralelo
-        await Promise.all(
-          jobs.map(async (job) => {
-            try {
-              const JobClass = this.jobs.get(job.job_type);
-              if (!JobClass) {
-                throw new Error(`Job type ${job.job_type} não registrado`);
-              }
-
-              const jobInstance = new JobClass();
-              await jobInstance.execute(job.payload);
-
-              // Marcar como completo
-              await db.none(
-                `UPDATE job_queue
-                SET status = 'completed',
-                    executed_at = NOW(),
-                    updated_at = NOW()
-                WHERE id = $1`,
-                [job.id]
-              );
-
-            } catch (error) {
-              logger.error('Erro ao processar job', {
-                jobId: job.id,
-                jobType: job.job_type,
-                error: error.message
-              });
-
-              // Atualizar tentativas e status
-              await db.none(
-                `UPDATE job_queue
-                SET status = CASE 
-                      WHEN tentativas + 1 >= max_tentativas THEN 'failed'
-                      ELSE 'pending'
-                    END,
-                    tentativas = tentativas + 1,
-                    last_error = $2,
-                    locked_at = NULL,
-                    locked_by = NULL,
-                    updated_at = NOW()
-                WHERE id = $1`,
-                [job.id, error.message]
-              );
-            }
-          })
-        );
+        await Promise.all(jobs.map((job) => this.runJob(job)));
 
       }
     } catch (error) {
@@ -178,5 +146,49 @@ export class QueueService {
 
   stop() {
     this.isProcessing = false;
+  }
+
+  private async runJob<K extends JobType>(job: PersistedJob<K>): Promise<void> {
+    try {
+      const JobClass = this.jobs.get(job.job_type);
+      if (!JobClass) {
+        throw new Error(`Job type ${job.job_type} não registrado`);
+      }
+
+      const jobInstance = new JobClass();
+      await jobInstance.execute(job.payload);
+
+      await db.none(
+        `UPDATE job_queue
+        SET status = 'completed',
+            executed_at = NOW(),
+            updated_at = NOW()
+        WHERE id = $1`,
+        [job.id]
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+
+      logger.error('Erro ao processar job', {
+        jobId: job.id,
+        jobType: job.job_type,
+        error: message
+      });
+
+      await db.none(
+        `UPDATE job_queue
+        SET status = CASE
+              WHEN tentativas + 1 >= max_tentativas THEN 'failed'
+              ELSE 'pending'
+            END,
+            tentativas = tentativas + 1,
+            last_error = $2,
+            locked_at = NULL,
+            locked_by = NULL,
+            updated_at = NOW()
+        WHERE id = $1`,
+        [job.id, message]
+      );
+    }
   }
 }

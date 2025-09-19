@@ -1,16 +1,6 @@
 import { Pool } from 'pg';
 import { logger } from '../services/logger';
-
-interface WebhookEvent {
-  id: string;
-  endpoint: string;
-  event_type: string;
-  payload: any;
-  status: 'pending' | 'processing' | 'completed' | 'failed';
-  retry_count: number;
-  next_retry_at: Date | null;
-  error_message: string | null;
-}
+import type { StoredWebhookEvent, WebhookPayload } from '../types/webhooks';
 
 export class WebhookQueue {
   private pool: Pool;
@@ -26,7 +16,7 @@ export class WebhookQueue {
   async enqueue(
     endpoint: string,
     eventType: string,
-    payload: any
+    payload: WebhookPayload
   ): Promise<string> {
     try {
       const result = await this.pool.query(
@@ -48,8 +38,9 @@ export class WebhookQueue {
 
       return result.rows[0].id;
     } catch (error) {
-      logger.error('Erro ao enfileirar webhook:', { error });
-      throw error;
+      const message = this.getErrorMessage(error);
+      logger.error('Erro ao enfileirar webhook:', { error: message });
+      throw error instanceof Error ? error : new Error(message);
     }
   }
 
@@ -75,7 +66,7 @@ export class WebhookQueue {
     }
   }
 
-  private async getNextEvent(): Promise<WebhookEvent | null> {
+  private async getNextEvent(): Promise<StoredWebhookEvent | null> {
     const result = await this.pool.query(
       `UPDATE webhooks
        SET status = 'processing'
@@ -91,10 +82,10 @@ export class WebhookQueue {
        RETURNING *`
     );
 
-    return result.rows[0] || null;
+    return (result.rows[0] as StoredWebhookEvent | undefined) || null;
   }
 
-  private async processEvent(event: WebhookEvent): Promise<void> {
+  private async processEvent(event: StoredWebhookEvent): Promise<void> {
     try {
       const response = await fetch(event.endpoint, {
         method: 'POST',
@@ -117,13 +108,14 @@ export class WebhookQueue {
   }
 
   private async handleEventError(
-    event: WebhookEvent,
-    error: any
+    event: StoredWebhookEvent,
+    error: unknown
   ): Promise<void> {
     const retryCount = event.retry_count + 1;
-    
+    const message = this.getErrorMessage(error);
+
     if (retryCount >= this.maxRetries) {
-      await this.markEventFailed(event.id, error.message);
+      await this.markEventFailed(event.id, message);
       return;
     }
 
@@ -139,7 +131,7 @@ export class WebhookQueue {
            error_message = $3,
            status = 'pending'
        WHERE id = $4`,
-      [retryCount, nextRetryAt, error.message, event.id]
+      [retryCount, nextRetryAt, message, event.id]
     );
   }
 
@@ -162,6 +154,25 @@ export class WebhookQueue {
        WHERE id = $2`,
       [error, id]
     );
+  }
+
+  private getErrorMessage(error: unknown): string {
+    if (error instanceof Error && error.message) {
+      return error.message;
+    }
+
+    if (typeof error === 'string') {
+      return error;
+    }
+
+    if (error && typeof error === 'object') {
+      const maybeMessage = (error as { message?: unknown }).message;
+      if (typeof maybeMessage === 'string') {
+        return maybeMessage;
+      }
+    }
+
+    return 'Erro desconhecido ao processar webhook';
   }
 
   // Método para reagendar webhooks falhos

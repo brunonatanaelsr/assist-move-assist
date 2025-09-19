@@ -20,7 +20,11 @@ interface NotificationRecord {
   payload?: Record<string, unknown> | null;
 }
 
-export class NotificationJob implements Job {
+export interface NotificationJobPayload {
+  notificationId: string;
+}
+
+export class NotificationJob implements Job<NotificationJobPayload> {
   private notificationService: NotificationService;
   private emailService: EmailService;
   private whatsAppService: WhatsAppService;
@@ -35,8 +39,13 @@ export class NotificationJob implements Job {
     this.whatsAppService = whatsAppService ?? new WhatsAppService();
   }
 
-  async execute(payload: any): Promise<void> {
+  async execute(payload: NotificationJobPayload): Promise<void> {
     const { notificationId } = payload;
+
+    if (!notificationId) {
+      logger.warn('Payload de notificação inválido recebido', { payload });
+      return;
+    }
 
     try {
       // Buscar notificação

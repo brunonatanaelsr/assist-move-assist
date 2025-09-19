@@ -3,7 +3,7 @@ import { logger } from '../services/logger';
 import { redis } from '../lib/redis';
 import { RelatorioService } from '../services/RelatorioService';
 
-interface ReportJobPayload {
+export interface ReportJobPayload {
   schedule?: string;
   options: {
     template: string;
