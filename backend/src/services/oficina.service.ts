@@ -280,9 +280,15 @@ export class OficinaService {
         }
       }
 
-      const fieldsToUpdate = Object.entries(validatedData)
+      const providedFields = Object.entries(data)
         .filter(([_, value]) => value !== undefined)
-        .map(([key, _]) => key);
+        .map(([key]) => key);
+
+      const fieldsToUpdate = providedFields.filter(field => validatedData[field as keyof UpdateOficinaDTO] !== undefined);
+
+      if (fieldsToUpdate.length === 0) {
+        throw new Error('Nenhum campo para atualizar');
+      }
 
       const setClauses = fieldsToUpdate.map((field, index) => `${field} = $${index + 1}`);
       const queryParams = fieldsToUpdate.map(field => validatedData[field as keyof UpdateOficinaDTO]);
