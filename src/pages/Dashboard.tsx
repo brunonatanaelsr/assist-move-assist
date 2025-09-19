@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { useEffect, useState, HTMLAttributes, ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { apiService } from "@/services/apiService";
+import type { DashboardStatsResponse } from "@/types/dashboard";
 import { cn } from "@/lib/utils";
 
 // Componente StatCard local
@@ -76,8 +77,8 @@ export default function Dashboard() {
       
       // Carregar estatísticas reais do PostgreSQL
       const statsResponse = await apiService.getDashboardStats();
-      if (statsResponse.success) {
-        const data = statsResponse.data;
+      if (statsResponse.success && statsResponse.data) {
+        const data = statsResponse.data as DashboardStatsResponse;
         setStats({
           totalBeneficiarias: data.totalBeneficiarias || 0,
           beneficiariasAtivas: data.activeBeneficiarias || 0,

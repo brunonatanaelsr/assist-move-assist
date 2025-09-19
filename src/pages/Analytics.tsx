@@ -2,10 +2,18 @@ import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { apiService } from '@/services/apiService';
+import type { DashboardStatsResponse } from '@/types/dashboard';
+
+interface AnalyticsStats {
+  totalBeneficiarias: number;
+  activeBeneficiarias: number;
+  totalAnamneses: number;
+  totalDeclaracoes: number;
+}
 
 const Analytics = () => {
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({
+  const [stats, setStats] = useState<AnalyticsStats>({
     totalBeneficiarias: 0,
     activeBeneficiarias: 0,
     totalAnamneses: 0,
@@ -19,7 +27,7 @@ const Analytics = () => {
         setLoading(true);
         const resp = await apiService.getDashboardStats();
         if (resp.success && resp.data) {
-          const data: any = resp.data;
+          const data = resp.data as DashboardStatsResponse;
           setStats({
             totalBeneficiarias: Number(data.totalBeneficiarias || 0),
             activeBeneficiarias: Number(data.activeBeneficiarias || 0),
