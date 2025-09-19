@@ -40,7 +40,7 @@ export interface UserProfile {
 
 export interface JWTPayload {
   id: number;
-  email: string;
+  email?: string;
   role: UserRole | string;
   permissions?: PERMISSIONS[];
 }

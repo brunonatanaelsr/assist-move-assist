@@ -37,6 +37,7 @@ process.env.JWT_SECRET = 'test-secret-key';
 process.env.DB_NAME = 'test_db';
 process.env.DB_USER = 'test_user';
 process.env.DB_PASSWORD = 'test_password';
+process.env.REDIS_DISABLED = 'true';
 
 // Global test timeout
 jest.setTimeout(10000);

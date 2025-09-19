@@ -17,7 +17,7 @@ export type AuthenticatedRequest<
   ResBody = unknown,
   ReqBody = unknown,
   ReqQuery extends ParsedQs = ParsedQs
-> = Request<Params, ResBody, ReqBody, ReqQuery> & { user: AuthenticatedUser };
+> = Request<Params, ResBody, ReqBody, ReqQuery> & { user?: AuthenticatedUser };
 
 const JWT_SECRET = env.JWT_SECRET;
 const JWT_EXPIRY = env.JWT_EXPIRY;

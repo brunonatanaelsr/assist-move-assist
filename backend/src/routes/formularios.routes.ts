@@ -11,7 +11,7 @@ const router = Router();
 // ANAMNESE SOCIAL
 router.post('/anamnese', authenticateToken, async (req: AuthenticatedRequest, res): Promise<void> => {
   try {
-    const { beneficiaria_id, dados } = req.body || {};
+    const { beneficiaria_id, dados } = (req.body ?? {}) as Record<string, any>;
     const createdBy = Number(req.user!.id);
     const result = await pool.query(
       `INSERT INTO anamnese_social (beneficiaria_id, dados, created_by)
@@ -57,7 +57,7 @@ router.get('/anamnese/:id/pdf', authenticateToken, async (req, res): Promise<voi
 router.put('/anamnese/:id', authenticateToken, async (req, res): Promise<void> => {
   try {
     const { id } = req.params as any;
-    const { dados } = req.body || {};
+    const { dados } = (req.body ?? {}) as Record<string, any>;
     const result = await pool.query('UPDATE anamnese_social SET dados = COALESCE($2::jsonb, dados) WHERE id = $1 RETURNING *', [id, JSON.stringify(dados || null)]);
     if (result.rowCount === 0) { res.status(404).json(errorResponse('Anamnese não encontrada')); return; }
     res.json(successResponse(result.rows[0]));
@@ -71,7 +71,7 @@ router.put('/anamnese/:id', authenticateToken, async (req, res): Promise<void> =
 // FICHA DE EVOLUÇÃO
 router.post('/ficha-evolucao', authenticateToken, async (req: AuthenticatedRequest, res): Promise<void> => {
   try {
-    const { beneficiaria_id, dados } = req.body || {};
+    const { beneficiaria_id, dados } = (req.body ?? {}) as Record<string, any>;
     const createdBy = Number(req.user!.id);
     const result = await pool.query(
       `INSERT INTO ficha_evolucao (beneficiaria_id, dados, created_by)
@@ -129,7 +129,7 @@ router.get('/ficha-evolucao/beneficiaria/:beneficiariaId', authenticateToken, as
 router.put('/ficha-evolucao/:id', authenticateToken, async (req, res): Promise<void> => {
   try {
     const { id } = req.params as any;
-    const { dados } = req.body || {};
+    const { dados } = (req.body ?? {}) as Record<string, any>;
     const result = await pool.query('UPDATE ficha_evolucao SET dados = COALESCE($2::jsonb, dados) WHERE id = $1 RETURNING *', [id, JSON.stringify(dados || null)]);
     if (result.rowCount === 0) { res.status(404).json(errorResponse('Ficha não encontrada')); return; }
     res.json(successResponse(result.rows[0]));
@@ -143,7 +143,7 @@ router.put('/ficha-evolucao/:id', authenticateToken, async (req, res): Promise<v
 // TERMOS DE CONSENTIMENTO
 router.post('/termos-consentimento', authenticateToken, async (req: AuthenticatedRequest, res): Promise<void> => {
   try {
-    const { beneficiaria_id, dados } = req.body || {};
+    const { beneficiaria_id, dados } = (req.body ?? {}) as Record<string, any>;
     const createdBy = Number(req.user!.id);
     const result = await pool.query(
       `INSERT INTO termos_consentimento (beneficiaria_id, dados, created_by)
@@ -189,7 +189,7 @@ router.get('/termos-consentimento/:id/pdf', authenticateToken, async (req, res):
 router.put('/termos-consentimento/:id', authenticateToken, async (req, res): Promise<void> => {
   try {
     const { id } = req.params as any;
-    const { dados } = req.body || {};
+    const { dados } = (req.body ?? {}) as Record<string, any>;
     const result = await pool.query('UPDATE termos_consentimento SET dados = COALESCE($2::jsonb, dados) WHERE id = $1 RETURNING *', [id, JSON.stringify(dados || null)]);
     if (result.rowCount === 0) { res.status(404).json(errorResponse('Termo não encontrado')); return; }
     res.json(successResponse(result.rows[0]));
@@ -226,7 +226,7 @@ router.post('/visao-holistica', authenticateToken, async (req: AuthenticatedRequ
 // RODA DA VIDA (genérico via tabela formularios)
 router.post('/roda-vida', authenticateToken, async (req: AuthenticatedRequest, res): Promise<void> => {
   try {
-    const { beneficiaria_id, dados } = req.body || {};
+    const { beneficiaria_id, dados } = (req.body ?? {}) as Record<string, any>;
     const createdBy = Number(req.user!.id);
     const result = await pool.query(
       `INSERT INTO formularios (tipo, beneficiaria_id, dados, status, usuario_id)
@@ -257,7 +257,7 @@ router.get('/roda-vida/:id', authenticateToken, async (req, res): Promise<void> 
 router.put('/roda-vida/:id', authenticateToken, async (req, res): Promise<void> => {
   try {
     const { id } = req.params as any;
-    const { dados } = req.body || {};
+    const { dados } = (req.body ?? {}) as Record<string, any>;
     const result = await pool.query(
       'UPDATE formularios SET dados = COALESCE($2::jsonb, dados), updated_at = NOW() WHERE id = $1 AND tipo = $3 RETURNING *',
       [id, JSON.stringify(dados || null), 'roda_vida']
