@@ -1,3 +1,5 @@
+import type { PERMISSIONS } from './permissions';
+
 export type UserRole = 'admin' | 'coordenador' | 'profissional' | 'assistente';
 
 export interface User {
@@ -39,5 +41,44 @@ export interface UserProfile {
 export interface JWTPayload {
   id: number;
   email: string;
-  role: UserRole;
+  role: UserRole | string;
+  permissions?: PERMISSIONS[];
+}
+
+export interface AuthenticatedUser extends JWTPayload {
+  nome?: string;
+  avatar_url?: string;
+}
+
+export interface RegisterRequest {
+  email: string;
+  password: string;
+  nome_completo: string;
+  role?: string;
+}
+
+export interface UpdateProfileRequest {
+  nome_completo?: string;
+  avatar_url?: string;
+}
+
+export interface ChangePasswordRequest {
+  currentPassword: string;
+  newPassword: string;
+}
+
+export interface AuthenticatedSessionUser {
+  id: number;
+  email: string;
+  nome: string;
+  papel: string;
+  avatar_url?: string;
+  ultimo_login?: Date | null;
+  data_criacao?: Date;
+  data_atualizacao?: Date;
+}
+
+export interface AuthResponse {
+  token: string;
+  user: AuthenticatedSessionUser;
 }

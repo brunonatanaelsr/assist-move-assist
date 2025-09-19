@@ -1,65 +1,32 @@
 import { Request, Response, NextFunction } from 'express';
+import type { ParamsDictionary } from 'express-serve-static-core';
+import type { ParsedQs } from 'qs';
+import jwt from 'jsonwebtoken';
 import { loggerService } from '../services/logger';
 import { pool } from '../config/database';
 import redisClient from '../lib/redis';
 import { authService } from '../services';
-import jwt from 'jsonwebtoken';
+import { env } from '../config/env';
+import type { AuthenticatedUser, JWTPayload } from '../types/auth';
+import { PERMISSIONS } from '../types/permissions';
 
-export enum PERMISSIONS {
-  READ_BENEFICIARIA = 'beneficiarias.ler',
-  CREATE_BENEFICIARIA = 'beneficiarias.criar',
-  UPDATE_BENEFICIARIA = 'beneficiarias.editar',
-  DELETE_BENEFICIARIA = 'beneficiarias.excluir'
-}
+export { PERMISSIONS };
 
-export interface JWTPayload {
-  id: number;
-  email?: string;
-  role: string;
-  permissions?: PERMISSIONS[];
-  iat?: number;
-  exp?: number;
-}
+export type AuthenticatedRequest<
+  Params extends ParamsDictionary = ParamsDictionary,
+  ResBody = unknown,
+  ReqBody = unknown,
+  ReqQuery extends ParsedQs = ParsedQs
+> = Request<Params, ResBody, ReqBody, ReqQuery> & { user: AuthenticatedUser };
 
-export interface AuthenticatedRequest extends Request {
-  user?: {
-    id: number;
-    email?: string;
-    role: string;
-    permissions?: PERMISSIONS[];
-    iat?: number;
-    exp?: number;
-    nome?: string;
-    avatar_url?: string;
-  };
-  headers: Request['headers'];
-}
-
-const resolveJwtSecret = () => {
-  if (process.env.JWT_SECRET) {
-    return process.env.JWT_SECRET;
-  }
-
-  if (process.env.NODE_ENV === 'test') {
-    return 'test-secret';
-  }
-
-  if (process.env.NODE_ENV !== 'production') {
-    loggerService.warn('JWT_SECRET não definido; usando fallback inseguro apenas para desenvolvimento.');
-    return 'dev-only-secret';
-  }
-
-  throw new Error('JWT_SECRET must be defined');
-};
-
-const JWT_SECRET = resolveJwtSecret();
-const JWT_EXPIRY = process.env.JWT_EXPIRY || '24h';
+const JWT_SECRET = env.JWT_SECRET;
+const JWT_EXPIRY = env.JWT_EXPIRY;
 
 const isMockFunction = (fn: unknown): fn is { mock: unknown } =>
-  typeof fn === 'function' && typeof (fn as any).mock !== 'undefined';
+  typeof fn === 'function' && typeof (fn as { mock?: unknown }).mock !== 'undefined';
 
 const shouldUseFallback = (fn: unknown) =>
-  process.env.NODE_ENV === 'test' || typeof fn !== 'function' || isMockFunction(fn);
+  env.NODE_ENV === 'test' || typeof fn !== 'function' || isMockFunction(fn);
 
 const buildTokenPayload = (payload: JWTPayload) => {
   const tokenPayload: Partial<JWTPayload> = {
@@ -74,7 +41,7 @@ const buildTokenPayload = (payload: JWTPayload) => {
 };
 
 const fallbackGenerateToken = (payload: JWTPayload): string =>
-  jwt.sign(buildTokenPayload(payload), JWT_SECRET, { expiresIn: JWT_EXPIRY as any });
+  jwt.sign(buildTokenPayload(payload), JWT_SECRET, { expiresIn: JWT_EXPIRY });
 
 const fallbackValidateToken = async (token: string): Promise<JWTPayload> =>
   jwt.verify(token, JWT_SECRET) as JWTPayload;
@@ -86,10 +53,10 @@ export const AuthService = {
   updateProfile: (...args: Parameters<typeof authService.updateProfile>) => authService.updateProfile(...args),
   changePassword: (...args: Parameters<typeof authService.changePassword>) => authService.changePassword(...args),
   generateToken(payload: JWTPayload): string {
-    if (!shouldUseFallback((authService as any)?.generateToken)) {
+    if (!shouldUseFallback(authService.generateToken)) {
       return authService.generateToken({
         id: payload.id,
-        email: payload.email || '',
+        email: payload.email ?? '',
         role: payload.role
       });
     }
@@ -97,12 +64,13 @@ export const AuthService = {
     return fallbackGenerateToken(payload);
   },
   async validateToken(token: string): Promise<JWTPayload> {
-    if (!shouldUseFallback((authService as any)?.validateToken)) {
+    if (!shouldUseFallback(authService.validateToken)) {
       const result = await authService.validateToken(token);
       return {
         id: result.id,
         email: result.email,
-        role: result.role
+        role: result.role,
+        permissions: result.permissions
       };
     }
 
@@ -116,6 +84,10 @@ export const AuthService = {
 // Removidos métodos de autenticação duplicados; consolidado em services/auth.service.ts
 
 // Middleware de autenticação
+/**
+ * Middleware responsável por validar o token JWT presente no cookie ou header Authorization.
+ * Quando válido popula `req.user` com os dados essenciais do usuário autenticado.
+ */
 export const authenticateToken = async (req: Request, res: Response, next: NextFunction) => {
   const authHeader = req.headers['authorization'];
 
@@ -143,7 +115,12 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
 
   try {
     const decoded = await AuthService.validateToken(token);
-    (req as any).user = decoded as any;
+    req.user = {
+      id: decoded.id,
+      email: decoded.email,
+      role: decoded.role,
+      permissions: decoded.permissions
+    };
     return next();
   } catch (error) {
     const preview = token ? token.substring(0, 20) + '...' : 'undefined';
@@ -162,7 +139,7 @@ export const requirePermissions = (requiredPermissions: PERMISSIONS[]) => {
       });
     }
 
-    const userPermissions = (req.user as any)?.permissions || [];
+    const userPermissions = req.user.permissions ?? [];
     const hasPermission = requiredPermissions.every(permission =>
       userPermissions.includes(permission)
     );
@@ -188,11 +165,11 @@ export const requireRole = (roles: string | string[]) => {
     }
 
     const allowedRoles = Array.isArray(roles) ? roles : [roles];
-    
-    if (!allowedRoles.includes((req.user as any).role)) {
-      loggerService.audit('ACCESS_DENIED', (req.user as any).id, { 
-        required_roles: allowedRoles, 
-        user_role: (req.user as any).role 
+
+    if (!allowedRoles.includes(req.user.role)) {
+      loggerService.audit('ACCESS_DENIED', req.user.id, {
+        required_roles: allowedRoles,
+        user_role: req.user.role
       });
       return res.status(403).json({ error: 'Acesso negado' });
     }
@@ -218,14 +195,14 @@ export const authorize = (required: string | string[]) => {
       if (!req.user) {
         return res.status(401).json({ error: 'Usuário não autenticado' });
       }
-      const role = String((req.user as any).role || '').toLowerCase();
+      const role = (req.user.role || '').toLowerCase();
       if (!role) return res.status(403).json({ error: 'Sem papel associado' });
       // Superadmin tem acesso total
       if (role === 'superadmin' || role === 'super_admin') return next();
 
       // Cache keys
       const roleKey = `perms:role:${role}`;
-      const userKey = `perms:user:${(req.user as any).id}`;
+      const userKey = `perms:user:${req.user.id}`;
       let rolePerms: string[] | null = null;
       let userPerms: string[] | null = null;
       try {
@@ -233,24 +210,50 @@ export const authorize = (required: string | string[]) => {
           redisClient.get(roleKey),
           redisClient.get(userKey)
         ]);
-        rolePerms = rjson ? JSON.parse(rjson) : null;
-        userPerms = ujson ? JSON.parse(ujson) : null;
-      } catch {}
+        rolePerms = rjson ? (JSON.parse(rjson) as string[]) : null;
+        userPerms = ujson ? (JSON.parse(ujson) as string[]) : null;
+      } catch (error) {
+        loggerService.warn('Falha ao recuperar permissões em cache', {
+          role,
+          userId: req.user.id,
+          error: (error as Error).message
+        });
+      }
 
       if (!rolePerms) {
-        const rp = await pool.query('SELECT permission FROM role_permissions WHERE role = $1', [role]);
-        rolePerms = (rp.rows || []).map((r:any)=>r.permission);
-        try { await redisClient.setex(roleKey, 300, JSON.stringify(rolePerms)); } catch {}
+        const rp = await pool.query<{ permission: string }>(
+          'SELECT permission FROM role_permissions WHERE role = $1',
+          [role]
+        );
+        rolePerms = rp.rows.map((row) => row.permission);
+        try {
+          await redisClient.setex(roleKey, 300, JSON.stringify(rolePerms));
+        } catch (error) {
+          loggerService.warn('Não foi possível armazenar permissões de role no cache', {
+            role,
+            error: (error as Error).message
+          });
+        }
       }
       if (!userPerms) {
-        const up = await pool.query('SELECT permission FROM user_permissions WHERE user_id = $1', [(req.user as any).id]);
-        userPerms = (up.rows || []).map((r:any)=>r.permission);
-        try { await redisClient.setex(userKey, 300, JSON.stringify(userPerms)); } catch {}
+        const up = await pool.query<{ permission: string }>(
+          'SELECT permission FROM user_permissions WHERE user_id = $1',
+          [req.user.id]
+        );
+        userPerms = up.rows.map((row) => row.permission);
+        try {
+          await redisClient.setex(userKey, 300, JSON.stringify(userPerms));
+        } catch (error) {
+          loggerService.warn('Não foi possível armazenar permissões de usuário no cache', {
+            userId: req.user.id,
+            error: (error as Error).message
+          });
+        }
       }
-      const perms: string[] = [...new Set([...(rolePerms||[]), ...(userPerms||[])])];
+      const perms: string[] = [...new Set([...(rolePerms || []), ...(userPerms || [])])];
       const ok = requiredPerms.every((p) => perms.includes(p));
       if (!ok) {
-        loggerService.audit('ACCESS_DENIED', (req.user as any).id, { role, required: requiredPerms, have: perms });
+        loggerService.audit('ACCESS_DENIED', req.user.id, { role, required: requiredPerms, have: perms });
         return res.status(403).json({ error: 'Permissão negada', required: requiredPerms });
       }
       return next();

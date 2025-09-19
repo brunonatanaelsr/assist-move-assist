@@ -10,12 +10,12 @@ Retorna uma lista paginada de projetos.
 
 ### Parâmetros de Query
 
-| Parâmetro | Tipo | Descrição |
-|-----------|------|-----------|
-| page | number | Número da página (default: 1) |
-| limit | number | Registros por página (default: 50) |
-| status | string | Filtrar por status (planejamento, em_andamento, concluido, cancelado) |
-| search | string | Busca por nome, descrição ou localização |
+| Parâmetro | Tipo   | Descrição                                                             |
+| --------- | ------ | --------------------------------------------------------------------- |
+| page      | number | Número da página (default: 1)                                         |
+| limit     | number | Registros por página (default: 50)                                    |
+| status    | string | Filtrar por status (planejamento, em_andamento, concluido, cancelado) |
+| search    | string | Busca por nome, descrição ou localização                              |
 
 ### Exemplo de Resposta
 

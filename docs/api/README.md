@@ -1,14 +1,17 @@
 # API Documentation - Move Marias
 
 ## Base URL
+
 `https://api.movemarias.org/v1`
 
 ## Autenticação
+
 Todas as rotas (exceto /auth/login) requerem autenticação via Bearer Token JWT.
 
 ## Endpoints
 
 ### Autenticação
+
 - `POST /auth/login` - Login de usuário
 - `POST /auth/logout` - Logout
 - `GET /auth/me` - Obter usuário atual
@@ -17,6 +20,7 @@ Todas as rotas (exceto /auth/login) requerem autenticação via Bearer Token JWT
 - `POST /auth/reset-password` - Resetar senha
 
 ### Usuários
+
 - `GET /users` - Listar usuários
 - `POST /users` - Criar usuário
 - `GET /users/:id` - Obter usuário
@@ -26,6 +30,7 @@ Todas as rotas (exceto /auth/login) requerem autenticação via Bearer Token JWT
 - `PUT /users/:id/permissions` - Atualizar permissões
 
 ### Beneficiárias
+
 - `GET /beneficiarias` - Listar beneficiárias
 - `POST /beneficiarias` - Cadastrar beneficiária
 - `GET /beneficiarias/:id` - Obter beneficiária
@@ -36,6 +41,7 @@ Todas as rotas (exceto /auth/login) requerem autenticação via Bearer Token JWT
 - `GET /beneficiarias/:id/documentos` - Listar documentos
 
 ### Projetos
+
 - `GET /projetos` - Listar projetos
 - `POST /projetos` - Criar projeto
 - `GET /projetos/:id` - Obter projeto
@@ -47,6 +53,7 @@ Todas as rotas (exceto /auth/login) requerem autenticação via Bearer Token JWT
 - `GET /projetos/stats` - Obter estatísticas dos projetos
 
 ### Oficinas
+
 - `GET /oficinas` - Listar oficinas
 - `POST /oficinas` - Criar oficina
 - `GET /oficinas/:id` - Obter oficina
@@ -60,6 +67,7 @@ Todas as rotas (exceto /auth/login) requerem autenticação via Bearer Token JWT
 ### Formulários
 
 #### Anamnese Social
+
 - `GET /formularios/anamnese` - Listar anamneses
 - `POST /formularios/anamnese` - Criar anamnese
 - `GET /formularios/anamnese/:id` - Obter anamnese
@@ -67,6 +75,7 @@ Todas as rotas (exceto /auth/login) requerem autenticação via Bearer Token JWT
 - `DELETE /formularios/anamnese/:id` - Desativar anamnese
 
 #### Roda da Vida
+
 - `GET /formularios/roda-vida` - Listar avaliações
 - `POST /formularios/roda-vida` - Criar avaliação
 - `GET /formularios/roda-vida/:id` - Obter avaliação
@@ -74,6 +83,7 @@ Todas as rotas (exceto /auth/login) requerem autenticação via Bearer Token JWT
 - `DELETE /formularios/roda-vida/:id` - Desativar avaliação
 
 #### Plano de Desenvolvimento
+
 - `GET /formularios/plano` - Listar planos
 - `POST /formularios/plano` - Criar plano
 - `GET /formularios/plano/:id` - Obter plano
@@ -81,6 +91,7 @@ Todas as rotas (exceto /auth/login) requerem autenticação via Bearer Token JWT
 - `DELETE /formularios/plano/:id` - Desativar plano
 
 ### Documentos
+
 - `GET /documentos` - Listar documentos
 - `POST /documentos` - Upload de documento
 - `GET /documentos/:id` - Obter documento
@@ -89,12 +100,14 @@ Todas as rotas (exceto /auth/login) requerem autenticação via Bearer Token JWT
 - `GET /documentos/:id/download` - Download do documento
 
 ### Auditoria
+
 - `GET /auditoria` - Listar eventos
 - `GET /auditoria/:id` - Obter evento
 - `GET /auditoria/stats` - Obter estatísticas
 - `GET /auditoria/export` - Exportar eventos
 
 ### Analytics
+
 - `GET /analytics/dashboard` - Dados do dashboard
 - `GET /analytics/beneficiarias` - Estatísticas de beneficiárias
 - `GET /analytics/projetos` - Estatísticas de projetos
@@ -104,6 +117,7 @@ Todas as rotas (exceto /auth/login) requerem autenticação via Bearer Token JWT
 ## Responses
 
 ### Sucesso
+
 ```json
 {
   "success": true,
@@ -113,6 +127,7 @@ Todas as rotas (exceto /auth/login) requerem autenticação via Bearer Token JWT
 ```
 
 ### Erro
+
 ```json
 {
   "success": false,
@@ -124,6 +139,7 @@ Todas as rotas (exceto /auth/login) requerem autenticação via Bearer Token JWT
 ```
 
 ### Paginação
+
 ```json
 {
   "success": true,

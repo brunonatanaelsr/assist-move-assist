@@ -14,8 +14,7 @@ import {
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
-import dayjs, { Dayjs } from 'dayjs';
-import 'dayjs/locale/pt-br';
+import dayjs, { Dayjs } from '@/lib/dayjs';
 import { CalendarFilter } from '../types/calendar';
 
 interface CalendarFiltersProps {

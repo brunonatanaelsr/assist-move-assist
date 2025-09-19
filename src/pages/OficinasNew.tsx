@@ -9,8 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Plus, Users, Calendar, Clock, MapPin, Edit, Trash2, AlertCircle, CheckCircle, GraduationCap, User, Target } from "lucide-react";
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { formatDate } from '@/lib/dayjs';
 import { apiService } from '@/services/apiService';
 import { oficinasService } from '@/services/oficinas.service';
 import { Download } from 'lucide-react';
@@ -592,9 +591,9 @@ export default function OficinasNew() {
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <Calendar className="h-4 w-4" />
                     <span>
-                      {format(new Date(oficina.data_inicio), 'dd/MM/yyyy', { locale: ptBR })}
+                      {formatDate(oficina.data_inicio, 'DD/MM/YYYY')}
                       {oficina.data_fim && (
-                        <> até {format(new Date(oficina.data_fim), 'dd/MM/yyyy', { locale: ptBR })}</>
+                        <> até {formatDate(oficina.data_fim, 'DD/MM/YYYY')}</>
                       )}
                     </span>
                   </div>

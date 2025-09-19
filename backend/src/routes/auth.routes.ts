@@ -1,331 +1,281 @@
-import express from 'express';
-import type { Response } from 'express';
+import type { CookieOptions, RequestHandler, Response } from 'express';
+import { Router } from 'express';
 import { authenticateToken } from '../middleware/auth';
+import { validateRequest } from '../middleware/validationMiddleware';
 import { loggerService } from '../services/logger';
 import { authService } from '../services';
+import { env } from '../config/env';
+import {
+  changePasswordSchema,
+  loginSchema,
+  registerSchema,
+  updateProfileSchema
+} from '../validation/schemas/auth.schema';
+import type {
+  AuthResponse,
+  ChangePasswordRequest,
+  LoginRequest,
+  RegisterRequest,
+  UpdateProfileRequest
+} from '../types/auth';
 
-interface RequestWithBody<T = any> {
-  body: T;
-  ip?: string;
-  connection?: {
-    remoteAddress?: string;
+const router = Router();
+
+type EmptyParams = Record<string, never>;
+type EmptyQuery = Record<string, never>;
+
+interface LoginSuccessResponse extends AuthResponse {
+  message: string;
+}
+
+interface RegisterSuccessResponse extends AuthResponse {
+  message: string;
+}
+
+interface RefreshResponse {
+  message: string;
+  token: string;
+  user: {
+    id: number;
+    email?: string;
+    role: string;
   };
 }
 
-type AuthRequestWithBody<T> = express.Request & { body: T; user?: any };
+const allowedSameSite = ['lax', 'strict', 'none'] as const;
+type SameSiteOption = (typeof allowedSameSite)[number];
 
-interface LoginRequestBody {
-  email: string;
-  password: string;
-}
+const resolvedSameSite = normalizeSameSite(env.AUTH_COOKIE_SAMESITE) ??
+  (env.NODE_ENV === 'production' ? 'strict' : 'lax');
 
-interface RegisterRequestBody {
-  email: string;
-  password: string;
-  nome_completo: string;
-  role: string;
-}
+const COOKIE_OPTIONS: CookieOptions = {
+  httpOnly: true,
+  secure: env.NODE_ENV === 'production' || resolvedSameSite === 'none',
+  sameSite: resolvedSameSite,
+  maxAge: 24 * 60 * 60 * 1000
+};
 
-interface UpdateProfileBody {
-  nome_completo?: string;
-  avatar_url?: string;
-}
-
-interface ChangePasswordBody {
-  currentPassword: string;
-  newPassword: string;
-}
-
-const router = express.Router();
-
-// Rota base /api/auth
-router.use((req, res, next) => {
+router.use((req, _res, next) => {
   loggerService.info(`[AUTH] ${req.method} ${req.originalUrl}`);
   next();
 });
 
-const isProduction = process.env.NODE_ENV === 'production';
-const configuredSameSiteRaw = process.env.AUTH_COOKIE_SAMESITE;
-const configuredSameSite = configuredSameSiteRaw?.toLowerCase();
-const allowedSameSite = ['lax', 'strict', 'none'] as const;
-const defaultSameSite = (isProduction ? 'strict' : 'lax') as (typeof allowedSameSite)[number];
-const sameSite = (allowedSameSite.includes(configuredSameSite as any)
-  ? (configuredSameSite as (typeof allowedSameSite)[number])
-  : defaultSameSite);
-const COOKIE_OPTIONS = {
-  httpOnly: true,
-  secure: isProduction || sameSite === 'none',
-  sameSite,
-  maxAge: 24 * 60 * 60 * 1000, // 1 dia
-} as const;
-
-// POST /auth/login
-router.post('/login', async (req: RequestWithBody<LoginRequestBody>, res: Response): Promise<void> => {
+/**
+ * Realiza a autenticação de um usuário e retorna o token de sessão juntamente com os dados básicos do perfil.
+ */
+const loginHandler: RequestHandler<
+  EmptyParams,
+  LoginSuccessResponse | { error: string },
+  LoginRequest,
+  EmptyQuery
+> = async (
+  req,
+  res
+) => {
   try {
-    const { email, password } = req.body;
-
-    if (!email || !password) {
-      res.status(400).json({
-        error: 'Email e senha são obrigatórios'
-      });
-      return;
-    }
-
-    const ipAddress = req.ip || req.connection?.remoteAddress || 'unknown';
-    const result = await authService.login(email, password, ipAddress);
-    loggerService.info('[AUTH] login result ' + String(!!result));
+    const ipAddress = req.ip || req.socket.remoteAddress || 'unknown';
+    const result = await authService.login(req.body.email, req.body.password, ipAddress);
 
     if (!result) {
-      res.status(401).json({
-        error: 'Credenciais inválidas'
-      });
+      res.status(401).json({ error: 'Credenciais inválidas' });
       return;
     }
 
-    // Em dev/CI, o token no corpo é suficiente para os smokes/E2E
-    // Evite depender de cookies para reduzir falhas ambientais
-
-    loggerService.info('[AUTH] sending response');
-    // Set cookie HttpOnly para sessões baseada em cookie
-    try {
-      res.cookie('auth_token', result.token, COOKIE_OPTIONS);
-    } catch {}
+    setAuthCookie(res, result.token);
     res.json({
       message: 'Login realizado com sucesso',
       token: result.token,
       user: result.user
     });
-    return;
-  } catch (error: any) {
-    loggerService.error('Erro no endpoint de login:', error);
-    const payload: any = { error: 'Erro interno do servidor' };
-    if (process.env.NODE_ENV !== 'production') {
-      payload.detail = String(error?.message || 'unknown');
-    }
-    res.status(500).json(payload);
-    return;
-  }
-});
-
-// POST /auth/logout
-router.post('/logout', async (_req, res: Response): Promise<void> => {
-  try {
-    res.clearCookie('auth_token', {
-      ...COOKIE_OPTIONS,
-      sameSite,
-    } as any);
-    res.json({ message: 'Logout realizado com sucesso' });
-    return;
   } catch (error) {
-    loggerService.error('Erro no endpoint de logout:', error);
-    res.status(500).json({ error: 'Erro interno do servidor' });
-    return;
+    handleUnexpectedError(res, error, 'Erro no endpoint de login');
   }
-});
+};
 
-// POST /auth/refresh - renova token baseado no cookie/header válidos
-router.post('/refresh', authenticateToken, async (req: any, res: Response): Promise<void> => {
+/**
+ * Registra um novo usuário e devolve um token de sessão válido para uso imediato.
+ */
+const registerHandler: RequestHandler<
+  EmptyParams,
+  RegisterSuccessResponse | { error: string },
+  RegisterRequest,
+  EmptyQuery
+> = async (
+  req,
+  res
+) => {
   try {
-    const payload = {
-      id: Number(req.user!.id),
-      email: String(req.user!.email),
-      role: String(req.user!.role),
-    };
-    const token = authService.generateToken(payload);
-    res.cookie('auth_token', token, COOKIE_OPTIONS);
-    res.json({ message: 'Token renovado', token, user: payload });
-    return;
-  } catch (error) {
-    loggerService.error('Erro ao renovar token:', error);
-    res.status(500).json({ error: 'Erro interno do servidor' });
-    return;
-  }
-});
-
-// POST /auth/register
-router.post('/register', async (req: RequestWithBody<RegisterRequestBody>, res: Response): Promise<void> => {
-  try {
-    const { email, password, nome_completo, role } = req.body;
-
-    if (!email || !password || !nome_completo) {
-      res.status(400).json({
-        error: 'Email, senha e nome completo são obrigatórios'
-      });
-      return;
-    }
-
-    // Validação de formato de email
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      res.status(400).json({
-        error: 'Formato de email inválido'
-      });
-      return;
-    }
-
-    // Validação de senha
-    if (password.length < 6) {
-      res.status(400).json({
-        error: 'Senha deve ter pelo menos 6 caracteres'
-      });
-      return;
-    }
-
-    const result = await authService.register({
-      email,
-      password,
-      nome_completo,
-      role
-    });
-
-    res.cookie('auth_token', result.token, COOKIE_OPTIONS);
-
+    const result = await authService.register(req.body);
+    setAuthCookie(res, result.token);
     res.status(201).json({
       message: 'Usuário registrado com sucesso',
+      token: result.token,
       user: result.user
     });
-    return;
-  } catch (error: any) {
-    loggerService.error('Erro no endpoint de registro:', error);
-    
-    if (error.message === 'Email já está em uso') {
-      res.status(409).json({
-        error: error.message
-      });
-      return;
-    }
-
-    res.status(500).json({
-      error: 'Erro interno do servidor'
-    });
-    return;
-  }
-});
-
-// GET /auth/profile
-router.get('/profile', authenticateToken, async (req: express.Request, res: express.Response): Promise<void> => {
-  try {
-    const profile = await authService.getProfile(Number(req.user!.id));
-
-    if (!profile) {
-      res.status(404).json({
-        error: 'Perfil não encontrado'
-      });
-      return;
-    }
-
-    res.json({
-      user: profile
-    });
-    return;
   } catch (error) {
-    loggerService.error('Erro ao buscar perfil:', error);
-    res.status(500).json({
-      error: 'Erro interno do servidor'
-    });
-    return;
+    if (error instanceof Error && error.message === 'Email já está em uso') {
+      res.status(409).json({ error: error.message });
+      return;
+    }
+
+    handleUnexpectedError(res, error, 'Erro no endpoint de registro');
   }
-});
+};
 
-// PUT /auth/profile
-router.put('/profile', authenticateToken, async (req: AuthRequestWithBody<UpdateProfileBody>, res: Response): Promise<void> => {
+/**
+ * Atualiza informações básicas de perfil do usuário autenticado.
+ */
+const updateProfileHandler: RequestHandler<
+  EmptyParams,
+  { message: string; user: unknown } | { error: string },
+  UpdateProfileRequest
+> = async (req, res) => {
   try {
-    const { nome_completo, avatar_url } = req.body;
+    if (!req.user) {
+      res.status(401).json({ error: 'Usuário não autenticado' });
+      return;
+    }
 
-    const updatedUser = await authService.updateProfile(Number(req.user!.id), {
-      nome_completo,
-      avatar_url
-    });
-
+    const updatedUser = await authService.updateProfile(req.user.id, req.body);
     res.json({
       message: 'Perfil atualizado com sucesso',
       user: updatedUser
     });
-    return;
-  } catch (error: any) {
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Erro ao atualizar perfil';
     loggerService.error('Erro ao atualizar perfil:', error);
-    res.status(400).json({
-      error: error.message || 'Erro ao atualizar perfil'
-    });
-    return;
+    res.status(400).json({ error: message });
   }
-});
+};
 
-// POST /auth/change-password
-router.post('/change-password', authenticateToken, async (req: AuthRequestWithBody<ChangePasswordBody>, res: Response): Promise<void> => {
+/**
+ * Altera a senha do usuário após validar a senha atual.
+ */
+const changePasswordHandler: RequestHandler<
+  EmptyParams,
+  { message: string } | { error: string },
+  ChangePasswordRequest
+> = async (req, res) => {
   try {
-    const { currentPassword, newPassword } = req.body;
-
-    if (!currentPassword || !newPassword) {
-      res.status(400).json({
-        error: 'Senha atual e nova senha são obrigatórias'
-      });
+    if (!req.user) {
+      res.status(401).json({ error: 'Usuário não autenticado' });
       return;
     }
 
-    if (newPassword.length < 6) {
-      res.status(400).json({
-        error: 'Nova senha deve ter pelo menos 6 caracteres'
-      });
-      return;
-    }
-
-    await authService.changePassword(Number(req.user!.id), currentPassword, newPassword);
-
-    res.json({
-      message: 'Senha alterada com sucesso'
-    });
-    return;
-  } catch (error: any) {
-    loggerService.error('Erro ao alterar senha:', error);
-    
-    if (error.message === 'Senha atual incorreta' || error.message === 'Usuário não encontrado') {
-      res.status(400).json({
-        error: error.message
-      });
-      return;
-    }
-
-    res.status(500).json({
-      error: 'Erro interno do servidor'
-    });
-    return;
-  }
-});
-
-// POST /auth/refresh-token
-router.post('/refresh-token', authenticateToken, async (req: express.Request, res: express.Response): Promise<void> => {
-  try {
-    // Gerar novo token com as informações atuais do usuário
-    const newToken = authService.generateToken({ id: Number((req as any).user!.id), email: String((req as any).user!.email || ''), role: String((req as any).user!.role) });
-
-    res.cookie('auth_token', newToken, COOKIE_OPTIONS);
-
-    res.json({
-      message: 'Token renovado com sucesso'
-    });
-    return;
+    await authService.changePassword(req.user.id, req.body.currentPassword, req.body.newPassword);
+    res.json({ message: 'Senha alterada com sucesso' });
   } catch (error) {
-    loggerService.error('Erro ao renovar token:', error);
-    res.status(500).json({
-      error: 'Erro interno do servidor'
-    });
-    return;
-  }
-});
+    if (error instanceof Error && (error.message === 'Senha atual incorreta' || error.message === 'Usuário não encontrado')) {
+      res.status(400).json({ error: error.message });
+      return;
+    }
 
-// POST /auth/logout
-export default router;
-// GET /auth/me - alias para profile
-router.get('/me', authenticateToken, async (req: express.Request, res: express.Response): Promise<void> => {
+    handleUnexpectedError(res, error, 'Erro ao alterar senha');
+  }
+};
+
+/**
+ * Retorna os dados de perfil do usuário autenticado.
+ */
+const profileHandler: RequestHandler<EmptyParams, { user: unknown } | { error: string }> = async (
+  req,
+  res
+) => {
   try {
-    const profile = await authService.getProfile(Number((req as any).user!.id));
-    if (!profile) { res.status(404).json({ error: 'Perfil não encontrado' }); return; }
+    if (!req.user) {
+      res.status(401).json({ error: 'Usuário não autenticado' });
+      return;
+    }
+
+    const profile = await authService.getProfile(req.user.id);
+
+    if (!profile) {
+      res.status(404).json({ error: 'Perfil não encontrado' });
+      return;
+    }
+
     res.json({ user: profile });
-    return;
   } catch (error) {
-    loggerService.error('Erro ao buscar /auth/me:', error);
-    res.status(500).json({ error: 'Erro interno do servidor' });
-    return;
+    handleUnexpectedError(res, error, 'Erro ao buscar perfil');
   }
+};
+
+/**
+ * Regenera o token JWT baseado na sessão atual.
+ */
+const refreshHandler: RequestHandler<EmptyParams, RefreshResponse | { error: string }> = async (
+  req,
+  res
+) => {
+  try {
+    if (!req.user) {
+      res.status(401).json({ error: 'Usuário não autenticado' });
+      return;
+    }
+
+    const { id, email, role, permissions } = req.user;
+
+    if (!email) {
+      loggerService.warn('Usuário autenticado sem e-mail ao renovar token', { userId: id });
+      res.status(400).json({ error: 'Sessão inválida' });
+      return;
+    }
+
+    const token = authService.generateToken({ id, email, role, permissions });
+    setAuthCookie(res, token);
+    res.json({
+      message: 'Token renovado',
+      token,
+      user: { id, email, role }
+    });
+  } catch (error) {
+    handleUnexpectedError(res, error, 'Erro ao renovar token');
+  }
+};
+
+router.post('/login', validateRequest(loginSchema), loginHandler);
+router.post('/register', validateRequest(registerSchema), registerHandler);
+router.post('/logout', (_req, res) => {
+  clearAuthCookie(res);
+  res.json({ message: 'Logout realizado com sucesso' });
 });
+router.post('/refresh', authenticateToken, refreshHandler);
+router.post('/refresh-token', authenticateToken, refreshHandler);
+router.get('/profile', authenticateToken, profileHandler);
+router.get('/me', authenticateToken, profileHandler);
+router.put('/profile', authenticateToken, validateRequest(updateProfileSchema), updateProfileHandler);
+router.post('/change-password', authenticateToken, validateRequest(changePasswordSchema), changePasswordHandler);
+
+function setAuthCookie(res: Response, token: string): void {
+  try {
+    res.cookie('auth_token', token, COOKIE_OPTIONS);
+  } catch (error) {
+    loggerService.warn('Não foi possível definir cookie de autenticação', {
+      error: error instanceof Error ? error.message : String(error)
+    });
+  }
+}
+
+function clearAuthCookie(res: Response): void {
+  res.clearCookie('auth_token', COOKIE_OPTIONS);
+}
+
+function handleUnexpectedError(res: Response, error: unknown, logMessage: string): void {
+  loggerService.error(logMessage, error);
+  const payload: Record<string, unknown> = { error: 'Erro interno do servidor' };
+  if (env.NODE_ENV !== 'production' && error instanceof Error) {
+    payload.detail = error.message;
+  }
+  res.status(500).json(payload);
+}
+
+function normalizeSameSite(value?: string | null): SameSiteOption | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  const normalized = value.toLowerCase() as SameSiteOption;
+  return allowedSameSite.includes(normalized) ? normalized : undefined;
+}
+
+export default router;

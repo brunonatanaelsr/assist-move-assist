@@ -3,6 +3,7 @@
 ## ⚠️ Credenciais e Variáveis de Ambiente
 
 ### **NUNCA** commite:
+
 - Senhas em texto claro
 - Chaves de API
 - Tokens de acesso
@@ -12,6 +13,7 @@
 ### **Como configurar variáveis de ambiente seguras:**
 
 #### **1. Local Development**
+
 ```bash
 # Crie um arquivo .env.local (já no .gitignore)
 cp .github/deploy.env .env.local
@@ -21,6 +23,7 @@ nano .env.local
 ```
 
 #### **2. CI/CD (GitHub Actions)**
+
 ```bash
 # Configure secrets no GitHub:
 # Settings > Secrets and variables > Actions
@@ -31,6 +34,7 @@ SUPERADMIN_PASSWORD=admin-senha-complexa
 ```
 
 #### **3. Produção (Docker/Docker Compose)**
+
 ```bash
 # Use Docker secrets ou variáveis de ambiente
 docker run -e VPS_PASSWORD="$VPS_PASSWORD" app
@@ -43,17 +47,20 @@ environment:
 ## 🛡️ Boas Práticas de Segurança
 
 ### **Senhas Fortes**
+
 - Mínimo 12 caracteres
 - Letras maiúsculas e minúsculas
 - Números e símbolos
 - Evitar palavras do dicionário
 
 ### **Rotação de Credenciais**
+
 - Trocar senhas a cada 90 dias
 - Revogar tokens não utilizados
 - Monitorar acessos suspeitos
 
 ### **Validação de Entrada**
+
 - Sempre validar dados do usuário
 - Usar prepared statements (SQL injection)
 - Sanitizar outputs (XSS)
@@ -68,5 +75,6 @@ environment:
 ## 📞 Contato
 
 Para reportar vulnerabilidades:
+
 - Email: security@squadsolucoes.com.br
 - Criar issue privada no GitHub

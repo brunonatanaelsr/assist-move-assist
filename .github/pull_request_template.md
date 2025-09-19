@@ -38,4 +38,3 @@ Anexe imagens, GIFs ou logs relevantes.
 
 - Variáveis novas: `...`
 - Passos de migração: `...`
-

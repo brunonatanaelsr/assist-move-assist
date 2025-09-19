@@ -79,7 +79,7 @@ export const loggerService = {
   },
   
   // Log para auditoria
-  audit: (action: string, userId?: string, details?: any) => {
+  audit: (action: string, userId?: string | number, details?: Record<string, unknown>) => {
     logger.info('AUDIT', {
       action,
       userId,

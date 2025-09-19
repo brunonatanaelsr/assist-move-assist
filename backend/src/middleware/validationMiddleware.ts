@@ -1,52 +1,50 @@
-import { Request, Response, NextFunction } from 'express';
-import { z, ZodError } from 'zod';
+import type { Request, Response, NextFunction, RequestHandler } from 'express';
+import { z, type ZodIssue } from 'zod';
 import { logger } from '../services/logger';
 
-interface ExtendedRequest extends Request {
-    body: Record<string, any>;
-    query: Record<string, any>;
-    params: Record<string, any>;
-    path: string;
-}
+type RequestShape = {
+  body?: unknown;
+  query?: unknown;
+  params?: unknown;
+};
 
-interface TypedResponse extends Response {
-    status(code: number): this;
-    json(data: any): this;
-}
+/**
+ * Middleware genérico responsável por validar body, params e query string de uma rota utilizando Zod.
+ * Em caso de falha a requisição é interrompida retornando 400 com o detalhamento dos erros encontrados.
+ * @param schema Esquema Zod que descreve o formato esperado da requisição.
+ */
+export const validateRequest = (schema: z.ZodType<RequestShape>): RequestHandler => {
+  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    const validationResult = await schema.safeParseAsync({
+      body: req.body,
+      query: req.query,
+      params: req.params
+    });
 
-export const validateRequest = (schema: z.ZodTypeAny) => {
-    return async (req: ExtendedRequest, res: TypedResponse, next: NextFunction): Promise<void> => {
-        try {
-            await schema.parseAsync({
-                body: req.body,
-                query: req.query,
-                params: req.params,
-            });
-            next();
-        } catch (err) {
-            if (err instanceof ZodError) {
-                logger.warn('Validation error:', {
-                    path: req.path,
-                    errors: err.issues
-                });
-                
-                res.status(400).json({
-                    success: false,
-                    message: 'Erro de validação',
-                    errors: err.issues.map((issue) => ({
-                        path: issue.path.join('.'),
-                        message: issue.message
-                    }))
-                });
-                return;
-            }
-            
-            logger.error('Unexpected validation error:', err as any);
-            res.status(500).json({
-                success: false,
-                message: 'Erro interno do servidor'
-            });
-            return;
-        }
-    };
+    if (!validationResult.success) {
+      const { issues } = validationResult.error;
+      logValidationError(req, issues);
+      res.status(400).json({
+        success: false,
+        message: 'Erro de validação',
+        errors: issues.map((issue) => ({
+          path: issue.path.join('.'),
+          message: issue.message
+        }))
+      });
+      return;
+    }
+
+    next();
+  };
+};
+
+const logValidationError = (req: Request, issues: ZodIssue[]): void => {
+  logger.warn('Validation error:', {
+    path: req.path,
+    errors: issues.map((issue) => ({
+      path: issue.path.join('.'),
+      message: issue.message
+    }))
+  });
 };

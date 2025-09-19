@@ -3,6 +3,7 @@
 This document explains how RBAC works in this project, the default role presets, how to grant permissions via the UI, how authorize() behaves (and caches), and how to run smoke tests locally and in CI.
 
 ## Overview
+
 - RBAC consists of two tables in Postgres:
   - `role_permissions(role, permission)` — permissions assigned to a role (aka paper/papel)
   - `user_permissions(user_id, permission)` — extra permissions granted per user
@@ -11,6 +12,7 @@ This document explains how RBAC works in this project, the default role presets,
 - Superuser roles `superadmin` and `super_admin` bypass all checks.
 
 ## Default Presets (migrations)
+
 Presets are applied by SQL migrations and can be re-applied on fresh databases.
 
 - `admin`: all permissions in `permissions` table
@@ -20,6 +22,7 @@ Presets are applied by SQL migrations and can be re-applied on fresh databases.
 - `analista`: all of `relatorios.*`
 
 Migrations that define presets and permissions:
+
 - `018_roles_permissoes.sql` — base tables + base permissions
 - `020_permissions_beneficiarias.sql` — beneficiárias domain
 - `022_permissions_projetos_oficinas.sql` — projetos/oficinas domain
@@ -30,6 +33,7 @@ Migrations that define presets and permissions:
 - `024_role_presets.sql`, `025_role_presets_update.sql`, `029_role_presets_adjust.sql` — presets
 
 ## Permission Domains (reference)
+
 - Beneficiárias: `beneficiarias.ler`, `beneficiarias.criar`, `beneficiarias.editar`, `beneficiarias.excluir`
 - Projetos: `projetos.ler`, `projetos.criar`, `projetos.editar`, `projetos.excluir`, `projetos.relatorio.gerar`
 - Oficinas (CRUD): `oficinas.ler`, `oficinas.criar`, `oficinas.editar`, `oficinas.excluir`
@@ -42,6 +46,7 @@ Migrations that define presets and permissions:
 - Configurações: `users.manage`, `roles.manage`, `profile.edit`
 
 ## How authorize() works
+
 - Location: `backend/src/middleware/auth.ts`
 - Reads the authenticated user `req.user.role` and `req.user.id`.
 - If role is `superadmin` or `super_admin`, allows.
@@ -55,6 +60,7 @@ Migrations that define presets and permissions:
   - POST `/configuracoes/permissions` (new permission) → deletes all `perms:role:*`
 
 ## Manage roles/permissions via the UI
+
 - Page: `Configurações`
   - Tab `Usuários`:
     - List/search/paginate users; create user; toggle active; change paper; reset password.
@@ -66,10 +72,12 @@ Migrations that define presets and permissions:
     - Create new permission (`permissions` table) and list existing ones with pagination.
 
 Superadmin login (seeded automatically after migration):
+
 - Email: `bruno@move.com`
 - Password: `15002031`
 
 ## Initial setup / Migration
+
 - Ensure Postgres and Redis are up (docker compose or your infra)
 - Run migrations (auto-seed superadmin and presets):
   - `npm --prefix backend run migrate` (or `migrate:node` if psql is unavailable)
@@ -77,6 +85,7 @@ Superadmin login (seeded automatically after migration):
 - Start frontend: `npm run dev`
 
 ## Smoke tests (local)
+
 - Config smoke (RBAC on config routes):
   - `npm --prefix backend run smoke:config`
 - Reports smoke (authorizations on reports):
@@ -88,16 +97,17 @@ Superadmin login (seeded automatically after migration):
 Tip: Before smokes, make sure API is running on `http://localhost:3000/api`.
 
 ## CI — Permissions Smoke
+
 - Workflow: `.github/workflows/permissions-smoke.yml`
   - Spins Postgres+Redis, migrates (node fallback), builds & starts API
   - Runs `smoke:config` and `smoke:reports`
 - Triggers on push to `main` and can be triggered manually.
 
 ## Troubleshooting
+
 - “403 Permission denied” after changing role/permissions:
   - Wait a few seconds (Redis TTL is 300s) or re-save role/permissions (triggers invalidation), or clear Redis keys `perms:role:*` / `perms:user:*`.
 - Superadmin cannot log in:
   - Re-run migrations; ensure seed ran (`backend/scripts/create-initial-data.js`).
 - UI doesn’t list new permissions:
   - Use the search box or increase limit; the list is paginated.
-

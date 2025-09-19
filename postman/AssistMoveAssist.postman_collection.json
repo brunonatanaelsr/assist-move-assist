@@ -7,7 +7,7 @@
   "item": [
     {
       "name": "Health",
-      "request": {"method": "GET", "url": "{{baseUrl}}/health"}
+      "request": { "method": "GET", "url": "{{baseUrl}}/health" }
     },
     {
       "name": "Auth Login",
@@ -28,8 +28,11 @@
       ],
       "request": {
         "method": "POST",
-        "header": [{"key": "Content-Type", "value": "application/json"}],
-        "body": {"mode": "raw", "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}"},
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}"
+        },
         "url": "{{baseUrl}}/api/auth/login"
       }
     },
@@ -37,7 +40,7 @@
       "name": "Listar Beneficiárias",
       "request": {
         "method": "GET",
-        "header": [{"key": "Cookie", "value": "{{auth_cookie}}"}],
+        "header": [{ "key": "Cookie", "value": "{{auth_cookie}}" }],
         "url": "{{baseUrl}}/api/beneficiarias"
       }
     },
@@ -46,8 +49,8 @@
       "request": {
         "method": "POST",
         "header": [
-          {"key": "Content-Type", "value": "application/json"},
-          {"key": "Cookie", "value": "{{auth_cookie}}"}
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Cookie", "value": "{{auth_cookie}}" }
         ],
         "body": {
           "mode": "raw",
@@ -61,8 +64,8 @@
       "request": {
         "method": "POST",
         "header": [
-          {"key": "Content-Type", "value": "application/json"},
-          {"key": "Cookie", "value": "{{auth_cookie}}"}
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Cookie", "value": "{{auth_cookie}}" }
         ],
         "body": {
           "mode": "raw",
@@ -76,8 +79,8 @@
       "request": {
         "method": "POST",
         "header": [
-          {"key": "Content-Type", "value": "application/json"},
-          {"key": "Cookie", "value": "{{auth_cookie}}"}
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Cookie", "value": "{{auth_cookie}}" }
         ],
         "body": {
           "mode": "raw",
@@ -91,8 +94,8 @@
       "request": {
         "method": "POST",
         "header": [
-          {"key": "Content-Type", "value": "application/json"},
-          {"key": "Cookie", "value": "{{auth_cookie}}"}
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Cookie", "value": "{{auth_cookie}}" }
         ],
         "body": {
           "mode": "raw",
@@ -103,4 +106,3 @@
     }
   ]
 }
-

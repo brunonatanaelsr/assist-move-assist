@@ -9,6 +9,7 @@ Este relatório apresenta o estado atual das configurações de produção e sis
 ### 1. **Ambiente e Variáveis**
 
 #### ✅ Frontend (.env.local)
+
 ```env
 VITE_API_URL=https://upgraded-disco-9rjq7xvj7r7hpqr-3000.app.github.dev
 VITE_APP_TITLE=Sistema Assist Move Marias
@@ -16,6 +17,7 @@ VITE_FRONTEND_URL=https://upgraded-disco-9rjq7xvj7r7hpqr-5173.app.github.dev
 ```
 
 #### ✅ Backend (backend/.env)
+
 ```env
 PORT=3000
 NODE_ENV=development
@@ -28,6 +30,7 @@ CORS_ORIGIN=https://upgraded-disco-9rjq7xvj7r7hpqr-5173.app.github.dev
 ### 2. **Configurações de Segurança**
 
 #### ✅ Implementado
+
 - **CORS:** Configuração completa com origem específica
 - **Rate Limiting:** Limites gerais (100/15min) e API (1000/1h)
 - **Helmet:** Headers de segurança configurados
@@ -35,6 +38,7 @@ CORS_ORIGIN=https://upgraded-disco-9rjq7xvj7r7hpqr-5173.app.github.dev
 - **Validação:** Content-Type e origem das requisições
 
 #### ⚠️ Para Produção - Recomendações
+
 ```env
 # Variáveis críticas para produção
 JWT_SECRET=<strong_random_32_char_secret>
@@ -48,13 +52,16 @@ DATABASE_URL=postgresql://user:pass@host:5432/prod_db
 ### 3. **Analytics Interno - Dashboard**
 
 #### ✅ Implementado
+
 **Página Analytics** (`/src/pages/Analytics.tsx`):
+
 - Estatísticas em tempo real
 - Contadores: Beneficiárias, Oficinas, Anamneses, Declarações
 - Gráfico de evolução mensal
 - API endpoint: `/api/dashboard/stats`
 
 #### Métricas Disponíveis:
+
 ```typescript
 {
   totalBeneficiarias: number,
@@ -68,6 +75,7 @@ DATABASE_URL=postgresql://user:pass@host:5432/prod_db
 ### 4. **Sistema de Logging**
 
 #### ✅ Frontend Logger (`/src/lib/logger.ts`)
+
 ```typescript
 // Funcionalidades implementadas:
 - Níveis: ERROR, WARN, INFO, DEBUG
@@ -78,6 +86,7 @@ DATABASE_URL=postgresql://user:pass@host:5432/prod_db
 ```
 
 #### ✅ Backend Logger (`/backend/src/services/logger.ts`)
+
 ```typescript
 // Funcionalidades implementadas:
 - Winston com rotação diária
@@ -90,14 +99,18 @@ DATABASE_URL=postgresql://user:pass@host:5432/prod_db
 ### 5. **Monitoramento de Produção**
 
 #### ✅ Scripts de Monitoramento
+
 **Localização:** `/scripts/monitor/`
+
 - Health check automático
 - Verificação SSL
 - Monitoramento de erros Nginx
 - Alertas via Slack
 
 #### ✅ Smoke Tests
+
 **Localização:** `/backend/scripts/`
+
 - `smoke-tests.js` - Validação de endpoints
 - `smoke-config.js` - Teste de configurações
 - `smoke-reports.js` - Validação de relatórios
@@ -107,12 +120,14 @@ DATABASE_URL=postgresql://user:pass@host:5432/prod_db
 ### 6. **Analytics Externos (Disponível no .env.example)**
 
 #### 🚧 Google Analytics
+
 ```env
 # Adicionar ao .env de produção
 VITE_GA_MEASUREMENT_ID=GA_MEASUREMENT_ID
 ```
 
 #### 🚧 Sentry (Error Tracking)
+
 ```env
 # Adicionar ao .env de produção
 VITE_SENTRY_DSN=your_sentry_dsn_here
@@ -120,6 +135,7 @@ SENTRY_ENVIRONMENT=production
 ```
 
 #### 🚧 LogRocket (Session Recording)
+
 ```env
 # Adicionar ao .env de produção
 VITE_LOGROCKET_APP_ID=your_logrocket_app_id
@@ -130,6 +146,7 @@ VITE_LOGROCKET_APP_ID=your_logrocket_app_id
 ### 7. **Configurações Críticas**
 
 #### A. Variáveis de Ambiente
+
 ```bash
 # 1. Gerar JWT Secret forte
 openssl rand -base64 32
@@ -143,6 +160,7 @@ DATABASE_URL=postgresql://user:strong_pass@prod-db:5432/assist_move_prod
 ```
 
 #### B. Implementar Analytics Externos
+
 ```typescript
 // 1. Google Analytics (src/lib/analytics.ts)
 import { gtag } from 'ga-gtag';
@@ -154,7 +172,7 @@ export const trackPageView = (url: string) => {
 };
 
 // 2. Sentry (src/lib/sentry.ts)
-import * as Sentry from "@sentry/react";
+import * as Sentry from '@sentry/react';
 
 Sentry.init({
   dsn: process.env.VITE_SENTRY_DSN,
@@ -163,6 +181,7 @@ Sentry.init({
 ```
 
 #### C. SSL e HTTPS
+
 ```nginx
 # Configuração Nginx (config/nginx-ssl-production.conf já existe)
 server {
@@ -175,6 +194,7 @@ server {
 ### 8. **Métricas de Performance**
 
 #### Web Vitals (Recomendado)
+
 ```typescript
 // src/lib/webVitals.ts
 import { getCLS, getFID, getFCP, getLCP, getTTFB } from 'web-vitals';
@@ -192,18 +212,21 @@ export function sendToAnalytics(metric: any) {
 ### 9. **Plano de Implementação**
 
 #### Imediato (1-2 dias):
+
 1. ✅ Configurar variáveis de produção
 2. ✅ Implementar Google Analytics
 3. ✅ Configurar Sentry para error tracking
 4. ✅ Configurar monitoramento SSL
 
 #### Curto prazo (1 semana):
+
 1. ✅ Implementar LogRocket para sessões
 2. ✅ Configurar alertas de performance
 3. ✅ Implementar backup automático
 4. ✅ Configurar monitoring Uptime
 
 #### Médio prazo (2-4 semanas):
+
 1. ✅ Dashboard avançado de métricas
 2. ✅ Relatórios automatizados
 3. ✅ Alertas personalizados
@@ -212,6 +235,7 @@ export function sendToAnalytics(metric: any) {
 ## ⚡ STATUS ATUAL
 
 ### ✅ **FUNCIONAL E PRONTO:**
+
 - Sistema de logging completo
 - Analytics interno com dashboard
 - Configurações de segurança
@@ -219,14 +243,17 @@ export function sendToAnalytics(metric: any) {
 - Scripts de backup e deploy
 
 ### 🚧 **PENDENTE PARA PRODUÇÃO:**
+
 - Configuração de analytics externos
 - Domínio e SSL real
 - Variáveis de ambiente de produção
 - Integração com serviços de monitoramento
 
 ### 🎯 **CONCLUSÃO:**
+
 O sistema está **95% pronto para produção** com infraestrutura robusta de logging, monitoramento e analytics internos. Falta apenas configurar as integrações externas e ajustar variáveis para ambiente de produção real.
 
 ---
-*Gerado em: ${new Date().toISOString()}*
-*Versão: Produção Ready v1.0*
+
+_Gerado em: ${new Date().toISOString()}_
+_Versão: Produção Ready v1.0_

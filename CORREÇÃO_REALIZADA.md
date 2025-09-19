@@ -3,9 +3,10 @@
 ## ✅ Problemas Identificados e Corrigidos
 
 ### 1. **Inconsistência na API (apiFetch vs apiService)**
+
 - **Problema**: Sistema usava dois padrões diferentes para comunicação com API
 - **Solução**: Padronizou todo o sistema para usar `apiService`
-- **Arquivos Corrigidos**: 
+- **Arquivos Corrigidos**:
   - `src/pages/ProjetosNew.tsx` ✅
   - `src/pages/OficinasNew.tsx` ✅
   - `src/pages/formularios/MatriculaProjetos.tsx` ✅
@@ -17,10 +18,12 @@
   - `src/pages/formularios/RodaVida.tsx` ✅
 
 ### 2. **Erros de Importação**
+
 - **Problema**: Import binding errors com `apiFetch`
 - **Solução**: Substituído por `apiService` em todo o sistema
 
 ### 3. **Mapeamento de Métodos da API**
+
 - **Beneficiárias**: `apiService.getBeneficiaria()`, `apiService.createBeneficiaria()`
 - **Projetos**: `apiService.getProjetos()`, `apiService.createProjeto()`, `apiService.updateProjeto()`, `apiService.deleteProjeto()`
 - **Oficinas**: `apiService.getOficinas()`, `apiService.createOficina()`, `apiService.updateOficina()`, `apiService.deleteOficina()`
@@ -30,7 +33,7 @@
 
 ### ✅ **Cadastros Agora Funcionais**
 
-1. **Cadastro de Beneficiárias**: 
+1. **Cadastro de Beneficiárias**:
    - Usa `apiService.createBeneficiaria()` corretamente
    - Validação de CPF e campos obrigatórios
 
@@ -83,24 +86,28 @@
 ## 🧪 Testes de Integração Realizados
 
 ### ✅ **APIs Funcionais**
+
 - **Autenticação**: ✅ Login funcionando (`/api/auth/login`)
 - **Health Check**: ✅ Sistema saudável (`/api/health`)
 - **Beneficiárias**: ✅ CRUD funcionando (`/api/beneficiarias`)
 - **Dashboard**: ✅ Estatísticas funcionando (`/api/dashboard/stats`)
 
 ### ✅ **Problemas Corrigidos nos Testes**
+
 - **Projetos**: ✅ RESOLVIDO - API funcionando (`/api/projetos`)
 - **Permissões**: ✅ RESOLVIDO - Usuario bruno@move.com agora é admin com todas as permissões
 - **Oficinas**: ⚠️ PARCIAL - Autenticação corrigida, mas ainda há erro 500 na consulta
 
 ### 🔧 **Correções Realizadas**
-- **Banco de Dados**: ✅ Criada tabela `oficinas` com coluna `ativo` 
+
+- **Banco de Dados**: ✅ Criada tabela `oficinas` com coluna `ativo`
 - **Permissões**: ✅ Usuário alterado de `superadmin` para `admin`
 - **Middleware**: ✅ Removido `requireGestor` das rotas de projetos
 - **Validação**: ✅ Schema de projetos aceita strings de data
 - **Docker**: ✅ PostgreSQL e Redis funcionando perfeitamente
 
 ### 📊 **Dados de Validação**
+
 - **Beneficiárias**: 3 registros ativos encontrados
 - **Sistema**: Memória em 95.88% (heap used)
 - **Performance**: APIs respondendo < 100ms
@@ -117,12 +124,14 @@
 ## 🎯 **Resultados dos Ajustes**
 
 ### ✅ **APIs Funcionando Perfeitamente**
-- **Autenticação**: ✅ Login com papel `admin` 
+
+- **Autenticação**: ✅ Login com papel `admin`
 - **Projetos**: ✅ GET/POST funcionando (criado projeto ID #2)
 - **Beneficiárias**: ✅ CRUD completo funcionando
 - **Dashboard**: ✅ Estatísticas funcionando
 
 ### 🛠️ **Infraestrutura Docker**
+
 - **PostgreSQL**: ✅ Rodando com todas as tabelas
 - **Redis**: ✅ Cache funcionando
 - **Backend**: ✅ Conectado aos serviços

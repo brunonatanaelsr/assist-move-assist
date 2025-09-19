@@ -4,8 +4,7 @@ import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { Box } from '@mui/material';
-import dayjs from 'dayjs';
-import 'dayjs/locale/pt-br';
+import dayjs from '@/lib/dayjs';
 
 interface DateRangePickerProps {
   startDate?: string;

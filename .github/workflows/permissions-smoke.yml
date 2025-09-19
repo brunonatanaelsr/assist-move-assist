@@ -1,7 +1,7 @@
 name: Permissions Smoke
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   workflow_dispatch: {}
 jobs:
   smoke:

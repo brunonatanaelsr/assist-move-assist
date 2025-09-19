@@ -1,4 +1,4 @@
-version: "3.9"
+version: '3.9'
 
 services:
   db:
@@ -12,16 +12,23 @@ services:
     volumes:
       - db_data:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      - '5432:5432'
     env_file:
       - ./backend/.env
 
   redis:
     image: redis:7
     container_name: assist_redis
-    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:-QnB4h6qT2gKp9w3E7fJ2v4yR}"]
+    command:
+      [
+        'redis-server',
+        '--appendonly',
+        'yes',
+        '--requirepass',
+        '${REDIS_PASSWORD:-QnB4h6qT2gKp9w3E7fJ2v4yR}',
+      ]
     ports:
-      - "6379:6379"
+      - '6379:6379'
     volumes:
       - redis_data:/data
     env_file:
@@ -37,7 +44,7 @@ services:
     env_file:
       - ./backend/.env
     ports:
-      - "4000:4000"
+      - '4000:4000'
     restart: unless-stopped
 
   frontend:
@@ -52,7 +59,7 @@ services:
       VITE_WS_URL: ${VITE_WS_URL:-ws://localhost:4000}
       NODE_ENV: ${NODE_ENV:-development}
     ports:
-      - "3000:3000"
+      - '3000:3000'
     depends_on:
       - backend
     restart: unless-stopped

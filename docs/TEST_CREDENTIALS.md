@@ -4,11 +4,11 @@ As rotinas de seed (`backend/scripts/create-initial-data.js`) garantem três usu
 que podem ser utilizados para desenvolvimento manual, testes automatizados e fluxos de
 homologação local.
 
-| Perfil | E-mail | Senha | Observações |
-| --- | --- | --- | --- |
-| Superadmin | `superadmin@example.com` | `ChangeMe!123` | Possui acesso total ao sistema. Valores podem ser sobrescritos via variáveis de ambiente `SUPERADMIN_*`. |
-| Admin | `admin@example.com` | `ChangeMe!123` | Perfil administrativo padrão para testes manuais. Pode ser configurado via variáveis `ADMIN_*`. |
-| Usuário E2E | `e2e@assist.local` | `e2e_password` | Conta utilizada pelos testes E2E/Playwright. O perfil padrão é `admin` e pode ser ajustado através das variáveis `E2E_TEST_*`. |
+| Perfil      | E-mail                   | Senha          | Observações                                                                                                                    |
+| ----------- | ------------------------ | -------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| Superadmin  | `superadmin@example.com` | `ChangeMe!123` | Possui acesso total ao sistema. Valores podem ser sobrescritos via variáveis de ambiente `SUPERADMIN_*`.                       |
+| Admin       | `admin@example.com`      | `ChangeMe!123` | Perfil administrativo padrão para testes manuais. Pode ser configurado via variáveis `ADMIN_*`.                                |
+| Usuário E2E | `e2e@assist.local`       | `e2e_password` | Conta utilizada pelos testes E2E/Playwright. O perfil padrão é `admin` e pode ser ajustado através das variáveis `E2E_TEST_*`. |
 
 ## Como garantir as credenciais localmente
 

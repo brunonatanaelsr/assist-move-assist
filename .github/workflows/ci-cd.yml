@@ -2,9 +2,9 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
   workflow_dispatch: {}
 
 jobs:
@@ -32,7 +32,7 @@ jobs:
           cd backend
           npm test
         env:
-          REDIS_DISABLED: "true"  # Se quiser Redis real aqui, remova isso e adicione services.
+          REDIS_DISABLED: 'true' # Se quiser Redis real aqui, remova isso e adicione services.
 
   api-smoke:
     needs: unit
