@@ -3,7 +3,7 @@ import { redis } from '../lib/redis';
 import { logger } from '../services/logger';
 import { db } from '../database';
 
-interface ReminderJobPayload {
+export interface ReminderJobPayload {
   reminderId: string;
   notificationId?: string;
   scheduledAt?: string | Date;

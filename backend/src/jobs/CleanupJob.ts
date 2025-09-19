@@ -2,7 +2,7 @@ import { Job } from '../types/Job';
 import { db } from '../database';
 import { logger } from '../services/logger';
 
-interface CleanupJobPayload {
+export interface CleanupJobPayload {
   olderThanDays?: number;
   statuses?: string[];
 }

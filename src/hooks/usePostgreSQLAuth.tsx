@@ -75,10 +75,10 @@ export const PostgreSQLAuthProvider: React.FC<AuthProviderProps> = ({ children }
             nome: userData.nome,
             email: userData.email,
             papel: userData.papel,
-            ativo: userData.ativo
+            ativo: userData.ativo ?? true
           };
-          
-          setUser(userData);
+
+          setUser(userProfile);
           setProfile(userProfile);
         } else {
           if (IS_DEV) console.log('Response inválido ou usuário não encontrado');
@@ -109,7 +109,6 @@ export const PostgreSQLAuthProvider: React.FC<AuthProviderProps> = ({ children }
 
       if (response && response.data && response.data.user) {
         const userData = response.data.user;
-        setUser(userData);
 
         if (response.data.token) {
           localStorage.setItem('token', response.data.token);
@@ -120,8 +119,9 @@ export const PostgreSQLAuthProvider: React.FC<AuthProviderProps> = ({ children }
           nome: userData.nome,
           email: userData.email,
           papel: userData.papel,
-          ativo: userData.ativo
+          ativo: userData.ativo ?? true
         };
+        setUser(userProfile);
         setProfile(userProfile);
 
         return { error: null };

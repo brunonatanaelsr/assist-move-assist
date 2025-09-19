@@ -4,6 +4,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import apiService from '@/services/apiService';
+import type {
+  ConfiguracaoUsuario,
+  CreateUsuarioPayload,
+  PermissionSummary,
+  UpdateUsuarioPayload,
+  UsuarioPermissions,
+} from '@/types/configuracoes';
 
 const Configuracoes = () => {
   return (
@@ -60,45 +67,54 @@ export default Configuracoes;
 
 // ---- Subcomponentes ----
 function UsuariosTab() {
-  const [users, setUsers] = useState<any[]>([]);
-  const [form, setForm] = useState({ email: '', password: '', nome: '', papel: 'user' });
+  const [users, setUsers] = useState<ConfiguracaoUsuario[]>([]);
+  const [form, setForm] = useState<CreateUsuarioPayload>({ email: '', password: '', nome: '', papel: 'user' });
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [total, setTotal] = useState(0);
   const [openPermUser, setOpenPermUser] = useState<number | null>(null);
-  const [allPerms, setAllPerms] = useState<any[]>([]);
-  const [userPerms, setUserPerms] = useState<Record<number, string[]>>({});
+  const [allPerms, setAllPerms] = useState<PermissionSummary[]>([]);
+  const [userPerms, setUserPerms] = useState<Record<number, UsuarioPermissions>>({});
   const load = async () => {
     const r = await apiService.listUsers({ search, page, limit });
     if (r.success && r.data) {
-      setUsers(r.data.data || []);
-      setTotal(r.data.pagination?.total || 0);
+      setUsers(r.data.data ?? []);
+      setTotal(r.data.pagination?.total ?? 0);
     }
   };
-  useEffect(() => { load(); }, [search, page, limit]);
-  useEffect(() => { 
-    (async()=>{ 
-      const p = await apiService.listPermissions(); 
+  useEffect(() => { void load(); }, [search, page, limit]);
+  useEffect(() => {
+    void (async () => {
+      const p = await apiService.listPermissions();
       if (p.success && p.data) {
-        // A API retorna {data: {data: [...], pagination: {...}}}
-        const permsArray = Array.isArray(p.data.data) ? p.data.data : [];
-        setAllPerms(permsArray);
+        setAllPerms(p.data.data ?? []);
       }
-    })(); 
+    })();
   }, []);
   const create = async () => {
     if (!form.email || !form.password || !form.nome) return;
-    await apiService.createUser(form as any);
+    const payload: CreateUsuarioPayload = {
+      ...form,
+      papel: form.papel?.trim() || 'user',
+    };
+    await apiService.createUser(payload);
     setForm({ email: '', password: '', nome: '', papel: 'user' });
     setPage(1); await load();
   };
-  const update = async (u: any, patch: any) => { await apiService.updateUser(u.id, patch); await load(); };
-  const togglePerm = async (u: any, perm: string) => {
-    const current = userPerms[u.id] || (await apiService.getUserPermissions(u.id)).data || [];
-    const next = current.includes(perm) ? current.filter((p:string)=>p!==perm) : [...current, perm];
+  const update = async (u: ConfiguracaoUsuario, patch: UpdateUsuarioPayload) => {
+    await apiService.updateUser(u.id, patch);
+    await load();
+  };
+  const togglePerm = async (u: ConfiguracaoUsuario, perm: string) => {
+    let current = userPerms[u.id];
+    if (!current) {
+      const response = await apiService.getUserPermissions(u.id);
+      current = response.success && response.data ? response.data : [];
+    }
+    const next = current.includes(perm) ? current.filter((p) => p !== perm) : [...current, perm];
     await apiService.setUserPermissions(u.id, next);
-    setUserPerms(prev => ({ ...prev, [u.id]: next }));
+    setUserPerms((prev) => ({ ...prev, [u.id]: next }));
   };
   return (
     <div className="space-y-4">
@@ -106,8 +122,8 @@ function UsuariosTab() {
         <Input placeholder="Nome" value={form.nome} onChange={e=>setForm({...form, nome: e.target.value})} />
         <Input placeholder="Email" value={form.email} onChange={e=>setForm({...form, email: e.target.value})} />
         <Input placeholder="Senha" value={form.password} onChange={e=>setForm({...form, password: e.target.value})} />
-        <Input placeholder="Papel" value={form.papel} onChange={e=>setForm({...form, papel: e.target.value})} />
-        <Button onClick={create}>Criar usuário</Button>
+        <Input placeholder="Papel" value={form.papel ?? ''} onChange={e=>setForm({...form, papel: e.target.value})} />
+        <Button onClick={() => void create()}>Criar usuário</Button>
       </div>
       <div className="flex items-center gap-2">
         <Input placeholder="Buscar por nome/email" value={search} onChange={e=>{ setPage(1); setSearch(e.target.value); }} />
@@ -119,29 +135,57 @@ function UsuariosTab() {
         </select>
       </div>
       <div className="space-y-2">
-        {users.map(u => (
+        {users.map((u) => (
           <div key={u.id} className="flex items-center gap-2 border rounded p-2">
             <div className="flex-1">
               <div className="font-medium">{u.nome} <span className="text-xs text-muted-foreground">({u.email})</span></div>
               <div className="text-xs text-muted-foreground">papel: {u.papel} • ativo: {String(u.ativo)}</div>
             </div>
-            <Input className="w-28" placeholder="papel" defaultValue={u.papel} onBlur={e=>update(u,{ papel: e.target.value })} />
-            <Button variant="outline" onClick={()=>update(u,{ ativo: !u.ativo })}>{u.ativo? 'Desativar':'Ativar'}</Button>
-            <Button variant="outline" onClick={()=>apiService.resetUserPassword(u.id,'123456')}>Reset senha</Button>
-            <Button variant="outline" onClick={async()=>{ if (openPermUser===u.id) { setOpenPermUser(null); } else { const gp = await apiService.getUserPermissions(u.id); setUserPerms(prev=>({ ...prev, [u.id]: gp.data || [] })); setOpenPermUser(u.id); } }}>Permissões</Button>
+            <Input className="w-28" placeholder="papel" defaultValue={u.papel} onBlur={e=>{ void update(u,{ papel: e.target.value }); }} />
+            <Button variant="outline" onClick={()=>void update(u,{ ativo: !u.ativo })}>{u.ativo? 'Desativar':'Ativar'}</Button>
+            <Button variant="outline" onClick={()=>{ void apiService.resetUserPassword(u.id,'123456'); }}>Reset senha</Button>
+            <Button
+              variant="outline"
+              onClick={async () => {
+                if (openPermUser === u.id) {
+                  setOpenPermUser(null);
+                  return;
+                }
+                const gp = await apiService.getUserPermissions(u.id);
+                setUserPerms((prev) => ({
+                  ...prev,
+                  [u.id]: gp.success && gp.data ? gp.data : [],
+                }));
+                setOpenPermUser(u.id);
+              }}
+            >
+              Permissões
+            </Button>
           </div>
         ))}
         {openPermUser && (
           <div className="border rounded p-3">
             <div className="text-sm font-semibold mb-2">Permissões do usuário {openPermUser}</div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-              {(Array.isArray(allPerms) ? allPerms : []).map((p:any)=>(
-                <label key={p.name} className="flex items-center gap-2 border rounded p-2">
-                  <input type="checkbox" checked={(userPerms[openPermUser]||[]).includes(p.name)} onChange={()=>togglePerm({ id: openPermUser }, p.name)} />
-                  <span className="font-medium">{p.name}</span>
-                  <span className="text-xs text-muted-foreground">{p.description}</span>
-                </label>
-              ))}
+              {(() => {
+                const targetUser = users.find((user) => user.id === openPermUser) ?? null;
+                const assignedPermissions = userPerms[openPermUser] ?? [];
+                return allPerms.map((permission) => (
+                  <label key={permission.name} className="flex items-center gap-2 border rounded p-2">
+                    <input
+                      type="checkbox"
+                      checked={assignedPermissions.includes(permission.name)}
+                      onChange={() => {
+                        if (targetUser) {
+                          void togglePerm(targetUser, permission.name);
+                        }
+                      }}
+                    />
+                    <span className="font-medium">{permission.name}</span>
+                    <span className="text-xs text-muted-foreground">{permission.description}</span>
+                  </label>
+                ));
+              })()}
             </div>
           </div>
         )}
@@ -159,26 +203,38 @@ function PapeisTab() {
   const [roles, setRoles] = useState<string[]>([]);
   const [selected, setSelected] = useState('');
   const [perms, setPerms] = useState<string[]>([]);
-  const [all, setAll] = useState<any[]>([]);
+  const [all, setAll] = useState<PermissionSummary[]>([]);
   const [permSearch, setPermSearch] = useState('');
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(50);
   const [total, setTotal] = useState(0);
   const load = async () => {
-    const r = await apiService.listRoles(); if (r.success && r.data) setRoles(r.data as any);
-    const p = await apiService.listPermissions({ search: permSearch, page, limit }); if (p.success && p.data) { setAll(p.data.data as any); setTotal(p.data.pagination?.total || 0); }
-    if (selected) { const rp = await apiService.getRolePermissions(selected); if (rp.success && rp.data) setPerms(rp.data as any); }
+    const r = await apiService.listRoles();
+    if (r.success && r.data) setRoles(r.data);
+    const p = await apiService.listPermissions({ search: permSearch, page, limit });
+    if (p.success && p.data) {
+      setAll(p.data.data ?? []);
+      setTotal(p.data.pagination?.total ?? 0);
+    }
+    if (selected) {
+      const rp = await apiService.getRolePermissions(selected);
+      if (rp.success && rp.data) setPerms(rp.data);
+    }
   };
-  useEffect(() => { load(); }, [selected, permSearch, page, limit]);
+  useEffect(() => { void load(); }, [selected, permSearch, page, limit]);
   const toggle = (name: string) => {
     setPerms(prev => prev.includes(name) ? prev.filter(x=>x!==name) : [...prev, name]);
   };
   const save = async () => { if (!selected) return; await apiService.setRolePermissions(selected, perms); };
-  const groups = (all || []).reduce((acc:any, p:any)=>{
-    const key = String(p.name).split('.')[0] || 'geral';
-    (acc[key] ||= []).push(p);
+  const groups = all.reduce<Record<string, PermissionSummary[]>>((acc, permission) => {
+    const [group] = permission.name.split('.');
+    const key = group || 'geral';
+    if (!acc[key]) {
+      acc[key] = [];
+    }
+    acc[key].push(permission);
     return acc;
-  }, {} as Record<string, any[]>);
+  }, {});
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2">
@@ -198,11 +254,11 @@ function PapeisTab() {
         <div key={groupKey} className="space-y-2">
           <div className="text-sm font-semibold mt-2">{groupKey}</div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-            {groups[groupKey].map((p:any)=>(
-              <label key={p.name} className="flex items-center gap-2 border rounded p-2">
-                <input type="checkbox" checked={perms.includes(p.name)} onChange={()=>toggle(p.name)} />
-                <span className="font-medium">{p.name}</span>
-                <span className="text-xs text-muted-foreground">{p.description}</span>
+            {groups[groupKey].map((permission) => (
+              <label key={permission.name} className="flex items-center gap-2 border rounded p-2">
+                <input type="checkbox" checked={perms.includes(permission.name)} onChange={()=>toggle(permission.name)} />
+                <span className="font-medium">{permission.name}</span>
+                <span className="text-xs text-muted-foreground">{permission.description}</span>
               </label>
             ))}
           </div>

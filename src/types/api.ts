@@ -1,12 +1,18 @@
-export interface ApiResponse<T = unknown> {
-  data: T;
-  message?: string;
-  metadata?: Record<string, unknown>;
+export interface Pagination {
+  page: number;
+  limit: number;
+  total: number;
 }
 
-export interface RequestParams {
-  [key: string]: string | number | boolean | undefined;
+export interface ApiResponse<T = unknown> {
+  success: boolean;
+  data?: T;
+  message?: string;
+  total?: number;
+  pagination?: Pagination;
 }
+
+export type RequestParams = Record<string, string | number | boolean | undefined>;
 
 export interface ApiService {
   get<T = unknown>(url: string, params?: RequestParams): Promise<ApiResponse<T>>;
