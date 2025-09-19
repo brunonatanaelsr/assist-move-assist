@@ -65,7 +65,7 @@ router.get('/conversa/:usuarioId', authenticateToken, async (req: AuthenticatedR
 router.post('/enviar', authenticateToken, async (req: AuthenticatedRequest, res): Promise<void> => {
   try {
     const autorId = Number(req.user!.id);
-    const { destinatario_id, conteudo } = req.body || {};
+    const { destinatario_id, conteudo } = (req.body ?? {}) as Record<string, any>;
     if (!destinatario_id || !conteudo) { res.status(400).json(errorResponse('destinatario_id e conteudo são obrigatórios')); return; }
     const result = await pool.query(
       `INSERT INTO mensagens_usuario (autor_id, destinatario_id, conteudo)
@@ -87,7 +87,7 @@ router.post('/enviar', authenticateToken, async (req: AuthenticatedRequest, res)
 router.patch('/:id/lida', authenticateToken, async (req: AuthenticatedRequest, res): Promise<void> => {
   try {
     const { id } = req.params as any;
-    const { lida } = req.body || {};
+    const { lida } = (req.body ?? {}) as Record<string, any>;
     await pool.query('UPDATE mensagens_usuario SET lida = COALESCE($1, lida) WHERE id = $2', [lida === undefined ? true : !!lida, id]);
     res.json(successResponse({ id, lida: lida === undefined ? true : !!lida }));
     return;

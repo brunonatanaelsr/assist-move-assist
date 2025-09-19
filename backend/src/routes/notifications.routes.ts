@@ -62,7 +62,7 @@ router.patch('/:id', authenticateToken,
   try {
     const userId = Number(req.user!.id);
     const { id } = req.params as any;
-    const { read } = req.body || {};
+    const { read } = (req.body ?? {}) as Record<string, any>;
     const result = await pool.query(
       `UPDATE notifications SET read = COALESCE($1, read), read_at = CASE WHEN $1 = true THEN NOW() ELSE read_at END WHERE id = $2 AND user_id = $3 RETURNING *`,
       [read, id, userId]
@@ -112,7 +112,7 @@ router.put('/preferences', authenticateToken,
   async (req: AuthenticatedRequest, res): Promise<void> => {
   try {
     const userId = Number(req.user!.id);
-    const fields = req.body || {};
+    const fields = (req.body ?? {}) as Record<string, any>;
     const result = await pool.query(
       `INSERT INTO notification_preferences (user_id, email_notifications, push_notifications, mention_notifications, assignment_notifications, activity_notifications, form_response_notifications, reminder_notifications, notification_types, quiet_hours_start, quiet_hours_end)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
@@ -166,7 +166,7 @@ router.post('/', authenticateToken,
   })),
   async (req: AuthenticatedRequest, res): Promise<void> => {
   try {
-    const { user_id, title, message, type = 'info', action_url, data } = req.body || {};
+    const { user_id, title, message, type = 'info', action_url, data } = (req.body ?? {}) as Record<string, any>;
     if (!user_id || !title || !message) {
       res.status(400).json(errorResponse('user_id, title e message são obrigatórios'));
       return;

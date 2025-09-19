@@ -11,9 +11,10 @@ import fs from 'fs';
 const router = Router();
 
 // GET /documentos/:beneficiariaId - listar documentos da beneficiária
-router.get('/:beneficiariaId', authenticateToken, catchAsync(async (req: AuthenticatedRequest, res) => {
+router.get('/:beneficiariaId', authenticateToken, catchAsync(async (req, res) => {
+  const authReq = req as AuthenticatedRequest;
   try {
-    const { beneficiariaId } = req.params as any;
+    const { beneficiariaId } = authReq.params as any;
     const result = await pool.query(
       `SELECT id, beneficiaria_id, nome_arquivo, caminho_arquivo, tamanho, mime_type, tipo_documento as tipo, categoria, status, uploaded_by, data_upload 
        FROM documentos 
@@ -29,12 +30,13 @@ router.get('/:beneficiariaId', authenticateToken, catchAsync(async (req: Authent
 }));
 
 // POST /documentos/:beneficiariaId/upload - upload de documento
-router.post('/:beneficiariaId/upload', authenticateToken, uploadAnySingle('file'), catchAsync(async (req: AuthenticatedRequest & { file?: Express.Multer.File }, res): Promise<void> => {
+router.post('/:beneficiariaId/upload', authenticateToken, uploadAnySingle('file'), catchAsync(async (req, res): Promise<void> => {
+  const authReq = req as AuthenticatedRequest & { file?: Express.Multer.File };
   try {
-    const { beneficiariaId } = req.params as any;
-    const { tipo, categoria, metadata } = req.body || {};
-    const file = req.file!;
-    const userId = Number(req.user!.id);
+    const { beneficiariaId } = authReq.params as any;
+    const { tipo, categoria, metadata } = (authReq.body ?? {}) as Record<string, any>;
+    const file = authReq.file!;
+    const userId = Number(authReq.user!.id);
 
     const uploadsRoot = path.resolve(process.cwd(), 'uploads');
     if (!fs.existsSync(uploadsRoot)) fs.mkdirSync(uploadsRoot, { recursive: true });
@@ -55,10 +57,10 @@ router.post('/:beneficiariaId/upload', authenticateToken, uploadAnySingle('file'
     loggerService.error('Erro ao fazer upload de documento', { error });
     // rollback do arquivo movido
     try {
-      if (req.file) {
+      if (authReq.file) {
         const uploadsRoot = path.resolve(process.cwd(), 'uploads');
-        const dest = path.join(uploadsRoot, String((req.params as any).beneficiariaId));
-        const finalPath = path.join(dest, req.file.filename);
+        const dest = path.join(uploadsRoot, String((authReq.params as any).beneficiariaId));
+        const finalPath = path.join(dest, authReq.file.filename);
         await fs.promises.unlink(finalPath).catch(() => {});
       }
     } catch {}
@@ -68,12 +70,13 @@ router.post('/:beneficiariaId/upload', authenticateToken, uploadAnySingle('file'
 }));
 
 // PUT /documentos/:documentoId - nova versão
-router.put('/:documentoId', authenticateToken, uploadAnySingle('file'), catchAsync(async (req: AuthenticatedRequest & { file?: Express.Multer.File }, res): Promise<void> => {
+router.put('/:documentoId', authenticateToken, uploadAnySingle('file'), catchAsync(async (req, res): Promise<void> => {
+  const authReq = req as AuthenticatedRequest & { file?: Express.Multer.File };
   try {
-    const { documentoId } = req.params as any;
-    const { motivoModificacao, metadata } = req.body || {};
-    const file = req.file!;
-    const userId = Number(req.user!.id);
+    const { documentoId } = authReq.params as any;
+    const { motivoModificacao, metadata } = (authReq.body ?? {}) as Record<string, any>;
+    const file = authReq.file!;
+    const userId = Number(authReq.user!.id);
 
     const doc = await pool.query('SELECT * FROM documentos WHERE id = $1', [documentoId]);
     if (doc.rowCount === 0) { res.status(404).json(errorResponse('Documento não encontrado')); return; }
@@ -101,13 +104,13 @@ router.put('/:documentoId', authenticateToken, uploadAnySingle('file'), catchAsy
     loggerService.error('Erro ao versionar documento', { error });
     // rollback do arquivo movido
     try {
-      if (req.file) {
-        const { documentoId } = req.params as any;
+      if (authReq.file) {
+        const { documentoId } = authReq.params as any;
         const doc = await pool.query('SELECT beneficiaria_id FROM documentos WHERE id = $1', [documentoId]);
         const beneficiariaId = doc.rows[0]?.beneficiaria_id || 'unknown';
         const uploadsRoot = path.resolve(process.cwd(), 'uploads');
         const dest = path.join(uploadsRoot, String(beneficiariaId));
-        const finalPath = path.join(dest, req.file.filename);
+        const finalPath = path.join(dest, authReq.file.filename);
         await fs.promises.unlink(finalPath).catch(() => {});
       }
     } catch {}
@@ -117,9 +120,10 @@ router.put('/:documentoId', authenticateToken, uploadAnySingle('file'), catchAsy
 }));
 
 // GET /documentos/:documentoId/download
-router.get('/:documentoId/download', authenticateToken, catchAsync(async (req: AuthenticatedRequest, res): Promise<void> => {
+router.get('/:documentoId/download', authenticateToken, catchAsync(async (req, res): Promise<void> => {
+  const authReq = req as AuthenticatedRequest;
   try {
-    const { documentoId } = req.params as any;
+    const { documentoId } = authReq.params as any;
     const result = await pool.query('SELECT nome_arquivo, caminho_arquivo, mime_type FROM documentos WHERE id = $1', [documentoId]);
     if (result.rowCount === 0) { res.status(404).json(errorResponse('Documento não encontrado')); return; }
     const { nome_arquivo, caminho_arquivo, mime_type } = result.rows[0];
@@ -135,9 +139,10 @@ router.get('/:documentoId/download', authenticateToken, catchAsync(async (req: A
 }));
 
 // DELETE /documentos/:documentoId
-router.delete('/:documentoId', authenticateToken, catchAsync(async (req: AuthenticatedRequest, res) => {
+router.delete('/:documentoId', authenticateToken, catchAsync(async (req, res) => {
+  const authReq = req as AuthenticatedRequest;
   try {
-    const { documentoId } = req.params as any;
+    const { documentoId } = authReq.params as any;
     await pool.query('UPDATE documentos SET status = $1 WHERE id = $2', ['removido', documentoId]);
     res.status(204).end();
   } catch (error) {
@@ -147,9 +152,10 @@ router.delete('/:documentoId', authenticateToken, catchAsync(async (req: Authent
 }));
 
 // GET /documentos/:beneficiariaId/versoes
-router.get('/:beneficiariaId/versoes', authenticateToken, catchAsync(async (req: AuthenticatedRequest, res) => {
+router.get('/:beneficiariaId/versoes', authenticateToken, catchAsync(async (req, res) => {
+  const authReq = req as AuthenticatedRequest;
   try {
-    const { beneficiariaId } = req.params as any;
+    const { beneficiariaId } = authReq.params as any;
     const result = await pool.query(
       `SELECT v.* FROM documento_versoes v 
        JOIN documentos d ON d.id = v.documento_id 

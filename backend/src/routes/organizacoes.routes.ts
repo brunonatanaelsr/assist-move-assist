@@ -77,7 +77,7 @@ router.put('/:id', authenticateToken, authorize('organizacoes.editar'),
   async (req: AuthenticatedRequest, res) => {
     try {
       const { id } = req.params as any;
-      const fields = req.body || {};
+      const fields = (req.body ?? {}) as Record<string, any>;
       const result = await pool.query(
         `UPDATE organizacoes SET
            nome = COALESCE($2, nome),

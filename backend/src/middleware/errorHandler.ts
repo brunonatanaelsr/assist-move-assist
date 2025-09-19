@@ -1,20 +1,12 @@
-import { Request as ExpressRequest, Response as ExpressResponse, NextFunction } from 'express';
+import type { Request, Response, NextFunction } from 'express';
 import { randomUUID } from 'crypto';
 import { loggerService } from '../services/logger';
 
-interface Request extends ExpressRequest {
-  path: string;
-  method: string;
-}
-
-interface Response extends ExpressResponse {
-  status(code: number): this;
-  json(body: any): this;
-}
-
-export const catchAsync = (fn: (req: Request, res: Response, next: NextFunction) => Promise<any>) => {
+export const catchAsync = <Req extends Request = Request, Res extends Response = Response>(
+  fn: (req: Req, res: Res, next: NextFunction) => Promise<any>,
+) => {
   return (req: Request, res: Response, next: NextFunction) => {
-    Promise.resolve(fn(req, res, next)).catch(next);
+    Promise.resolve(fn(req as Req, res as Res, next)).catch(next);
   };
 };
 

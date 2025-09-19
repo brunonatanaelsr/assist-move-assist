@@ -105,7 +105,7 @@ router.get('/:id/membros', authenticateToken, async (req: AuthenticatedRequest, 
 router.post('/', authenticateToken, async (req: AuthenticatedRequest, res): Promise<void> => {
   try {
     const userId = Number(req.user!.id);
-    const { nome, descricao } = req.body || {};
+    const { nome, descricao } = (req.body ?? {}) as Record<string, any>;
     if (!nome || String(nome).trim() === '') { res.status(400).json(errorResponse('nome é obrigatório')); return; }
     const client = await pool.connect();
     try {
@@ -139,7 +139,7 @@ router.put('/:id', authenticateToken, async (req: AuthenticatedRequest, res): Pr
   try {
     const userId = Number(req.user!.id);
     const groupId = parseInt(String(req.params.id));
-    const { nome, descricao, ativo } = req.body || {};
+    const { nome, descricao, ativo } = (req.body ?? {}) as Record<string, any>;
     const admin = await pool.query(
       `SELECT 1 FROM grupo_membros WHERE grupo_id = $1 AND usuario_id = $2 AND papel IN ('admin','owner')`,
       [groupId, userId]
@@ -187,7 +187,7 @@ router.post('/:id/membros', authenticateToken, async (req: AuthenticatedRequest,
   try {
     const userId = Number(req.user!.id);
     const groupId = parseInt(String(req.params.id));
-    const { usuario_id, papel } = req.body || {};
+    const { usuario_id, papel } = (req.body ?? {}) as Record<string, any>;
     if (!usuario_id) { res.status(400).json(errorResponse('usuario_id é obrigatório')); return; }
     const admin = await pool.query(
       `SELECT 1 FROM grupo_membros WHERE grupo_id = $1 AND usuario_id = $2 AND papel IN ('admin','owner')`,

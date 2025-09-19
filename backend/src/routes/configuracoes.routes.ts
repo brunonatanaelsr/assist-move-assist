@@ -39,9 +39,10 @@ router.get('/usuarios', authenticateToken, authorize('users.manage'), async (_re
   }
 });
 
-router.post('/usuarios', authenticateToken, authorize('users.manage'), async (req: AuthenticatedRequest, res) => {
+router.post('/usuarios', authenticateToken, authorize('users.manage'), async (req, res) => {
+  const authReq = req as AuthenticatedRequest;
   try {
-    const { email, password, nome, papel } = req.body || {};
+    const { email, password, nome, papel } = (authReq.body ?? {}) as Record<string, any>;
     if (!email || !password || !nome) { res.status(400).json(errorResponse('email, password e nome são obrigatórios')); return; }
     const hash = await bcrypt.hash(password, 12);
     const created = await pool.query(
@@ -58,10 +59,11 @@ router.post('/usuarios', authenticateToken, authorize('users.manage'), async (re
   }
 });
 
-router.put('/usuarios/:id', authenticateToken, authorize('users.manage'), async (req: AuthenticatedRequest, res) => {
+router.put('/usuarios/:id', authenticateToken, authorize('users.manage'), async (req, res) => {
+  const authReq = req as AuthenticatedRequest;
   try {
-    const { id } = req.params as any;
-    const { nome, papel, ativo, cargo, departamento, bio, telefone, avatar_url } = req.body || {};
+    const { id } = authReq.params as any;
+    const { nome, papel, ativo, cargo, departamento, bio, telefone, avatar_url } = (authReq.body ?? {}) as Record<string, any>;
     // Capturar papel antigo
     const prev = await pool.query('SELECT papel FROM usuarios WHERE id = $1', [id]);
     const oldRole = prev.rows[0]?.papel || null;
@@ -96,10 +98,11 @@ router.put('/usuarios/:id', authenticateToken, authorize('users.manage'), async 
   }
 });
 
-router.post('/usuarios/:id/reset-password', authenticateToken, authorize('users.manage'), async (req: AuthenticatedRequest, res) => {
+router.post('/usuarios/:id/reset-password', authenticateToken, authorize('users.manage'), async (req, res) => {
+  const authReq = req as AuthenticatedRequest;
   try {
-    const { id } = req.params as any;
-    const { newPassword } = req.body || {};
+    const { id } = authReq.params as any;
+    const { newPassword } = (authReq.body ?? {}) as Record<string, any>;
     if (!newPassword || String(newPassword).length < 6) { res.status(400).json(errorResponse('Nova senha inválida')); return; }
     const hash = await bcrypt.hash(String(newPassword), 12);
     await pool.query('UPDATE usuarios SET senha_hash = $1, data_atualizacao = NOW() WHERE id = $2', [hash, id]);
@@ -135,9 +138,10 @@ router.get('/permissions', authenticateToken, authorize('roles.manage'), async (
   }
 });
 
-router.post('/permissions', authenticateToken, authorize('roles.manage'), async (req: AuthenticatedRequest, res) => {
+router.post('/permissions', authenticateToken, authorize('roles.manage'), async (req, res) => {
+  const authReq = req as AuthenticatedRequest;
   try {
-    const { name, description } = req.body || {};
+    const { name, description } = (authReq.body ?? {}) as Record<string, any>;
     if (!name) { res.status(400).json(errorResponse('name é obrigatório')); return; }
     await pool.query('INSERT INTO permissions (name, description) VALUES ($1,$2) ON CONFLICT DO NOTHING', [name, description || null]);
     // Invalida todos os caches de papel, pois lista de permissions mudou
@@ -166,9 +170,10 @@ router.get('/roles', authenticateToken, authorize('roles.manage'), async (_req, 
   }
 });
 
-router.get('/roles/:role/permissions', authenticateToken, authorize('roles.manage'), async (req: AuthenticatedRequest, res) => {
+router.get('/roles/:role/permissions', authenticateToken, authorize('roles.manage'), async (req, res) => {
+  const authReq = req as AuthenticatedRequest;
   try {
-    const { role } = req.params as any;
+    const { role } = authReq.params as any;
     const r = await pool.query('SELECT permission FROM role_permissions WHERE role = $1 ORDER BY permission', [role]);
     res.json(successResponse(r.rows.map(x => x.permission)));
     return;
@@ -178,10 +183,11 @@ router.get('/roles/:role/permissions', authenticateToken, authorize('roles.manag
   }
 });
 
-router.put('/roles/:role/permissions', authenticateToken, authorize('roles.manage'), async (req: AuthenticatedRequest, res) => {
+router.put('/roles/:role/permissions', authenticateToken, authorize('roles.manage'), async (req, res) => {
+  const authReq = req as AuthenticatedRequest;
   try {
-    const { role } = req.params as any;
-    const { permissions } = req.body || {};
+    const { role } = authReq.params as any;
+    const { permissions } = (authReq.body ?? {}) as Record<string, any>;
     if (!Array.isArray(permissions)) { res.status(400).json(errorResponse('permissions deve ser array')); return; }
   await pool.query('DELETE FROM role_permissions WHERE role = $1', [role]);
   for (const p of permissions) {
@@ -199,9 +205,10 @@ router.put('/roles/:role/permissions', authenticateToken, authorize('roles.manag
 export default router;
 
 // ---- Permissões por usuário ----
-router.get('/usuarios/:id/permissions', authenticateToken, authorize('users.manage'), async (req: AuthenticatedRequest, res) => {
+router.get('/usuarios/:id/permissions', authenticateToken, authorize('users.manage'), async (req, res) => {
+  const authReq = req as AuthenticatedRequest;
   try {
-    const { id } = req.params as any;
+    const { id } = authReq.params as any;
     const r = await pool.query('SELECT permission FROM user_permissions WHERE user_id = $1', [id]);
     res.json(successResponse(r.rows.map((x:any)=>x.permission)));
     return;
@@ -211,10 +218,11 @@ router.get('/usuarios/:id/permissions', authenticateToken, authorize('users.mana
   }
 });
 
-router.put('/usuarios/:id/permissions', authenticateToken, authorize('users.manage'), async (req: AuthenticatedRequest, res) => {
+router.put('/usuarios/:id/permissions', authenticateToken, authorize('users.manage'), async (req, res) => {
+  const authReq = req as AuthenticatedRequest;
   try {
-    const { id } = req.params as any;
-    const { permissions } = req.body || {};
+    const { id } = authReq.params as any;
+    const { permissions } = (authReq.body ?? {}) as Record<string, any>;
     if (!Array.isArray(permissions)) { res.status(400).json(errorResponse('permissions deve ser array')); return; }
   await pool.query('DELETE FROM user_permissions WHERE user_id = $1', [id]);
   for (const p of permissions) {

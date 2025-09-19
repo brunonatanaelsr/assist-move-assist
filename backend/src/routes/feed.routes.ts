@@ -147,7 +147,7 @@ router.post(
   })),
   catchAsync(async (req: AuthenticatedRequest, res: Response) => {
     try {
-      const { tipo, titulo, conteudo, imagem_url } = req.body;
+      const { tipo, titulo, conteudo, imagem_url } = (req.body ?? {}) as Record<string, any>;
       const autor_id = (req as any).user?.id as string | number | undefined;
       const autor_nome = ((req as any).user?.nome as string) || 'Usuário';
 
@@ -253,7 +253,7 @@ router.post(
   catchAsync(async (req: AuthenticatedRequest, res: Response) => {
     try {
       const { postId } = req.params as any;
-      const { conteudo } = req.body;
+      const { conteudo } = (req.body ?? {}) as Record<string, any>;
       const autorId = (req as any).user?.id as string | number | undefined;
       const autorNome = ((req as any).user?.nome as string) || 'Usuário';
       const autorFoto = (req as any).user?.avatar_url as string | undefined;
@@ -283,7 +283,7 @@ router.put(
   catchAsync(async (req: AuthenticatedRequest, res: Response): Promise<Response> => {
     try {
       const { id } = req.params as any;
-      const { conteudo } = req.body || {};
+      const { conteudo } = (req.body ?? {}) as Record<string, any>;
       if (!conteudo || !String(conteudo).trim()) {
         return res.status(400).json(errorResponse('Conteúdo é obrigatório'));
       }
@@ -352,7 +352,8 @@ router.put(
       const { id } = req.params as any;
       const userId = String(((req as any).user?.id ?? ''));
       const userRole = String(((req as any).user?.role ?? (req as any).user?.papel ?? ''));
-      const updated = await feedService.updatePost(parseInt(String(id)), req.body || {}, userId, userRole);
+      const body = (req.body ?? {}) as Record<string, any>;
+      const updated = await feedService.updatePost(parseInt(String(id)), body, userId, userRole);
       return res.json(successResponse(updated));
     } catch (error: any) {
       const status = error?.status || 500;
