@@ -8,6 +8,7 @@ import type { Beneficiaria, BeneficiariaFiltros } from '../../backend/src/types/
 import type { Oficina } from '../../backend/src/types/oficina';
 import { translateErrorMessage } from '@/lib/apiError';
 import { API_URL } from '@/config';
+import type { DashboardStatsResponse } from '@/types/dashboard';
 const IS_DEV = (import.meta as any)?.env?.DEV === true || (import.meta as any)?.env?.MODE === 'development';
 
 function getCookie(name: string): string | null {
@@ -246,7 +247,7 @@ class ApiService {
   }
 
   // Dashboard methods
-  async getDashboardStats(): Promise<ApiResponse<any>> {
+  async getDashboardStats(): Promise<ApiResponse<DashboardStatsResponse>> {
     return this.get('/dashboard/stats');
   }
 

@@ -73,20 +73,39 @@ const getBeneficiarias = async (filters: BeneficiariaFilters) => {
 };
 
 const getStats = async () => {
-  const [totalBeneficiarias, activeBeneficiarias, totalFormularios, totalAtendimentos] = await Promise.all([
+  const [
+    totalBeneficiarias,
+    activeBeneficiarias,
+    totalFormularios,
+    totalAtendimentos,
+    totalAnamnesesGenericos,
+    totalAnamnesesDedicados,
+    totalDeclaracoes
+  ] = await Promise.all([
     client.query('SELECT COUNT(*)::int AS total FROM beneficiarias WHERE deleted_at IS NULL'),
     client.query("SELECT COUNT(*)::int AS total FROM beneficiarias WHERE status = 'ativa' AND deleted_at IS NULL"),
     client.query('SELECT COUNT(*)::int AS total FROM formularios'),
-    client.query('SELECT COUNT(*)::int AS total FROM historico_atendimentos')
+    client.query('SELECT COUNT(*)::int AS total FROM historico_atendimentos'),
+    client.query("SELECT COUNT(*)::int AS total FROM formularios WHERE tipo IN ('anamnese', 'anamnese_social')"),
+    client.query('SELECT COUNT(*)::int AS total FROM anamnese_social'),
+    client.query('SELECT COUNT(*)::int AS total FROM declaracoes')
   ]);
 
+  const totalBeneficiariasCount = Number(totalBeneficiarias[0]?.total || 0);
+  const activeBeneficiariasCount = Number(activeBeneficiarias[0]?.total || 0);
+  const totalAnamnesesCount =
+    Number(totalAnamnesesGenericos[0]?.total || 0) +
+    Number(totalAnamnesesDedicados[0]?.total || 0);
+
   return {
-    totalBeneficiarias: Number(totalBeneficiarias[0]?.total || 0),
-    activeBeneficiarias: Number(activeBeneficiarias[0]?.total || 0),
-    inactiveBeneficiarias: Number(totalBeneficiarias[0]?.total || 0) - Number(activeBeneficiarias[0]?.total || 0),
+    totalBeneficiarias: totalBeneficiariasCount,
+    activeBeneficiarias: activeBeneficiariasCount,
+    inactiveBeneficiarias: totalBeneficiariasCount - activeBeneficiariasCount,
     totalFormularios: Number(totalFormularios[0]?.total || 0),
     totalAtendimentos: Number(totalAtendimentos[0]?.total || 0),
-    engajamento: totalBeneficiarias[0]?.total > 0 ? Math.round((Number(activeBeneficiarias[0]?.total || 0) / Number(totalBeneficiarias[0]?.total || 0)) * 100) : 0
+    totalAnamneses: totalAnamnesesCount,
+    totalDeclaracoes: Number(totalDeclaracoes[0]?.total || 0),
+    engajamento: totalBeneficiariasCount > 0 ? Math.round((activeBeneficiariasCount / totalBeneficiariasCount) * 100) : 0
   };
 };
 
