@@ -1,309 +1,194 @@
 # Assist Move Assist
 
-Sistema de gestão para institutos sociais que auxilia no acompanhamento de beneficiárias, na organização de projetos e na comunicação interna.
+Sistema completo de gestão para institutos sociais com acompanhamento de beneficiárias, administração de oficinas/projetos, painel analítico e comunicação interna em tempo real. A stack é composta por **React 18 + Vite** no frontend e **Node.js/Express + PostgreSQL** no backend, com Redis para cache, filas e controle de permissões.
+
+## Sumário
+- [Visão Geral](#visão-geral)
+- [Estrutura de Pastas](#estrutura-de-pastas)
+- [Requisitos](#requisitos)
+- [Variáveis de Ambiente](#variáveis-de-ambiente)
+- [Fluxos de Execução](#fluxos-de-execução)
+  - [1. Stack completa via Docker Compose](#1-stack-completa-via-docker-compose)
+  - [2. Desenvolvimento local (Node + Docker para infraestrutura)](#2-desenvolvimento-local-node--docker-para-infraestrutura)
+  - [3. GitHub Codespaces](#3-github-codespaces)
+- [Portas e serviços](#portas-e-serviços)
+- [Scripts úteis](#scripts-úteis)
+- [Testes](#testes)
+- [Solução de problemas](#solução-de-problemas)
+- [Documentação complementar](#documentação-complementar)
 
 ## Visão Geral
 
-- Cadastro e acompanhamento de beneficiárias
-- Dashboard com métricas e exportação de relatórios (PDF/Excel)
-- Feed de comunicação e sistema de mensagens
-- Gestão de tarefas, projetos e oficinas
+- **Beneficiárias**: cadastro, histórico, exportação de relatórios.
+- **Projetos e Oficinas**: planejamento, presença e dashboards.
+- **Comunicação**: feed colaborativo, chat e notificações (WebSocket).
+- **Segurança**: RBAC granular, auditoria, rotinas de smoke tests.
 
-## Documentação de execução
+## Estrutura de Pastas
 
-- As instruções a seguir cobrem o fluxo local padrão (instalação, configuração e scripts úteis).
-- Para orientações de publicação em produção consulte o [Guia de Deploy](docs/deployment/README.md).
+```
+assist-move-assist/
+├── backend/                # API Express (TypeScript)
+│   ├── src/                # Código-fonte
+│   ├── scripts/            # Migrações, seeds e utilitários
+│   └── prisma/             # Migrações SQL organizadas
+├── public/                 # Assets estáticos do frontend
+├── src/                    # Frontend React + Vite + Tailwind
+├── scripts/                # Automatizações (deploy, e2e, codespaces, etc.)
+├── docs/                   # Guias complementares (deploy, API, testes)
+└── docker-compose*.yml     # Orquestração Docker dev/prod
+```
 
 ## Requisitos
 
-- Node.js 20+
-- npm
-- Docker Desktop (recomendado para E2E local e ambiente dev completo)
-- PostgreSQL 15+ (se não usar Docker)
-- Redis 7 (se não usar Docker)
+| Ferramenta         | Versão recomendada | Observações |
+|--------------------|--------------------|-------------|
+| Node.js            | 20.x               | use `nvm install 20 && nvm use 20` |
+| npm                | 10.x               | acompanha o Node 20 |
+| Docker + Compose   | Docker 24+, Compose V2 | necessário para Postgres/Redis (local ou Codespaces) |
+| Git                | 2.40+              | versionamento |
+| `gh` (opcional)    | 2.0+               | usado pelo script de Codespaces para liberar portas |
 
-## Instalação
+> Instale também **psql** e **redis-cli** se desejar administrar bancos manualmente.
 
-1. **Clone o repositório**
-   ```bash
-   git clone https://github.com/brunonatanaelsr/assist-move-assist.git
-   cd assist-move-assist
-   ```
-2. **Instale as dependências**
-   ```bash
-   # Frontend
-   npm install
-   # Backend
-   cd backend
-   npm install
-   ```
-3. **Configure as variáveis de ambiente**
+## Variáveis de Ambiente
 
+1. Copie os templates para arquivos locais:
    ```bash
-   # Frontend
    cp .env.example .env.local
-   # Backend
    cp backend/.env.example backend/.env
    ```
+2. Ajuste credenciais conforme sua infraestrutura. Para desenvolvimento padrão, mantenha os valores sugeridos:
 
-   Edite os arquivos `.env` com suas configurações:
-
+   **Frontend (`.env.local`)**
    ```env
-   # Frontend (.env.local)
-   # Em desenvolvimento puro (sem Docker), use base absoluta
-   VITE_API_BASE_URL=http://127.0.0.1:3000/api
-   VITE_WS_URL=ws://127.0.0.1:3000
+   APP_URL=http://localhost:5173
+   VITE_API_BASE_URL=http://localhost:3000/api
+   VITE_WS_URL=ws://localhost:3000
+   ```
 
-   # Backend (.env)
+   **Backend (`backend/.env`)**
+   ```env
    PORT=3000
-   DATABASE_URL=postgres://user:pass@localhost:5432/assist_move
-   REDIS_URL=redis://localhost:6379
-   JWT_SECRET=seu_jwt_secret
-   AUTH_COOKIE_SAMESITE=lax # opcional: lax|strict|none (usa strict em produção por padrão)
-   UPLOAD_PATH=./uploads
-   ENABLE_WS=true
-   FRONTEND_URL=http://localhost:8080
+   POSTGRES_HOST=localhost
+   POSTGRES_USER=assistmove
+   POSTGRES_PASSWORD=assistmove123
+   POSTGRES_DB=assist_move_assist
+   REDIS_HOST=127.0.0.1
+   REDIS_PORT=6379
+   CORS_ORIGIN=http://localhost:5173
    ```
 
-   > **Observação:** Em desenvolvimento, o backend avisa e usa um segredo fraco padrão
-   > (`dev-only-secret`) quando `JWT_SECRET` não é informado. Em produção, a aplicação
-   > falha no boot se a variável não estiver definida.
+3. Para ambientes diferentes, mantenha arquivos separados e utilize `ENV_FILE` ao iniciar a API (`ENV_FILE=.env.staging npm --prefix backend run start`).
 
-4. **Configure o banco de dados**
+## Fluxos de Execução
 
-   ```bash
-   # Criar banco
-   createdb assist_move
+### 1. Stack completa via Docker Compose
 
-   # Aplicar migrações
-   cd backend
-   npm run migrate
-   ```
+Ideal para subir tudo (frontend, backend, Postgres e Redis) com um comando.
 
-5. **Execute o projeto**
-
-   ```bash
-   # Terminal 1 (Infra: Postgres e Redis)
-   docker-compose up -d
-
-   # Terminal 2 (Backend)
-   cd backend
-   cp .env.example .env   # se ainda não existir
-   npm run migrate        # aplica migrações (usa POSTGRES_* do .env)
-   npm run dev            # inicia API em http://localhost:3000
-
-   ```
-
-# Terminal 3 (Frontend)
-
-npm run dev # inicia em http://localhost:5173 (Vite dev)
-
-````
-Frontend: [http://localhost:5173](http://localhost:5173)
-Backend: [http://localhost:3000](http://localhost:3000)
-
-## Scripts Úteis
 ```bash
-npm run dev           # Dev (frontend:5173, backend:3000)
-npm run build         # Build de produção
-npm run preview       # Preview do build (frontend:4173)
-npm run lint          # Linter ESLint
-npm run type-check    # Verificação de tipos TypeScript
-npm test              # Executar testes (frontend)
-npm run test:backend  # Testes backend (rodar dentro de /backend)
-npm run test:e2e      # Testes E2E (Playwright)
-npm run test:e2e:local # E2E completo com Docker local (scripts/run-e2e-local.sh)
-````
+docker compose up -d
+```
+
+- O build inicial baixa imagens, aplica migrações e executa seeds padrão.
+- Acesse:
+  - Frontend: http://localhost:5173
+  - API: http://localhost:3000/api
+- Para desligar: `docker compose down` (use `--volumes` para limpar dados locais).
+
+### 2. Desenvolvimento local (Node + Docker para infraestrutura)
+
+1. **Infraestrutura** (Postgres + Redis):
+   ```bash
+   docker compose up -d postgres redis
+   ```
+2. **Instalar dependências**:
+   ```bash
+   npm install
+   npm --prefix backend install
+   ```
+3. **Aplicar migrações + seeds** (usa `backend/src/database/migrations`):
+   ```bash
+   npm --prefix backend run migrate:node
+   ```
+4. **Iniciar backend**:
+   ```bash
+   (cd backend && npm run dev)
+   ```
+5. **Iniciar frontend** (em outro terminal):
+   ```bash
+   npm run dev
+   ```
+6. Abrir http://localhost:5173 e autenticar com as credenciais de `docs/TEST_CREDENTIALS.md`.
+
+### 3. GitHub Codespaces
+
+O script `scripts/codespace-dev.sh` automatiza toda a configuração:
+
+```bash
+bash scripts/codespace-dev.sh
+```
+
+Ele executa as etapas abaixo:
+- cria `.env.local` e `backend/.env` se não existirem;
+- instala dependências front/back;
+- inicia Postgres + Redis via Docker e aguarda o `pg_isready` responder;
+- aplica migrações (com seed inicial);
+- libera as portas 3000 e 5173 via `gh codespace ports visibility` (quando possível);
+- sobe backend e frontend no mesmo terminal (Ctrl+C encerra ambos e realiza limpeza).
+
+> Dica: a URL pública gerada pelo Codespaces segue o padrão `https://3000-${CODESPACE_NAME}.app.github.dev`.
+
+## Portas e serviços
+
+| Serviço   | Porta | Observação |
+|-----------|-------|------------|
+| Frontend  | 5173  | Vite Dev Server (`npm run dev`) |
+| API       | 3000  | Express + WebSocket |
+| PostgreSQL| 5432  | Base `assist_move_assist` (Docker) |
+| Redis     | 6379  | Cache e permissões |
+
+## Scripts úteis
+
+```bash
+npm run dev                 # Frontend em modo desenvolvimento
+npm run build               # Build do frontend
+npm run preview             # Servir build gerado
+npm run lint                # ESLint + Prettier (check)
+npm run type-check          # TypeScript sem emitir arquivos
+npm run test                # Testes de frontend (Vitest)
+npm --prefix backend run dev        # API em watch mode
+npm --prefix backend run migrate:node # Migrações + seed automáticos
+npm --prefix backend run test       # Testes unitários backend
+npm run test:e2e            # Playwright (necessita API ativa)
+```
 
 ## Testes
 
-### Credenciais padrão
+- **Frontend**: `npm run test` (Vitest) ou `npm run test:watch`.
+- **Backend**: `npm --prefix backend run test` (Jest).
+- **Integração**: `npm --prefix backend run test:integration` (usa Testcontainers, requer Docker).
+- **End-to-End**: `npm run test:e2e` (Playwright) — utilize `scripts/run-e2e-local.sh` para o fluxo completo com Docker.
 
-As rotinas de seed garantem contas prontas para uso durante o desenvolvimento e
-execução dos testes (unitários, integração e E2E). Consulte
-[`docs/TEST_CREDENTIALS.md`](docs/TEST_CREDENTIALS.md) para ver a lista completa
-de usuários e senhas padrão.
+Credenciais padrão para automação e QA estão documentadas em [`docs/TEST_CREDENTIALS.md`](docs/TEST_CREDENTIALS.md).
 
-### Unitários
+## Solução de problemas
 
-- Frontend: `npm run test:frontend`
-- Backend: `cd backend && npm test`
+| Sintoma | Causa provável | Como resolver |
+|---------|----------------|---------------|
+| `ECONNREFUSED` ao iniciar a API | Postgres/Redis não estão em execução | Rode `docker compose ps` e garanta que `postgres` e `redis` estão `Up`; reinicie com `docker compose up -d postgres redis`. |
+| Frontend mostra erro 401 após login | Seeds não executaram ou JWT desatualizado | Reaplique `npm --prefix backend run migrate:node` e limpe cookies/localStorage. |
+| Porta 5173 ou 3000 indisponível | Outro processo usando as portas | Ajuste `PORT` em `backend/.env` ou execute `npm run dev -- --port 5174`. |
+| Playwright falha no Codespaces | Browsers não instalados | Execute `npx playwright install --with-deps chromium` antes dos testes. |
 
-### E2E
-
-Há duas formas de rodar os testes end-to-end (Playwright):
-
-1. Completo com Docker (recomendado)
-
-```bash
-# Pré-requisito: Docker Desktop instalado
-bash scripts/run-e2e-local.sh
-```
-
-O script sobe Postgres/Redis, roda migrações + seeds, inicia a API, builda o frontend (modo e2e), instala browsers e roda Chromium.
-
-2. Somente camada de UI (sem API)
-
-```bash
-npm run build -- --mode e2e
-npx playwright test --project=chromium -g "deve carregar página inicial"
-```
-
-Os testes de fluxo são pulados quando a API não está ativa.
-
-## Arquitetura
-
-### Frontend
-
-- React 18 + TypeScript + Vite
-- Tailwind CSS para estilos
-- React Query para gerenciamento de estado
-- Socket.IO Client para real-time
-- Axios para chamadas HTTP
-- Código principal em `src/`
-
-### Backend
-
-- Node.js + Express + TypeScript
-- PostgreSQL com pg (node-postgres)
-- JWT para autenticação
-- Socket.IO para real-time
-- Multer para uploads
-- Winston para logs
-- Código em `backend/`
-
-### Banco de Dados
-
-- PostgreSQL 15+
-- Migrations SQL nativas
-- Triggers para eventos em tempo real
-- Full-text search nativo
-- Backup automatizado
-
-### Cache (opcional)
-
-- Redis para cache de sessão
-- Cache de consultas frequentes
-- Armazenamento de notificações offline
-
-Para documentação detalhada consulte:
+## Documentação complementar
 
 - [Guia de Deploy](docs/deployment/README.md)
+- [Guia de RBAC/Administração](README-ADMIN.md)
 - [Credenciais de Teste](docs/TEST_CREDENTIALS.md)
-- [Migração para Cookies HttpOnly e CSRF](docs/SECURITY_MIGRATION_COOKIES.md)
-- [Guia de Admin (RBAC, permissões e smokes)](README-ADMIN.md)
-
-## Principais Funcionalidades
-
-### Autenticação
-
-- JWT com refresh token
-- Middleware de autenticação
-- Rate limiting
-- Logout em múltiplos dispositivos
-
-### Feed em Tempo Real
-
-- WebSocket via Socket.IO
-- Notificações em tempo real
-- Indicadores de digitação
-- Entrega offline via Redis
-  - Chat privado: fila `chat:unread:<userId>`
-  - Notificações: fila `unread:<userId>`
-
-### Endpoints do Feed
-
-- `GET /api/feed` — listar posts
-- `GET /api/feed/:id` — obter post por ID
-- `POST /api/feed` — criar post
-- `PUT /api/feed/:id` — atualizar post (autor ou superadmin)
-- `DELETE /api/feed/:id` — remover post (soft delete; autor ou superadmin)
-- `POST /api/feed/:id/curtir` — alternar curtida (por usuário) e retornar `{ curtidas, liked }`
-- `POST /api/feed/:id/compartilhar` — compartilhar post
-- `GET /api/feed/:postId/comentarios` — listar comentários do post
-- `POST /api/feed/:postId/comentarios` — criar comentário
-- `PUT /api/feed/comentarios/:id` — atualizar comentário (autor ou superadmin)
-- `DELETE /api/feed/comentarios/:id` — remover comentário (autor ou superadmin)
-
-### Upload de Arquivos
-
-- Gerenciamento local via Multer
-- Metadados no PostgreSQL
-- Validação de tipos
-- Rate limiting por usuário
-
-### Monitoramento
-
-- Logs estruturados (Winston)
-- Métricas de performance
-- Alertas de erro
-- Audit trail de ações
-
-## Docker (Produção)
-
-Este repositório já inclui Dockerfiles de produção e um `docker-compose.prod.yml` para subir todo o stack (Postgres, Redis, Backend e Frontend):
-
-```bash
-docker compose -f docker-compose.prod.yml up --build
-```
-
-URLs padrões:
-
-- API: http://localhost:3000/api
-- Frontend (preview): http://localhost:4173
-
-Variáveis úteis no compose:
-
-- JWT*SECRET, POSTGRES*\_, REDIS\_\_, CORS_ORIGIN, VITE_API_BASE_URL, VITE_WS_URL
-
-## Realtime (WebSocket)
-
-- Backend usa Socket.IO embutido em `backend/src/websocket/server.ts`.
-- Para habilitar, defina no `backend/.env`:
-- `ENABLE_WS=true`
-  - `FRONTEND_URL=http://localhost:5173` (dev) ou a URL de produção do frontend
-- Eventos principais de chat expostos:
-  - Cliente → servidor: `join_groups`, `send_message`, `read_message`, `typing`.
-  - Servidor → cliente: `new_message`, `message_sent`, `message_read`, `user_status`, `user_typing`.
-- Grupos: usuários entram automaticamente em `user:<id>` e podem entrar em `group:<id>` via `join_groups` (membros são detectados pelo backend).
-
-### Endpoints de Grupos
-
-- `GET /api/grupos` — lista grupos do usuário autenticado
-- `GET /api/grupos/:id/mensagens` — lista mensagens do grupo (últimas 200)
-- `GET /api/grupos/:id` — detalhes do grupo (membros apenas)
-- `GET /api/grupos/:id/membros` — lista membros do grupo
-- `POST /api/grupos` — cria grupo (criador vira admin)
-- `PUT /api/grupos/:id` — atualiza nome/descrição/ativo (somente admin)
-- `DELETE /api/grupos/:id` — desativa o grupo (somente admin)
-- `POST /api/grupos/:id/membros` — adiciona/atualiza papel de um membro (somente admin)
-- `DELETE /api/grupos/:id/membros/:usuarioId` — remove membro (somente admin)
-
-### Migrações relacionadas
-
-- `014_criar_grupos.sql` — tabelas de grupos e membros
-- `015_criar_mensagens_grupo.sql` — tabela de mensagens de grupo
-
-```bash
-# Build das imagens
-docker-compose build
-
-# Iniciar serviços
-docker-compose up -d
-
-# Logs
-docker-compose logs -f
-```
-
-## CI/CD
-
-GitHub Actions para:
-
-- Build e testes
-- Lint e type-check
-- Auditoria de segurança
-- Deploy automático
+- Scripts e utilidades adicionais estão descritos na pasta [`scripts/`](scripts).
 
 ---
 
-Projeto sob licença MIT.
+> Contribuições são bem-vindas! Certifique-se de executar linters e testes antes de abrir pull requests.
