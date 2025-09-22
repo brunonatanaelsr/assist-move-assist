@@ -87,6 +87,7 @@ export default function CadastroBeneficiaria() {
     e.preventDefault();
     
     if (!doValidateForm()) {
+      setError("Verifique os campos destacados");
       return;
     }
 
@@ -203,7 +204,7 @@ export default function CadastroBeneficiaria() {
         </Alert>
       )}
 
-      <form onSubmit={handleSubmit} onKeyDown={onKeyDown} className="space-y-6">
+      <form noValidate onSubmit={handleSubmit} onKeyDown={onKeyDown} className="space-y-6">
         {/* Dados Pessoais */}
         <Card className="shadow-soft">
           <CardHeader>
