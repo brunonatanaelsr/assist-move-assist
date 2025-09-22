@@ -1,123 +1,108 @@
 #!/bin/bash
 set -euo pipefail
 
-# Configurações
-SERVER="root@92.242.187.94"
-DOMAIN="movemarias.squadsolucoes.com.br"
-APP_DIR="/opt/movemarias"
-GITHUB_REPO="https://github.com/brunonatanaelsr/assist-move-assist.git"
-BRANCH="main"
+# Caminho do script auxiliar (deploy-ubuntu-24.sh)
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+BASE_DEPLOY_SCRIPT="$SCRIPT_DIR/deploy-ubuntu-24.sh"
+REMOTE_SCRIPT_PATH="/tmp/movemarias-deploy.sh"
 
-echo "🚀 Iniciando deploy em produção..."
-
-# Conectar na VPS e executar a instalação
-ssh $SERVER "bash -s" << 'ENDSSH'
-set -euo pipefail
-
-# Instalar dependências do sistema
-echo "📦 Instalando dependências do sistema..."
-apt-get update
-apt-get install -y curl git nginx postgresql postgresql-contrib redis-server certbot python3-certbot-nginx
-
-# Instalar Node.js 20.x
-echo "📦 Instalando Node.js..."
-curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-apt-get install -y nodejs
-
-# Configurar diretório da aplicação
-echo "📁 Configurando diretório da aplicação..."
-mkdir -p /opt/movemarias
-cd /opt/movemarias
-
-# Clonar repositório
-echo "📥 Clonando repositório..."
-if [ -d ".git" ]; then
-  git fetch origin
-  git reset --hard origin/main
-else
-  git clone https://github.com/brunonatanaelsr/assist-move-assist.git .
-  git checkout main
+if [[ ! -f "$BASE_DEPLOY_SCRIPT" ]]; then
+  echo "❌ Script base não encontrado: $BASE_DEPLOY_SCRIPT" >&2
+  exit 1
 fi
 
-# Instalar PM2 globalmente
-echo "📦 Instalando PM2..."
-npm install -g pm2
+# ============================
+# Configurações (sobrescreva via variável de ambiente)
+# ============================
+SERVER=${SERVER:-"root@92.242.187.94"}
+DOMAIN=${DOMAIN:-"movemarias.squadsolucoes.com.br"}
+APP_DIR=${APP_DIR:-"/opt/movemarias"}
+GITHUB_REPO=${GITHUB_REPO:-"https://github.com/brunonatanaelsr/assist-move-assist.git"}
+BRANCH=${BRANCH:-"main"}
+DB_NAME=${DB_NAME:-"movemarias"}
+DB_USER=${DB_USER:-"movemarias"}
+DB_PASS=${DB_PASS:-"movemarias"}
+DB_HOST=${DB_HOST:-"localhost"}
+DB_PORT=${DB_PORT:-"5432"}
+API_PORT=${API_PORT:-"3000"}
+VITE_API_URL=${VITE_API_URL:-"https://${DOMAIN}/api"}
+LETSENCRYPT_EMAIL=${LETSENCRYPT_EMAIL:-""}
+JWT_SECRET=${JWT_SECRET:-""}
+SUPERADMIN_EMAIL=${SUPERADMIN_EMAIL:-"superadmin@${DOMAIN}"}
+SUPERADMIN_PASSWORD=${SUPERADMIN_PASSWORD:-"ChangeMe!123"}
+ADMIN_EMAIL=${ADMIN_EMAIL:-"admin@${DOMAIN}"}
+ADMIN_PASSWORD=${ADMIN_PASSWORD:-"ChangeMe!123"}
+SKIP_DB_PROVISION=${SKIP_DB_PROVISION:-""}
+SSH_OPTIONS=${SSH_OPTIONS:-"-o StrictHostKeyChecking=accept-new"}
 
-# Configurar banco de dados PostgreSQL
-echo "🗄️ Configurando PostgreSQL..."
-sudo -u postgres psql -c "CREATE DATABASE movemarias;" || true
-sudo -u postgres psql -c "CREATE USER movemarias WITH PASSWORD 'movemarias';" || true
-sudo -u postgres psql -c "ALTER USER movemarias WITH SUPERUSER;" || true
-sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE movemarias TO movemarias;" || true
+# Variáveis opcionais adicionais
+REDIS_HOST=${REDIS_HOST:-""}
+REDIS_PORT=${REDIS_PORT:-""}
+REDIS_PASSWORD=${REDIS_PASSWORD:-""}
+SMTP_HOST=${SMTP_HOST:-""}
+SMTP_PORT=${SMTP_PORT:-""}
+SMTP_SECURE=${SMTP_SECURE:-""}
+SMTP_USER=${SMTP_USER:-""}
+SMTP_PASS=${SMTP_PASS:-""}
+SMTP_FROM_NAME=${SMTP_FROM_NAME:-""}
+SMTP_FROM_EMAIL=${SMTP_FROM_EMAIL:-""}
 
-# Configurar frontend
-echo "🎨 Configurando frontend..."
-npm install
-npm run build
+printf '🚀 Iniciando deploy em produção para %s\n' "$DOMAIN"
 
-# Configurar backend
-echo "⚙️ Configurando backend..."
-cd backend
-npm install
-npm run build
+# Envia o script base para a VPS
+echo '📤 Enviando script de provisionamento...'
+scp $SSH_OPTIONS "$BASE_DEPLOY_SCRIPT" "$SERVER:$REMOTE_SCRIPT_PATH"
 
-# Criar arquivo .env para o backend
-cat > .env << EOL
-NODE_ENV=production
-PORT=3000
-DATABASE_URL=postgresql://movemarias:movemarias@localhost:5432/movemarias
-JWT_SECRET=your_production_secret_key_here
-CORS_ORIGIN=https://movemarias.squadsolucoes.com.br
-REDIS_HOST=localhost
-REDIS_PORT=6379
-EOL
-
-# Executar migrações do banco de dados
-echo "🔄 Executando migrações..."
-npm run migrate
-
-# Configurar PM2
-echo "🔧 Configurando PM2..."
-pm2 delete movemarias-api || true
-pm2 start dist/main.js --name movemarias-api
-pm2 save
-pm2 startup
-
-# Configurar Nginx
-echo "🌐 Configurando Nginx..."
-cat > /etc/nginx/sites-available/movemarias << 'EOL'
-server {
-    server_name movemarias.squadsolucoes.com.br;
-
-    location / {
-        root /opt/movemarias/dist;
-        try_files $uri $uri/ /index.html;
-    }
-
-    location /api {
-        proxy_pass http://localhost:3000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
-    }
+cleanup() {
+  ssh $SSH_OPTIONS "$SERVER" "rm -f $REMOTE_SCRIPT_PATH" >/dev/null 2>&1 || true
 }
-EOL
+trap cleanup EXIT
 
-# Ativar configuração do Nginx
-ln -sf /etc/nginx/sites-available/movemarias /etc/nginx/sites-enabled/
-rm -f /etc/nginx/sites-enabled/default
+# Garante permissão de execução
+echo '🔧 Preparando script remoto...'
+ssh $SSH_OPTIONS "$SERVER" "chmod +x $REMOTE_SCRIPT_PATH"
 
-# Testar configuração do Nginx
-nginx -t
+# Monta variáveis de ambiente a serem passadas para o script remoto
+declare -a remote_env=(
+  "DOMAIN=$DOMAIN"
+  "APP_DIR=$APP_DIR"
+  "REPO_URL=$GITHUB_REPO"
+  "BRANCH=$BRANCH"
+  "DB_NAME=$DB_NAME"
+  "DB_USER=$DB_USER"
+  "DB_PASS=$DB_PASS"
+  "DB_HOST=$DB_HOST"
+  "DB_PORT=$DB_PORT"
+  "API_PORT=$API_PORT"
+  "VITE_API_URL=$VITE_API_URL"
+  "LETSENCRYPT_EMAIL=$LETSENCRYPT_EMAIL"
+  "JWT_SECRET=$JWT_SECRET"
+  "SUPERADMIN_EMAIL=$SUPERADMIN_EMAIL"
+  "SUPERADMIN_PASSWORD=$SUPERADMIN_PASSWORD"
+  "ADMIN_EMAIL=$ADMIN_EMAIL"
+  "ADMIN_PASSWORD=$ADMIN_PASSWORD"
+)
 
-# Reiniciar Nginx
-systemctl restart nginx
+# Variáveis opcionais apenas se definidas
+for var in REDIS_HOST REDIS_PORT REDIS_PASSWORD SMTP_HOST SMTP_PORT SMTP_SECURE SMTP_USER SMTP_PASS SMTP_FROM_NAME SMTP_FROM_EMAIL SKIP_DB_PROVISION; do
+  value=${!var}
+  if [[ -n "$value" ]]; then
+    remote_env+=("$var=$value")
+  fi
+done
 
-# Configurar SSL com Certbot
-echo "🔒 Configurando SSL..."
-certbot --nginx -d movemarias.squadsolucoes.com.br --non-interactive --agree-tos --email seu-email@exemplo.com
+# Escapa valores para passagem segura via SSH
+escaped_env=()
+for entry in "${remote_env[@]}"; do
+  var_name=${entry%%=*}
+  var_value=${entry#*=}
+  printf -v escaped_value '%q' "$var_value"
+  escaped_env+=("$var_name=$escaped_value")
+done
 
-echo "✅ Deploy concluído com sucesso!"
-ENDSSH
+remote_command="${escaped_env[*]} $REMOTE_SCRIPT_PATH"
+
+echo '🚚 Executando script na VPS...'
+ssh $SSH_OPTIONS "$SERVER" "$remote_command"
+
+echo '✅ Deploy finalizado com sucesso!'

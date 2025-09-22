@@ -7,6 +7,10 @@
 
 set -euo pipefail
 
+export DEBIAN_FRONTEND=noninteractive
+export NEEDRESTART_MODE=a
+WWW_DATA_HOME="/var/www"
+
 # ======= Configuração =======
 # Edite via variáveis de ambiente (recomendado) ou altere os defaults abaixo
 
@@ -52,11 +56,13 @@ gen_secret() {
 
 # ======= Pré-checagens =======
 require_root
+mkdir -p "$WWW_DATA_HOME"
+chown www-data:www-data "$WWW_DATA_HOME" || true
 command -v git >/dev/null || (apt-get update -y && apt-get install -y git)
 
 msg "Atualizando sistema e instalando pacotes base..."
 apt-get update -y
-apt-get install -y curl ca-certificates gnupg ufw nginx redis-server jq unzip tar gettext-base
+apt-get install -y curl ca-certificates gnupg ufw nginx redis-server jq unzip tar gettext-base rsync build-essential
 
 msg "Instalando Node.js 20 LTS..."
 if ! command -v node >/dev/null || [ "$(node -v | cut -c2- | cut -d. -f1)" -lt 18 ]; then
@@ -104,14 +110,22 @@ git clone --branch "$BRANCH" --depth 1 "$REPO_URL" "$WORKDIR"
 # ======= Backend =======
 msg "Montando backend..."
 rsync -a --delete "$WORKDIR/backend/" "$BACKEND_DIR/"
+chown -R www-data:www-data "$BACKEND_DIR"
 cd "$BACKEND_DIR"
 
 msg "Instalando dependências do backend..."
-sudo -u www-data npm ci --silent
-sudo -u www-data npm run build
+sudo -u www-data HOME="$WWW_DATA_HOME" npm ci --silent
+sudo -u www-data HOME="$WWW_DATA_HOME" npm run build
 
 msg "Escrevendo arquivo de ambiente do backend..."
-JWT_SECRET_VAL="${JWT_SECRET:-$(gen_secret)}"
+EXISTING_JWT_SECRET=""
+if [ -f "$BACKEND_DIR/.env" ]; then
+  EXISTING_JWT_SECRET=$(grep -E "^JWT_SECRET=" "$BACKEND_DIR/.env" | tail -n1 | cut -d"=" -f2- || true)
+fi
+JWT_SECRET_VAL="${JWT_SECRET:-${EXISTING_JWT_SECRET}}"
+if [ -z "$JWT_SECRET_VAL" ]; then
+  JWT_SECRET_VAL=$(gen_secret)
+fi
 cat > "$BACKEND_DIR/.env" <<ENV
 NODE_ENV=production
 PORT=${API_PORT}
@@ -124,6 +138,7 @@ POSTGRES_DB=${DB_NAME}
 POSTGRES_USER=${DB_USER}
 POSTGRES_PASSWORD=${DB_PASS}
 POSTGRES_SSL=false
+DATABASE_URL=postgresql://${DB_USER}:${DB_PASS}@${DB_HOST}:${DB_PORT}/${DB_NAME}
 
 # JWT
 JWT_SECRET=${JWT_SECRET_VAL}
@@ -135,7 +150,7 @@ REDIS_PORT=${REDIS_PORT:-6379}
 REDIS_PASSWORD=${REDIS_PASSWORD:-}
 
 # Segurança
-CORS_ORIGIN=https://${DOMAIN}
+CORS_ORIGIN=https://${DOMAIN},http://${DOMAIN}
 ENABLE_WS=true
  
 # Email (SMTP)
@@ -159,11 +174,12 @@ chown www-data:www-data "$BACKEND_DIR/.env"
 chmod 600 "$BACKEND_DIR/.env"
 
 msg "Aplicando migrações do banco..."
-sudo -u www-data npm run migrate || true
+sudo -u www-data HOME="$WWW_DATA_HOME" npm run migrate || true
 
 # Garante superadmin com as credenciais fornecidas
 msg "Garantindo superadmin padrão..."
 sudo -u www-data env \
+  HOME="$WWW_DATA_HOME" \
   POSTGRES_HOST=${DB_HOST:-localhost} \
   POSTGRES_PORT=${DB_PORT:-5432} \
   POSTGRES_DB=${DB_NAME} \
@@ -178,16 +194,20 @@ msg "Montando frontend..."
 rsync -a --delete "$WORKDIR/public/" "$FRONTEND_DIR/public/" || true
 rsync -a --delete "$WORKDIR/src/" "$FRONTEND_DIR/src/"
 install -m 0644 "$WORKDIR/package.json" "$FRONTEND_DIR/package.json"
+install -m 0644 "$WORKDIR/package-lock.json" "$FRONTEND_DIR/package-lock.json"
 install -m 0644 "$WORKDIR/vite.config.ts" "$FRONTEND_DIR/vite.config.ts"
 install -m 0644 "$WORKDIR/tsconfig.json" "$FRONTEND_DIR/tsconfig.json"
+install -m 0644 "$WORKDIR/tsconfig.app.json" "$FRONTEND_DIR/tsconfig.app.json" || true
+install -m 0644 "$WORKDIR/tsconfig.node.json" "$FRONTEND_DIR/tsconfig.node.json" || true
 install -m 0644 "$WORKDIR/tailwind.config.ts" "$FRONTEND_DIR/tailwind.config.ts" || true
 install -m 0644 "$WORKDIR/postcss.config.js" "$FRONTEND_DIR/postcss.config.js" || true
 install -m 0644 "$WORKDIR/index.html" "$FRONTEND_DIR/index.html"
+chown -R www-data:www-data "$FRONTEND_DIR"
 cd "$FRONTEND_DIR"
 
 msg "Instalando dependências do frontend e buildando..."
-sudo -u www-data npm ci --silent || sudo -u www-data npm install --silent
-sudo -u www-data VITE_API_URL="$VITE_API_URL" npm run build
+sudo -u www-data HOME="$WWW_DATA_HOME" npm ci --silent || sudo -u www-data HOME="$WWW_DATA_HOME" npm install --silent
+sudo -u www-data HOME="$WWW_DATA_HOME" VITE_API_URL="$VITE_API_URL" npm run build
 
 # ======= Systemd (backend) =======
 SERVICE_FILE="/etc/systemd/system/assist-move-assist.service"

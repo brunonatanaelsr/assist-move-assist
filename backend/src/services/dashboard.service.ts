@@ -1,5 +1,5 @@
 import { db } from '../services/db';
-import type { Redis } from 'ioredis';
+import type Redis from 'ioredis';
 import redis from '../lib/redis';
 import { loggerService } from '../services/logger';
 

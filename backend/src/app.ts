@@ -1,12 +1,16 @@
 import type { Express, Request, Response, NextFunction } from 'express';
 import express from 'express';
-import cors, { type CorsOptions } from 'cors';
+import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
 import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
 import { createServer } from 'http';
 import dotenv from 'dotenv';
+
+type CorsConfig = Exclude<Parameters<typeof cors>[0], undefined>;
+type AllowedOrigin = boolean | string | RegExp | Array<boolean | string | RegExp>;
+type OriginCallback = (err: Error | null, origin?: AllowedOrigin) => void;
 
 import apiRoutes from './routes/api';
 // WebSocket opcional em runtime
@@ -64,8 +68,8 @@ if (allowList.length === 0) {
   logger.warn('CORS desabilitado por padrão. Defina CORS_ORIGIN com as origens permitidas.');
 }
 
-const corsOptions: CorsOptions = {
-  origin(origin, callback) {
+const corsOptions: CorsConfig = {
+  origin(origin: string | undefined, callback: OriginCallback) {
     if (!origin) {
       // Permitir chamadas sem header Origin (ex.: ferramentas internas / Postman)
       return callback(null, true);

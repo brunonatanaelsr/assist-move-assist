@@ -1,5 +1,5 @@
 import { Pool } from 'pg';
-import Redis from 'ioredis';
+import type Redis from 'ioredis';
 import { loggerService } from '../services/logger';
 import { AppError, ValidationError } from '../utils';
 import {
@@ -43,15 +43,24 @@ export class ParticipacaoService {
   private async invalidateCache(patterns: string[]) {
     try {
       const keysToDelete = new Set<string>();
+      const redisWithScan = this.redis as unknown as {
+        scan: (
+          cursor: string,
+          matchToken: 'MATCH',
+          pattern: string,
+          countToken: 'COUNT',
+          count: number
+        ) => Promise<[string, string[]]>;
+      };
 
       for (const pattern of patterns) {
         let cursor = '0';
         const matchPattern = `participacoes:${pattern}`;
 
         do {
-          const [nextCursor, foundKeys] = await this.redis.scan(cursor, 'MATCH', matchPattern, 'COUNT', 50);
+          const [nextCursor, foundKeys] = await redisWithScan.scan(cursor, 'MATCH', matchPattern, 'COUNT', 50);
           cursor = nextCursor;
-          foundKeys.forEach((key) => keysToDelete.add(key));
+          foundKeys.forEach((key: string) => keysToDelete.add(key));
         } while (cursor !== '0');
       }
 
