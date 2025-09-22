@@ -181,7 +181,7 @@ export default function BeneficiariasFixed() {
     if (hasChanged) {
       lastFilterRef.current = { searchTerm, selectedStatus, programaFilter };
       if (currentPage !== 1) {
-        setFilters(prev => ({ ...prev, page: 1 }));
+        setFilters({ page: 1 });
       }
     }
   }, [searchTerm, selectedStatus, programaFilter, currentPage]);

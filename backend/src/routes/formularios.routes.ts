@@ -362,12 +362,37 @@ router.get('/', authenticateToken, async (req: AuthenticatedRequest, res): Promi
     const page = parseInt((req.query.page as string) || '1', 10);
     const tipo = (req.query.tipo as string) || undefined;
     const beneficiaria_id = (req.query.beneficiaria_id as string) || undefined;
+    const status = (req.query.status as string) || undefined;
+    const search = (req.query.search as string) || undefined;
+    const startDate = (req.query.start_date as string) || undefined;
+    const endDate = (req.query.end_date as string) || undefined;
 
     const where: string[] = [];
     const params: any[] = [];
     let idx = 1;
     if (tipo) { where.push(`tipo = $${idx++}`); params.push(tipo); }
     if (beneficiaria_id) { where.push(`beneficiaria_id = $${idx++}`); params.push(parseInt(beneficiaria_id)); }
+    if (status) { where.push(`status = $${idx++}`); params.push(status); }
+    if (startDate) {
+      const parsed = new Date(startDate);
+      if (!Number.isNaN(parsed.getTime())) {
+        where.push(`created_at >= $${idx++}`);
+        params.push(parsed);
+      }
+    }
+    if (endDate) {
+      const parsed = new Date(endDate);
+      if (!Number.isNaN(parsed.getTime())) {
+        where.push(`created_at <= $${idx++}`);
+        params.push(parsed);
+      }
+    }
+    if (search) {
+      const term = `%${search.trim().toLowerCase()}%`;
+      where.push(`(LOWER(observacoes) LIKE $${idx} OR LOWER(dados::text) LIKE $${idx})`);
+      params.push(term);
+      idx++;
+    }
     const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
     const offset = (Math.max(1, page) - 1) * Math.max(1, limit);
     const sql = `SELECT *, COUNT(*) OVER() as total_count FROM formularios ${whereSql} ORDER BY created_at DESC LIMIT $${idx} OFFSET $${idx+1}`;

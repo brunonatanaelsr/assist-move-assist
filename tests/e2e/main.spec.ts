@@ -4,6 +4,18 @@ const TEST_EMAIL = process.env.E2E_TEST_EMAIL || 'e2e@assist.local';
 const TEST_PASSWORD = process.env.E2E_TEST_PASSWORD || 'e2e_password';
 const TEST_NAME = process.env.E2E_TEST_NAME || 'E2E User';
 
+const API_BASE_URL = process.env.E2E_API_URL || 'http://127.0.0.1:3000';
+
+type ExpectedFailure = {
+  url: RegExp;
+  status: number;
+};
+
+const EXPECTED_FAILURES: ExpectedFailure[] = [
+  { url: /\/api\/auth\/login$/, status: 401 },
+  { url: /\/api\/beneficiarias$/, status: 400 },
+];
+
 let apiOnline = true;
 const API_HEALTH = process.env.PLAYWRIGHT_API_URL ? `${process.env.PLAYWRIGHT_API_URL.replace(/\/$/, '')}/health` : 'http://127.0.0.1:3000/api/health';
 
@@ -25,7 +37,15 @@ test.describe('Assist Move Assist - E2E Tests', () => {
     page.on('console', (m) => console.log('BROWSER:', m.type(), m.text()));
     page.on('pageerror', (e) => console.log('PAGEERROR:', e.message));
     page.on('response', (r) => {
-      if (r.status() >= 400) console.log('HTTP', r.status(), r.url());
+      if (r.status() < 400) return;
+
+      const match = EXPECTED_FAILURES.find(({ url, status }) =>
+        status === r.status() && url.test(r.url())
+      );
+
+      if (!match) {
+        console.log('HTTP', r.status(), r.url());
+      }
     });
 
     await page.goto('/');
@@ -124,8 +144,16 @@ test.describe('Assist Move Assist - E2E Tests', () => {
 
       await page.fill('input[name="email"]', 'wrong@email.com');
       await page.fill('input[name="password"]', 'wrong-password');
-      await page.click('button[type="submit"]');
 
+      const [response] = await Promise.all([
+        page.waitForResponse((res) =>
+          res.url().includes('/api/auth/login') &&
+          res.request().method() === 'POST'
+        ),
+        page.click('button[type="submit"]'),
+      ]);
+
+      expect(response.status(), 'login deve falhar com 401').toBe(401);
       await expect(page.locator('[data-testid="error-message"]')).toContainText(/(credenciais inválidas|senha incorret)/i);
     });
   });
@@ -166,9 +194,27 @@ test.describe('Assist Move Assist - E2E Tests', () => {
     await page.click('[data-testid="cadastrar-beneficiaria"]');
 
     // Tentar submeter sem preencher
-    await page.click('button[type="submit"]');
-    
+    const responsePromise = page
+      .waitForResponse(
+        (res) =>
+          res.url().includes('/api/beneficiarias') && res.request().method() === 'POST',
+        { timeout: 5000 }
+      )
+      .catch(() => null);
 
+    const [submission] = await Promise.all([
+      responsePromise,
+      page.click('button[type="submit"]'),
+    ]);
+
+    if (submission) {
+      expect(submission.status(), 'envio inválido deve retornar 400').toBe(400);
+    }
+
+    await expect(page.locator('[data-testid="error-message"]'))
+      .toContainText(/verifique os campos destacados/i);
+    await expect(page.locator('#nome_completo')).toHaveAttribute('aria-invalid', 'true');
+    await expect(page.locator('#cpf')).toHaveAttribute('aria-invalid', 'true');
   });
 
   test('deve pesquisar beneficiárias', async ({ page }) => {
@@ -297,5 +343,44 @@ test.describe('Assist Move Assist - E2E Tests', () => {
     expect(headers?.['strict-transport-security']).toBeTruthy();
     expect(headers?.['x-content-type-options']).toBe('nosniff');
     expect(headers?.['x-frame-options']).toBeTruthy();
+  });
+
+  test.describe('Cobertura de rotas principais da API', () => {
+    const apiEndpoints: Array<{ method: 'GET'; path: string }> = [
+      { method: 'GET', path: '/api/dashboard/stats' },
+      { method: 'GET', path: '/api/dashboard/recent-activities' },
+      { method: 'GET', path: '/api/beneficiarias' },
+      { method: 'GET', path: '/api/projetos' },
+      { method: 'GET', path: '/api/oficinas' },
+      { method: 'GET', path: '/api/feed' },
+      { method: 'GET', path: '/api/relatorios/templates' },
+      { method: 'GET', path: '/api/notifications' },
+      { method: 'GET', path: '/api/calendar/events' },
+    ];
+
+    test('deve responder com sucesso nas principais rotas autenticadas', async ({ request }) => {
+      test.skip(!apiOnline, 'API offline');
+
+      const loginResponse = await request.post(`${API_BASE_URL}/api/auth/login`, {
+        data: { email: TEST_EMAIL, password: TEST_PASSWORD },
+      });
+
+      expect(loginResponse.status(), 'login API deve retornar 200').toBe(200);
+      const loginPayload: any = await loginResponse.json();
+      const token: string | undefined = loginPayload?.token;
+      expect(token, 'token JWT deve ser retornado').toBeTruthy();
+
+      for (const endpoint of apiEndpoints) {
+        const response = await request.fetch(`${API_BASE_URL}${endpoint.path}`, {
+          method: endpoint.method,
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        expect(
+          response.status(),
+          `${endpoint.method} ${endpoint.path} deve responder sem erro`
+        ).toBeLessThan(400);
+      }
+    });
   });
 });

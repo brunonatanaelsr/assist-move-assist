@@ -3,9 +3,10 @@ import { useParams } from 'react-router-dom';
 import apiService from '@/services/apiService';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
 
 type Row = {
   id: number;
@@ -22,13 +23,19 @@ const tiposDisponiveis = [
   'roda_vida', 'plano_acao', 'triagem_inicial', 'avaliacao_risco', 'acompanhamento_mensal', 'avaliacao_final'
 ];
 
+const statusDisponiveis = ['completo', 'pendente', 'rascunho', 'arquivado'];
+
 export default function FormulariosBeneficiaria() {
   const { id } = useParams<{ id: string }>();
   const beneficiariaId = Number(id);
+  const navigate = useNavigate();
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [tipo, setTipo] = useState<string>('todos');
   const [search, setSearch] = useState('');
+  const [status, setStatus] = useState<string>('todos');
+  const [dataInicio, setDataInicio] = useState('');
+  const [dataFim, setDataFim] = useState('');
 
   const load = async () => {
     if (!beneficiariaId) return;
@@ -48,12 +55,25 @@ export default function FormulariosBeneficiaria() {
   const filtered = useMemo(() => {
     let r = [...rows];
     if (tipo !== 'todos') r = r.filter(x => x.tipo === tipo);
+    if (status !== 'todos') r = r.filter(x => (x.status || '').toLowerCase() === status.toLowerCase());
+    if (dataInicio) {
+      const inicio = new Date(dataInicio);
+      r = r.filter(x => (x.created_at ? new Date(x.created_at) >= inicio : true));
+    }
+    if (dataFim) {
+      const fim = new Date(dataFim);
+      r = r.filter(x => (x.created_at ? new Date(x.created_at) <= fim : true));
+    }
     if (search) {
       const s = search.toLowerCase();
-      r = r.filter(x => JSON.stringify(x.dados || {}).toLowerCase().includes(s));
+      r = r.filter(x => {
+        const base = JSON.stringify(x.dados || {}).toLowerCase();
+        const obs = (x as any).observacoes?.toLowerCase?.() || '';
+        return base.includes(s) || obs.includes(s) || String(x.id).includes(search);
+      });
     }
     return r;
-  }, [rows, tipo, search]);
+  }, [rows, tipo, status, dataInicio, dataFim, search]);
 
   const exportPdf = async (row: Row) => {
     try {
@@ -83,8 +103,12 @@ export default function FormulariosBeneficiaria() {
       case 'visao_holistica':
         location.hash = `#/beneficiarias/${beneficiariaId}/formularios/visao-holistica`;
         break;
-      case 'roda_vida':
       case 'plano_acao':
+        location.hash = `#/beneficiarias/${beneficiariaId}/formularios/plano-acao?formId=${row.id}`;
+        break;
+      case 'roda_vida':
+        location.hash = `#/formularios/roda_vida`;
+        break;
       default:
         location.hash = `#/formularios/${row.tipo}`;
         break;
@@ -98,7 +122,7 @@ export default function FormulariosBeneficiaria() {
           <CardTitle>Formulários da Beneficiária</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center gap-2 mb-4">
+          <div className="flex flex-wrap items-center gap-2 mb-4">
             <Select value={tipo} onValueChange={setTipo}>
               <SelectTrigger className="w-48"><SelectValue placeholder="Tipo" /></SelectTrigger>
               <SelectContent>
@@ -106,11 +130,23 @@ export default function FormulariosBeneficiaria() {
                 {tiposDisponiveis.map(t => (<SelectItem key={t} value={t}>{t}</SelectItem>))}
               </SelectContent>
             </Select>
-            <Input placeholder="Buscar no conteúdo" value={search} onChange={e => setSearch(e.target.value)} className="max-w-sm" />
+            <Select value={status} onValueChange={setStatus}>
+              <SelectTrigger className="w-44"><SelectValue placeholder="Status" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos os status</SelectItem>
+                {statusDisponiveis.map(s => (<SelectItem key={s} value={s}>{s}</SelectItem>))}
+              </SelectContent>
+            </Select>
+            <Input type="date" value={dataInicio} onChange={e => setDataInicio(e.target.value)} className="w-40" />
+            <Input type="date" value={dataFim} onChange={e => setDataFim(e.target.value)} className="w-40" />
+            <Input placeholder="Buscar em observações ou conteúdo" value={search} onChange={e => setSearch(e.target.value)} className="max-w-sm" />
             <div className="flex-1" />
             <Button variant="outline" onClick={load} disabled={loading}>{loading ? 'Atualizando...' : 'Atualizar'}</Button>
-            <Button asChild>
+            <Button asChild variant="secondary">
               <Link to={`/beneficiarias/${beneficiariaId}/formularios/evolucao`}>Ver evolução</Link>
+            </Button>
+            <Button onClick={() => navigate(`/beneficiarias/${beneficiariaId}/formularios/plano-acao`)}>
+              Novo PAEDI
             </Button>
           </div>
 
@@ -118,8 +154,11 @@ export default function FormulariosBeneficiaria() {
             {filtered.map(row => (
               <div key={`${row.tipo}-${row.id}`} className="flex items-center justify-between border rounded p-3">
                 <div className="space-y-1">
-                  <div className="text-sm text-muted-foreground">{row.created_at ? new Date(row.created_at).toLocaleString() : ''}</div>
-                  <div className="font-medium">{row.tipo}</div>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    {row.created_at ? new Date(row.created_at).toLocaleString() : ''}
+                    {row.status && <Badge variant="outline" className="uppercase text-xs">{row.status}</Badge>}
+                  </div>
+                  <div className="font-medium capitalize">{row.tipo.replace(/_/g, ' ')}</div>
                   <div className="text-xs text-muted-foreground">ID: {row.id} • Beneficiária: {row.beneficiaria_id}</div>
                 </div>
                 <div className="flex gap-2">
