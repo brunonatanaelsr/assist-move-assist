@@ -54,10 +54,10 @@ psql -d movemarias -c "CREATE EXTENSION IF NOT EXISTS pgcrypto; CREATE EXTENSION
 
 ### 2. Executar Migrações
 
-As migrações estão localizadas em `backend/src/database/migrations`. Execute-as na ordem numérica:
+As migrações estão localizadas em `apps/backend/src/database/migrations`. Execute-as na ordem numérica:
 
 ```bash
-cd backend/src/database/migrations
+cd apps/backend/src/database/migrations
 for f in $(ls -v *.sql); do
     echo "Executando $f..."
     psql -d movemarias -f "$f"
@@ -75,7 +75,7 @@ psql -d movemarias -c "INSERT INTO usuarios (nome, email, senha_hash, papel, ati
 
 ### 1. Configuração de Ambiente
 
-Criar arquivo `.env` em `backend/`:
+Criar arquivo `.env` em `apps/backend/`:
 
 ```bash
 # Ambiente

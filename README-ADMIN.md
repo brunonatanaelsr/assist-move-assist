@@ -42,7 +42,7 @@ Migrations that define presets and permissions:
 - Configurações: `users.manage`, `roles.manage`, `profile.edit`
 
 ## How authorize() works
-- Location: `backend/src/middleware/auth.ts`
+- Location: `apps/backend/src/middleware/auth.ts`
 - Reads the authenticated user `req.user.role` and `req.user.id`.
 - If role is `superadmin` or `super_admin`, allows.
 - Fetches permissions from Postgres and caches them in Redis for 300s:
@@ -97,7 +97,7 @@ Tip: Before smokes, make sure API is running on `http://localhost:3000/api`.
 - “403 Permission denied” after changing role/permissions:
   - Wait a few seconds (Redis TTL is 300s) or re-save role/permissions (triggers invalidation), or clear Redis keys `perms:role:*` / `perms:user:*`.
 - Superadmin cannot log in:
-  - Re-run migrations; ensure seed ran (`backend/scripts/create-initial-data.js`).
+  - Re-run migrations; ensure seed ran (`apps/backend/scripts/create-initial-data.js`).
 - UI doesn’t list new permissions:
   - Use the search box or increase limit; the list is paginated.
 

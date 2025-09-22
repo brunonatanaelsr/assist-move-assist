@@ -14,8 +14,8 @@ export default defineConfig({
     ],
     exclude: [
       'node_modules/',
-      'backend/**/*',
-      'tests/e2e/**/*',
+      '../backend/**/*',
+      '../../tests/e2e/**/*',
       '**/*.config.*',
       '**/coverage/**'
     ],
@@ -25,8 +25,8 @@ export default defineConfig({
       exclude: [
         'node_modules/',
         'src/__tests__/',
-        'backend/',
-        'tests/',
+        '../backend/',
+        '../../tests/',
         '**/*.d.ts',
         '**/*.config.*',
         '**/coverage/**',

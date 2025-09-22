@@ -67,6 +67,8 @@ function toErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
 }
 
+const projectRoot = process.env.PROJECT_ROOT ?? path.resolve(process.cwd(), '../../');
+
 function buildDbUrlFromEnv() {
   const host = process.env.POSTGRES_HOST || '127.0.0.1';
   const port = process.env.POSTGRES_PORT || '5432';
@@ -104,7 +106,7 @@ export default async function globalSetup(_config: FullConfig) {
     );
   }
 
-  const storageStatePath = path.resolve('tests/.auth/admin.json');
+  const storageStatePath = path.resolve(projectRoot, 'tests/.auth/admin.json');
   await ensureDirectory(storageStatePath);
 
   let storageState: StorageState = { cookies: [], origins: [] };

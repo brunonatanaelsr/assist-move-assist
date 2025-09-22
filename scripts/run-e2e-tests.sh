@@ -2,7 +2,9 @@
 set -euo pipefail
 
 ROOT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." &> /dev/null && pwd)
-BACKEND_DIR="$ROOT_DIR/backend"
+BACKEND_DIR="$ROOT_DIR/apps/backend"
+FRONTEND_DIR="$ROOT_DIR/apps/frontend"
+export PROJECT_ROOT="$ROOT_DIR"
 
 API_HOST="127.0.0.1"
 API_PORT="3000"
@@ -95,8 +97,8 @@ export POSTGRES_DB=movemarias_test
 export POSTGRES_USER=postgres
 unset POSTGRES_PASSWORD
 
-cd "$ROOT_DIR"
-npm run test:e2e
+cd "$FRONTEND_DIR"
+PROJECT_ROOT="$ROOT_DIR" npm run test:e2e
 
 # Capturar código de saída dos testes
 TEST_EXIT_CODE=$?

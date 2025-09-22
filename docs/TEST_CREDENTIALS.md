@@ -1,6 +1,6 @@
 # Credenciais de Desenvolvimento e Testes
 
-As rotinas de seed (`backend/scripts/create-initial-data.js`) garantem três usuários padrão
+As rotinas de seed (`apps/backend/scripts/create-initial-data.js`) garantem três usuários padrão
 que podem ser utilizados para desenvolvimento manual, testes automatizados e fluxos de
 homologação local.
 
@@ -19,6 +19,6 @@ npm install
 node scripts/create-initial-data.js
 ```
 
-O script utiliza as credenciais de banco configuradas em `backend/.env` (ou variáveis de
+O script utiliza as credenciais de banco configuradas em `apps/backend/.env` (ou variáveis de
 ambiente exportadas no shell) para inserir/atualizar os usuários. Execute-o após aplicar as
 migrações para garantir que os testes encontrem as contas necessárias.

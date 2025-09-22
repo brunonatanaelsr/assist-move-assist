@@ -9,6 +9,7 @@ NC='\033[0m'
 
 ROOT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." &> /dev/null && pwd)
 E2E_LOG="$ROOT_DIR/tests/e2e.log"
+export PROJECT_ROOT="$ROOT_DIR"
 
 # Configurar banco de testes
 echo -e "${YELLOW}[e2e-local] Configurando banco de testes...${NC}"
@@ -21,7 +22,7 @@ psql -d movemarias_test -c "CREATE EXTENSION IF NOT EXISTS pgcrypto; CREATE EXTE
 
 # Executar migrações
 echo -e "${YELLOW}[e2e-local] Executando migrações...${NC}"
-cd "$ROOT_DIR/backend/src/database/migrations"
+cd "$ROOT_DIR/apps/backend/src/database/migrations"
 for f in $(ls -v *.sql); do
     echo "Executando $f..."
     psql -d movemarias_test -f "$f"
@@ -29,7 +30,7 @@ done
 
 # Configurar variáveis de ambiente para teste
 echo -e "${YELLOW}[e2e-local] Configurando ambiente de teste...${NC}"
-cat > "$ROOT_DIR/backend/.env.test" << EOL
+cat > "$ROOT_DIR/apps/backend/.env.test" << EOL
 NODE_ENV=test
 PORT=3000
 JWT_SECRET=test_secret_key_123
@@ -47,4 +48,4 @@ psql -d movemarias_test -c "INSERT INTO usuarios (nome, email, senha_hash, papel
 # Executar testes E2E
 echo -e "${YELLOW}[e2e-local] Executando testes E2E...${NC}"
 cd "$ROOT_DIR"
-npm run test:e2e
+PROJECT_ROOT="$ROOT_DIR" npm run test:e2e

@@ -10,8 +10,9 @@ echo "📅 $(date)"
 
 # Variáveis
 APP_DIR="/var/www/assist-move-assist"
-BACKEND_DIR="$APP_DIR/backend"
-FRONTEND_DIR="$APP_DIR/frontend"
+APPS_DIR="$APP_DIR/apps"
+BACKEND_DIR="$APPS_DIR/backend"
+FRONTEND_DIR="$APPS_DIR/frontend"
 
 echo "📥 Fazendo backup antes da atualização..."
 sudo /usr/local/bin/assist-backup.sh
@@ -31,9 +32,9 @@ cp $BACKEND_DIR/.env /tmp/env_backup
 
 # Atualizar arquivos do backend
 sudo rm -rf $BACKEND_DIR/src $BACKEND_DIR/dist
-sudo cp -r backend/src $BACKEND_DIR/
-sudo cp backend/package.json $BACKEND_DIR/
-sudo cp backend/tsconfig.json $BACKEND_DIR/
+sudo cp -r apps/backend/src $BACKEND_DIR/
+sudo cp apps/backend/package.json $BACKEND_DIR/
+sudo cp apps/backend/tsconfig.json $BACKEND_DIR/
 
 # Restaurar .env
 sudo cp /tmp/env_backup $BACKEND_DIR/.env
@@ -52,15 +53,14 @@ cp $FRONTEND_DIR/.env.production /tmp/frontend_env_backup
 
 # Atualizar frontend
 sudo rm -rf $FRONTEND_DIR/src $FRONTEND_DIR/dist
-sudo cp -r /tmp/assist-move-assist/src $FRONTEND_DIR/
-sudo cp -r /tmp/assist-move-assist/public $FRONTEND_DIR/
-sudo cp /tmp/assist-move-assist/package.json $FRONTEND_DIR/
-sudo cp /tmp/assist-move-assist/vite.config.ts $FRONTEND_DIR/
-sudo cp /tmp/assist-move-assist/tsconfig.json $FRONTEND_DIR/
-sudo cp /tmp/assist-move-assist/tailwind.config.ts $FRONTEND_DIR/
-sudo cp /tmp/assist-move-assist/postcss.config.js $FRONTEND_DIR/
-sudo cp /tmp/assist-move-assist/components.json $FRONTEND_DIR/
-sudo cp /tmp/assist-move-assist/index.html $FRONTEND_DIR/
+sudo cp -r /tmp/assist-move-assist/apps/frontend/src $FRONTEND_DIR/
+sudo cp -r /tmp/assist-move-assist/apps/frontend/public $FRONTEND_DIR/
+sudo cp /tmp/assist-move-assist/apps/frontend/package.json $FRONTEND_DIR/
+sudo cp /tmp/assist-move-assist/apps/frontend/vite.config.ts $FRONTEND_DIR/
+sudo cp /tmp/assist-move-assist/apps/frontend/tsconfig.json $FRONTEND_DIR/
+sudo cp /tmp/assist-move-assist/apps/frontend/tailwind.config.ts $FRONTEND_DIR/
+sudo cp /tmp/assist-move-assist/apps/frontend/postcss.config.js $FRONTEND_DIR/
+sudo cp /tmp/assist-move-assist/apps/frontend/index.html $FRONTEND_DIR/
 
 # Restaurar configurações
 sudo cp /tmp/frontend_env_backup $FRONTEND_DIR/.env.production

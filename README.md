@@ -21,20 +21,16 @@ Sistema de gestão para institutos sociais que auxilia no acompanhamento de bene
    git clone https://github.com/brunonatanaelsr/assist-move-assist.git
    cd assist-move-assist
    ```
-2. **Instale as dependências**
+2. **Instale as dependências das workspaces**
    ```bash
-   # Frontend
-   npm install
-   # Backend
-   cd backend
    npm install
    ```
 3. **Configure as variáveis de ambiente**
    ```bash
    # Frontend
-   cp .env.example .env.local
+   cp apps/frontend/.env.example apps/frontend/.env.local  # se existir
    # Backend
-   cp backend/.env.example backend/.env
+   cp apps/backend/.env.example apps/backend/.env
    ```
    Edite os arquivos `.env` com suas configurações:
    ```env
@@ -59,10 +55,10 @@ Sistema de gestão para institutos sociais que auxilia no acompanhamento de bene
 4. **Configure o banco de dados**
    ```bash
    # Criar banco
-   createdb assist_move
+   createdb assist_move || true
    
    # Aplicar migrações
-   cd backend
+   cd apps/backend
    npm run migrate
    ```
 5. **Execute o projeto**
@@ -71,28 +67,26 @@ Sistema de gestão para institutos sociais que auxilia no acompanhamento de bene
    docker-compose up -d
    
    # Terminal 2 (Backend)
-   cd backend
-   cp .env.example .env   # se ainda não existir
-   npm run migrate        # aplica migrações (usa POSTGRES_* do .env)
-   npm run dev            # inicia API em http://localhost:3000
-   
-  # Terminal 3 (Frontend)
-  npm run dev            # inicia em http://localhost:5173 (Vite dev)
+   npm run backend:dev
+
+   # Terminal 3 (Frontend)
+   npm run frontend:dev
    ```
    Frontend: [http://localhost:5173](http://localhost:5173)
    Backend: [http://localhost:3000](http://localhost:3000)
 
 ## Scripts Úteis
 ```bash
-npm run dev           # Dev (frontend:5173, backend:3000)
-npm run build         # Build de produção
-npm run preview       # Preview do build (frontend:4173)
-npm run lint          # Linter ESLint
-npm run type-check    # Verificação de tipos TypeScript
-npm test              # Executar testes (frontend)
-npm run test:backend  # Testes backend (rodar dentro de /backend)
-npm run test:e2e      # Testes E2E (Playwright)
-npm run test:e2e:local # E2E completo com Docker local (scripts/run-e2e-local.sh)
+npm run frontend:dev        # Vite em modo desenvolvimento (5173)
+npm run backend:dev         # API em modo desenvolvimento (3000)
+npm run frontend:build      # Build do frontend
+npm run backend:build       # Build do backend
+npm run frontend:test       # Testes unitários do frontend (Vitest)
+npm run backend:test        # Testes do backend (Jest)
+npm run frontend:lint       # ESLint no frontend
+npm run frontend:type-check # Checagem de tipos do frontend
+npm run test:e2e            # Playwright E2E
+npm run test:e2e:local      # E2E completo com Docker local (scripts/run-e2e-local.sh)
 ```
 
 ## Testes
@@ -105,8 +99,8 @@ execução dos testes (unitários, integração e E2E). Consulte
 de usuários e senhas padrão.
 
 ### Unitários
-- Frontend: `npm run test:frontend`
-- Backend: `cd backend && npm test`
+- Frontend: `npm run frontend:test`
+- Backend: `npm run backend:test`
 
 ### E2E
 Há duas formas de rodar os testes end-to-end (Playwright):
@@ -136,7 +130,7 @@ Os testes de fluxo são pulados quando a API não está ativa.
 - React Query para gerenciamento de estado
 - Socket.IO Client para real-time
 - Axios para chamadas HTTP
-- Código principal em `src/`
+- Código principal em `apps/frontend/src/`
 
 ### Backend
 - Node.js + Express + TypeScript
@@ -145,7 +139,7 @@ Os testes de fluxo são pulados quando a API não está ativa.
 - Socket.IO para real-time
 - Multer para uploads
 - Winston para logs
-- Código em `backend/`
+- Código em `apps/backend/`
 
 ### Banco de Dados
 - PostgreSQL 15+

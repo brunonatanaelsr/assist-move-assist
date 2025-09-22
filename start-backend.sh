@@ -2,10 +2,10 @@
 set -euo pipefail
 
 # Detect workspace path (Codespaces vs local)
-if [ -d "/workspaces/assist-move-assist/backend" ]; then
-  cd /workspaces/assist-move-assist/backend
-elif [ -d "backend" ]; then
-  cd backend
+if [ -d "/workspaces/assist-move-assist/apps/backend" ]; then
+  cd /workspaces/assist-move-assist/apps/backend
+elif [ -d "apps/backend" ]; then
+  cd apps/backend
 else
   echo "Backend directory not found" >&2
   exit 1

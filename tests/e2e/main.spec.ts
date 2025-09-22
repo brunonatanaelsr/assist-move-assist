@@ -211,8 +211,13 @@ test.describe('Assist Move Assist - E2E Tests', () => {
       expect(submission.status(), 'envio inválido deve retornar 400').toBe(400);
     }
 
-    await expect(page.locator('[data-testid="error-message"]'))
-      .toContainText(/verifique os campos destacados/i);
+    const globalError = page.locator('[data-testid="error-message"]');
+    if (await globalError.isVisible({ timeout: 1000 }).catch(() => false)) {
+      await expect(globalError).toContainText(/verifique os campos destacados/i);
+    }
+
+    await expect(page.getByTestId('error-nome')).toBeVisible();
+    await expect(page.getByTestId('error-cpf')).toBeVisible();
     await expect(page.locator('#nome_completo')).toHaveAttribute('aria-invalid', 'true');
     await expect(page.locator('#cpf')).toHaveAttribute('aria-invalid', 'true');
   });

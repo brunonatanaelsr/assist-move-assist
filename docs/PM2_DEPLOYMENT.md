@@ -60,7 +60,7 @@ module.exports = {
   apps: [
     {
       name: 'assist-move-backend',
-      script: './backend/server.js',
+      script: './apps/backend/server.js',
       env: {
         NODE_ENV: 'development',
         PORT: 3000,

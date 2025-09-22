@@ -44,7 +44,7 @@ psql -d movemarias -c "CREATE EXTENSION IF NOT EXISTS pgcrypto; CREATE EXTENSION
 
 # Executar migrações
 echo -e "\n${YELLOW}Executando migrações...${NC}"
-cd backend/src/database/migrations
+cd apps/backend/src/database/migrations
 for f in $(ls -v *.sql); do
     echo "Executando $f..."
     psql -d movemarias -f "$f"
@@ -56,7 +56,7 @@ psql -d movemarias -c "INSERT INTO usuarios (nome, email, senha_hash, papel, ati
 
 # Configurar ambiente
 echo -e "\n${YELLOW}Configurando variáveis de ambiente...${NC}"
-cat > backend/.env << EOL
+cat > apps/backend/.env << EOL
 # Ambiente
 NODE_ENV=development
 
@@ -75,17 +75,17 @@ EOL
 
 # Instalar dependências
 echo -e "\n${YELLOW}Instalando dependências do backend...${NC}"
-cd backend
+cd apps/backend
 npm install
 
 echo -e "\n${YELLOW}Instalando dependências do frontend...${NC}"
-cd ..
+cd ../frontend
 npm install
 
 echo -e "\n${GREEN}=== Setup concluído com sucesso! ===${NC}"
 echo -e "\nPara iniciar o sistema:"
-echo -e "1. Em um terminal: ${YELLOW}cd backend && npm run dev${NC}"
-echo -e "2. Em outro terminal: ${YELLOW}npm run dev${NC}"
+echo -e "1. Em um terminal: ${YELLOW}cd apps/backend && npm run dev${NC}"
+echo -e "2. Em outro terminal: ${YELLOW}cd apps/frontend && npm run dev${NC}"
 echo -e "\nCredenciais iniciais:"
 echo -e "Email: ${GREEN}superadmin@example.com${NC}"
 echo -e "Senha: ${GREEN}123456${NC}"

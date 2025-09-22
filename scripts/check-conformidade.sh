@@ -12,7 +12,7 @@ else
 fi
 
 echo "🔎 Conferindo dependências proibidas…"
-DEPS=$(jq -r '.dependencies,.devDependencies' package.json backend/package.json 2>/dev/null | rg -n "prisma|@prisma/client|\\bws\\b" || true)
+DEPS=$(jq -r '.dependencies,.devDependencies' package.json apps/frontend/package.json apps/backend/package.json 2>/dev/null | rg -n "prisma|@prisma/client|\\bws\\b" || true)
 if [[ -n "$DEPS" ]]; then
   echo "$DEPS"
   echo "❌ Dependências proibidas"; exit 1

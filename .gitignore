@@ -26,6 +26,7 @@ tests/.auth/
 .env
 .env.prod
 .env.production
+apps/frontend/.env.e2e
 
 # Editor directories and files
 .vscode/*
