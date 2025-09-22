@@ -207,41 +207,41 @@ class ApiService {
   }
 
   // Métodos específicos para oficinas
-  async getOficinas(params?: any): Promise<ApiResponse<any[]>> {
-  return this.get<Oficina[]>('/oficinas', { params });
+  async getOficinas(params?: Record<string, unknown>): Promise<ApiResponse<Oficina[]>> {
+    return this.get<Oficina[]>('/oficinas', { params });
   }
 
-  async createOficina(data: any): Promise<ApiResponse<any>> {
-  return this.post<Oficina>('/oficinas', data);
+  async createOficina(data: Partial<Oficina>): Promise<ApiResponse<Oficina>> {
+    return this.post<Oficina>('/oficinas', data);
   }
 
-  async updateOficina(id: string, data: any): Promise<ApiResponse<any>> {
-  return this.put<Oficina>(`/oficinas/${id}`, data);
+  async updateOficina(id: string | number, data: Partial<Oficina>): Promise<ApiResponse<Oficina>> {
+    return this.put<Oficina>(`/oficinas/${id}`, data);
   }
 
-  async deleteOficina(id: string): Promise<ApiResponse<any>> {
-  return this.delete<void>(`/oficinas/${id}`);
+  async deleteOficina(id: string | number): Promise<ApiResponse<void>> {
+    return this.delete<void>(`/oficinas/${id}`);
   }
 
   // Métodos específicos para beneficiárias
-  async getBeneficiarias(params?: any): Promise<ApiResponse<any[]>> {
-  return this.get<Beneficiaria[]>('/beneficiarias', { params });
+  async getBeneficiarias(params?: BeneficiariaFiltros): Promise<ApiResponse<Beneficiaria[]>> {
+    return this.get<Beneficiaria[]>('/beneficiarias', { params });
   }
 
-  async getBeneficiaria(id: string | number): Promise<ApiResponse<any>> {
-  return this.get<Beneficiaria>(`/beneficiarias/${id}`);
+  async getBeneficiaria(id: string | number): Promise<ApiResponse<Beneficiaria>> {
+    return this.get<Beneficiaria>(`/beneficiarias/${id}`);
   }
 
-  async createBeneficiaria(data: any): Promise<ApiResponse<any>> {
-  return this.post<Beneficiaria>('/beneficiarias', data);
+  async createBeneficiaria(data: Partial<Beneficiaria>): Promise<ApiResponse<Beneficiaria>> {
+    return this.post<Beneficiaria>('/beneficiarias', data);
   }
 
-  async updateBeneficiaria(id: string, data: any): Promise<ApiResponse<any>> {
-  return this.put<Beneficiaria>(`/beneficiarias/${id}`, data);
+  async updateBeneficiaria(id: string | number, data: Partial<Beneficiaria>): Promise<ApiResponse<Beneficiaria>> {
+    return this.put<Beneficiaria>(`/beneficiarias/${id}`, data);
   }
 
-  async deleteBeneficiaria(id: string): Promise<ApiResponse<any>> {
-  return this.delete<void>(`/beneficiarias/${id}`);
+  async deleteBeneficiaria(id: string | number): Promise<ApiResponse<void>> {
+    return this.delete<void>(`/beneficiarias/${id}`);
   }
 
   // Dashboard methods

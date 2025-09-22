@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, ChangeEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, Plus, Filter, MoreHorizontal, Edit, Eye, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -107,8 +107,8 @@ export default function BeneficiariasFixed() {
       setLoading(true);
       const response = await apiService.getBeneficiarias();
       
-      if (response.success && response.data) {
-        const data = response.data;
+      if (response.success && Array.isArray(response.data)) {
+        const data = response.data as Beneficiaria[];
         setBeneficiarias(data);
         // Prefetch detalhes do primeiro item
         if (Array.isArray(data) && data.length > 0) {
@@ -281,7 +281,7 @@ export default function BeneficiariasFixed() {
                 <Input
                   placeholder="Buscar por nome, CPF ou PAEDI..."
                   value={searchTerm}
-                  onChange={(e) => setFilters({ search: e.target.value })}
+                  onChange={(event: ChangeEvent<HTMLInputElement>) => setFilters({ search: event.target.value })}
                   className="pl-10"
                   data-testid="search-input"
                 />
@@ -320,7 +320,7 @@ export default function BeneficiariasFixed() {
                     <label className="text-sm font-medium mb-2 block">Status</label>
                     <select
                       value={selectedStatus}
-                      onChange={(e) => setFilters({ status: e.target.value })}
+                      onChange={(event: ChangeEvent<HTMLSelectElement>) => setFilters({ status: event.target.value })}
                       className="w-full p-2 border rounded-md"
                     >
                       <option value="Todas">Todas</option>
@@ -333,7 +333,7 @@ export default function BeneficiariasFixed() {
                     <label className="text-sm font-medium mb-2 block">Programa/Serviço</label>
                     <select
                       value={programaFilter}
-                      onChange={(e) => setFilters({ programa: e.target.value })}
+                      onChange={(event: ChangeEvent<HTMLSelectElement>) => setFilters({ programa: event.target.value })}
                       className="w-full p-2 border rounded-md"
                     >
                       <option value="Todos">Todos</option>

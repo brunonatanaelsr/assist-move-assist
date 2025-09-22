@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, ChangeEvent, FocusEvent, FormEvent, KeyboardEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -48,7 +48,10 @@ export default function CadastroBeneficiaria() {
   const { validateField, validateForm, clearFieldError } = useBeneficiariaValidation();
   const { fetchCEP, loading: loadingCEP, error: cepError } = useCEP();
 
-  const handleInputChange = (field: string, value: string) => {
+  type FormField = keyof typeof formData;
+  type TextInputElement = HTMLInputElement | HTMLTextAreaElement;
+
+  const handleInputChange = (field: FormField, value: string) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
@@ -59,6 +62,18 @@ export default function CadastroBeneficiaria() {
       const { [field]: _removed, ...rest } = prev;
       return rest;
     });
+  };
+
+  const handleFieldChange = (field: FormField) => (event: ChangeEvent<TextInputElement>) => {
+    handleInputChange(field, event.target.value);
+  };
+
+  const handleFieldBlur = (field: FormField) => (event: FocusEvent<TextInputElement>) => {
+    onBlurValidate(field, event.target.value);
+  };
+
+  const handleMaskedValueChange = (field: FormField) => (masked: string, _unmasked?: string) => {
+    handleInputChange(field, masked);
   };
 
   const doValidateForm = () => {
@@ -83,8 +98,8 @@ export default function CadastroBeneficiaria() {
     return true;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
     
     if (!doValidateForm()) {
       setError("Verifique os campos destacados");
@@ -157,7 +172,7 @@ export default function CadastroBeneficiaria() {
   };
 
   // Atalhos de teclado: salvar (Ctrl/Cmd+S), cancelar (Esc)
-  const onKeyDown = (e: React.KeyboardEvent<HTMLFormElement>) => {
+  const onKeyDown = (e: KeyboardEvent<HTMLFormElement>) => {
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
       e.preventDefault();
       (e.currentTarget as HTMLFormElement).requestSubmit();
@@ -223,8 +238,8 @@ export default function CadastroBeneficiaria() {
               <Input
                 id="nome_completo"
                 value={formData.nome_completo}
-                onChange={(e) => handleInputChange('nome_completo', e.target.value)}
-                onBlur={(e) => onBlurValidate('nome_completo', e.target.value)}
+                onChange={handleFieldChange('nome_completo')}
+                onBlur={handleFieldBlur('nome_completo')}
                 placeholder="Nome completo da beneficiária"
                 required
                 aria-invalid={!!fieldErrors.nome_completo}
@@ -235,12 +250,12 @@ export default function CadastroBeneficiaria() {
               </div>
               <div className="space-y-2">
               <Label htmlFor="cpf">CPF *</Label>
-              <MaskedInput
+             <MaskedInput
                 mask="cpf"
                 id="cpf"
                 value={formData.cpf}
-                onValueChange={(masked, unmasked) => handleInputChange('cpf', masked)}
-                onBlur={(e: any) => onBlurValidate('cpf', e.target.value)}
+                onValueChange={handleMaskedValueChange('cpf')}
+                onBlur={handleFieldBlur('cpf')}
                 placeholder="000.000.000-00"
                 maxLength={14}
                 required
@@ -258,7 +273,7 @@ export default function CadastroBeneficiaria() {
                 <Input
                   id="rg"
                   value={formData.rg}
-                  onChange={(e) => handleInputChange('rg', e.target.value)}
+                  onChange={handleFieldChange('rg')}
                   placeholder="Número do RG"
                 />
               </div>
@@ -267,7 +282,7 @@ export default function CadastroBeneficiaria() {
                 <Input
                   id="orgao_emissor_rg"
                   value={formData.orgao_emissor_rg}
-                  onChange={(e) => handleInputChange('orgao_emissor_rg', e.target.value)}
+                  onChange={handleFieldChange('orgao_emissor_rg')}
                   placeholder="Ex: SSP-SP"
                 />
               </div>
@@ -277,7 +292,7 @@ export default function CadastroBeneficiaria() {
                   id="data_emissao_rg"
                   type="date"
                   value={formData.data_emissao_rg}
-                  onChange={(e) => handleInputChange('data_emissao_rg', e.target.value)}
+                  onChange={handleFieldChange('data_emissao_rg')}
                 />
               </div>
             </div>
@@ -289,8 +304,8 @@ export default function CadastroBeneficiaria() {
                   id="data_nascimento"
                   type="date"
                   value={formData.data_nascimento}
-                  onChange={(e) => handleInputChange('data_nascimento', e.target.value)}
-                  onBlur={(e) => onBlurValidate('data_nascimento', e.target.value)}
+                  onChange={handleFieldChange('data_nascimento')}
+                  onBlur={handleFieldBlur('data_nascimento')}
                   required
                   aria-invalid={!!fieldErrors.data_nascimento}
                 />
@@ -303,7 +318,7 @@ export default function CadastroBeneficiaria() {
                 <Input
                   id="nis"
                   value={formData.nis}
-                  onChange={(e) => handleInputChange('nis', e.target.value)}
+                  onChange={handleFieldChange('nis')}
                   placeholder="Número de Identificação Social"
                 />
               </div>
@@ -326,7 +341,7 @@ export default function CadastroBeneficiaria() {
                 <Input
                   id="cep"
                   value={formData.cep}
-                  onChange={(e) => handleInputChange('cep', e.target.value)}
+                  onChange={handleFieldChange('cep')}
                   onBlur={handleCepBlur}
                   placeholder="00000-000"
                   maxLength={9}
@@ -336,11 +351,11 @@ export default function CadastroBeneficiaria() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="cidade">Cidade</Label>
-                <Input id="cidade" value={formData.cidade} onChange={(e) => handleInputChange('cidade', e.target.value)} placeholder="Cidade" />
+                <Input id="cidade" value={formData.cidade} onChange={handleFieldChange('cidade')} placeholder="Cidade" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="estado">Estado</Label>
-                <Input id="estado" value={formData.estado} onChange={(e) => handleInputChange('estado', e.target.value)} placeholder="UF" maxLength={2} />
+                <Input id="estado" value={formData.estado} onChange={handleFieldChange('estado')} placeholder="UF" maxLength={2} />
               </div>
             </div>
             <div className="space-y-2">
@@ -348,7 +363,7 @@ export default function CadastroBeneficiaria() {
               <Textarea
                 id="endereco"
                 value={formData.endereco}
-                onChange={(e) => handleInputChange('endereco', e.target.value)}
+                onChange={handleFieldChange('endereco')}
                 placeholder="Rua, número, complemento..."
                 rows={3}
               />
@@ -358,7 +373,7 @@ export default function CadastroBeneficiaria() {
               <Input
                 id="bairro"
                 value={formData.bairro}
-                onChange={(e) => handleInputChange('bairro', e.target.value)}
+                onChange={handleFieldChange('bairro')}
                 placeholder="Nome do bairro"
               />
             </div>
@@ -375,15 +390,15 @@ export default function CadastroBeneficiaria() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
+             <div className="space-y-2">
                 <Label htmlFor="contato1">Telefone Principal *</Label>
                 <MaskedInput
                   mask="telefone"
                   id="contato1"
                   name="telefone"
                   value={formData.contato1}
-                  onValueChange={(masked) => handleInputChange('contato1', masked)}
-                  onBlur={(e: any) => onBlurValidate('telefone', e.target.value)}
+                  onValueChange={handleMaskedValueChange('contato1')}
+                  onBlur={(event: FocusEvent<HTMLInputElement>) => onBlurValidate('telefone', event.target.value)}
                   placeholder="(11) 99999-9999"
                   maxLength={15}
                   required
@@ -399,7 +414,7 @@ export default function CadastroBeneficiaria() {
                   mask="telefone"
                   id="contato2"
                   value={formData.contato2}
-                  onValueChange={(masked) => handleInputChange('contato2', masked)}
+                  onValueChange={handleMaskedValueChange('contato2')}
                   placeholder="(11) 99999-9999"
                   maxLength={15}
                 />
@@ -422,7 +437,7 @@ export default function CadastroBeneficiaria() {
                 <Label htmlFor="referencia">Como chegou ao Instituto</Label>
                 <Select
                   value={formData.referencia}
-                  onValueChange={(value) => handleInputChange('referencia', value)}
+                  onValueChange={handleMaskedValueChange('referencia')}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione..." />
@@ -439,7 +454,7 @@ export default function CadastroBeneficiaria() {
                 <Label htmlFor="programa_servico">Programa/Serviço</Label>
                 <Select
                   value={formData.programa_servico}
-                  onValueChange={(value) => handleInputChange('programa_servico', value)}
+                  onValueChange={handleMaskedValueChange('programa_servico')}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione o programa..." />
@@ -459,7 +474,7 @@ export default function CadastroBeneficiaria() {
                 id="data_inicio_instituto"
                 type="date"
                 value={formData.data_inicio_instituto}
-                onChange={(e) => handleInputChange('data_inicio_instituto', e.target.value)}
+                onChange={handleFieldChange('data_inicio_instituto')}
               />
             </div>
           </CardContent>
