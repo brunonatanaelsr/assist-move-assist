@@ -5,3 +5,5 @@ dist
 coverage
 tests/
 scripts/
+README.md
+docs/
