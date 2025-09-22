@@ -42,16 +42,51 @@ async function ensureTestUser(dbUrl: string, user: TestUserConfig) {
   }
 }
 
+async function ensureSampleBeneficiarias(dbUrl: string) {
+  const client = new Client({ connectionString: dbUrl });
+  await client.connect();
+  try {
+    const existing = await client.query('SELECT id FROM beneficiarias LIMIT 1');
+    if (existing.rowCount === 0) {
+      await client.query(
+        `
+          INSERT INTO beneficiarias (nome_completo, cpf, data_nascimento, telefone, status, observacoes)
+          VALUES 
+            ('Maria Teste', '00000000001', '1990-01-01', '(11) 99999-0000', 'ATIVO', 'Beneficiária criada para testes E2E'),
+            ('Joana Example', '00000000002', '1988-05-12', '(21) 98888-7777', 'INATIVO', 'Registro gerado automaticamente para testes')
+          ON CONFLICT (cpf) DO NOTHING
+        `
+      );
+    }
+  } finally {
+    await client.end();
+  }
+}
+
 function toErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
+}
+
+function buildDbUrlFromEnv() {
+  const host = process.env.POSTGRES_HOST || '127.0.0.1';
+  const port = process.env.POSTGRES_PORT || '5432';
+  const database = process.env.POSTGRES_DB || 'movemarias';
+  const username = process.env.POSTGRES_USER || 'postgres';
+  const rawPassword = process.env.POSTGRES_PASSWORD;
+
+  const encodedUser = encodeURIComponent(username);
+  const hasPassword = rawPassword !== undefined && rawPassword !== '';
+  const credentials = hasPassword
+    ? `${encodedUser}:${encodeURIComponent(rawPassword)}`
+    : encodedUser;
+
+  return `postgresql://${credentials}@${host}:${port}/${database}`;
 }
 
 export default async function globalSetup(_config: FullConfig) {
   const baseURL = process.env.E2E_BASE_URL || 'http://127.0.0.1:5173';
   const apiURL = process.env.E2E_API_URL || 'http://127.0.0.1:3000';
-  const dbURL =
-    process.env.DATABASE_URL ||
-    'postgresql://assist_user:assist_pass@127.0.0.1:5432/assist_db';
+  const dbURL = process.env.DATABASE_URL || buildDbUrlFromEnv();
 
   const testUser: TestUserConfig = {
     email: process.env.E2E_TEST_EMAIL || 'e2e@assist.local',
@@ -62,6 +97,7 @@ export default async function globalSetup(_config: FullConfig) {
 
   try {
     await ensureTestUser(dbURL, testUser);
+    await ensureSampleBeneficiarias(dbURL);
   } catch (error) {
     console.warn(
       `[global-setup] Unable to ensure E2E test user in database: ${toErrorMessage(error)}`

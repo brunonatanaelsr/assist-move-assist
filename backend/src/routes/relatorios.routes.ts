@@ -2,7 +2,9 @@ import express from 'express';
 import { successResponse, errorResponse } from '../utils/responseFormatter';
 import * as auth from '../middleware/auth';
 const authenticateToken = auth.authenticateToken;
-const requireGestor = auth.requireGestor || ((_req: any, _res: any, next: any) => next());
+const requireGestorOrAdmin = (auth.requireRole
+  ? auth.requireRole(['gestor', 'admin', 'super_admin', 'superadmin'])
+  : ((_req: any, _res: any, next: any) => next()));
 import { formatArrayDates } from '../utils/dateFormatter';
 import { pool } from '../config/database';
 import PDFDocument = require('pdfkit');
@@ -262,7 +264,7 @@ export default router;
 // ========== TEMPLATES DE RELATÓRIO ==========
 
 // GET /relatorios/templates - listar templates
-router.get('/templates', authenticateToken, requireGestor, async (_req, res): Promise<void> => {
+router.get('/templates', authenticateToken, requireGestorOrAdmin, async (_req, res): Promise<void> => {
   try {
     const result = await pool.query('SELECT * FROM report_templates ORDER BY updated_at DESC');
     res.json(successResponse(result.rows));
@@ -274,7 +276,7 @@ router.get('/templates', authenticateToken, requireGestor, async (_req, res): Pr
 });
 
 // POST /relatorios/templates - criar template
-router.post('/templates', authenticateToken, requireGestor, async (req, res): Promise<void> => {
+router.post('/templates', authenticateToken, requireGestorOrAdmin, async (req, res): Promise<void> => {
   try {
     const { name, description, type = 'DASHBOARD', metrics = [], schedule = {} } = req.body || {};
 
@@ -300,7 +302,7 @@ router.post('/templates', authenticateToken, requireGestor, async (req, res): Pr
 });
 
 // PUT /relatorios/templates/:id - atualizar template
-router.put('/templates/:id', authenticateToken, requireGestor, async (req, res): Promise<void> => {
+router.put('/templates/:id', authenticateToken, requireGestorOrAdmin, async (req, res): Promise<void> => {
   try {
     const { id } = req.params as { id: string };
     const { name, description, type, metrics, schedule } = req.body || {};
@@ -334,7 +336,7 @@ router.put('/templates/:id', authenticateToken, requireGestor, async (req, res):
 });
 
 // DELETE /relatorios/templates/:id - remover template
-router.delete('/templates/:id', authenticateToken, requireGestor, async (req, res): Promise<void> => {
+router.delete('/templates/:id', authenticateToken, requireGestorOrAdmin, async (req, res): Promise<void> => {
   try {
     const { id } = req.params as { id: string };
     const result = await pool.query('DELETE FROM report_templates WHERE id = $1', [id]);
@@ -352,7 +354,7 @@ router.delete('/templates/:id', authenticateToken, requireGestor, async (req, re
 });
 
 // POST /relatorios/export/:id - exportar relatório a partir do template
-router.post('/export/:id', authenticateToken, requireGestor, async (req, res): Promise<void> => {
+router.post('/export/:id', authenticateToken, requireGestorOrAdmin, async (req, res): Promise<void> => {
   try {
     const { id } = req.params as { id: string };
     const { format = 'pdf' } = req.body || {};

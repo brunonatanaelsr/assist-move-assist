@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, Plus, Filter, MoreHorizontal, Edit, Eye, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -55,11 +55,22 @@ interface Beneficiaria {
 export default function BeneficiariasFixed() {
   const navigate = useNavigate();
   const [showFilters, setShowFilters] = useState(false);
-  const { state: filterState, set: setFilters } = usePersistedFilters({ key: 'beneficiarias:filters', initial: { search: '', status: 'Todas', programa: 'Todos', page: 1 }});
-  const searchTerm = filterState.search as string;
-  const selectedStatus = filterState.status as string;
-  const programaFilter = filterState.programa as string;
-  const currentPage = Number(filterState.page || 1);
+  const initialFilters = {
+    search: '',
+    status: 'Todas',
+    programa: 'Todos',
+    page: 1
+  };
+
+  const { state: filterState, set: setFilters } = usePersistedFilters({
+    key: 'beneficiarias:filters',
+    initial: initialFilters
+  });
+
+  const searchTerm = filterState.search?.toString() || '';
+  const selectedStatus = filterState.status?.toString() || 'Todas';
+  const programaFilter = filterState.programa?.toString() || 'Todos';
+  const currentPage = Math.max(1, Number(filterState.page || 1));
   const [itemsPerPage] = useState(10);
   const [beneficiarias, setBeneficiarias] = useState<Beneficiaria[]>([]);
   const [loading, setLoading] = useState(true);
@@ -71,29 +82,30 @@ export default function BeneficiariasFixed() {
   });
 
   // Função para obter status da beneficiária baseado nos dados reais
-  const getBeneficiariaStatus = (beneficiaria: Beneficiaria) => {
-    // Usar status do banco ou calcular baseado no campo ativo
+  const getBeneficiariaStatus = useCallback((beneficiaria: Beneficiaria) => {
     if (beneficiaria.status) {
-      return beneficiaria.status === 'ativa' ? 'Ativa' : 
-             beneficiaria.status === 'inativa' ? 'Inativa' : 'Aguardando';
-    }
-    
-    // Fallback: usar campo ativo
-    return beneficiaria.ativo ? 'Ativa' : 'Inativa';
-  };
+      const normalized = beneficiaria.status.trim().toUpperCase();
 
-  useEffect(() => {
-    loadBeneficiarias();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+      if (normalized === 'ATIVO' || normalized === 'ATIVA') {
+        return 'Ativa';
+      }
+
+      if (normalized === 'INATIVO' || normalized === 'INATIVA') {
+        return 'Inativa';
+      }
+
+      if (normalized === 'AGUARDANDO') {
+        return 'Aguardando';
+      }
+    }
+
+    return beneficiaria.ativo ? 'Ativa' : 'Inativa';
   }, []);
 
-  const loadBeneficiarias = async () => {
+  const loadBeneficiarias = useCallback(async () => {
     try {
       setLoading(true);
-      
-      // Usar apiService consistente
       const response = await apiService.getBeneficiarias();
-      console.log('Resposta API beneficiárias:', response);
       
       if (response.success && response.data) {
         const data = response.data;
@@ -127,20 +139,28 @@ export default function BeneficiariasFixed() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [getBeneficiariaStatus]);
 
-  const filteredBeneficiarias = beneficiarias.filter(beneficiaria => {
-    const matchesSearch = beneficiaria.nome_completo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (beneficiaria.cpf && beneficiaria.cpf.includes(searchTerm));
-    
-    const beneficiariaStatus = getBeneficiariaStatus(beneficiaria);
-    const matchesStatus = selectedStatus === "Todas" || selectedStatus === beneficiariaStatus;
-    
-    // Como não temos campo programa_servico, vamos usar sempre true para programaFilter
-    const matchesPrograma = programaFilter === "Todos";
-    
-    return matchesSearch && matchesStatus && matchesPrograma;
-  });
+  useEffect(() => {
+    void loadBeneficiarias();
+  }, [loadBeneficiarias]);
+
+  const getFilteredBeneficiarias = useCallback(() => {
+    return beneficiarias.filter((beneficiaria) => {
+      const nome = beneficiaria.nome_completo?.toLowerCase?.() ?? '';
+      const matchesSearch = nome.includes(searchTerm.toLowerCase()) ||
+        (!!beneficiaria.cpf && beneficiaria.cpf.includes(searchTerm));
+      
+      const beneficiariaStatus = getBeneficiariaStatus(beneficiaria);
+      const matchesStatus = selectedStatus === "Todas" || selectedStatus === beneficiariaStatus;
+      
+      const matchesPrograma = programaFilter === "Todos";
+      
+      return matchesSearch && matchesStatus && matchesPrograma;
+    });
+  }, [beneficiarias, searchTerm, selectedStatus, programaFilter, getBeneficiariaStatus]);
+
+  const filteredBeneficiarias = getFilteredBeneficiarias();
 
   // Pagination logic
   const totalPages = Math.ceil(filteredBeneficiarias.length / itemsPerPage);
@@ -149,9 +169,22 @@ export default function BeneficiariasFixed() {
   const paginatedBeneficiarias = filteredBeneficiarias.slice(startIndex, endIndex);
 
   // Reset page when filters change
+  const lastFilterRef = useRef({ searchTerm, selectedStatus, programaFilter });
+
   useEffect(() => {
-    setFilters({ page: 1 });
-  }, [searchTerm, selectedStatus, programaFilter]);
+    const last = lastFilterRef.current;
+    const hasChanged =
+      last.searchTerm !== searchTerm ||
+      last.selectedStatus !== selectedStatus ||
+      last.programaFilter !== programaFilter;
+
+    if (hasChanged) {
+      lastFilterRef.current = { searchTerm, selectedStatus, programaFilter };
+      if (currentPage !== 1) {
+        setFilters(prev => ({ ...prev, page: 1 }));
+      }
+    }
+  }, [searchTerm, selectedStatus, programaFilter, currentPage]);
 
   const getStatusVariant = (status: string) => {
     switch (status) {
@@ -196,7 +229,7 @@ export default function BeneficiariasFixed() {
       {/* Header */}
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Beneficiárias</h1>
+          <h1 className="text-3xl font-bold text-foreground" data-testid="beneficiarias-title">Beneficiárias</h1>
           <p className="text-muted-foreground">
             Gerencie o cadastro das beneficiárias do instituto
           </p>
