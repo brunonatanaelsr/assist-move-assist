@@ -88,7 +88,22 @@ export async function downloadPdf(options: DownloadPdfOptions): Promise<boolean>
   }
 }
 
-export { downloadPdf as downloadPDF };
+export async function downloadPDF(
+  optionsOrEndpoint: DownloadPdfOptions | string,
+  filename?: string,
+  token?: string
+): Promise<boolean> {
+  if (typeof optionsOrEndpoint === 'string') {
+    return downloadPdf({
+      endpoint: optionsOrEndpoint,
+      filename: filename ?? 'download.pdf',
+      token
+    });
+  }
+
+  return downloadPdf(optionsOrEndpoint);
+}
+
 export default downloadPdf;
 
 /**

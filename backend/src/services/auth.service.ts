@@ -145,7 +145,7 @@ export class AuthService {
     }
   }
 
-  async register({ email, password, nome_completo, role }: { email: string; password: string; nome_completo: string; role?: string; }): Promise<AuthResponse> {
+  async register({ email, password, nome_completo }: { email: string; password: string; nome_completo: string; }): Promise<AuthResponse> {
     const lowerEmail = email.toLowerCase();
 
     const existing = await this.pool.query('SELECT id FROM usuarios WHERE email = $1', [lowerEmail]);
@@ -154,7 +154,7 @@ export class AuthService {
     }
 
     const senhaHash = await bcrypt.hash(password, 12);
-    const papel = (role as User['papel']) || 'user';
+    const papel: User['papel'] = 'user';
 
     const result = await this.pool.query(
       `INSERT INTO usuarios (email, senha_hash, nome, papel, ativo, data_criacao, data_atualizacao)

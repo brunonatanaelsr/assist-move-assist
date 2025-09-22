@@ -259,6 +259,10 @@ export class ParticipacaoService {
         .filter(([_, value]) => value !== undefined)
         .map(([key, _]) => key);
 
+      if (fieldsToUpdate.length === 0) {
+        throw new ValidationError('Nenhum dado informado para atualizar participação');
+      }
+
       const setClauses = fieldsToUpdate.map((field, index) => `${field} = $${index + 1}`);
       const queryParams = fieldsToUpdate.map(field => validatedData[field as keyof UpdateParticipacaoDTO]);
 

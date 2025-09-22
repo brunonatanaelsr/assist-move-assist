@@ -53,12 +53,16 @@ export const formatLongDate = (isoDate?: string | null): string => {
 
 /**
  * Formata data para DD/MM/YYYY
+ * Garante consistência independente do timezone local
  */
-export function formatDate(date: Date): string {
+export function formatDate(date: Date | string): string {
   const d = date instanceof Date ? date : new Date(date);
-  const day = String(d.getDate()).padStart(2, '0');
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const year = d.getFullYear();
+
+  if (Number.isNaN(d.getTime())) {
+    return '';
+  }
+
+  const [year, month, day] = d.toISOString().slice(0, 10).split('-');
   return `${day}/${month}/${year}`;
 }
 

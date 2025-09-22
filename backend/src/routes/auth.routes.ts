@@ -1,6 +1,6 @@
 import express from 'express';
 import type { Response } from 'express';
-import { authenticateToken } from '../middleware/auth';
+import { authenticateToken, requireRole } from '../middleware/auth';
 import { loggerService } from '../services/logger';
 import { authService } from '../services';
 
@@ -23,7 +23,6 @@ interface RegisterRequestBody {
   email: string;
   password: string;
   nome_completo: string;
-  role: string;
 }
 
 interface UpdateProfileBody {
@@ -142,16 +141,24 @@ router.post('/refresh', authenticateToken, async (req: any, res: Response): Prom
   }
 });
 
-// POST /auth/register
-router.post('/register', async (req: RequestWithBody<RegisterRequestBody>, res: Response): Promise<void> => {
+const allowPublicRegistration = String(process.env.ALLOW_SELF_REGISTER).toLowerCase() === 'true';
+
+const handleRegister = async (req: RequestWithBody<RegisterRequestBody>, res: Response): Promise<void> => {
   try {
-    const { email, password, nome_completo, role } = req.body;
+    const { email, password, nome_completo } = req.body;
 
     if (!email || !password || !nome_completo) {
       res.status(400).json({
         error: 'Email, senha e nome completo são obrigatórios'
       });
       return;
+    }
+
+    if (req.body?.role) {
+      loggerService.warn('[AUTH] Tentativa de registro com role customizado ignorada', {
+        email,
+        requestedRole: req.body.role
+      });
     }
 
     // Validação de formato de email
@@ -174,8 +181,7 @@ router.post('/register', async (req: RequestWithBody<RegisterRequestBody>, res: 
     const result = await authService.register({
       email,
       password,
-      nome_completo,
-      role
+      nome_completo
     });
 
     res.cookie('auth_token', result.token, COOKIE_OPTIONS);
@@ -200,7 +206,13 @@ router.post('/register', async (req: RequestWithBody<RegisterRequestBody>, res: 
     });
     return;
   }
-});
+};
+
+if (allowPublicRegistration) {
+  router.post('/register', handleRegister);
+} else {
+  router.post('/register', authenticateToken, requireRole(['admin', 'super_admin', 'superadmin']), handleRegister);
+}
 
 // GET /auth/profile
 router.get('/profile', authenticateToken, async (req: express.Request, res: express.Response): Promise<void> => {
