@@ -144,8 +144,6 @@ const App = () => (
                     <Route path="*" element={<FormulariosNavegacao />} />
                   </Route>
                   
-                  {/* Declarações e Recibos - Redirecionamento para beneficiárias */}
-                  <Route path="declaracoes-recibos" element={<FormulariosNavegacao />} />
                 </Route>
 
                 {/* Redirecionamento padrão se alguém cair em "/" sem contexto */}
