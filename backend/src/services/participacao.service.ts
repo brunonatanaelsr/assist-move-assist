@@ -42,12 +42,21 @@ export class ParticipacaoService {
 
   private async invalidateCache(patterns: string[]) {
     try {
-      const keys = await Promise.all(
-        patterns.map(pattern => this.redis.keys(`participacoes:${pattern}`))
-      );
-      const allKeys = keys.flat();
-      if (allKeys.length > 0) {
-        await this.redis.del(...allKeys);
+      const keysToDelete = new Set<string>();
+
+      for (const pattern of patterns) {
+        let cursor = '0';
+        const matchPattern = `participacoes:${pattern}`;
+
+        do {
+          const [nextCursor, foundKeys] = await this.redis.scan(cursor, 'MATCH', matchPattern, 'COUNT', 50);
+          cursor = nextCursor;
+          foundKeys.forEach((key) => keysToDelete.add(key));
+        } while (cursor !== '0');
+      }
+
+      if (keysToDelete.size > 0) {
+        await this.redis.del(...Array.from(keysToDelete));
       }
     } catch (error) {
       loggerService.warn('Cache invalidate failed', { patterns, error: (error as any)?.message });

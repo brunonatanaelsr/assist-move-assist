@@ -1,10 +1,20 @@
 import { z } from 'zod';
 
+const coerceDate = z.preprocess((value) => value, z.coerce.date());
+const coerceNullableDate = z.preprocess(
+  (value) => {
+    if (value === undefined) return undefined;
+    if (value === null || value === '') return null;
+    return value;
+  },
+  z.coerce.date()
+).nullable().optional();
+
 // Schema para participação
 export const participacaoSchema = z.object({
-  id: z.number(),
-  beneficiaria_id: z.string(),
-  projeto_id: z.number(),
+  id: z.coerce.number(),
+  beneficiaria_id: z.coerce.number(),
+  projeto_id: z.coerce.number(),
   status: z.enum([
     'ativa', 
     'concluida', 
@@ -13,14 +23,14 @@ export const participacaoSchema = z.object({
     'interesse',
     'inscrita'
   ]).default('inscrita'),
-  data_inscricao: z.date(),
-  data_conclusao: z.date().nullable().optional(),
+  data_inscricao: coerceDate,
+  data_conclusao: coerceNullableDate,
   observacoes: z.string().max(1000).nullable().optional(),
   certificado_emitido: z.boolean().default(false),
   presenca_percentual: z.number().min(0).max(100).default(0),
   ativo: z.boolean().default(true),
-  data_criacao: z.date(),
-  data_atualizacao: z.date()
+  data_criacao: coerceDate,
+  data_atualizacao: coerceDate
 });
 
 // Schema para criação de participação

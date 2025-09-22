@@ -1,6 +1,6 @@
 import type { Express, Request, Response, NextFunction } from 'express';
 import express from 'express';
-import cors from 'cors';
+import cors, { type CorsOptions } from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
 import morgan from 'morgan';
@@ -37,9 +37,36 @@ app.use(helmet());
 app.use(compression());
 
 // CORS
-const corsOrigin = process.env.CORS_ORIGIN || (process.env.NODE_ENV === 'development' ? '*' : '');
-const corsOptions = {
-  origin: corsOrigin === '*' || corsOrigin === '' ? true : corsOrigin.split(',').map((o) => o.trim()),
+const rawCorsOrigins = (process.env.CORS_ORIGIN || '').split(',').map((o) => o.trim()).filter(Boolean);
+const allowList = rawCorsOrigins.length > 0
+  ? rawCorsOrigins
+  : process.env.NODE_ENV === 'development'
+    ? ['http://localhost:5173']
+    : [];
+
+if (allowList.length === 0) {
+  logger.warn('CORS desabilitado por padrão. Defina CORS_ORIGIN com as origens permitidas.');
+}
+
+const corsOptions: CorsOptions = {
+  origin(origin, callback) {
+    if (!origin) {
+      // Permitir chamadas sem header Origin (ex.: ferramentas internas / Postman)
+      return callback(null, true);
+    }
+
+    if (allowList.length === 0) {
+      logger.warn('Requisição bloqueada por CORS (nenhuma origem configurada)', { origin });
+      return callback(new Error('CORS bloqueado: configure CORS_ORIGIN')); 
+    }
+
+    if (allowList.includes(origin)) {
+      return callback(null, true);
+    }
+
+    logger.warn('Tentativa de acesso bloqueada por CORS', { origin });
+    return callback(new Error('Origin not allowed by CORS'));
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],

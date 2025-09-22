@@ -143,7 +143,7 @@ router.post('/refresh', authenticateToken, async (req: any, res: Response): Prom
 
 const allowPublicRegistration = String(process.env.ALLOW_SELF_REGISTER).toLowerCase() === 'true';
 
-const handleRegister = async (req: RequestWithBody<RegisterRequestBody>, res: Response): Promise<void> => {
+const handleRegister = async (req: AuthRequestWithBody<RegisterRequestBody>, res: Response): Promise<void> => {
   try {
     const { email, password, nome_completo } = req.body;
 
@@ -184,11 +184,18 @@ const handleRegister = async (req: RequestWithBody<RegisterRequestBody>, res: Re
       nome_completo
     });
 
-    res.cookie('auth_token', result.token, COOKIE_OPTIONS);
+    const isSelfRegistration = !req.user;
+
+    if (isSelfRegistration) {
+      res.cookie('auth_token', result.token, COOKIE_OPTIONS);
+    }
 
     res.status(201).json({
-      message: 'Usuário registrado com sucesso',
-      user: result.user
+      message: isSelfRegistration
+        ? 'Usuário registrado com sucesso'
+        : 'Usuário registrado com sucesso. O administrador permanece autenticado.',
+      user: result.user,
+      ...(isSelfRegistration ? { token: result.token } : {})
     });
     return;
   } catch (error: any) {

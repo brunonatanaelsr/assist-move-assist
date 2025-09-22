@@ -16,6 +16,7 @@ export interface DownloadPdfOptions {
  */
 export async function downloadPdf(options: DownloadPdfOptions): Promise<boolean> {
   const { endpoint, filename, token } = options;
+  const domAvailable = typeof document !== 'undefined' && typeof window !== 'undefined';
   
   try {
     console.log(`Iniciando download de PDF: ${endpoint}`);
@@ -52,35 +53,40 @@ export async function downloadPdf(options: DownloadPdfOptions): Promise<boolean>
       throw new Error('PDF vazio recebido');
     }
     
-    // Criar URL temporária para o blob
+    if (!domAvailable) {
+      console.warn('Download de PDF concluído, porém DOM não disponível para salvar o arquivo automaticamente.');
+      return true;
+    }
+
     const url = URL.createObjectURL(blob);
-    
-    // Criar elemento de link para download
+
     const link = document.createElement('a');
     link.href = url;
     link.download = filename;
     link.style.display = 'none';
-    
-    // Adicionar ao DOM, clicar e remover
+
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    
-    // Limpar URL temporária
+
     URL.revokeObjectURL(url);
-    
+
     console.log(`Download concluído: ${filename}`);
     return true;
-    
+
   } catch (error) {
     console.error('Erro no download do PDF:', error);
     
     // Fallback: tentar abrir em nova aba
     try {
-      console.log('Tentando fallback: abrir em nova aba');
-      const fallbackUrl = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
-      window.open(fallbackUrl, '_blank');
-      return true;
+      if (domAvailable) {
+        console.log('Tentando fallback: abrir em nova aba');
+        const fallbackUrl = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+        window.open(fallbackUrl, '_blank');
+        return true;
+      }
+      console.warn('Fallback indisponível em ambiente sem DOM.');
+      return false;
     } catch (fallbackError) {
       console.error('Fallback também falhou:', fallbackError);
       return false;
