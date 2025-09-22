@@ -46,17 +46,41 @@ test.describe('Assist Move Assist - E2E Tests', () => {
   // Helper resiliente para acionar o login
   async function clickLogin(page: Page) {
     await page.goto('/#/auth', { waitUntil: 'networkidle' });
-    await page.waitForSelector('[data-testid="login-form"]', { state: 'visible', timeout: 5000 });
+
+    const loginForm = page.locator('[data-testid="login-form"]');
+
+    try {
+      await loginForm.waitFor({ state: 'visible', timeout: 5000 });
+    } catch (error) {
+      // Se a aplicação redirecionou automaticamente por já existir sessão válida,
+      // apenas garante que estamos autenticados e segue em frente.
+      const redirected = await page.waitForURL(/#\/(dashboard)?$/, { timeout: 1000 }).then(
+        () => true,
+        () => false
+      );
+
+      if (!redirected) {
+        throw error;
+      }
+    }
   }
 
   async function ensureAuthenticated(page: Page) {
     const userMenu = page.locator('[data-testid="user-menu"]');
     if (!(await userMenu.isVisible({ timeout: 1000 }).catch(() => false))) {
       await clickLogin(page);
-      await page.fill('input[name="email"]', TEST_EMAIL);
-      await page.fill('input[name="password"]', TEST_PASSWORD);
-      await page.click('button[type="submit"]');
-      await page.waitForURL(/.*dashboard/);
+
+      const loginFormVisible = await page
+        .locator('[data-testid="login-form"]')
+        .isVisible({ timeout: 500 })
+        .catch(() => false);
+
+      if (loginFormVisible) {
+        await page.fill('input[name="email"]', TEST_EMAIL);
+        await page.fill('input[name="password"]', TEST_PASSWORD);
+        await page.click('button[type="submit"]');
+        await page.waitForURL(/.*dashboard/);
+      }
     }
 
     if (!page.url().includes('#/dashboard')) {
