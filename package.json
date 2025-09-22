@@ -16,7 +16,7 @@
     "test:e2e": "playwright test",
     "e2e:browsers": "playwright install chromium",
     "e2e:browsers:linux": "playwright install --with-deps chromium",
-    "test:e2e:local": "bash scripts/run-e2e-local.sh",
+    "test:e2e:local": "bash scripts/run-e2e-tests.sh",
     "test:e2e:ui": "playwright test --ui",
     "test:all": "npm run test && npm run test:e2e",
     "test:frontend": "vitest run",

@@ -37,12 +37,28 @@ app.use(helmet());
 app.use(compression());
 
 // CORS
-const rawCorsOrigins = (process.env.CORS_ORIGIN || '').split(',').map((o) => o.trim()).filter(Boolean);
-const allowList = rawCorsOrigins.length > 0
-  ? rawCorsOrigins
-  : process.env.NODE_ENV === 'development'
-    ? ['http://localhost:5173']
-    : [];
+const rawCorsOrigins = (process.env.CORS_ORIGIN || '')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
+
+const defaultLocalOrigins = [
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'http://localhost:4173',
+  'http://127.0.0.1:4173',
+];
+
+const mergedOrigins = new Set<string>();
+rawCorsOrigins.forEach((origin) => {
+  if (origin) mergedOrigins.add(origin);
+});
+
+if (process.env.NODE_ENV !== 'production') {
+  defaultLocalOrigins.forEach((origin) => mergedOrigins.add(origin));
+}
+
+const allowList = mergedOrigins.size > 0 ? Array.from(mergedOrigins) : [];
 
 if (allowList.length === 0) {
   logger.warn('CORS desabilitado por padrão. Defina CORS_ORIGIN com as origens permitidas.');
@@ -75,9 +91,9 @@ app.use(cors(corsOptions));
 
 // Rate limiting
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutos
-  max: 100, // máximo 100 requests por IP
-  message: 'Muitas tentativas, tente novamente em 15 minutos.',
+  windowMs: 1 * 60 * 1000, // 1 minuto
+  max: process.env.NODE_ENV === 'development' ? 1000 : 100,
+  message: 'Muitas tentativas, tente novamente em 1 minuto.',
 });
 
 const rateLimitDisabled = process.env.RATE_LIMIT_DISABLE === 'true';

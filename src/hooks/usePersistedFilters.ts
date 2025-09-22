@@ -14,6 +14,20 @@ export function usePersistedFilters<T extends Record<string, unknown>>({ key, in
 
   // Load from URL or localStorage
   useEffect(() => {
+    if (firstLoad.current) {
+      firstLoad.current = false;
+      const savedState = localStorage.getItem(key);
+      if (savedState) {
+        try {
+          const parsed = JSON.parse(savedState);
+          setState(parsed);
+          return;
+        } catch (error) {
+          console.error('Error parsing saved filters:', error);
+        }
+      }
+    }
+
     const params = new URLSearchParams(location.search);
     const hasParams = Array.from(params.keys()).length > 0;
 
