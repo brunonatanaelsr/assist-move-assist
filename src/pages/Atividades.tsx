@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, type ComponentType } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,9 +11,18 @@ interface Activity {
   id: string;
   type: string;
   description: string;
+  timestamp: string;
   time: string;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: ComponentType<{ className?: string }>;
   status?: string;
+}
+
+interface RawActivity {
+  type?: string;
+  created_at?: string;
+  createdAt?: string;
+  description?: string;
+  event?: string;
 }
 
 export default function Atividades() {
@@ -22,6 +31,17 @@ export default function Atividades() {
   const [filter, setFilter] = useState("todas");
   const navigate = useNavigate();
 
+  const formatDateTime = useCallback((dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  }, []);
+
   const loadActivities = useCallback(async () => {
     try {
       setLoading(true);
@@ -29,11 +49,11 @@ export default function Atividades() {
       const data = await api.dashboard.getRecentActivities(20);
       const source: unknown[] = Array.isArray(data?.activities) ? data.activities : [];
 
-      const mapped: Activity[] = source.map((item: unknown, idx) => {
-        const activityItem = item as Record<string, unknown>;
-        const typeRaw = String(activityItem.type || '').toLowerCase();
+      const mapped: Activity[] = source.map((item, idx) => {
+        const activityItem = (item ?? {}) as RawActivity;
+        const typeRaw = String(activityItem.type ?? '').toLowerCase();
         let typeLabel = 'Outros';
-        let icon: React.ComponentType<{ className?: string }> = FileText;
+        let icon: ComponentType<{ className?: string }> = FileText;
 
         if (typeRaw.includes('beneficiaria')) {
           typeLabel = 'Cadastro';
@@ -46,13 +66,19 @@ export default function Atividades() {
           icon = Calendar;
         }
 
-        const createdAt = item.created_at || item.createdAt || new Date().toISOString();
-        const description = item.description || item.event || 'Atividade registrada';
+        const createdAt = activityItem.created_at
+          ?? activityItem.createdAt
+          ?? new Date().toISOString();
+
+        const description = activityItem.description
+          ?? activityItem.event
+          ?? 'Atividade registrada';
 
         return {
           id: `${typeRaw}-${idx}-${createdAt}`,
           type: typeLabel,
           description,
+          timestamp: createdAt,
           time: formatDateTime(createdAt),
           icon,
           status: 'completed'
@@ -60,7 +86,7 @@ export default function Atividades() {
       });
 
       // Ordena por data
-      mapped.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
+      mapped.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
       // Aplica filtro
       const filtered = filter === 'todas'
@@ -74,22 +100,11 @@ export default function Atividades() {
     } finally {
       setLoading(false);
     }
-  }, [filter]);
+  }, [filter, formatDateTime]);
 
   useEffect(() => {
     loadActivities();
   }, [loadActivities]);
-
-  const formatDateTime = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleString('pt-BR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
 
   const getStatusColor = (status?: string) => {
     switch (status) {

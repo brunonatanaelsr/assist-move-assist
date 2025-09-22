@@ -11,7 +11,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from './ui/dialog';
-import { useDocumentos } from '../hooks/useDocumentos';
+import useDocumentos from '../hooks/useDocumentos';
 
 interface UploadDocumentoProps {
   beneficiariaId: number;

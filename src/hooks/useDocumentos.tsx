@@ -204,3 +204,5 @@ export function useDocumentos(beneficiariaId: number) {
     loadingVersoes
   };
 }
+
+export default useDocumentos;

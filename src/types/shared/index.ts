@@ -34,7 +34,7 @@ export interface Beneficiaria {
         estado: string; // UF em maiúsculo
         cep: string; // Somente números
     };
-    status: 'ativa' | 'inativa' | 'arquivada';
+    status: 'ativa' | 'inativa' | 'pendente' | 'desligada' | 'arquivada';
     observacoes?: string;
     foto_url?: string;
     data_cadastro: Date;

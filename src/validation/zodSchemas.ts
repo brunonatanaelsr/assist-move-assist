@@ -33,6 +33,7 @@ export const beneficiariaSchema = z.object({
     'ativa',
     'inativa', 
     'pendente',
-    'desligada'
+    'desligada',
+    'arquivada'
   ]).default('pendente')
 });

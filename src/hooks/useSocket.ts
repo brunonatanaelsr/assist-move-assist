@@ -25,7 +25,7 @@ interface UserStatus {
   online: boolean;
 }
 
-const useSocket = () => {
+const useSocket = (customUrl?: string) => {
   const { isAuthenticated, profile } = useAuth();
   const [isConnected, setIsConnected] = useState(false);
   const [onlineUsers, setOnlineUsers] = useState<UserStatus[]>([]);
@@ -49,7 +49,8 @@ const useSocket = () => {
     }
 
     // Conectar ao socket apenas se estiver autenticado
-    const WS_URL = (import.meta as any)?.env?.VITE_WS_URL 
+    const WS_URL = customUrl
+      || (import.meta as any)?.env?.VITE_WS_URL 
       || (import.meta.env.DEV ? 'http://localhost:3000' : 'http://127.0.0.1:3000');
     const socket = io(
       WS_URL,

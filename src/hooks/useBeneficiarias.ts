@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { beneficiariasService } from '../services/api';
-import type { Beneficiaria } from '@/types/shared';
+import type { z } from 'zod';
+import { beneficiariaSchema } from '@/validation/zodSchemas';
 import { toast } from 'sonner';
 
 // Keys para React Query
@@ -14,11 +15,13 @@ export const beneficiariasKeys = {
 
 // Hook para listar beneficiárias
 // ...existing code...
+type Beneficiaria = z.infer<typeof beneficiariaSchema>;
+
 export const useBeneficiarias = (params?: {
   page?: number;
   limit?: number;
   search?: string;
-  status?: 'ativa' | 'inativa' | 'pendente' | 'desligada';
+  status?: 'ativa' | 'inativa' | 'pendente' | 'desligada' | 'arquivada';
   escolaridade?: string;
 }) => {
   return useQuery({

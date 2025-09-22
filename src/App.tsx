@@ -8,8 +8,7 @@ import {
   Routes,
   Route,
   Navigate,
-  Outlet,
-  unstable_setRouterFutureFlags
+  Outlet
 } from "react-router-dom";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Loading } from "@/components/ui/loading";
@@ -53,11 +52,6 @@ const PlanoAcao = lazy(() => import("@/pages/formularios/PlanoAcao"));
 const MatriculaProjetos = lazy(() => import("@/pages/formularios/MatriculaProjetosFixed"));
 
 const queryClient = new QueryClient();
-
-unstable_setRouterFutureFlags({
-  v7_startTransition: true,
-  v7_relativeSplatPath: true
-});
 
 /** Wrapper reutilizável: protege e aplica o MainLayout */
 const ProtectedLayout: React.FC<React.PropsWithChildren> = ({ children }) => (

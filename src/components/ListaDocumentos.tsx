@@ -9,7 +9,7 @@ import {
 import { Button } from './ui/button';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { useDocumentos } from '../hooks/useDocumentos';
+import useDocumentos from '../hooks/useDocumentos';
 import {
   DropdownMenu,
   DropdownMenuContent,
