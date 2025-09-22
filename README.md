@@ -3,6 +3,7 @@
 Sistema completo de gestão para institutos sociais com acompanhamento de beneficiárias, administração de oficinas/projetos, painel analítico e comunicação interna em tempo real. A stack é composta por **React 18 + Vite** no frontend e **Node.js/Express + PostgreSQL** no backend, com Redis para cache, filas e controle de permissões.
 
 ## Sumário
+
 - [Visão Geral](#visão-geral)
 - [Estrutura de Pastas](#estrutura-de-pastas)
 - [Requisitos](#requisitos)
@@ -41,13 +42,13 @@ assist-move-assist/
 
 ## Requisitos
 
-| Ferramenta         | Versão recomendada | Observações |
-|--------------------|--------------------|-------------|
-| Node.js            | 20.x               | use `nvm install 20 && nvm use 20` |
-| npm                | 10.x               | acompanha o Node 20 |
-| Docker + Compose   | Docker 24+, Compose V2 | necessário para Postgres/Redis (local ou Codespaces) |
-| Git                | 2.40+              | versionamento |
-| `gh` (opcional)    | 2.0+               | usado pelo script de Codespaces para liberar portas |
+| Ferramenta       | Versão recomendada     | Observações                                          |
+| ---------------- | ---------------------- | ---------------------------------------------------- |
+| Node.js          | 20.x                   | use `nvm install 20 && nvm use 20`                   |
+| npm              | 10.x                   | acompanha o Node 20                                  |
+| Docker + Compose | Docker 24+, Compose V2 | necessário para Postgres/Redis (local ou Codespaces) |
+| Git              | 2.40+                  | versionamento                                        |
+| `gh` (opcional)  | 2.0+                   | usado pelo script de Codespaces para liberar portas  |
 
 > Instale também **psql** e **redis-cli** se desejar administrar bancos manualmente.
 
@@ -61,6 +62,7 @@ assist-move-assist/
 2. Ajuste credenciais conforme sua infraestrutura. Para desenvolvimento padrão, mantenha os valores sugeridos:
 
    **Frontend (`.env.local`)**
+
    ```env
    APP_URL=http://localhost:5173
    VITE_API_BASE_URL=http://localhost:3000/api
@@ -68,6 +70,7 @@ assist-move-assist/
    ```
 
    **Backend (`backend/.env`)**
+
    ```env
    PORT=3000
    POSTGRES_HOST=localhost
@@ -131,6 +134,7 @@ bash scripts/codespace-dev.sh
 ```
 
 Ele executa as etapas abaixo:
+
 - cria `.env.local` e `backend/.env` se não existirem;
 - instala dependências front/back;
 - inicia Postgres + Redis via Docker e aguarda o `pg_isready` responder;
@@ -142,12 +146,12 @@ Ele executa as etapas abaixo:
 
 ## Portas e serviços
 
-| Serviço   | Porta | Observação |
-|-----------|-------|------------|
-| Frontend  | 5173  | Vite Dev Server (`npm run dev`) |
-| API       | 3000  | Express + WebSocket |
-| PostgreSQL| 5432  | Base `assist_move_assist` (Docker) |
-| Redis     | 6379  | Cache e permissões |
+| Serviço    | Porta | Observação                         |
+| ---------- | ----- | ---------------------------------- |
+| Frontend   | 5173  | Vite Dev Server (`npm run dev`)    |
+| API        | 3000  | Express + WebSocket                |
+| PostgreSQL | 5432  | Base `assist_move_assist` (Docker) |
+| Redis      | 6379  | Cache e permissões                 |
 
 ## Scripts úteis
 
@@ -175,12 +179,12 @@ Credenciais padrão para automação e QA estão documentadas em [`docs/TEST_CRE
 
 ## Solução de problemas
 
-| Sintoma | Causa provável | Como resolver |
-|---------|----------------|---------------|
-| `ECONNREFUSED` ao iniciar a API | Postgres/Redis não estão em execução | Rode `docker compose ps` e garanta que `postgres` e `redis` estão `Up`; reinicie com `docker compose up -d postgres redis`. |
-| Frontend mostra erro 401 após login | Seeds não executaram ou JWT desatualizado | Reaplique `npm --prefix backend run migrate:node` e limpe cookies/localStorage. |
-| Porta 5173 ou 3000 indisponível | Outro processo usando as portas | Ajuste `PORT` em `backend/.env` ou execute `npm run dev -- --port 5174`. |
-| Playwright falha no Codespaces | Browsers não instalados | Execute `npx playwright install --with-deps chromium` antes dos testes. |
+| Sintoma                             | Causa provável                            | Como resolver                                                                                                               |
+| ----------------------------------- | ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `ECONNREFUSED` ao iniciar a API     | Postgres/Redis não estão em execução      | Rode `docker compose ps` e garanta que `postgres` e `redis` estão `Up`; reinicie com `docker compose up -d postgres redis`. |
+| Frontend mostra erro 401 após login | Seeds não executaram ou JWT desatualizado | Reaplique `npm --prefix backend run migrate:node` e limpe cookies/localStorage.                                             |
+| Porta 5173 ou 3000 indisponível     | Outro processo usando as portas           | Ajuste `PORT` em `backend/.env` ou execute `npm run dev -- --port 5174`.                                                    |
+| Playwright falha no Codespaces      | Browsers não instalados                   | Execute `npx playwright install --with-deps chromium` antes dos testes.                                                     |
 
 ## Documentação complementar
 
