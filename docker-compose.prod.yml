@@ -14,7 +14,7 @@ services:
     ports:
       - "5432:5432"
     env_file:
-      - ./backend/.env
+      - ./apps/backend/.env
 
   redis:
     image: redis:7
@@ -25,24 +25,26 @@ services:
     volumes:
       - redis_data:/data
     env_file:
-      - ./backend/.env
+      - ./apps/backend/.env
 
   backend:
     build:
-      context: ./backend
+      context: ./apps/backend
+      dockerfile: Dockerfile.production
     container_name: assist_backend
     depends_on:
       - db
       - redis
     env_file:
-      - ./backend/.env
+      - ./apps/backend/.env
     ports:
       - "4000:4000"
     restart: unless-stopped
 
   frontend:
     build:
-      context: .
+      context: ./apps/frontend
+      dockerfile: Dockerfile.frontend.production
     container_name: assist_frontend
     environment:
       NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:4000}

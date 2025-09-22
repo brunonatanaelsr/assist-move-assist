@@ -15,7 +15,7 @@ VITE_APP_TITLE=Sistema Assist Move Marias
 VITE_FRONTEND_URL=https://upgraded-disco-9rjq7xvj7r7hpqr-5173.app.github.dev
 ```
 
-#### ✅ Backend (backend/.env)
+#### ✅ Backend (apps/backend/.env)
 ```env
 PORT=3000
 NODE_ENV=development
@@ -77,7 +77,7 @@ DATABASE_URL=postgresql://user:pass@host:5432/prod_db
 - Integração preparada para Sentry/LogRocket
 ```
 
-#### ✅ Backend Logger (`/backend/src/services/logger.ts`)
+#### ✅ Backend Logger (`/apps/backend/src/services/logger.ts`)
 ```typescript
 // Funcionalidades implementadas:
 - Winston com rotação diária
@@ -97,7 +97,7 @@ DATABASE_URL=postgresql://user:pass@host:5432/prod_db
 - Alertas via Slack
 
 #### ✅ Smoke Tests
-**Localização:** `/backend/scripts/`
+**Localização:** `/apps/backend/scripts/`
 - `smoke-tests.js` - Validação de endpoints
 - `smoke-config.js` - Teste de configurações
 - `smoke-reports.js` - Validação de relatórios

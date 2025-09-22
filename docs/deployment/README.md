@@ -13,10 +13,10 @@ Este guia resume o processo de implantação em produção do Assist Move Assist
 
 ## Passo a Passo Resumido
 1. Clone o repositório no servidor destino e execute `scripts/pre-deploy-check.sh` para validar pacotes base.
-2. Copie `backend/.env.example` para `backend/.env` e `.env.example` para `.env.production`, preenchendo credenciais reais (URLs do domínio, `NODE_ENV=production`, `JWT_SECRET`, SMTP, chaves de monitoramento etc.).
+2. Copie `apps/backend/.env.example` para `apps/backend/.env` e `.env.example` para `.env.production`, preenchendo credenciais reais (URLs do domínio, `NODE_ENV=production`, `JWT_SECRET`, SMTP, chaves de monitoramento etc.).
 3. Ajuste o arquivo `docker-compose.prod.yml` para apontar para os serviços gerenciados de banco/Redis via variáveis de ambiente.
-4. Rode `npm install` na raiz e em `backend/`, depois `npm run build` (frontend) e `npm --prefix backend run build`.
-5. Execute `npm --prefix backend run migrate` para aplicar as migrações SQL e `npm --prefix backend run seed` para criar dados iniciais.
+4. Rode `npm install` na raiz e em `apps/backend/`, depois `npm run frontend:build` e `npm run backend:build`.
+5. Execute `npm --prefix apps/backend run migrate` para aplicar as migrações SQL e `npm --prefix apps/backend run seed` para criar dados iniciais.
 6. Configure o serviço systemd/PM2 ou utilize Docker Compose para iniciar `frontend`, `backend`, `db` (se autogerenciado) e `redis` (se local) em modo produção.
 7. Habilite o Nginx com o virtual host seguro (`config/nginx/nginx-ssl-production.conf`) e renove certificados com `certbot renew --quiet`.
 8. Configure monitoramento (Sentry, Google Analytics, LogRocket) e alertas de uptime com as variáveis presentes nos templates `.env`.
@@ -30,22 +30,22 @@ Este guia resume o processo de implantação em produção do Assist Move Assist
   GRANT ALL PRIVILEGES ON DATABASE assist_db TO assist_user;
   SQL
   ```
-- Habilite extensões necessárias (`uuid-ossp`, `pgcrypto`) e aplique migrações com `npm --prefix backend run migrate`.
-- Após o deploy inicial rode `npm --prefix backend run seed` para criar o usuário administrador e dados de referência.
+- Habilite extensões necessárias (`uuid-ossp`, `pgcrypto`) e aplique migrações com `npm --prefix apps/backend run migrate`.
+- Após o deploy inicial rode `npm --prefix apps/backend run seed` para criar o usuário administrador e dados de referência.
 - Configure rotinas de backup conforme `docs/database/BACKUP_STRATEGY.md`.
 
 ## Redis
 - Utilize uma instância gerenciada com TLS habilitado ou configure `redis.conf` local com `requirepass` e `appendonly yes`.
-- Atualize `backend/.env` com `REDIS_URL` e `REDIS_PASSWORD` coerentes. O backend aplica cache TTL e filas em canais `notifications:*` e `sessions:*`.
+- Atualize `apps/backend/.env` com `REDIS_URL` e `REDIS_PASSWORD` coerentes. O backend aplica cache TTL e filas em canais `notifications:*` e `sessions:*`.
 
 ## Backend Node.js
 - Scripts principais:
   ```bash
-  npm --prefix backend install
-  npm --prefix backend run build
-  npm --prefix backend run migrate
-  npm --prefix backend run seed   # opcional
-  npm --prefix backend run start
+  npm --prefix apps/backend install
+  npm --prefix apps/backend run build
+  npm --prefix apps/backend run migrate
+  npm --prefix apps/backend run seed   # opcional
+  npm --prefix apps/backend run start
   ```
 - O serviço expõe `PORT=4000` (configurável). Utilize `pm2`, `systemd` ou Docker Compose para mantê-lo ativo.
 - Middleware de segurança habilitados: Helmet, Rate Limiter, HPP, CORS com whitelists (`CORS_ALLOWED_ORIGINS`).
@@ -65,11 +65,11 @@ Este guia resume o processo de implantação em produção do Assist Move Assist
   VITE_SENTRY_DSN=https://chave@sentry.io/projeto
   VITE_GA_MEASUREMENT_ID=G-XXXXXXXXXX
   ```
-- Build de produção: `npm install && npm run build`.
-- Os artefatos ficam em `dist/` e podem ser servidos via Nginx (`root /var/www/assist-move-assist/dist;`).
+- Build de produção: `npm --prefix apps/frontend install && npm --prefix apps/frontend run build`.
+- Os artefatos ficam em `apps/frontend/dist/` e podem ser servidos via Nginx (`root /var/www/assist-move-assist/apps/frontend/dist;`).
 
 ## Automação com Docker Compose
-- O arquivo `docker-compose.prod.yml` utiliza `env_file` apontando para `backend/.env` e `.env.production` (renomeado para `.env` na raiz ao subir o stack).
+- O arquivo `docker-compose.prod.yml` utiliza `env_file` apontando para `apps/backend/.env` e `.env.production` (renomeado para `.env` na raiz ao subir o stack).
 - Para atualizar imagens:
   ```bash
   docker compose -f docker-compose.prod.yml pull
@@ -79,7 +79,7 @@ Este guia resume o processo de implantação em produção do Assist Move Assist
 
 ## CI/CD (GitHub Actions)
 - Workflow `deploy-vps.yml` executa build, testes e, após aprovação manual (`workflow_dispatch`), dispara deploy via SSH usando `appleboy/ssh-action`.
-- Garanta que os jobs de build/test (`npm run lint`, `npm run test`, `npm --prefix backend run test`) façam parte do pipeline antes da etapa de deploy.
+- Garanta que os jobs de build/test (`npm run lint`, `npm run test`, `npm --prefix apps/backend run test`) façam parte do pipeline antes da etapa de deploy.
 - Utilize environments no GitHub para proteger secrets e aprovações obrigatórias.
 
 ## Monitoramento e Observabilidade
@@ -92,10 +92,10 @@ Este guia resume o processo de implantação em produção do Assist Move Assist
 - Automatize backups diários do PostgreSQL e Redis e guarde em armazenamento externo (S3, GCS) seguindo `docs/database/BACKUP_STRATEGY.md`.
 - Teste o processo de restauração trimestralmente.
 - Revise certificados TLS e regras de firewall mensalmente.
-- Execute `npm --prefix backend run smoke` e `npm run test:e2e` a cada release para garantir regressão mínima.
+- Execute `npm --prefix apps/backend run smoke` e `npm run test:e2e` a cada release para garantir regressão mínima.
 
 ## Troubleshooting Rápido
-- **Backend não inicia**: verificar `backend/logs/app.log`, conexão com PostgreSQL/Redis e variáveis `DATABASE_URL`/`REDIS_URL`.
+- **Backend não inicia**: verificar `apps/backend/logs/app.log`, conexão com PostgreSQL/Redis e variáveis `DATABASE_URL`/`REDIS_URL`.
 - **Frontend exibe erro de API**: confirmar CORS (`CORS_ALLOWED_ORIGINS`) e proxies Nginx apontando para `http://backend:4000` ou serviço equivalente.
 - **WebSocket não conecta**: validar que `NEXT_PUBLIC_WS_URL` usa `wss://` atrás de TLS e que o Nginx encaminha `upgrade`/`connection` corretamente.
 - **Deploy via Actions falha**: confira logs do job e permissões SSH. Rode `scripts/update-production.sh` manualmente para validar.

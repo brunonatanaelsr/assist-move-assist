@@ -28,5 +28,4 @@ Uso rápido
 Observações
 - O instalador chama o script de deploy: scripts/deploy-ubuntu-24.sh
 - Para banco EXTERNO, o instalador evita provisionar Postgres local e usa as credenciais fornecidas.
-- Seeds iniciais são criados via backend/scripts/create-initial-data.js (com os dados informados).
-
+- Seeds iniciais são criados via apps/backend/scripts/create-initial-data.js (com os dados informados).

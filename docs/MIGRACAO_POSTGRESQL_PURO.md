@@ -9,9 +9,9 @@ Este documento descreve o estado atual do backend 100% PostgreSQL, as convençõ
 - **Realtime**: Socket.IO publicando eventos a partir de triggers PostgreSQL (`NOTIFY/LISTEN`).
 
 ## 2. Estrutura de Pastas
-- `backend/migrations/sql`: scripts versionados (`YYYYMMDDHHMM__descricao.sql`).
-- `backend/scripts/migrate.sh`: aplica migrações em ordem, registra histórico em `schema_migrations`.
-- `backend/src/modules/**/repositories`: consultas específicas usando SQL parametrizado.
+- `apps/backend/src/database/migrations`: scripts versionados (`YYYYMMDDHHMM__descricao.sql`).
+- `apps/backend/scripts/migrate.sh`: aplica migrações em ordem, registra histórico em `schema_migrations`.
+- `apps/backend/src/modules/**/repositories`: consultas específicas usando SQL parametrizado.
 
 ## 3. Convenções de Migração
 1. Cada feature deve conter `UP` e `DOWN` claros no arquivo SQL.
@@ -24,7 +24,7 @@ Este documento descreve o estado atual do backend 100% PostgreSQL, as convençõ
 # 1. Criar uma nova migração
 npm --prefix backend run premigrate:node -- name "adicionar_tabela_oficinas"
 
-# 2. Escrever SQL em backend/migrations/sql/<timestamp>__adicionar_tabela_oficinas.sql
+# 2. Escrever SQL em apps/backend/src/database/migrations/<timestamp>__adicionar_tabela_oficinas.sql
 
 # 3. Executar migrações localmente
 npm --prefix backend run migrate
@@ -35,7 +35,7 @@ npm --prefix backend run test:integration
 ```
 
 ## 5. Estratégia de Seed
-- Script `backend/scripts/create-initial-data.js` cria usuário administrador, permissões básicas, projetos padrão e oficinas de exemplo.
+- Script `apps/backend/scripts/create-initial-data.js` cria usuário administrador, permissões básicas, projetos padrão e oficinas de exemplo.
 - Seeds são idempotentes: podem ser executados após cada migração sem duplicar dados.
 - Para ambientes de staging utilize variáveis `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD` no `.env`.
 
@@ -47,7 +47,7 @@ npm --prefix backend run test:integration
 ## 7. Observabilidade da Camada SQL
 - Ative `log_min_duration_statement = 500` no PostgreSQL para identificar queries lentas.
 - Envie métricas para Prometheus/Grafana usando `pg_stat_statements`.
-- Scripts auxiliares: `backend/scripts/smoke-reports.js` valida relatórios e visões materializadas.
+- Scripts auxiliares: `apps/backend/scripts/smoke-reports.js` valida relatórios e visões materializadas.
 
 ## 8. Backup e Recuperação
 - Utilize `pg_dump` diário com retenção mínima de 30 dias (ver `docs/database/BACKUP_STRATEGY.md`).

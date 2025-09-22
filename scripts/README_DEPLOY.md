@@ -78,7 +78,7 @@ O script instala automaticamente o `sshpass`:
 
 1. Provisionar a VPS (Node.js, PostgreSQL, Nginx, firewall, SSL). Siga `docs/PM2_DEPLOYMENT.md`.
 2. Rodar `./scripts/pre-deploy-check.sh` para validar dependências.
-3. Configurar variáveis no servidor (`/var/www/assist-move-assist/backend/.env` e frontend `.env.production`).
+3. Configurar variáveis no servidor (`/var/www/assist-move-assist/apps/backend/.env` e frontend `.env.production`).
 4. Rodar `sudo ./scripts/update-production.sh` para copiar, buildar e reiniciar.
 5. Validar com `./scripts/health-check.sh` e inspeção de logs.
 

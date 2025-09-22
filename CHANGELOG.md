@@ -7,11 +7,11 @@ The format is based on Keep a Changelog, and this project aims to follow semanti
 ## [Unreleased]
 
 ### Added
-- Production Dockerfiles: `backend/Dockerfile.production` and `Dockerfile.frontend.production`.
+- Production Dockerfiles: `apps/backend/Dockerfile.production` and `apps/frontend/Dockerfile.frontend.production`.
 - Docker compose for production: `docker-compose.prod.yml` (Postgres, Redis, Backend, Frontend).
 - Local E2E script: `scripts/run-e2e-local.sh` (levanta DB/Redis via Docker, migra/seed, inicia API, builda front e roda Playwright).
 - DB migration with indexes to improve queries over `formularios`:
-  - `backend/src/database/migrations/032_add_formularios_indexes.sql` (beneficiaria_id, tipo, created_at).
+  - `apps/backend/src/database/migrations/032_add_formularios_indexes.sql` (beneficiaria_id, tipo, created_at).
 - DELETE endpoint for generic forms: `DELETE /api/formularios/:id`.
 
 ### Changed

@@ -3,7 +3,7 @@ const { Pool } = require('pg');
 const path = require('path');
 const dotenv = require('dotenv');
 
-// Carrega variáveis do backend/.env
+// Carrega variáveis do apps/backend/.env
 dotenv.config({ path: path.resolve(__dirname, '..', '.env') });
 
 // Configuração do banco

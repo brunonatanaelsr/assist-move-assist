@@ -216,8 +216,8 @@ Variáveis úteis no compose:
 - JWT_SECRET, POSTGRES_*, REDIS_*, CORS_ORIGIN, VITE_API_BASE_URL, VITE_WS_URL
 
 ## Realtime (WebSocket)
-- Backend usa Socket.IO embutido em `backend/src/websocket/server.ts`.
-- Para habilitar, defina no `backend/.env`:
+- Backend usa Socket.IO embutido em `apps/backend/src/websocket/server.ts`.
+- Para habilitar, defina no `apps/backend/.env`:
 - `ENABLE_WS=true`
   - `FRONTEND_URL=http://localhost:5173` (dev) ou a URL de produção do frontend
 - Eventos principais de chat expostos:

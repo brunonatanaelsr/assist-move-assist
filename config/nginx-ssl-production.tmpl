@@ -31,7 +31,7 @@ server {
     limit_req zone=global burst=200 nodelay;
 
     # Frontend
-    root ${FRONTEND_DIR:-/var/www/assist-move-assist/frontend/dist};
+    root ${FRONTEND_DIR:-/var/www/assist-move-assist/apps/frontend/dist};
     index index.html;
     location / {
         try_files $uri $uri/ /index.html;

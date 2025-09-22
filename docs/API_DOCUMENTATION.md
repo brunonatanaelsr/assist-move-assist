@@ -124,7 +124,7 @@ Retorna dados do usuário autenticado e permissões associadas.
 - `403 Forbidden`: falta de permissão (RBAC baseado em `role`).
 - `404 Not Found`: recurso inexistente.
 - `429 Too Many Requests`: rate limit excedido.
-- `500 Internal Server Error`: log detalhado em `backend/logs/error.log`.
+- `500 Internal Server Error`: log detalhado em `apps/backend/logs/error.log`.
 
 ## Paginação, Ordenação e Filtros
 - Parâmetros padrão: `page`, `pageSize`, `orderBy`, `orderDirection`.
@@ -138,7 +138,7 @@ Perfis disponíveis: `admin`, `coordenador`, `colaborador`, `visitante`.
 - `colaborador`: leitura ampla, criação de formulários e atualizações limitadas.
 - `visitante`: leitura restrita (ex.: feed público).
 
-As regras são avaliadas no middleware `ensureRole` e registradas em `backend/src/middleware/auth.ts`.
+As regras são avaliadas no middleware `ensureRole` e registradas em `apps/backend/src/middleware/auth.ts`.
 
 ## WebSocket
 - Endpoint: `ws(s)://<domínio>/api` (Socket.IO v4).
@@ -148,7 +148,7 @@ As regras são avaliadas no middleware `ensureRole` e registradas em `backend/sr
 ## Versionamento e Evolução
 - A API atualmente não possui versões paralelas; mudanças incompatíveis devem ser coordenadas com o frontend.
 - Cada rota expõe metadados no header `X-API-Version` (definido na resposta global).
-- Feature flags: utilize `X-Feature-Flag` para habilitar recursos em beta (consultar `backend/src/middleware/featureFlags.ts`).
+- Feature flags: utilize `X-Feature-Flag` para habilitar recursos em beta (consultar `apps/backend/src/middleware/featureFlags.ts`).
 
 ## Erros Comuns
 - **401**: verifique expiração do token e sincronize relógios (NTP) do servidor.

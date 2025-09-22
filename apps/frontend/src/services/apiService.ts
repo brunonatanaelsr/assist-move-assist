@@ -4,8 +4,7 @@
  */
 
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
-import type { Beneficiaria, BeneficiariaFiltros } from '../../backend/src/types/beneficiarias';
-import type { Oficina } from '../../backend/src/types/oficina';
+import type { Beneficiaria, BeneficiariaFiltros, Oficina } from '@/types/shared';
 import { translateErrorMessage } from '@/lib/apiError';
 import { API_URL } from '@/config';
 const IS_DEV = (import.meta as any)?.env?.DEV === true || (import.meta as any)?.env?.MODE === 'development';

@@ -64,6 +64,16 @@ export interface Beneficiaria {
     }>;
 }
 
+export interface BeneficiariaFiltros {
+    search?: string;
+    status?: Beneficiaria['status'];
+    data_inicio?: Date;
+    data_fim?: Date;
+    escolaridade?: string;
+    renda_min?: number;
+    renda_max?: number;
+}
+
 export interface Projeto {
     id: number;
     titulo: string;

@@ -61,7 +61,7 @@ echo "📁 Verificando arquivos de configuração..."
 
 REQUIRED_FILES=(
     "package.json"
-    "backend/package.json"
+    "apps/backend/package.json"
     ".env.example"
     "vite.config.ts"
     "config/nginx-ssl-production.conf"
@@ -90,7 +90,7 @@ if [ -f "package.json" ]; then
     fi
 fi
 
-if [ -f "backend/package.json" ]; then
+if [ -f "apps/backend/package.json" ]; then
     cd backend
     npm list --production --depth=0 > /dev/null 2>&1
     if [ $? -eq 0 ]; then
@@ -112,10 +112,10 @@ else
     log_check "WARN" "Arquivo .env.production ausente (frontend)"
 fi
 
-if [ -f "backend/.env" ]; then
-    log_check "PASS" "Arquivo backend/.env existe (backend)"
+if [ -f "apps/backend/.env" ]; then
+    log_check "PASS" "Arquivo apps/backend/.env existe (backend)"
 else
-    log_check "WARN" "Arquivo backend/.env ausente (será criado no deploy)"
+    log_check "WARN" "Arquivo apps/backend/.env ausente (será criado no deploy)"
 fi
 
 # 5. Testar build do frontend
@@ -153,11 +153,11 @@ fi
 echo ""
 echo "🔧 Testando backend..."
 
-if [ -f "backend/dist/app.js" ]; then
-    log_check "PASS" "Artefato backend/dist/app.js presente"
+if [ -f "apps/backend/dist/app.js" ]; then
+    log_check "PASS" "Artefato apps/backend/dist/app.js presente"
     # Opcional: smoke rápido se porta livre
     if ! lsof -i:3000 -sTCP:LISTEN -t >/dev/null 2>&1; then
-        timeout 15s node backend/dist/app.js &
+        timeout 15s node apps/backend/dist/app.js &
         BACKEND_PID=$!
         sleep 5
         if curl -sf http://localhost:3000/health > /dev/null 2>&1; then
@@ -171,7 +171,7 @@ if [ -f "backend/dist/app.js" ]; then
         log_check "INFO" "Porta 3000 ocupada; pulando smoke local"
     fi
 else
-    log_check "WARN" "backend/dist/app.js ausente — rode npm run build no backend"
+    log_check "WARN" "apps/backend/dist/app.js ausente — rode npm run build no backend"
 fi
 
 # 7. Verificar scripts de deploy
@@ -205,8 +205,8 @@ else
 fi
 
 # Verificar configuração CORS
-if grep -q "CORS_ORIGIN" backend/.env 2>/dev/null; then
-    if grep -q "localhost" backend/.env; then
+if grep -q "CORS_ORIGIN" apps/backend/.env 2>/dev/null; then
+    if grep -q "localhost" apps/backend/.env; then
         log_check "WARN" "CORS aponta para localhost (dev)"
     else
         log_check "PASS" "CORS aponta para domínio (produção)"
