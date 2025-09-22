@@ -1,5 +1,5 @@
 import { Pool } from 'pg';
-import { Redis } from 'ioredis';
+import type Redis from 'ioredis';
 import { logger } from '../services/logger';
 import { AppError } from '../utils';
 import { validateBeneficiaria } from '../validators/beneficiaria.validator';

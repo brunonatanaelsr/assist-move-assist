@@ -1,5 +1,5 @@
 import { Pool, PoolClient, QueryResult as PgQueryResult, QueryResultRow } from 'pg';
-import Redis from 'ioredis';
+import type Redis from 'ioredis';
 
 export type RedisFunction<T> = jest.Mock<Promise<T>>;
 
