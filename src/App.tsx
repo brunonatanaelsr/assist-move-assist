@@ -27,7 +27,9 @@ const EditarBeneficiaria = lazy(() => import("@/pages/EditarBeneficiaria"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
 const Analytics = lazy(() => import("@/pages/Analytics"));
 const OficinasNew = lazy(() => import("@/pages/OficinasNew"));
-const ParticipantesProjeto = () => null as any; // módulo legado desativado
+const ParticipantesIndisponivel = lazy(
+  () => import("@/pages/ParticipantesIndisponivel")
+);
 const CalendarPage = lazy(() => import("@/pages/CalendarPage"));
 const Configuracoes = lazy(() => import("@/pages/Configuracoes"));
 const EditarPerfil = lazy(() => import("@/components/EditarPerfil"));
@@ -111,7 +113,10 @@ const App = () => (
                   {/* Demais páginas protegidas */}
                   <Route path="analytics" element={<Analytics />} />
                   <Route path="oficinas" element={<OficinasNew />} />
-                  <Route path="participantes" element={<ParticipantesProjeto />} />
+                  <Route
+                    path="participantes"
+                    element={<ParticipantesIndisponivel />}
+                  />
                   <Route path="configuracoes">
                     <Route index element={<Configuracoes />} />
                     <Route path="perfil" element={<EditarPerfil />} />
