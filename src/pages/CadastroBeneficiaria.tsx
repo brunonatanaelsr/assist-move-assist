@@ -23,6 +23,7 @@ export default function CadastroBeneficiaria() {
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string | undefined>>({});
   const [success, setSuccess] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -92,6 +93,8 @@ export default function CadastroBeneficiaria() {
 
     setLoading(true);
     setError(null);
+    setSuccess(false);
+    setSuccessMessage(null);
 
     try {
       const cleanData: any = {
@@ -111,16 +114,35 @@ export default function CadastroBeneficiaria() {
         programa_servico: formData.programa_servico || null,
       };
 
-      const data = await apiService.createBeneficiaria(cleanData);
+      const response = await apiService.createBeneficiaria(cleanData);
 
+      if (!response || typeof response.success !== 'boolean') {
+        throw new Error('Resposta inválida do servidor');
+      }
+
+      if (!response.success) {
+        const friendly = translateErrorMessage(response.message || (response as any)?.error);
+        setError(`Erro ao cadastrar beneficiária: ${friendly}`);
+        return;
+      }
+
+      const friendlySuccess = response.message && response.message !== 'Operação realizada com sucesso'
+        ? response.message
+        : 'Beneficiária cadastrada com sucesso! Redirecionando...';
+
+      setError(null);
       setSuccess(true);
+      setSuccessMessage(friendlySuccess);
       setTimeout(() => {
         navigate('/beneficiarias');
       }, 2000);
 
     } catch (error: any) {
       console.error('Erro ao cadastrar beneficiária:', error);
-      const friendly = translateErrorMessage(error?.message);
+      const apiMessage = error?.response?.data?.message || error?.response?.data?.error || error?.message;
+      const friendly = translateErrorMessage(apiMessage);
+      setSuccess(false);
+      setSuccessMessage(null);
       setError(`Erro ao cadastrar beneficiária: ${friendly}`);
     } finally {
       setLoading(false);
@@ -187,10 +209,10 @@ export default function CadastroBeneficiaria() {
       </div>
 
       {/* Success Message */}
-      {success && (
+      {success && successMessage && (
         <Alert className="border-success" data-testid="success-message">
           <AlertDescription className="text-success">
-            Beneficiária cadastrada com sucesso! Redirecionando...
+            {successMessage}
             <Button variant="link" className="ml-2 p-0" onClick={() => navigate('/beneficiarias')} data-testid="voltar-lista">Voltar à lista</Button>
           </AlertDescription>
         </Alert>
