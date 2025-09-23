@@ -123,7 +123,7 @@ describe('Oficinas Full Flow', () => {
 
     const res = await supertest(app)
       .post('/oficinas/7/presencas')
-      .send({ beneficiaria_id: 2, presente: true });
+      .send({ beneficiaria_id: 2, presente: true, data: '2025-01-15' });
     expect(res.status).toBe(201);
     expect(res.body.success).toBe(true);
   });

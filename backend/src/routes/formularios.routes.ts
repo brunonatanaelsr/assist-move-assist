@@ -14,10 +14,33 @@ type TermoConsentimentoRow = {
   revogado_em?: string | null;
   revogado_por?: number | null;
   revogacao_motivo?: string | null;
+  tipo?: string | null;
+  versao_texto?: string | null;
+  decisao?: string | null;
+  base_legal?: string | null;
+  evidencia?: Record<string, any> | null;
+};
+
+const sanitizeMetadataValue = (value: unknown) => {
+  if (value === undefined || value === null) {
+    return null;
+  }
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  }
+
+  return value;
 };
 
 const formatTermoConsentimento = (row: TermoConsentimentoRow) => {
   const dados = (row?.dados || {}) as Record<string, any>;
+  const tipoTermo = sanitizeMetadataValue(dados.tipo_termo ?? row.tipo ?? dados.tipo);
+  const versaoTexto = sanitizeMetadataValue(dados.versao_texto ?? dados.versao ?? row.versao_texto);
+  const decisao = sanitizeMetadataValue(row.decisao);
+  const baseLegal = sanitizeMetadataValue(dados.base_legal ?? row.base_legal);
+  const evidencia = (row.evidencia || {}) as Record<string, any>;
 
   return {
     ...dados,
@@ -29,7 +52,91 @@ const formatTermoConsentimento = (row: TermoConsentimentoRow) => {
     revogacao_motivo: row.revogacao_motivo ?? dados.revogacao_motivo ?? null,
     ativo: !row.revogado_em,
     data_aceite: dados.data_aceite ?? row.created_at,
+    tipo_termo: tipoTermo ?? 'lgpd',
+    versao_texto: versaoTexto ?? null,
+    decisao: decisao ?? (dados.aceito === true ? 'granted' : 'denied'),
+    base_legal: baseLegal ?? null,
+    evidencia: Object.keys(evidencia).length ? evidencia : null,
   };
+};
+
+const resolveClientIp = (req: AuthenticatedRequest): string | null => {
+  const forwardedFor = req.headers['x-forwarded-for'];
+
+  if (Array.isArray(forwardedFor) && forwardedFor.length > 0) {
+    return forwardedFor[0]?.split(',')[0]?.trim() || null;
+  }
+
+  if (typeof forwardedFor === 'string' && forwardedFor.length > 0) {
+    return forwardedFor.split(',')[0]?.trim() || null;
+  }
+
+  if (typeof req.ip === 'string' && req.ip.length > 0) {
+    return req.ip;
+  }
+
+  return req.socket?.remoteAddress ?? null;
+};
+
+const buildTermoEvidencia = (
+  req: AuthenticatedRequest,
+  dados: Record<string, any>,
+  body: Record<string, any>
+) => {
+  const assinatura = sanitizeMetadataValue(body.assinatura ?? dados.assinatura);
+  const ip = sanitizeMetadataValue(resolveClientIp(req));
+  const userAgent = sanitizeMetadataValue(req.get('user-agent'));
+  const registro =
+    sanitizeMetadataValue(body.data_aceite ?? dados.data_aceite ?? dados.dataAssinatura ?? dados.data ?? null) ||
+    new Date().toISOString();
+
+  const evidencia = {
+    registrado_em: registro,
+    ...(ip ? { ip } : {}),
+    ...(userAgent ? { user_agent: userAgent } : {}),
+    ...(assinatura ? { assinatura } : {}),
+  };
+
+  return evidencia;
+};
+
+const resolveTermoTipo = (dados: Record<string, any>, body: Record<string, any>) =>
+  sanitizeMetadataValue(body.tipo ?? body.tipo_termo ?? dados.tipo_termo ?? dados.tipo ?? null) ?? 'lgpd';
+
+const resolveTermoVersao = (dados: Record<string, any>, body: Record<string, any>) =>
+  sanitizeMetadataValue(body.versao_texto ?? dados.versao_texto ?? dados.versao ?? null) ?? '1.0';
+
+const resolveTermoBaseLegal = (dados: Record<string, any>, body: Record<string, any>) =>
+  sanitizeMetadataValue(body.base_legal ?? dados.base_legal ?? null) ?? 'consentimento do titular';
+
+const resolveTermoDecisao = (dados: Record<string, any>, body: Record<string, any>) => {
+  const acceptedValue =
+    body.aceito ?? body.aceite ?? dados.aceito ?? dados.aceite ?? body.decisao ?? dados.decisao ?? null;
+
+  if (typeof acceptedValue === 'string') {
+    return acceptedValue.toLowerCase() === 'true' || acceptedValue.toLowerCase() === 'granted' ? 'granted' : 'denied';
+  }
+
+  return acceptedValue === true ? 'granted' : 'denied';
+};
+
+const extractTermoDados = (body: Record<string, any>) => {
+  const payload = body?.dados;
+
+  if (payload && typeof payload === 'object' && !Array.isArray(payload)) {
+    return payload as Record<string, any>;
+  }
+
+  const {
+    beneficiaria_id: _beneficiariaId,
+    versao_texto: _versaoTexto,
+    base_legal: _baseLegal,
+    decisao: _decisao,
+    assinatura: _assinatura,
+    ...rest
+  } = body;
+
+  return rest;
 };
 
 const router = Router();
@@ -169,14 +276,39 @@ router.put('/ficha-evolucao/:id', authenticateToken, async (req, res): Promise<v
 // TERMOS DE CONSENTIMENTO
 router.post('/termos-consentimento', authenticateToken, async (req: AuthenticatedRequest, res): Promise<void> => {
   try {
-    const { beneficiaria_id, dados } = (req.body ?? {}) as Record<string, any>;
+    const body = (req.body ?? {}) as Record<string, any>;
+    const beneficiariaId = Number(body.beneficiaria_id);
+
+    if (!beneficiariaId || Number.isNaN(beneficiariaId)) {
+      res.status(400).json(errorResponse('beneficiaria_id é obrigatório para registrar o termo'));
+      return;
+    }
+
+    const dados = extractTermoDados(body);
     const createdBy = Number(req.user!.id);
+    const tipo = resolveTermoTipo(dados, body);
+    const versaoTexto = resolveTermoVersao(dados, body);
+    const decisao = resolveTermoDecisao(dados, body);
+    const baseLegal = resolveTermoBaseLegal(dados, body);
+    const evidencia = buildTermoEvidencia(req, dados, body);
+    const payloadDados = JSON.stringify(dados || {});
+    const payloadEvidencia = JSON.stringify(evidencia || {});
     const result = await pool.query(
-      `INSERT INTO termos_consentimento (beneficiaria_id, dados, created_by)
-       VALUES ($1,$2::jsonb,$3) RETURNING *`,
-      [beneficiaria_id, JSON.stringify(dados || {}), createdBy]
+      `INSERT INTO termos_consentimento (
+          beneficiaria_id,
+          dados,
+          created_by,
+          tipo,
+          versao_texto,
+          decisao,
+          base_legal,
+          evidencia
+        )
+       VALUES ($1,$2::jsonb,$3,$4,$5,$6,$7,$8::jsonb)
+       RETURNING id, beneficiaria_id, dados, created_at, revogado_em, revogado_por, revogacao_motivo, tipo, versao_texto, decisao, base_legal, evidencia`,
+      [beneficiariaId, payloadDados, createdBy, tipo, versaoTexto, decisao, baseLegal, payloadEvidencia]
     );
-    res.status(201).json(successResponse(result.rows[0]));
+    res.status(201).json(successResponse(formatTermoConsentimento(result.rows[0])));
     return;
   } catch (error) {
     res.status(500).json(errorResponse('Erro ao criar termo'));
@@ -188,7 +320,8 @@ router.get('/termos-consentimento/beneficiaria/:beneficiariaId', authenticateTok
   try {
     const { beneficiariaId } = req.params as any;
     const result = await pool.query(
-      `SELECT id, beneficiaria_id, dados, created_at, revogado_em, revogado_por, revogacao_motivo
+      `SELECT id, beneficiaria_id, dados, created_at, revogado_em, revogado_por, revogacao_motivo,
+              tipo, versao_texto, decisao, base_legal, evidencia
          FROM termos_consentimento
         WHERE beneficiaria_id = $1
         ORDER BY created_at DESC`,
@@ -207,7 +340,8 @@ router.get('/termos-consentimento/:id', authenticateToken, async (req, res): Pro
   try {
     const { id } = req.params as any;
     const result = await pool.query(
-      `SELECT id, beneficiaria_id, dados, created_at, revogado_em, revogado_por, revogacao_motivo
+      `SELECT id, beneficiaria_id, dados, created_at, revogado_em, revogado_por, revogacao_motivo,
+              tipo, versao_texto, decisao, base_legal, evidencia
          FROM termos_consentimento WHERE id = $1`,
       [id]
     );
@@ -222,7 +356,11 @@ router.get('/termos-consentimento/:id', authenticateToken, async (req, res): Pro
 router.get('/termos-consentimento/:id/pdf', authenticateToken, async (req, res): Promise<void> => {
   try {
     const { id } = req.params as any;
-    const result = await pool.query('SELECT id, beneficiaria_id, dados, created_at FROM termos_consentimento WHERE id = $1', [id]);
+    const result = await pool.query(
+      `SELECT id, beneficiaria_id, dados, created_at, tipo, versao_texto, decisao, base_legal, evidencia
+         FROM termos_consentimento WHERE id = $1`,
+      [id]
+    );
     if (result.rowCount === 0) { res.status(404).json(errorResponse('Termo não encontrado')); return; }
     const pdf = await renderTermosPdf(result.rows[0]);
     res.setHeader('Content-Type', 'application/pdf');
@@ -274,7 +412,8 @@ router.patch(
                 revogado_por = $2,
                 revogacao_motivo = COALESCE($3, revogacao_motivo)
           WHERE id = $1
-          RETURNING id, beneficiaria_id, dados, created_at, revogado_em, revogado_por, revogacao_motivo`,
+          RETURNING id, beneficiaria_id, dados, created_at, revogado_em, revogado_por, revogacao_motivo,
+                    tipo, versao_texto, decisao, base_legal, evidencia`,
         [id, userId, motivoLimpo]
       );
 
@@ -287,13 +426,51 @@ router.patch(
   }
 );
 
-router.put('/termos-consentimento/:id', authenticateToken, async (req, res): Promise<void> => {
+router.put('/termos-consentimento/:id', authenticateToken, async (req: AuthenticatedRequest, res): Promise<void> => {
   try {
     const { id } = req.params as any;
-    const { dados } = (req.body ?? {}) as Record<string, any>;
-    const result = await pool.query('UPDATE termos_consentimento SET dados = COALESCE($2::jsonb, dados) WHERE id = $1 RETURNING *', [id, JSON.stringify(dados || null)]);
+    const body = (req.body ?? {}) as Record<string, any>;
+    const dados = extractTermoDados(body);
+    const tipo = resolveTermoTipo(dados, body);
+    const versaoTexto = resolveTermoVersao(dados, body);
+    const decisao = resolveTermoDecisao(dados, body);
+    const baseLegal = resolveTermoBaseLegal(dados, body);
+    const shouldRefreshEvidence = Object.prototype.hasOwnProperty.call(body, 'assinatura') ||
+      Object.prototype.hasOwnProperty.call(body, 'evidencia');
+
+    let payloadEvidencia: string | null = null;
+
+    if (shouldRefreshEvidence) {
+      if (body.evidencia && typeof body.evidencia === 'object') {
+        payloadEvidencia = JSON.stringify(body.evidencia);
+      } else {
+        payloadEvidencia = JSON.stringify(buildTermoEvidencia(req, dados, body));
+      }
+    }
+
+    const result = await pool.query(
+      `UPDATE termos_consentimento
+          SET dados = $2::jsonb,
+              tipo = $3,
+              versao_texto = $4,
+              decisao = $5,
+              base_legal = $6,
+              evidencia = COALESCE($7::jsonb, evidencia)
+        WHERE id = $1
+        RETURNING id, beneficiaria_id, dados, created_at, revogado_em, revogado_por, revogacao_motivo,
+                  tipo, versao_texto, decisao, base_legal, evidencia`,
+      [
+        id,
+        JSON.stringify(dados ?? {}),
+        tipo,
+        versaoTexto,
+        decisao,
+        baseLegal,
+        payloadEvidencia,
+      ]
+    );
     if (result.rowCount === 0) { res.status(404).json(errorResponse('Termo não encontrado')); return; }
-    res.json(successResponse(result.rows[0]));
+    res.json(successResponse(formatTermoConsentimento(result.rows[0])));
     return;
   } catch (error) {
     res.status(500).json(errorResponse('Erro ao atualizar termo'));
@@ -487,13 +664,13 @@ router.get('/', authenticateToken, async (req: AuthenticatedRequest, res): Promi
 router.get('/beneficiaria/:beneficiariaId', authenticateToken, async (req: AuthenticatedRequest, res): Promise<void> => {
   try {
     const { beneficiariaId } = req.params as any;
-    const [gen, ana, evo, ter, vis] = await Promise.all([
-      pool.query('SELECT id, tipo, beneficiaria_id, dados, status, created_at, usuario_id as created_by FROM formularios WHERE beneficiaria_id = $1', [beneficiariaId]),
-      pool.query(`SELECT id, 'anamnese' as tipo, beneficiaria_id, dados, created_at, created_by FROM anamnese_social WHERE beneficiaria_id = $1`, [beneficiariaId]),
-      pool.query(`SELECT id, 'ficha_evolucao' as tipo, beneficiaria_id, dados, created_at, created_by FROM ficha_evolucao WHERE beneficiaria_id = $1`, [beneficiariaId]),
-      pool.query(`SELECT id, 'termos_consentimento' as tipo, beneficiaria_id, dados, created_at, created_by FROM termos_consentimento WHERE beneficiaria_id = $1`, [beneficiariaId]),
-      pool.query(`SELECT id, 'visao_holistica' as tipo, beneficiaria_id, dados, created_at, created_by FROM visao_holistica WHERE beneficiaria_id = $1`, [beneficiariaId])
-    ]);
+      const [gen, ana, evo, ter, vis] = await Promise.all([
+        pool.query('SELECT id, tipo, beneficiaria_id, dados, status, created_at, usuario_id as created_by FROM formularios WHERE beneficiaria_id = $1', [beneficiariaId]),
+        pool.query(`SELECT id, 'anamnese' as tipo, beneficiaria_id, dados, created_at, created_by FROM anamnese_social WHERE beneficiaria_id = $1`, [beneficiariaId]),
+        pool.query(`SELECT id, 'ficha_evolucao' as tipo, beneficiaria_id, dados, created_at, created_by FROM ficha_evolucao WHERE beneficiaria_id = $1`, [beneficiariaId]),
+        pool.query(`SELECT id, 'termos_consentimento' as tipo, beneficiaria_id, dados, created_at, created_by, tipo as termo_categoria, versao_texto, decisao, base_legal, evidencia FROM termos_consentimento WHERE beneficiaria_id = $1`, [beneficiariaId]),
+        pool.query(`SELECT id, 'visao_holistica' as tipo, beneficiaria_id, dados, created_at, created_by FROM visao_holistica WHERE beneficiaria_id = $1`, [beneficiariaId])
+      ]);
     const data = [...gen.rows, ...ana.rows, ...evo.rows, ...ter.rows, ...vis.rows].sort((a, b) => (new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
     res.json(successResponse({ data, total: data.length }));
     return;

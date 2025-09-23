@@ -208,9 +208,7 @@ router.post(
       const { familiares, vulnerabilidades, ...beneficiariaPayload } = parsed;
 
       // Validar CPF único
-      const cpfPayload = beneficiariaPayload.cpf;
-      if (cpfPayload) {
-        const existingBeneficiaria = await beneficiariasRepository.findByCPF(cpfPayload);
+
         if (existingBeneficiaria) {
           throw new AppError('CPF já cadastrado', 400);
         }
