@@ -90,7 +90,33 @@ export default function OficinasNew() {
       setLoading(true);
       const response = await apiService.getOficinas();
       if (response.success) {
-        setOficinas(response.data);
+        const lista = Array.isArray(response.data) ? response.data : [];
+        const oficinasNormalizadas: Oficina[] = lista.map((oficina: any) => ({
+          id: Number(oficina.id),
+          nome: oficina.nome,
+          descricao: oficina.descricao ?? null,
+          instrutor: oficina.instrutor ?? null,
+          data_inicio: oficina.data_inicio ?? '',
+          data_fim: oficina.data_fim ?? null,
+          horario_inicio: oficina.horario_inicio ?? '',
+          horario_fim: oficina.horario_fim ?? '',
+          local: oficina.local ?? null,
+          vagas_total: Number(oficina.vagas_total ?? 0),
+          vagas_ocupadas: oficina.vagas_ocupadas ?? undefined,
+          status: (['ativa', 'inativa', 'pausada', 'concluida'].includes(oficina.status)
+            ? oficina.status
+            : 'ativa') as Oficina['status'],
+          ativo: Boolean(oficina.ativo ?? true),
+          projeto_id: oficina.projeto_id ?? null,
+          projeto_nome: oficina.projeto_nome ?? null,
+          responsavel_id: oficina.responsavel_id ?? null,
+          responsavel_nome: oficina.responsavel_nome ?? null,
+          total_participantes: oficina.total_participantes ?? undefined,
+          data_criacao: oficina.data_criacao ?? new Date().toISOString(),
+          data_atualizacao: oficina.data_atualizacao ?? new Date().toISOString(),
+          dias_semana: oficina.dias_semana ?? null,
+        }));
+        setOficinas(oficinasNormalizadas);
       }
     } catch (error) {
       console.error('Erro ao carregar oficinas:', error);
@@ -107,7 +133,7 @@ export default function OficinasNew() {
       if (response.success) {
         console.log('Projetos recebidos:', response.data);
         // Permitir projetos em planejamento ou em andamento para associação
-        const projetosFiltrados = response.data.filter((p: Projeto) => 
+        const projetosFiltrados = (response.data ?? []).filter((p: Projeto) =>
           p.status === 'planejamento' || p.status === 'em_andamento'
         );
         console.log('Projetos após filtragem:', projetosFiltrados);

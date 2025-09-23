@@ -68,23 +68,26 @@ export const OficinasService = {
       }
     });
 
-    const response = await api.get<ApiResponse<ListOficinasPayload>>(`/oficinas?${searchParams.toString()}`);
-    const payload = response.data;
+    const { data: payload } = await api.get<ApiResponse<ListOficinasPayload>>(
+      `/oficinas?${searchParams.toString()}`
+    );
 
-    if (!payload) {
-      return { success: false, data: [] } as ApiResponse<Oficina[]>;
-    }
-
-    if (!payload.success) {
-      return payload as ApiResponse<Oficina[]>;
+    if (!payload?.success) {
+      return {
+        success: false,
+        message: payload?.message,
+        data: [],
+        pagination: payload?.pagination,
+      } satisfies ApiResponse<Oficina[]>;
     }
 
     const listData = payload.data;
 
     return {
-      ...payload,
+      success: true,
+      message: payload.message,
       data: listData?.data ?? [],
-      pagination: listData?.pagination,
+      pagination: listData?.pagination ?? payload.pagination,
     } satisfies ApiResponse<Oficina[]>;
   },
 

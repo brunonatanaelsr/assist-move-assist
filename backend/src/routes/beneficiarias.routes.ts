@@ -8,9 +8,10 @@ import { formatObjectDates } from '../utils/dateFormatter';
 import { AppError } from '../utils';
 import { loggerService } from '../services/logger';
 import { validateRequest } from '../middleware/validationMiddleware';
-import { beneficiariaSchema } from '../validators/beneficiaria.validator';
+import { beneficiariaSchema, validateBeneficiaria } from '../validators/beneficiaria.validator';
 import { db } from '../services/db';
 import { pool } from '../config/database';
+import { ZodError } from 'zod';
 
 // Interface para requisições autenticadas com parâmetros e corpo
 type ExtendedRequest = Request;
@@ -48,20 +49,25 @@ router.get(
   async (req: ExtendedRequest, res: Response): Promise<void> => {
     try {
       const { id } = req.params;
-      const beneficiaria = await beneficiariasRepository.findById(Number(id));
-      
+      const beneficiaria = await beneficiariasRepository.findWithRelations(Number(id));
+
       if (!beneficiaria) {
         throw new AppError('Beneficiária não encontrada', 404);
       }
 
-      // Formatar datas antes de enviar a resposta
-      const beneficiariaFormatada = formatObjectDates(beneficiaria as unknown as Record<string, unknown>, [
-        'data_nascimento',
-        'data_criacao',
-        'data_atualizacao'
-      ]) as unknown as typeof beneficiaria;
-      
-      res.json(successResponse(beneficiariaFormatada));
+      const beneficiariaFormatada = formatObjectDates(
+        beneficiaria as unknown as Record<string, unknown>,
+        ['data_nascimento', 'rg_data_emissao', 'created_at', 'updated_at'] as any
+      ) as unknown as typeof beneficiaria;
+
+      const familiaresFormatados = beneficiariaFormatada.familiares?.map((familiar) =>
+        formatObjectDates(familiar as unknown as Record<string, unknown>, ['data_nascimento'] as any)
+      ) ?? [];
+
+      res.json(successResponse({
+        ...beneficiariaFormatada,
+        familiares: familiaresFormatados
+      }));
       return;
     } catch (error) {
       if (error instanceof AppError) {
@@ -198,61 +204,60 @@ router.post(
   ),
   async (req: ExtendedRequest, res: Response): Promise<void> => {
     try {
-      const {
-        nome_completo,
-        cpf,
-        data_nascimento,
-        endereco,
-        telefone,
-        email,
-        estado_civil,
-        escolaridade,
-        renda_familiar,
-        num_dependentes,
-        status,
-        observacoes
-      } = req.body;
+      const parsed = await validateBeneficiaria(req.body);
+      const { familiares, vulnerabilidades, ...beneficiariaPayload } = parsed;
 
       // Validar CPF único
-      const existingBeneficiaria = await beneficiariasRepository.findByCPF(cpf);
+      const existingBeneficiaria = await beneficiariasRepository.findByCPF(beneficiariaPayload.cpf);
 
       if (existingBeneficiaria) {
         throw new AppError('CPF já cadastrado', 400);
       }
 
-      // Preparar dados para inserção
-      const beneficiariaData = {
-        nome_completo,
-        cpf,
-        data_nascimento,
-        endereco,
-        telefone,
-        email,
-        estado_civil,
-        escolaridade,
-        renda_familiar,
-        num_dependentes,
-        status,
-        observacoes
-      };
+      const beneficiariaData = Object.fromEntries(
+        Object.entries(beneficiariaPayload).filter(([, value]) => value !== undefined && value !== null)
+      );
 
-      const beneficiaria = await beneficiariasRepository.create(beneficiariaData as any);
-      
+      const beneficiaria = await beneficiariasRepository.createWithRelations(
+        beneficiariaData as any,
+        familiares,
+        vulnerabilidades
+      );
+
+      const beneficiariaFormatada = formatObjectDates(
+        beneficiaria as unknown as Record<string, unknown>,
+        ['data_nascimento', 'rg_data_emissao', 'created_at', 'updated_at'] as any
+      ) as unknown as typeof beneficiaria;
+
+      const familiaresFormatados = beneficiariaFormatada.familiares?.map((familiar) =>
+        formatObjectDates(familiar as unknown as Record<string, unknown>, ['data_nascimento'] as any)
+      ) ?? [];
+
       loggerService.audit('BENEFICIARIA_CREATED', (req as any).user?.id, {
         beneficiaria_id: beneficiaria.id
       });
 
-      res.status(201).json(successResponse(beneficiaria));
+      res.status(201).json(successResponse({
+        ...beneficiariaFormatada,
+        familiares: familiaresFormatados
+      }));
       return;
     } catch (error) {
+      if (error instanceof ZodError) {
+        res.status(400).json({
+          success: false,
+          message: 'Dados inválidos',
+          errors: error.errors
+        });
+        return;
+      }
       if (error instanceof AppError) {
         res.status(error.statusCode).json(errorResponse(error.message));
         return;
-      } else {
-        loggerService.error("Create beneficiaria error:", error);
-        res.status(500).json(errorResponse("Erro ao criar beneficiária"));
-        return;
       }
+      loggerService.error('Create beneficiaria error:', error);
+      res.status(500).json(errorResponse('Erro ao criar beneficiária'));
+      return;
     }
   }
 );
@@ -282,36 +287,63 @@ router.put(
         throw new AppError('Beneficiária não encontrada', 404);
       }
 
+      const parsedUpdate = await validateBeneficiaria(updateData, true);
+      const { familiares, vulnerabilidades, ...payload } = parsedUpdate;
+
       // Validar CPF único se estiver sendo atualizado
-      if (updateData.cpf && updateData.cpf !== existingBeneficiaria.cpf) {
-        const cpfExists = await beneficiariasRepository.findByCPF(updateData.cpf);
+      if (payload.cpf && payload.cpf !== existingBeneficiaria.cpf) {
+        const cpfExists = await beneficiariasRepository.findByCPF(payload.cpf);
         if (cpfExists && cpfExists.id !== Number(id)) {
           throw new AppError('CPF já cadastrado para outra beneficiária', 400);
         }
       }
 
-      // Adicionar campos de auditoria
-      updateData.data_atualizacao = new Date();
-      updateData.atualizado_por = (req as any).user?.id;
+      const sanitized = Object.fromEntries(
+        Object.entries(payload).filter(([, value]) => value !== undefined && value !== null)
+      );
 
-      const beneficiaria = await beneficiariasRepository.update(Number(id), updateData as any);
+      const beneficiaria = await beneficiariasRepository.updateWithRelations(
+        Number(id),
+        sanitized as any,
+        familiares,
+        vulnerabilidades
+      );
+
+      const beneficiariaFormatada = formatObjectDates(
+        beneficiaria as unknown as Record<string, unknown>,
+        ['data_nascimento', 'rg_data_emissao', 'created_at', 'updated_at'] as any
+      ) as unknown as typeof beneficiaria;
+
+      const familiaresFormatados = beneficiariaFormatada.familiares?.map((familiar) =>
+        formatObjectDates(familiar as unknown as Record<string, unknown>, ['data_nascimento'] as any)
+      ) ?? [];
 
       loggerService.audit('BENEFICIARIA_UPDATED', (req as any).user?.id, {
         beneficiaria_id: id,
-        changes: updateData
+        changes: sanitized
       });
 
-      res.json(successResponse(beneficiaria));
+      res.json(successResponse({
+        ...beneficiariaFormatada,
+        familiares: familiaresFormatados
+      }));
       return;
     } catch (error) {
+      if (error instanceof ZodError) {
+        res.status(400).json({
+          success: false,
+          message: 'Dados inválidos',
+          errors: error.errors
+        });
+        return;
+      }
       if (error instanceof AppError) {
         res.status(error.statusCode).json(errorResponse(error.message));
         return;
-      } else {
-        loggerService.error("Update beneficiaria error:", error);
-        res.status(500).json(errorResponse("Erro ao atualizar beneficiária"));
-        return;
       }
+      loggerService.error('Update beneficiaria error:', error);
+      res.status(500).json(errorResponse('Erro ao atualizar beneficiária'));
+      return;
     }
   }
 );

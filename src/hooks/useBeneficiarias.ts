@@ -18,7 +18,7 @@ export const useBeneficiarias = (params?: {
   page?: number;
   limit?: number;
   search?: string;
-  status?: 'ativa' | 'inativa' | 'pendente' | 'desligada' | 'arquivada';
+  status?: 'ativa' | 'inativa' | 'pendente' | 'desistente';
   escolaridade?: string;
 }) => {
   return useQuery({

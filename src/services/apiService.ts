@@ -223,15 +223,21 @@ class ApiService {
     );
 
     if (!response.success) {
-      return response as ApiResponse<Oficina[]>;
+      return {
+        success: false,
+        message: response.message,
+        data: [],
+        pagination: response.pagination,
+      };
     }
 
-    const payload = response.data;
+    const payload = response.data ?? { data: [] };
 
     return {
-      ...response,
-      data: payload?.data ?? [],
-      pagination: payload?.pagination,
+      success: true,
+      message: response.message,
+      data: payload.data ?? [],
+      pagination: payload.pagination ?? response.pagination,
     };
   }
 
