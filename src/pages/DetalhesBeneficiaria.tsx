@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,10 +9,12 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { AlertCircle, ArrowLeft, Edit, Save, X, Plus, FileText, Calendar, User, Phone, Mail, MapPin, GraduationCap, Heart, Users, Activity, Target, TrendingUp, Award, Shield, Eye, CheckCircle } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Edit, Save, X, Plus, FileText, Calendar, User, Phone, Mail, MapPin, GraduationCap, Heart, Users, Activity, Target, TrendingUp, Award, Shield, Eye, CheckCircle, Download, ExternalLink, Loader2 } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { formatDate } from '@/lib/dayjs';
 import { apiService } from '@/services/apiService';
+import type { LucideIcon } from 'lucide-react';
+import { toast } from 'sonner';
 
 type Beneficiaria = any;
 
@@ -34,6 +36,121 @@ interface Documento {
   url: string;
 }
 
+interface Atividade {
+  id: number;
+  type: string;
+  created_at: string | null;
+  created_by?: number | null;
+  created_by_name?: string | null;
+}
+
+interface AtividadesResponse {
+  data?: Atividade[];
+  pagination?: {
+    page?: number;
+    limit?: number;
+    total?: number | null;
+  };
+}
+
+type AtividadesPagination = {
+  page: number;
+  limit: number;
+  total: number | null;
+};
+
+type AtividadeCategory = 'formularios' | 'atendimentos' | 'termos' | 'outros';
+
+interface AtividadeVisualConfig {
+  label: string;
+  description?: string;
+  category: AtividadeCategory;
+}
+
+interface AtividadeCategoryStyle {
+  badgeClass: string;
+  badgeLabel: string;
+  accentColor: string;
+  dotClass: string;
+  icon: LucideIcon;
+}
+
+const ATIVIDADES_LIMIT = 10;
+const EXPORTABLE_ATIVIDADE_TYPES = new Set(['anamnese', 'ficha_evolucao', 'termos_consentimento', 'visao_holistica']);
+
+const atividadeCategoryStyles: Record<AtividadeCategory, AtividadeCategoryStyle> = {
+  formularios: {
+    badgeClass: 'bg-blue-50 text-blue-700 border-blue-200',
+    badgeLabel: 'Formulários',
+    accentColor: 'text-blue-500',
+    dotClass: 'border-blue-200 bg-blue-50',
+    icon: FileText,
+  },
+  atendimentos: {
+    badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    badgeLabel: 'Atendimentos',
+    accentColor: 'text-emerald-500',
+    dotClass: 'border-emerald-200 bg-emerald-50',
+    icon: Activity,
+  },
+  termos: {
+    badgeClass: 'bg-amber-50 text-amber-700 border-amber-200',
+    badgeLabel: 'Termos',
+    accentColor: 'text-amber-500',
+    dotClass: 'border-amber-200 bg-amber-50',
+    icon: Shield,
+  },
+  outros: {
+    badgeClass: 'bg-slate-100 text-slate-700 border-slate-200',
+    badgeLabel: 'Atividades',
+    accentColor: 'text-slate-500',
+    dotClass: 'border-slate-200 bg-slate-100',
+    icon: Calendar,
+  },
+};
+
+const atividadeTypeConfig: Record<string, AtividadeVisualConfig> = {
+  formulario: {
+    label: 'Formulário preenchido',
+    description: 'Registro geral de formulário preenchido',
+    category: 'formularios',
+  },
+  anamnese: {
+    label: 'Anamnese social',
+    description: 'Formulário de anamnese social registrado',
+    category: 'formularios',
+  },
+  visao_holistica: {
+    label: 'Visão holística',
+    description: 'Formulário de visão holística atualizado',
+    category: 'formularios',
+  },
+  ficha_evolucao: {
+    label: 'Registro de atendimento',
+    description: 'Atualização na ficha de evolução',
+    category: 'atendimentos',
+  },
+  termos_consentimento: {
+    label: 'Termo de consentimento',
+    description: 'Termo de consentimento aceito/atualizado',
+    category: 'termos',
+  },
+  default: {
+    label: 'Atividade registrada',
+    category: 'outros',
+  },
+};
+
+const getAtividadeConfig = (type: string) => {
+  const base = atividadeTypeConfig[type] || atividadeTypeConfig.default;
+  const category = atividadeCategoryStyles[base.category];
+
+  return {
+    ...base,
+    ...category,
+  };
+};
+
 export default function DetalhesBeneficiaria() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -45,12 +162,87 @@ export default function DetalhesBeneficiaria() {
   const [error, setError] = useState<string | null>(null);
   const [editMode, setEditMode] = useState(false);
   const [activeTab, setActiveTab] = useState('dados');
+  const [atividades, setAtividades] = useState<Atividade[]>([]);
+  const [atividadesPagination, setAtividadesPagination] = useState<AtividadesPagination>({
+    page: 1,
+    limit: ATIVIDADES_LIMIT,
+    total: null,
+  });
+  const [atividadesLoading, setAtividadesLoading] = useState(false);
+  const [atividadesError, setAtividadesError] = useState<string | null>(null);
+  const [atividadesHasMore, setAtividadesHasMore] = useState(false);
+  const [exportingAtividadeId, setExportingAtividadeId] = useState<number | null>(null);
+
+  const atividadesOrdenadas = useMemo(() => {
+    return [...atividades].sort((a, b) => {
+      const dateA = a?.created_at ? new Date(a.created_at).getTime() : 0;
+      const dateB = b?.created_at ? new Date(b.created_at).getTime() : 0;
+      return dateB - dateA;
+    });
+  }, [atividades]);
+
+  const carregarAtividades = async (page = 1) => {
+    if (!id) return;
+
+    try {
+      setAtividadesLoading(true);
+      setAtividadesError(null);
+
+      const limit = atividadesPagination.limit || ATIVIDADES_LIMIT;
+      const response = await apiService.get<AtividadesResponse | Atividade[]>(
+        `/beneficiarias/${id}/atividades`,
+        { params: { page, limit } },
+      );
+
+      if (!response.success) {
+        throw new Error(response.message || 'Erro ao carregar atividades');
+      }
+
+      const payload = response.data as AtividadesResponse | Atividade[] | undefined;
+      let rows: Atividade[] = [];
+      let pagination: AtividadesResponse['pagination'] | undefined;
+
+      if (Array.isArray(payload)) {
+        rows = payload;
+      } else if (payload) {
+        if (Array.isArray(payload.data)) {
+          rows = payload.data;
+        }
+        pagination = payload.pagination;
+      }
+
+      const resolvedPage = pagination?.page ?? page;
+      const resolvedLimit = pagination?.limit ?? limit;
+      const resolvedTotal = pagination?.total ?? null;
+
+      setAtividades(rows);
+      setAtividadesPagination({
+        page: resolvedPage,
+        limit: resolvedLimit,
+        total: resolvedTotal,
+      });
+
+      const hasMore = resolvedTotal !== null
+        ? resolvedPage * resolvedLimit < resolvedTotal
+        : rows.length === resolvedLimit;
+
+      setAtividadesHasMore(hasMore);
+    } catch (err) {
+      console.error('Erro ao carregar atividades:', err);
+      const message = err instanceof Error ? err.message : 'Erro ao carregar atividades';
+      setAtividadesError(message);
+      setAtividadesHasMore(false);
+    } finally {
+      setAtividadesLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (id) {
       carregarDados();
+      carregarAtividades(1);
     }
-    
+
     // Verificar se deve ativar o modo de edição
     if (searchParams.get('edit') === 'true') {
       setEditMode(true);
@@ -129,9 +321,105 @@ export default function DetalhesBeneficiaria() {
     }
   };
 
+  const getResponsavelAtividade = (atividade: Atividade) => {
+    if (atividade.created_by_name) {
+      return atividade.created_by_name;
+    }
+
+    if (atividade.created_by) {
+      return `Usuário #${atividade.created_by}`;
+    }
+
+    return 'Não informado';
+  };
+
+  const formatAtividadeDate = (value?: string | null) => {
+    if (!value) return 'Data não disponível';
+
+    const formatted = formatDate(value, 'DD/MM/YYYY [às] HH:mm');
+
+    if (formatted === 'Invalid Date') {
+      const parsed = new Date(value);
+      if (Number.isNaN(parsed.getTime())) {
+        return 'Data não disponível';
+      }
+      return parsed.toLocaleString('pt-BR');
+    }
+
+    return formatted;
+  };
+
+  const canExportPdf = (type: string) => EXPORTABLE_ATIVIDADE_TYPES.has(type);
+
+  const handleAbrirAtividade = (atividade: Atividade) => {
+    if (!id) return;
+
+    switch (atividade.type) {
+      case 'anamnese':
+        navigate(`/beneficiarias/${id}/formularios/anamnese-social`);
+        break;
+      case 'ficha_evolucao':
+        navigate(`/beneficiarias/${id}/formularios/ficha-evolucao`);
+        break;
+      case 'termos_consentimento':
+        navigate(`/beneficiarias/${id}/formularios/termos-consentimento`);
+        break;
+      case 'visao_holistica':
+        navigate(`/beneficiarias/${id}/formularios/visao-holistica`);
+        break;
+      default:
+        navigate(`/beneficiarias/${id}/formularios`);
+    }
+  };
+
+  const handleExportPdf = async (atividade: Atividade) => {
+    if (!canExportPdf(atividade.type)) return;
+
+    try {
+      setExportingAtividadeId(atividade.id);
+      const blob = await apiService.exportFormularioPdf(atividade.type, atividade.id);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${atividade.type}_${atividade.id}.pdf`;
+      link.click();
+      URL.revokeObjectURL(url);
+      toast.success('PDF gerado com sucesso');
+    } catch (err) {
+      console.error('Erro ao gerar PDF da atividade:', err);
+      toast.error('Não foi possível gerar o PDF desta atividade');
+    } finally {
+      setExportingAtividadeId(null);
+    }
+  };
+
+  const handleChangeAtividadesPage = (direction: 'prev' | 'next') => {
+    if (atividadesLoading) return;
+
+    const currentPage = atividadesPagination.page || 1;
+
+    if (direction === 'prev' && currentPage > 1) {
+      carregarAtividades(currentPage - 1);
+      return;
+    }
+
+    if (
+      direction === 'next'
+      && (
+        atividadesHasMore
+        || (
+          atividadesPagination.total !== null
+          && currentPage * atividadesPagination.limit < (atividadesPagination.total ?? 0)
+        )
+      )
+    ) {
+      carregarAtividades(currentPage + 1);
+    }
+  };
+
   const getStatusBadgeColor = (status: string | null) => {
     if (!status) return 'bg-gray-100 text-gray-800';
-    
+
     switch (status.toLowerCase()) {
       case 'ativo': return 'bg-green-100 text-green-800';
       case 'inativo': return 'bg-red-100 text-red-800';
@@ -710,10 +998,119 @@ export default function DetalhesBeneficiaria() {
                   Histórico de Atividades
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <p className="text-center text-muted-foreground py-8">
-                  Histórico será implementado em breve
-                </p>
+              <CardContent className="space-y-6">
+                {atividadesLoading && atividadesOrdenadas.length === 0 ? (
+                  <div className="space-y-6">
+                    {[0, 1, 2].map((skeleton) => (
+                      <div key={skeleton} className="flex gap-4 animate-pulse">
+                        <div className="flex flex-col items-center">
+                          <div className="h-10 w-10 rounded-full bg-muted" />
+                          {skeleton < 2 && <div className="mt-2 h-16 w-px bg-muted/60" />}
+                        </div>
+                        <div className="flex-1 space-y-3 rounded-lg border border-dashed border-muted p-4">
+                          <div className="h-4 w-1/3 rounded bg-muted/70" />
+                          <div className="h-3 w-1/4 rounded bg-muted/60" />
+                          <div className="h-3 w-1/2 rounded bg-muted/50" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : atividadesError ? (
+                  <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>{atividadesError}</AlertDescription>
+                  </Alert>
+                ) : atividadesOrdenadas.length > 0 ? (
+                  <>
+                    <div className="relative space-y-6">
+                      {atividadesLoading && atividadesOrdenadas.length > 0 && (
+                        <div className="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-background/70 backdrop-blur-sm">
+                          <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                        </div>
+                      )}
+                      {atividadesOrdenadas.map((atividade, index) => {
+                        const config = getAtividadeConfig(atividade.type);
+                        const Icon = config.icon;
+                        const isLast = index === atividadesOrdenadas.length - 1;
+
+                        return (
+                          <div key={`${atividade.type}-${atividade.id}-${atividade.created_at ?? index}`} className="relative flex gap-4">
+                            <div className="flex flex-col items-center">
+                              <div className={`flex h-10 w-10 items-center justify-center rounded-full border-2 ${config.dotClass}`}>
+                                <Icon className={`h-5 w-5 ${config.accentColor}`} />
+                              </div>
+                              {!isLast && <div className="mt-2 h-full w-px bg-border" />}
+                            </div>
+                            <div className="flex-1 space-y-3 rounded-lg border bg-card p-4 shadow-sm">
+                              <div className="flex flex-wrap items-start justify-between gap-2">
+                                <div>
+                                  <p className="text-sm text-muted-foreground">{formatAtividadeDate(atividade.created_at)}</p>
+                                  <h4 className="text-base font-semibold text-foreground">{config.label}</h4>
+                                  {config.description && (
+                                    <p className="text-sm text-muted-foreground">{config.description}</p>
+                                  )}
+                                </div>
+                                <Badge className={`border ${config.badgeClass}`}>{config.badgeLabel}</Badge>
+                              </div>
+                              <div className="text-sm text-muted-foreground">
+                                <span className="font-medium text-foreground">Responsável:</span> {getResponsavelAtividade(atividade)}
+                              </div>
+                              <div className="flex flex-wrap gap-2 pt-1">
+                                <Button variant="outline" size="sm" onClick={() => handleAbrirAtividade(atividade)}>
+                                  <ExternalLink className="mr-2 h-4 w-4" />
+                                  Abrir registro
+                                </Button>
+                                {canExportPdf(atividade.type) && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleExportPdf(atividade)}
+                                    disabled={exportingAtividadeId === atividade.id}
+                                  >
+                                    {exportingAtividadeId === atividade.id ? (
+                                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    ) : (
+                                      <Download className="mr-2 h-4 w-4" />
+                                    )}
+                                    {exportingAtividadeId === atividade.id ? 'Gerando...' : 'Baixar PDF'}
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {(atividadesOrdenadas.length > 0 || atividadesPagination.page > 1) && (
+                      <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleChangeAtividadesPage('prev')}
+                          disabled={atividadesLoading || atividadesPagination.page <= 1}
+                        >
+                          Anterior
+                        </Button>
+                        <span className="text-sm text-muted-foreground">
+                          Página {atividadesPagination.page || 1}
+                        </span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleChangeAtividadesPage('next')}
+                          disabled={atividadesLoading || !atividadesHasMore}
+                        >
+                          Próxima
+                        </Button>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <p className="py-8 text-center text-muted-foreground">
+                    Nenhuma atividade registrada até o momento
+                  </p>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
