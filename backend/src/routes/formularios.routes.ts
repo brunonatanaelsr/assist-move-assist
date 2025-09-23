@@ -6,6 +6,32 @@ import { validateRequest } from '../middleware/validationMiddleware';
 import { z } from 'zod';
 import { renderFormPdf, renderAnamnesePdf, renderFichaEvolucaoPdf, renderTermosPdf, renderVisaoHolisticaPdf } from '../services/formsExport.service';
 
+type TermoConsentimentoRow = {
+  id: number;
+  beneficiaria_id: number;
+  dados: Record<string, any> | null;
+  created_at: string;
+  revogado_em?: string | null;
+  revogado_por?: number | null;
+  revogacao_motivo?: string | null;
+};
+
+const formatTermoConsentimento = (row: TermoConsentimentoRow) => {
+  const dados = (row?.dados || {}) as Record<string, any>;
+
+  return {
+    ...dados,
+    id: row.id,
+    beneficiaria_id: row.beneficiaria_id,
+    created_at: row.created_at,
+    revogado_em: row.revogado_em ?? null,
+    revogado_por: row.revogado_por ?? null,
+    revogacao_motivo: row.revogacao_motivo ?? dados.revogacao_motivo ?? null,
+    ativo: !row.revogado_em,
+    data_aceite: dados.data_aceite ?? row.created_at,
+  };
+};
+
 const router = Router();
 
 // ANAMNESE SOCIAL
@@ -158,12 +184,35 @@ router.post('/termos-consentimento', authenticateToken, async (req: Authenticate
   }
 });
 
+router.get('/termos-consentimento/beneficiaria/:beneficiariaId', authenticateToken, async (req, res): Promise<void> => {
+  try {
+    const { beneficiariaId } = req.params as any;
+    const result = await pool.query(
+      `SELECT id, beneficiaria_id, dados, created_at, revogado_em, revogado_por, revogacao_motivo
+         FROM termos_consentimento
+        WHERE beneficiaria_id = $1
+        ORDER BY created_at DESC`,
+      [beneficiariaId]
+    );
+    const termos = result.rows.map((row) => formatTermoConsentimento(row));
+    res.json(successResponse(termos));
+    return;
+  } catch (error) {
+    res.status(500).json(errorResponse('Erro ao listar termos de consentimento'));
+    return;
+  }
+});
+
 router.get('/termos-consentimento/:id', authenticateToken, async (req, res): Promise<void> => {
   try {
     const { id } = req.params as any;
-    const result = await pool.query('SELECT * FROM termos_consentimento WHERE id = $1', [id]);
+    const result = await pool.query(
+      `SELECT id, beneficiaria_id, dados, created_at, revogado_em, revogado_por, revogacao_motivo
+         FROM termos_consentimento WHERE id = $1`,
+      [id]
+    );
     if (result.rowCount === 0) { res.status(404).json(errorResponse('Termo não encontrado')); return; }
-    res.json(successResponse(result.rows[0]));
+    res.json(successResponse(formatTermoConsentimento(result.rows[0])));
     return;
   } catch (error) {
     res.status(500).json(errorResponse('Erro ao obter termo'));
@@ -185,6 +234,58 @@ router.get('/termos-consentimento/:id/pdf', authenticateToken, async (req, res):
     return;
   }
 });
+
+router.patch(
+  '/termos-consentimento/:id/revogacao',
+  authenticateToken,
+  validateRequest(
+    z.object({
+      params: z.object({ id: z.coerce.number() }),
+      body: z.object({ motivo: z.string().max(500).optional() }),
+      query: z.any().optional(),
+    })
+  ),
+  async (req: AuthenticatedRequest, res): Promise<void> => {
+    try {
+      const { id } = req.params as any;
+      const { motivo } = (req.body ?? {}) as { motivo?: string };
+      const userId = Number(req.user!.id);
+
+      const existente = await pool.query(
+        'SELECT id, revogado_em FROM termos_consentimento WHERE id = $1',
+        [id]
+      );
+
+      if (existente.rowCount === 0) {
+        res.status(404).json(errorResponse('Termo não encontrado'));
+        return;
+      }
+
+      if (existente.rows[0].revogado_em) {
+        res.status(400).json(errorResponse('Termo já foi revogado anteriormente'));
+        return;
+      }
+
+      const motivoLimpo = typeof motivo === 'string' && motivo.trim().length > 0 ? motivo.trim() : null;
+
+      const result = await pool.query(
+        `UPDATE termos_consentimento
+            SET revogado_em = NOW(),
+                revogado_por = $2,
+                revogacao_motivo = COALESCE($3, revogacao_motivo)
+          WHERE id = $1
+          RETURNING id, beneficiaria_id, dados, created_at, revogado_em, revogado_por, revogacao_motivo`,
+        [id, userId, motivoLimpo]
+      );
+
+      res.json(successResponse(formatTermoConsentimento(result.rows[0]), 'Termo revogado com sucesso'));
+      return;
+    } catch (error) {
+      res.status(500).json(errorResponse('Erro ao revogar termo de consentimento'));
+      return;
+    }
+  }
+);
 
 router.put('/termos-consentimento/:id', authenticateToken, async (req, res): Promise<void> => {
   try {

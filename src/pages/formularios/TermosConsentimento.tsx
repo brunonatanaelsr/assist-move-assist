@@ -7,7 +7,9 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Shield, FileText, User, CheckCircle, AlertCircle, Eye, Download } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { useToast } from '@/components/ui/use-toast';
+import { ArrowLeft, Shield, FileText, CheckCircle, Download, Loader2 } from 'lucide-react';
 import { formatDate } from '@/lib/dayjs';
 import { apiService } from '@/services/apiService';
 
@@ -28,15 +30,29 @@ interface TermoConsentimento {
   revogacao_informada: boolean;
 }
 
+interface TermoConsentimentoRegistro extends Partial<TermoConsentimento> {
+  id: number;
+  created_at?: string;
+  revogado_em?: string | null;
+  revogado_por?: number | null;
+  revogacao_motivo?: string | null;
+  ativo: boolean;
+}
+
 export default function TermosConsentimento() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const beneficiariaId = parseInt(id || '0', 10);
   const [loading, setLoading] = useState(false);
   const [beneficiaria, setBeneficiaria] = useState<any>(null);
   const [activeSection, setActiveSection] = useState<'novo' | 'historico'>('novo');
-  
+  const [historicoLoading, setHistoricoLoading] = useState(false);
+  const [revogandoId, setRevogandoId] = useState<number | null>(null);
+  const [pdfGerandoId, setPdfGerandoId] = useState<number | null>(null);
+  const { toast } = useToast();
+
   const [termoData, setTermoData] = useState<Partial<TermoConsentimento>>({
-    beneficiaria_id: parseInt(id || '0'),
+    beneficiaria_id: beneficiariaId,
     tipo_termo: 'lgpd',
     aceito: false,
     revogacao_informada: false,
@@ -45,7 +61,7 @@ export default function TermosConsentimento() {
     local_aplicacao: 'Sede do Projeto Move Marias'
   });
 
-  const [termosExistentes, setTermosExistentes] = useState<any[]>([]);
+  const [termosExistentes, setTermosExistentes] = useState<TermoConsentimentoRegistro[]>([]);
 
   const tiposTermos = {
     'lgpd': 'Termo de Consentimento LGPD',
@@ -72,6 +88,13 @@ export default function TermosConsentimento() {
     }
   }, [id]);
 
+  useEffect(() => {
+    setTermoData((prev) => ({
+      ...prev,
+      beneficiaria_id: beneficiariaId,
+    }));
+  }, [beneficiariaId]);
+
   const carregarBeneficiaria = async () => {
     try {
       const response = await apiService.getBeneficiaria(id!);
@@ -84,19 +107,49 @@ export default function TermosConsentimento() {
   };
 
   const carregarTermosExistentes = async () => {
+    if (!beneficiariaId) {
+      setTermosExistentes([]);
+      return;
+    }
+
     try {
-      const response = await apiService.get(`/formularios/termos-consentimento/${id}`);
-      if (response.success) {
-        setTermosExistentes(response.data as any[]);
+      setHistoricoLoading(true);
+      const response = await apiService.listTermosConsentimento(beneficiariaId);
+      if (response.success && Array.isArray(response.data)) {
+        const termos = (response.data as TermoConsentimentoRegistro[]).map((termo) => ({
+          ...termo,
+          ativo: typeof termo.ativo === 'boolean' ? termo.ativo : !termo.revogado_em,
+        }));
+        setTermosExistentes(termos);
+      } else {
+        setTermosExistentes([]);
+        const description = response.message || (response as any)?.error || 'Não foi possível carregar o histórico de termos.';
+        toast({
+          title: 'Não foi possível carregar os termos',
+          description,
+          variant: 'destructive',
+        });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao carregar termos:', error);
+      setTermosExistentes([]);
+      toast({
+        title: 'Erro ao carregar termos',
+        description: error?.response?.data?.message || error?.message || 'Não foi possível carregar o histórico de termos.',
+        variant: 'destructive',
+      });
+    } finally {
+      setHistoricoLoading(false);
     }
   };
 
   const salvarTermo = async () => {
     if (!termoData.aceito) {
-      alert('É necessário marcar o aceite para salvar o termo');
+      toast({
+        title: 'Aceite obrigatório',
+        description: 'É necessário marcar o aceite para salvar o termo de consentimento.',
+        variant: 'destructive',
+      });
       return;
     }
 
@@ -108,12 +161,15 @@ export default function TermosConsentimento() {
       });
 
       if (response.success) {
-        alert('Termo de consentimento salvo com sucesso!');
+        toast({
+          title: 'Termo salvo',
+          description: 'Termo de consentimento salvo com sucesso.',
+        });
         setActiveSection('historico');
-        carregarTermosExistentes();
+        await carregarTermosExistentes();
         // Reset form
         setTermoData({
-          beneficiaria_id: parseInt(id || '0'),
+          beneficiaria_id: beneficiariaId,
           tipo_termo: 'lgpd',
           aceito: false,
           revogacao_informada: false,
@@ -121,21 +177,91 @@ export default function TermosConsentimento() {
           responsavel_aplicacao: 'Usuário Logado',
           local_aplicacao: 'Sede do Projeto Move Marias'
         });
+      } else {
+        const description = response.message || (response as any)?.error || 'Não foi possível salvar o termo de consentimento.';
+        toast({
+          title: 'Não foi possível salvar o termo',
+          description,
+          variant: 'destructive',
+        });
       }
     } catch (error) {
       console.error('Erro ao salvar termo:', error);
-      alert('Erro ao salvar termo de consentimento');
+      toast({
+        title: 'Erro ao salvar termo',
+        description: (error as Error)?.message || 'Não foi possível salvar o termo de consentimento.',
+        variant: 'destructive',
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  const gerarPDF = async (_termoId: number) => {
-    alert('Geração de PDF não disponível no momento. Use exportação em Relatórios.');
+  const gerarPDF = async (termoId: number) => {
+    try {
+      setPdfGerandoId(termoId);
+      const blob = await apiService.downloadTermoConsentimentoPdf(termoId);
+
+      if (!(blob instanceof Blob) || blob.size === 0) {
+        throw new Error('PDF vazio ou inválido');
+      }
+
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `termo_${termoId}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      toast({
+        title: 'Download iniciado',
+        description: 'O PDF do termo foi gerado com sucesso.',
+      });
+    } catch (error) {
+      console.error('Erro ao gerar PDF:', error);
+      toast({
+        title: 'Erro ao gerar PDF',
+        description: (error as Error)?.message || 'Não foi possível gerar o PDF deste termo.',
+        variant: 'destructive',
+      });
+    } finally {
+      setPdfGerandoId(null);
+    }
   };
 
-  const revogarTermo = async (_termoId: number) => {
-    alert('Revogação ainda não implementada.');
+  const revogarTermo = async (termoId: number) => {
+    const confirmar = window.confirm('Tem certeza que deseja revogar este termo de consentimento?');
+    if (!confirmar) return;
+
+    try {
+      setRevogandoId(termoId);
+      const response = await apiService.revokeTermoConsentimento(termoId);
+      if (response.success) {
+        toast({
+          title: 'Termo revogado',
+          description: response.message || 'Revogação registrada com sucesso.',
+        });
+        await carregarTermosExistentes();
+      } else {
+        const description = response.message || (response as any)?.error || 'Ocorreu um problema ao registrar a revogação.';
+        toast({
+          title: 'Não foi possível revogar o termo',
+          description,
+          variant: 'destructive',
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao revogar termo:', error);
+      toast({
+        title: 'Erro ao revogar termo',
+        description: (error as Error)?.message || 'Não foi possível revogar este termo.',
+        variant: 'destructive',
+      });
+    } finally {
+      setRevogandoId(null);
+    }
   };
 
   const generatePAEDI = (beneficiaria: any) => {
@@ -429,56 +555,94 @@ export default function TermosConsentimento() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {termosExistentes.length === 0 ? (
+              {historicoLoading ? (
+                <p className="text-center text-muted-foreground py-8">
+                  Carregando histórico de termos...
+                </p>
+              ) : termosExistentes.length === 0 ? (
                 <p className="text-center text-muted-foreground py-8">
                   Nenhum termo de consentimento encontrado
                 </p>
               ) : (
                 <div className="space-y-4">
-                  {termosExistentes.map((termo, index) => (
-                    <div key={index} className="border rounded-lg p-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <Shield className={`h-4 w-4 ${termo.ativo ? 'text-green-500' : 'text-red-500'}`} />
-                          <h3 className="font-medium">
-                            {tiposTermos[termo.tipo_termo as keyof typeof tiposTermos]}
-                          </h3>
-                          {!termo.ativo && (
-                            <span className="px-2 py-1 bg-red-100 text-red-700 text-xs rounded-full">
-                              Revogado
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex gap-2">
-                          <Button variant="outline" size="sm" onClick={() => gerarPDF(termo.id)}>
-                            <Download className="h-4 w-4" />
-                          </Button>
-                          {termo.ativo && (
-                            <Button 
-                              variant="destructive" 
-                              size="sm" 
-                              onClick={() => revogarTermo(termo.id)}
+                  {termosExistentes.map((termo) => {
+                    const label = tiposTermos[termo.tipo_termo as keyof typeof tiposTermos] || 'Termo de Consentimento';
+                    const dataAceite = termo.data_aceite || termo.created_at;
+                    return (
+                      <div key={termo.id} className="border rounded-lg p-4 space-y-3">
+                        <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                          <div className="flex items-center gap-2">
+                            <Shield className={`h-4 w-4 ${termo.ativo ? 'text-emerald-500' : 'text-red-500'}`} />
+                            <h3 className="font-medium">{label}</h3>
+                            <Badge variant={termo.ativo ? 'secondary' : 'destructive'}>
+                              {termo.ativo ? 'Ativo' : 'Revogado'}
+                            </Badge>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => gerarPDF(termo.id)}
+                              disabled={pdfGerandoId === termo.id}
                             >
-                              Revogar
+                              {pdfGerandoId === termo.id ? (
+                                <>
+                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                  Gerando...
+                                </>
+                              ) : (
+                                <>
+                                  <Download className="h-4 w-4 mr-1" />
+                                  PDF
+                                </>
+                              )}
                             </Button>
+                            {termo.ativo && (
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                onClick={() => revogarTermo(termo.id)}
+                                disabled={revogandoId === termo.id}
+                              >
+                                {revogandoId === termo.id ? (
+                                  <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Revogando...
+                                  </>
+                                ) : (
+                                  'Revogar'
+                                )}
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                        <div className="text-sm text-muted-foreground space-y-1">
+                          <p>
+                            <strong>Data do Aceite:</strong>{' '}
+                            {dataAceite ? formatDate(dataAceite, 'DD/MM/YYYY HH:mm') : 'Não informado'}
+                          </p>
+                          <p>
+                            <strong>Responsável:</strong> {termo.responsavel_aplicacao || 'Não informado'}
+                          </p>
+                          {termo.revogado_em && (
+                            <p>
+                              <strong>Revogado em:</strong> {formatDate(termo.revogado_em, 'DD/MM/YYYY HH:mm')}
+                            </p>
+                          )}
+                          {termo.revogacao_motivo && (
+                            <p>
+                              <strong>Motivo da Revogação:</strong> {termo.revogacao_motivo}
+                            </p>
+                          )}
+                          {termo.observacoes && (
+                            <p>
+                              <strong>Observações:</strong> {termo.observacoes}
+                            </p>
                           )}
                         </div>
                       </div>
-                      <div className="text-sm text-muted-foreground space-y-1">
-                        <p>
-                          <strong>Data do Aceite:</strong> {formatDate(termo.data_aceite, 'DD/MM/YYYY HH:mm')}
-                        </p>
-                        <p>
-                          <strong>Responsável:</strong> {termo.responsavel_aplicacao}
-                        </p>
-                        {termo.observacoes && (
-                          <p>
-                            <strong>Observações:</strong> {termo.observacoes}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </CardContent>

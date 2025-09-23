@@ -648,6 +648,19 @@ class ApiService {
     return response.data as Blob;
   }
 
+  async listTermosConsentimento(beneficiariaId: number): Promise<ApiResponse<any[]>> {
+    return this.get(`/formularios/termos-consentimento/beneficiaria/${beneficiariaId}`);
+  }
+
+  async revokeTermoConsentimento(termoId: number, data?: { motivo?: string }): Promise<ApiResponse<any>> {
+    return this.patch(`/formularios/termos-consentimento/${termoId}/revogacao`, data);
+  }
+
+  async downloadTermoConsentimentoPdf(termoId: number): Promise<Blob> {
+    const response = await this.api.get(`/formularios/termos-consentimento/${termoId}/pdf`, { responseType: 'blob' });
+    return response.data as Blob;
+  }
+
   // Séries de evolução (ficha_evolucao)
   async getFichaEvolucaoSeries(beneficiariaId: number): Promise<ApiResponse<any>> {
     return this.get(`/formularios/ficha-evolucao/beneficiaria/${beneficiariaId}/series`);
