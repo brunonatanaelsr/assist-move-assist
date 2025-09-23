@@ -15,7 +15,7 @@ let service: OficinaService | null = null;
 const runOnlyIfEnabled = process.env.RUN_INTEGRATION === '1';
 
 // Minimal helper to insert records directly
-async function insert(sql: string, params: ReadonlyArray<SqlParam> = []): Promise<void> {
+async function insert(sql: string, params: SqlParam[] = []): Promise<void> {
   if (!pool) {
     throw new Error('Database pool not initialized');
   }
@@ -59,11 +59,11 @@ describe('OficinaService (integration)', () => {
 
     // 1ª chamada (sem cache)
     const paginationFilters: Parameters<OficinaService['listarOficinas']>[0] = { page: 1, limit: 10 };
-    const page = await oficinaService.listarOficinas(paginationFilters);
+    const page = (await oficinaService.listarOficinas(paginationFilters)) as { data: unknown[] };
     expect(page.data.length).toBeGreaterThan(0);
 
     // 2ª chamada (com cache) — deve retornar mesmo resultado rapidamente
-    const cached = await oficinaService.listarOficinas(paginationFilters);
+    const cached = (await oficinaService.listarOficinas(paginationFilters)) as { data: unknown[] };
     expect(cached.data.length).toBe(page.data.length);
 
     // Buscar detalhe

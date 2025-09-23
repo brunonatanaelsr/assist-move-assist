@@ -1,10 +1,32 @@
 import { GenericContainer, StartedTestContainer } from 'testcontainers';
 import { Pool, PoolConfig } from 'pg';
-import { execSync } from 'child_process';
 import path from 'path';
 import fs from 'fs';
-import { faker } from '@faker-js/faker';
 import { factory } from 'factory-girl';
+
+let sequence = 1;
+
+const nextSequence = (): number => sequence++;
+
+const uniqueString = (prefix: string): string => `${prefix}-${nextSequence()}`;
+
+const uniqueDigits = (length: number): string => {
+  const digits = `${Date.now()}${nextSequence()}`;
+  return digits.slice(-length).padStart(length, '0');
+};
+
+const uniqueEmail = (): string => `user${nextSequence()}@example.com`;
+
+const pastDate = (): Date => new Date(Date.now() - nextSequence() * 24 * 60 * 60 * 1000);
+
+const futureDate = (): Date => new Date(Date.now() + nextSequence() * 24 * 60 * 60 * 1000);
+
+const sample = <T>(values: readonly T[]): T => {
+  if (values.length === 0) {
+    throw new Error('Cannot sample from an empty array');
+  }
+  return values[nextSequence() % values.length]!;
+};
 
 interface TestDatabase {
   pool: Pool;
@@ -18,9 +40,11 @@ export async function setupTestDatabase(): Promise<TestDatabase> {
 
   // Iniciar container PostgreSQL
   const container = await new GenericContainer('postgres:14-alpine')
-    .withEnv('POSTGRES_USER', 'test_user')
-    .withEnv('POSTGRES_PASSWORD', 'test_password')
-    .withEnv('POSTGRES_DB', 'test_db')
+    .withEnvironment({
+      POSTGRES_USER: 'test_user',
+      POSTGRES_PASSWORD: 'test_password',
+      POSTGRES_DB: 'test_db'
+    })
     .withExposedPorts(5432)
     .start();
 
@@ -76,37 +100,41 @@ export async function truncateAllTables(): Promise<void> {
 
 // Factories para dados de teste
 factory.define('beneficiaria', Object, {
-  nome_completo: () => faker.person.fullName(),
-  cpf: () => faker.string.numeric(11),
-  data_nascimento: () => faker.date.past(),
-  telefone: () => faker.phone.number('##9########'),
-  email: () => faker.internet.email(),
-  endereco: () => faker.location.streetAddress(),
-  numero: () => faker.string.numeric(3),
-  complemento: () => faker.location.secondaryAddress(),
-  bairro: () => faker.location.county(),
-  cidade: () => faker.location.city(),
-  estado: () => faker.location.state({ abbreviated: true }),
-  cep: () => faker.location.zipCode('########'),
+  nome_completo: () => uniqueString('Beneficiaria Teste'),
+  cpf: () => uniqueDigits(11),
+  data_nascimento: () => pastDate(),
+  telefone: () => `119${uniqueDigits(8)}`,
+  email: () => uniqueEmail(),
+  endereco: () => `${uniqueString('Rua')} ${uniqueDigits(3)}`,
+  numero: () => uniqueDigits(3),
+  complemento: () => uniqueString('Complemento'),
+  bairro: () => uniqueString('Bairro'),
+  cidade: () => uniqueString('Cidade'),
+  estado: () => sample([
+    'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO',
+    'MA', 'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI',
+    'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'
+  ]),
+  cep: () => uniqueDigits(8),
   created_at: () => new Date()
 });
 
 factory.define('oficina', Object, {
-  titulo: () => faker.company.catchPhrase(),
-  descricao: () => faker.lorem.paragraph(),
-  data: () => faker.date.future(),
-  vagas: () => faker.number.int({ min: 5, max: 30 }),
-  local: () => faker.location.streetAddress(),
-  duracao_horas: () => faker.number.int({ min: 1, max: 4 }),
+  titulo: () => uniqueString('Oficina'),
+  descricao: () => `${uniqueString('Descrição da oficina')} detalhada`,
+  data: () => futureDate(),
+  vagas: () => (5 + (nextSequence() % 26)),
+  local: () => `${uniqueString('Local')} ${uniqueDigits(3)}`,
+  duracao_horas: () => (1 + (nextSequence() % 4)),
   responsavel_id: factory.assoc('user', 'id'),
   created_at: () => new Date()
 });
 
 factory.define('user', Object, {
-  nome: () => faker.person.fullName(),
-  email: () => faker.internet.email(),
-  senha: () => faker.internet.password(),
-  role: () => faker.helpers.arrayElement(['admin', 'coordenador', 'tecnico']),
+  nome: () => uniqueString('Usuário Teste'),
+  email: () => uniqueEmail(),
+  senha: () => uniqueString('senha'),
+  role: () => sample(['admin', 'coordenador', 'tecnico'] as const),
   created_at: () => new Date()
 });
 
