@@ -4,13 +4,151 @@ import { pool } from '../config/database';
 import { successResponse, errorResponse } from '../utils/responseFormatter';
 import { validateRequest } from '../middleware/validationMiddleware';
 import { z } from 'zod';
-import { renderFormPdf, renderAnamnesePdf, renderFichaEvolucaoPdf, renderTermosPdf, renderVisaoHolisticaPdf } from '../services/formsExport.service';
+import {
+  renderFormPdf,
+  renderAnamnesePdf,
+  renderFichaEvolucaoPdf,
+  renderTermosPdf,
+  renderVisaoHolisticaPdf
+} from '../services/formsExport.service';
+
+const DEFAULT_SCHEMA_VERSION = 'v1';
+
+type AssinaturaRegistro = {
+  signatario_id?: number | string;
+  signatario_nome?: string;
+  assinado_em: string | null;
+  [key: string]: any;
+};
+
+const hasOwn = (obj: unknown, key: string): boolean =>
+  typeof obj === 'object' && obj !== null && Object.prototype.hasOwnProperty.call(obj, key);
+
+const resolveSchemaVersion = (input: unknown): string | null => {
+  if (typeof input === 'string') {
+    const trimmed = input.trim();
+    if (trimmed.length > 0) {
+      return trimmed;
+    }
+  }
+  return null;
+};
+
+const toIsoStringOrNull = (value: unknown): string | null => {
+  if (value === null || value === undefined || value === '') {
+    return null;
+  }
+
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value.toISOString();
+  }
+
+  const date = new Date(value as any);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  return date.toISOString();
+};
+
+const sanitizeAssinaturasInput = (value: unknown): AssinaturaRegistro[] => {
+  const entries = Array.isArray(value) ? value : value !== null && value !== undefined ? [value] : [];
+
+  return entries
+    .map((entry) => {
+      if (entry === null || entry === undefined) {
+        return null;
+      }
+
+      if (typeof entry === 'string') {
+        return { signatario_nome: entry, assinado_em: new Date().toISOString() } as AssinaturaRegistro;
+      }
+
+      if (typeof entry === 'number') {
+        return { signatario_id: entry, assinado_em: new Date().toISOString() } as AssinaturaRegistro;
+      }
+
+      if (typeof entry !== 'object') {
+        return null;
+      }
+
+      const normalized: Record<string, any> = { ...entry };
+
+      if (normalized.signatarioId !== undefined && normalized.signatario_id === undefined) {
+        normalized.signatario_id = normalized.signatarioId;
+      }
+
+      if (normalized.signatarioNome !== undefined && normalized.signatario_nome === undefined) {
+        normalized.signatario_nome = normalized.signatarioNome;
+      }
+
+      const timestamp = normalized.assinado_em ?? normalized.assinadoEm ?? normalized.timestamp;
+      const iso = toIsoStringOrNull(timestamp) ?? new Date().toISOString();
+      normalized.assinado_em = iso;
+
+      delete normalized.assinadoEm;
+      delete normalized.timestamp;
+
+      return normalized as AssinaturaRegistro;
+    })
+    .filter((entry): entry is AssinaturaRegistro => entry !== null);
+};
+
+const normalizeAssinaturasForResponse = (value: unknown): AssinaturaRegistro[] => {
+  const entries = Array.isArray(value) ? value : value !== null && value !== undefined ? [value] : [];
+
+  return entries
+    .map((entry) => {
+      if (entry === null || entry === undefined) {
+        return null;
+      }
+
+      if (typeof entry === 'string') {
+        return { signatario_nome: entry, assinado_em: null } as AssinaturaRegistro;
+      }
+
+      if (typeof entry === 'number') {
+        return { signatario_id: entry, assinado_em: null } as AssinaturaRegistro;
+      }
+
+      if (typeof entry !== 'object') {
+        return null;
+      }
+
+      const normalized: Record<string, any> = { ...entry };
+
+      if (normalized.signatarioId !== undefined && normalized.signatario_id === undefined) {
+        normalized.signatario_id = normalized.signatarioId;
+      }
+
+      if (normalized.signatarioNome !== undefined && normalized.signatario_nome === undefined) {
+        normalized.signatario_nome = normalized.signatarioNome;
+      }
+
+      const timestamp = normalized.assinado_em ?? normalized.assinadoEm ?? normalized.timestamp;
+      normalized.assinado_em = toIsoStringOrNull(timestamp);
+
+      delete normalized.assinadoEm;
+      delete normalized.timestamp;
+
+      return normalized as AssinaturaRegistro;
+    })
+    .filter((entry): entry is AssinaturaRegistro => entry !== null);
+};
+
+const normalizeFormRow = <T extends Record<string, any>>(row: T, fallbackSchema?: string) => ({
+  ...row,
+  schema_version: row.schema_version || fallbackSchema || DEFAULT_SCHEMA_VERSION,
+  assinaturas: normalizeAssinaturasForResponse((row as any).assinaturas)
+});
 
 type TermoConsentimentoRow = {
   id: number;
   beneficiaria_id: number;
   dados: Record<string, any> | null;
   created_at: string;
+  schema_version?: string;
+  assinaturas?: AssinaturaRegistro[] | null;
   revogado_em?: string | null;
   revogado_por?: number | null;
   revogacao_motivo?: string | null;
@@ -18,12 +156,16 @@ type TermoConsentimentoRow = {
 
 const formatTermoConsentimento = (row: TermoConsentimentoRow) => {
   const dados = (row?.dados || {}) as Record<string, any>;
+  const assinaturasCol = Array.isArray(row.assinaturas) ? row.assinaturas : [];
+  const assinaturasDados = Array.isArray((dados as any).assinaturas) ? (dados as any).assinaturas : [];
 
   return {
     ...dados,
     id: row.id,
     beneficiaria_id: row.beneficiaria_id,
     created_at: row.created_at,
+    schema_version: row.schema_version || (dados as any).schema_version || DEFAULT_SCHEMA_VERSION,
+    assinaturas: normalizeAssinaturasForResponse(assinaturasCol.length ? assinaturasCol : assinaturasDados),
     revogado_em: row.revogado_em ?? null,
     revogado_por: row.revogado_por ?? null,
     revogacao_motivo: row.revogacao_motivo ?? dados.revogacao_motivo ?? null,
@@ -37,14 +179,16 @@ const router = Router();
 // ANAMNESE SOCIAL
 router.post('/anamnese', authenticateToken, async (req: AuthenticatedRequest, res): Promise<void> => {
   try {
-    const { beneficiaria_id, dados } = (req.body ?? {}) as Record<string, any>;
+    const { beneficiaria_id, dados, schema_version, assinaturas } = (req.body ?? {}) as Record<string, any>;
     const createdBy = Number(req.user!.id);
+    const schemaVersion = resolveSchemaVersion(schema_version) ?? DEFAULT_SCHEMA_VERSION;
+    const assinaturasPayload = sanitizeAssinaturasInput(assinaturas);
     const result = await pool.query(
-      `INSERT INTO anamnese_social (beneficiaria_id, dados, created_by)
-       VALUES ($1,$2::jsonb,$3) RETURNING *`,
-      [beneficiaria_id, JSON.stringify(dados || {}), createdBy]
+      `INSERT INTO anamnese_social (beneficiaria_id, dados, schema_version, assinaturas, created_by)
+       VALUES ($1,$2::jsonb,$3,$4::jsonb,$5) RETURNING *`,
+      [beneficiaria_id, JSON.stringify(dados || {}), schemaVersion, JSON.stringify(assinaturasPayload), createdBy]
     );
-    res.status(201).json(successResponse(result.rows[0]));
+    res.status(201).json(successResponse(normalizeFormRow(result.rows[0], schemaVersion)));
     return;
   } catch (error) {
     res.status(500).json(errorResponse('Erro ao criar anamnese'));
@@ -57,7 +201,7 @@ router.get('/anamnese/:id', authenticateToken, async (req, res): Promise<void> =
     const { id } = req.params as any;
     const result = await pool.query('SELECT * FROM anamnese_social WHERE id = $1', [id]);
     if (result.rowCount === 0) { res.status(404).json(errorResponse('Anamnese não encontrada')); return; }
-    res.json(successResponse(result.rows[0]));
+    res.json(successResponse(normalizeFormRow(result.rows[0])));
     return;
   } catch (error) {
     res.status(500).json(errorResponse('Erro ao obter anamnese'));
@@ -67,9 +211,12 @@ router.get('/anamnese/:id', authenticateToken, async (req, res): Promise<void> =
 router.get('/anamnese/:id/pdf', authenticateToken, async (req, res): Promise<void> => {
   try {
     const { id } = req.params as any;
-    const result = await pool.query('SELECT id, beneficiaria_id, dados, created_at FROM anamnese_social WHERE id = $1', [id]);
+    const result = await pool.query(
+      'SELECT id, beneficiaria_id, dados, schema_version, assinaturas, created_at FROM anamnese_social WHERE id = $1',
+      [id]
+    );
     if (result.rowCount === 0) { res.status(404).json(errorResponse('Anamnese não encontrada')); return; }
-    const pdf = await renderAnamnesePdf(result.rows[0]);
+    const pdf = await renderAnamnesePdf(normalizeFormRow(result.rows[0]));
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="anamnese_${id}.pdf"`);
     res.send(pdf);
@@ -83,10 +230,28 @@ router.get('/anamnese/:id/pdf', authenticateToken, async (req, res): Promise<voi
 router.put('/anamnese/:id', authenticateToken, async (req, res): Promise<void> => {
   try {
     const { id } = req.params as any;
-    const { dados } = (req.body ?? {}) as Record<string, any>;
-    const result = await pool.query('UPDATE anamnese_social SET dados = COALESCE($2::jsonb, dados) WHERE id = $1 RETURNING *', [id, JSON.stringify(dados || null)]);
+    const body = (req.body ?? {}) as Record<string, any>;
+    const schemaProvided = hasOwn(body, 'schema_version');
+    const assinaturasProvided = hasOwn(body, 'assinaturas');
+    const schemaVersion = schemaProvided
+      ? resolveSchemaVersion(body.schema_version) ?? DEFAULT_SCHEMA_VERSION
+      : null;
+    const assinaturasPayload = assinaturasProvided ? sanitizeAssinaturasInput(body.assinaturas) : null;
+    const result = await pool.query(
+      `UPDATE anamnese_social
+          SET dados = COALESCE($2::jsonb, dados),
+              schema_version = COALESCE($3, schema_version),
+              assinaturas = COALESCE($4::jsonb, assinaturas)
+        WHERE id = $1 RETURNING *`,
+      [
+        id,
+        JSON.stringify(body.dados ?? null),
+        schemaProvided ? schemaVersion : null,
+        assinaturasProvided ? JSON.stringify(assinaturasPayload ?? []) : null
+      ]
+    );
     if (result.rowCount === 0) { res.status(404).json(errorResponse('Anamnese não encontrada')); return; }
-    res.json(successResponse(result.rows[0]));
+    res.json(successResponse(normalizeFormRow(result.rows[0])));
     return;
   } catch (error) {
     res.status(500).json(errorResponse('Erro ao atualizar anamnese'));
@@ -97,14 +262,16 @@ router.put('/anamnese/:id', authenticateToken, async (req, res): Promise<void> =
 // FICHA DE EVOLUÇÃO
 router.post('/ficha-evolucao', authenticateToken, async (req: AuthenticatedRequest, res): Promise<void> => {
   try {
-    const { beneficiaria_id, dados } = (req.body ?? {}) as Record<string, any>;
+    const { beneficiaria_id, dados, schema_version, assinaturas } = (req.body ?? {}) as Record<string, any>;
     const createdBy = Number(req.user!.id);
+    const schemaVersion = resolveSchemaVersion(schema_version) ?? DEFAULT_SCHEMA_VERSION;
+    const assinaturasPayload = sanitizeAssinaturasInput(assinaturas);
     const result = await pool.query(
-      `INSERT INTO ficha_evolucao (beneficiaria_id, dados, created_by)
-       VALUES ($1,$2::jsonb,$3) RETURNING *`,
-      [beneficiaria_id, JSON.stringify(dados || {}), createdBy]
+      `INSERT INTO ficha_evolucao (beneficiaria_id, dados, schema_version, assinaturas, created_by)
+       VALUES ($1,$2::jsonb,$3,$4::jsonb,$5) RETURNING *`,
+      [beneficiaria_id, JSON.stringify(dados || {}), schemaVersion, JSON.stringify(assinaturasPayload), createdBy]
     );
-    res.status(201).json(successResponse(result.rows[0]));
+    res.status(201).json(successResponse(normalizeFormRow(result.rows[0], schemaVersion)));
     return;
   } catch (error) {
     res.status(500).json(errorResponse('Erro ao criar ficha de evolução'));
@@ -117,7 +284,7 @@ router.get('/ficha-evolucao/:id', authenticateToken, async (req, res): Promise<v
     const { id } = req.params as any;
     const result = await pool.query('SELECT * FROM ficha_evolucao WHERE id = $1', [id]);
     if (result.rowCount === 0) { res.status(404).json(errorResponse('Ficha não encontrada')); return; }
-    res.json(successResponse(result.rows[0]));
+    res.json(successResponse(normalizeFormRow(result.rows[0])));
     return;
   } catch (error) {
     res.status(500).json(errorResponse('Erro ao obter ficha'));
@@ -127,9 +294,12 @@ router.get('/ficha-evolucao/:id', authenticateToken, async (req, res): Promise<v
 router.get('/ficha-evolucao/:id/pdf', authenticateToken, async (req, res): Promise<void> => {
   try {
     const { id } = req.params as any;
-    const result = await pool.query('SELECT id, beneficiaria_id, dados, created_at FROM ficha_evolucao WHERE id = $1', [id]);
+    const result = await pool.query(
+      'SELECT id, beneficiaria_id, dados, schema_version, assinaturas, created_at FROM ficha_evolucao WHERE id = $1',
+      [id]
+    );
     if (result.rowCount === 0) { res.status(404).json(errorResponse('Ficha não encontrada')); return; }
-    const pdf = await renderFichaEvolucaoPdf(result.rows[0]);
+    const pdf = await renderFichaEvolucaoPdf(normalizeFormRow(result.rows[0]));
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="ficha_evolucao_${id}.pdf"`);
     res.send(pdf);
@@ -144,7 +314,7 @@ router.get('/ficha-evolucao/beneficiaria/:beneficiariaId', authenticateToken, as
   try {
     const { beneficiariaId } = req.params as any;
     const result = await pool.query('SELECT * FROM ficha_evolucao WHERE beneficiaria_id = $1 ORDER BY created_at DESC', [beneficiariaId]);
-    res.json(successResponse(result.rows));
+    res.json(successResponse(result.rows.map((row) => normalizeFormRow(row))));
     return;
   } catch (error) {
     res.status(500).json(errorResponse('Erro ao listar fichas'));
@@ -155,10 +325,28 @@ router.get('/ficha-evolucao/beneficiaria/:beneficiariaId', authenticateToken, as
 router.put('/ficha-evolucao/:id', authenticateToken, async (req, res): Promise<void> => {
   try {
     const { id } = req.params as any;
-    const { dados } = (req.body ?? {}) as Record<string, any>;
-    const result = await pool.query('UPDATE ficha_evolucao SET dados = COALESCE($2::jsonb, dados) WHERE id = $1 RETURNING *', [id, JSON.stringify(dados || null)]);
+    const body = (req.body ?? {}) as Record<string, any>;
+    const schemaProvided = hasOwn(body, 'schema_version');
+    const assinaturasProvided = hasOwn(body, 'assinaturas');
+    const schemaVersion = schemaProvided
+      ? resolveSchemaVersion(body.schema_version) ?? DEFAULT_SCHEMA_VERSION
+      : null;
+    const assinaturasPayload = assinaturasProvided ? sanitizeAssinaturasInput(body.assinaturas) : null;
+    const result = await pool.query(
+      `UPDATE ficha_evolucao
+          SET dados = COALESCE($2::jsonb, dados),
+              schema_version = COALESCE($3, schema_version),
+              assinaturas = COALESCE($4::jsonb, assinaturas)
+        WHERE id = $1 RETURNING *`,
+      [
+        id,
+        JSON.stringify(body.dados ?? null),
+        schemaProvided ? schemaVersion : null,
+        assinaturasProvided ? JSON.stringify(assinaturasPayload ?? []) : null
+      ]
+    );
     if (result.rowCount === 0) { res.status(404).json(errorResponse('Ficha não encontrada')); return; }
-    res.json(successResponse(result.rows[0]));
+    res.json(successResponse(normalizeFormRow(result.rows[0])));
     return;
   } catch (error) {
     res.status(500).json(errorResponse('Erro ao atualizar ficha'));
@@ -169,14 +357,16 @@ router.put('/ficha-evolucao/:id', authenticateToken, async (req, res): Promise<v
 // TERMOS DE CONSENTIMENTO
 router.post('/termos-consentimento', authenticateToken, async (req: AuthenticatedRequest, res): Promise<void> => {
   try {
-    const { beneficiaria_id, dados } = (req.body ?? {}) as Record<string, any>;
+    const { beneficiaria_id, dados, schema_version, assinaturas } = (req.body ?? {}) as Record<string, any>;
     const createdBy = Number(req.user!.id);
+    const schemaVersion = resolveSchemaVersion(schema_version) ?? DEFAULT_SCHEMA_VERSION;
+    const assinaturasPayload = sanitizeAssinaturasInput(assinaturas);
     const result = await pool.query(
-      `INSERT INTO termos_consentimento (beneficiaria_id, dados, created_by)
-       VALUES ($1,$2::jsonb,$3) RETURNING *`,
-      [beneficiaria_id, JSON.stringify(dados || {}), createdBy]
+      `INSERT INTO termos_consentimento (beneficiaria_id, dados, schema_version, assinaturas, created_by)
+       VALUES ($1,$2::jsonb,$3,$4::jsonb,$5) RETURNING *`,
+      [beneficiaria_id, JSON.stringify(dados || {}), schemaVersion, JSON.stringify(assinaturasPayload), createdBy]
     );
-    res.status(201).json(successResponse(result.rows[0]));
+    res.status(201).json(successResponse(formatTermoConsentimento(normalizeFormRow(result.rows[0], schemaVersion))));
     return;
   } catch (error) {
     res.status(500).json(errorResponse('Erro ao criar termo'));
@@ -188,13 +378,13 @@ router.get('/termos-consentimento/beneficiaria/:beneficiariaId', authenticateTok
   try {
     const { beneficiariaId } = req.params as any;
     const result = await pool.query(
-      `SELECT id, beneficiaria_id, dados, created_at, revogado_em, revogado_por, revogacao_motivo
+      `SELECT id, beneficiaria_id, dados, created_at, schema_version, assinaturas, revogado_em, revogado_por, revogacao_motivo
          FROM termos_consentimento
         WHERE beneficiaria_id = $1
         ORDER BY created_at DESC`,
       [beneficiariaId]
     );
-    const termos = result.rows.map((row) => formatTermoConsentimento(row));
+    const termos = result.rows.map((row) => formatTermoConsentimento(normalizeFormRow(row)));
     res.json(successResponse(termos));
     return;
   } catch (error) {
@@ -207,12 +397,12 @@ router.get('/termos-consentimento/:id', authenticateToken, async (req, res): Pro
   try {
     const { id } = req.params as any;
     const result = await pool.query(
-      `SELECT id, beneficiaria_id, dados, created_at, revogado_em, revogado_por, revogacao_motivo
+      `SELECT id, beneficiaria_id, dados, created_at, schema_version, assinaturas, revogado_em, revogado_por, revogacao_motivo
          FROM termos_consentimento WHERE id = $1`,
       [id]
     );
     if (result.rowCount === 0) { res.status(404).json(errorResponse('Termo não encontrado')); return; }
-    res.json(successResponse(formatTermoConsentimento(result.rows[0])));
+    res.json(successResponse(formatTermoConsentimento(normalizeFormRow(result.rows[0]))));
     return;
   } catch (error) {
     res.status(500).json(errorResponse('Erro ao obter termo'));
@@ -222,9 +412,12 @@ router.get('/termos-consentimento/:id', authenticateToken, async (req, res): Pro
 router.get('/termos-consentimento/:id/pdf', authenticateToken, async (req, res): Promise<void> => {
   try {
     const { id } = req.params as any;
-    const result = await pool.query('SELECT id, beneficiaria_id, dados, created_at FROM termos_consentimento WHERE id = $1', [id]);
+    const result = await pool.query(
+      'SELECT id, beneficiaria_id, dados, created_at, schema_version, assinaturas FROM termos_consentimento WHERE id = $1',
+      [id]
+    );
     if (result.rowCount === 0) { res.status(404).json(errorResponse('Termo não encontrado')); return; }
-    const pdf = await renderTermosPdf(result.rows[0]);
+    const pdf = await renderTermosPdf(normalizeFormRow(result.rows[0]));
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="termo_${id}.pdf"`);
     res.send(pdf);
@@ -274,11 +467,16 @@ router.patch(
                 revogado_por = $2,
                 revogacao_motivo = COALESCE($3, revogacao_motivo)
           WHERE id = $1
-          RETURNING id, beneficiaria_id, dados, created_at, revogado_em, revogado_por, revogacao_motivo`,
+          RETURNING id, beneficiaria_id, dados, created_at, schema_version, assinaturas, revogado_em, revogado_por, revogacao_motivo`,
         [id, userId, motivoLimpo]
       );
 
-      res.json(successResponse(formatTermoConsentimento(result.rows[0]), 'Termo revogado com sucesso'));
+      res.json(
+        successResponse(
+          formatTermoConsentimento(normalizeFormRow(result.rows[0])),
+          'Termo revogado com sucesso'
+        )
+      );
       return;
     } catch (error) {
       res.status(500).json(errorResponse('Erro ao revogar termo de consentimento'));
@@ -290,10 +488,28 @@ router.patch(
 router.put('/termos-consentimento/:id', authenticateToken, async (req, res): Promise<void> => {
   try {
     const { id } = req.params as any;
-    const { dados } = (req.body ?? {}) as Record<string, any>;
-    const result = await pool.query('UPDATE termos_consentimento SET dados = COALESCE($2::jsonb, dados) WHERE id = $1 RETURNING *', [id, JSON.stringify(dados || null)]);
+    const body = (req.body ?? {}) as Record<string, any>;
+    const schemaProvided = hasOwn(body, 'schema_version');
+    const assinaturasProvided = hasOwn(body, 'assinaturas');
+    const schemaVersion = schemaProvided
+      ? resolveSchemaVersion(body.schema_version) ?? DEFAULT_SCHEMA_VERSION
+      : null;
+    const assinaturasPayload = assinaturasProvided ? sanitizeAssinaturasInput(body.assinaturas) : null;
+    const result = await pool.query(
+      `UPDATE termos_consentimento
+          SET dados = COALESCE($2::jsonb, dados),
+              schema_version = COALESCE($3, schema_version),
+              assinaturas = COALESCE($4::jsonb, assinaturas)
+        WHERE id = $1 RETURNING *`,
+      [
+        id,
+        JSON.stringify(body.dados ?? null),
+        schemaProvided ? schemaVersion : null,
+        assinaturasProvided ? JSON.stringify(assinaturasPayload ?? []) : null
+      ]
+    );
     if (result.rowCount === 0) { res.status(404).json(errorResponse('Termo não encontrado')); return; }
-    res.json(successResponse(result.rows[0]));
+    res.json(successResponse(formatTermoConsentimento(normalizeFormRow(result.rows[0]))));
     return;
   } catch (error) {
     res.status(500).json(errorResponse('Erro ao atualizar termo'));
@@ -327,14 +543,16 @@ router.post('/visao-holistica', authenticateToken, async (req: AuthenticatedRequ
 // RODA DA VIDA (genérico via tabela formularios)
 router.post('/roda-vida', authenticateToken, async (req: AuthenticatedRequest, res): Promise<void> => {
   try {
-    const { beneficiaria_id, dados } = (req.body ?? {}) as Record<string, any>;
+    const { beneficiaria_id, dados, schema_version, assinaturas } = (req.body ?? {}) as Record<string, any>;
     const createdBy = Number(req.user!.id);
+    const schemaVersion = resolveSchemaVersion(schema_version) ?? DEFAULT_SCHEMA_VERSION;
+    const assinaturasPayload = sanitizeAssinaturasInput(assinaturas);
     const result = await pool.query(
-      `INSERT INTO formularios (tipo, beneficiaria_id, dados, status, usuario_id)
-       VALUES ('roda_vida', $1, $2::jsonb, 'completo', $3) RETURNING *`,
-      [beneficiaria_id, JSON.stringify(dados || {}), createdBy]
+      `INSERT INTO formularios (tipo, beneficiaria_id, dados, status, schema_version, assinaturas, usuario_id)
+       VALUES ('roda_vida', $1, $2::jsonb, 'completo', $3, $4::jsonb, $5) RETURNING *`,
+      [beneficiaria_id, JSON.stringify(dados || {}), schemaVersion, JSON.stringify(assinaturasPayload), createdBy]
     );
-    res.status(201).json(successResponse(result.rows[0]));
+    res.status(201).json(successResponse(normalizeFormRow(result.rows[0], schemaVersion)));
     return;
   } catch (error) {
     res.status(500).json(errorResponse('Erro ao criar Roda da Vida'));
@@ -347,7 +565,7 @@ router.get('/roda-vida/:id', authenticateToken, async (req, res): Promise<void> 
     const { id } = req.params as any;
     const result = await pool.query('SELECT * FROM formularios WHERE id = $1 AND tipo = $2', [id, 'roda_vida']);
     if (result.rowCount === 0) { res.status(404).json(errorResponse('Roda da Vida não encontrada')); return; }
-    res.json(successResponse(result.rows[0]));
+    res.json(successResponse(normalizeFormRow(result.rows[0])));
     return;
   } catch (error) {
     res.status(500).json(errorResponse('Erro ao obter Roda da Vida'));
@@ -358,13 +576,30 @@ router.get('/roda-vida/:id', authenticateToken, async (req, res): Promise<void> 
 router.put('/roda-vida/:id', authenticateToken, async (req, res): Promise<void> => {
   try {
     const { id } = req.params as any;
-    const { dados } = (req.body ?? {}) as Record<string, any>;
+    const body = (req.body ?? {}) as Record<string, any>;
+    const schemaProvided = hasOwn(body, 'schema_version');
+    const assinaturasProvided = hasOwn(body, 'assinaturas');
+    const schemaVersion = schemaProvided
+      ? resolveSchemaVersion(body.schema_version) ?? DEFAULT_SCHEMA_VERSION
+      : null;
+    const assinaturasPayload = assinaturasProvided ? sanitizeAssinaturasInput(body.assinaturas) : null;
     const result = await pool.query(
-      'UPDATE formularios SET dados = COALESCE($2::jsonb, dados), updated_at = NOW() WHERE id = $1 AND tipo = $3 RETURNING *',
-      [id, JSON.stringify(dados || null), 'roda_vida']
+      `UPDATE formularios
+          SET dados = COALESCE($2::jsonb, dados),
+              schema_version = COALESCE($3, schema_version),
+              assinaturas = COALESCE($4::jsonb, assinaturas),
+              updated_at = NOW()
+        WHERE id = $1 AND tipo = $5 RETURNING *`,
+      [
+        id,
+        JSON.stringify(body.dados ?? null),
+        schemaProvided ? schemaVersion : null,
+        assinaturasProvided ? JSON.stringify(assinaturasPayload ?? []) : null,
+        'roda_vida'
+      ]
     );
     if (result.rowCount === 0) { res.status(404).json(errorResponse('Roda da Vida não encontrada')); return; }
-    res.json(successResponse(result.rows[0]));
+    res.json(successResponse(normalizeFormRow(result.rows[0])));
     return;
   } catch (error) {
     res.status(500).json(errorResponse('Erro ao atualizar Roda da Vida'));
@@ -377,7 +612,7 @@ router.get('/visao-holistica/:id', authenticateToken, async (req, res): Promise<
     const { id } = req.params as any;
     const result = await pool.query('SELECT * FROM visao_holistica WHERE id = $1', [id]);
     if (result.rowCount === 0) { res.status(404).json(errorResponse('Registro não encontrado')); return; }
-    res.json(successResponse(result.rows[0]));
+    res.json(successResponse(normalizeFormRow(result.rows[0])));
     return;
   } catch (error) {
     res.status(500).json(errorResponse('Erro ao obter visão holística'));
@@ -475,7 +710,8 @@ router.get('/', authenticateToken, async (req: AuthenticatedRequest, res): Promi
     params.push(limit, offset);
     const result = await pool.query(sql, params);
     const total = parseInt(result.rows[0]?.total_count || '0', 10);
-    res.json(successResponse({ data: result.rows, pagination: { page, limit, total } }));
+    const data = result.rows.map((row) => normalizeFormRow(row));
+    res.json(successResponse({ data, pagination: { page, limit, total } }));
     return;
   } catch (error) {
     res.status(500).json(errorResponse('Erro ao listar formulários'));
@@ -488,13 +724,31 @@ router.get('/beneficiaria/:beneficiariaId', authenticateToken, async (req: Authe
   try {
     const { beneficiariaId } = req.params as any;
     const [gen, ana, evo, ter, vis] = await Promise.all([
-      pool.query('SELECT id, tipo, beneficiaria_id, dados, status, created_at, usuario_id as created_by FROM formularios WHERE beneficiaria_id = $1', [beneficiariaId]),
-      pool.query(`SELECT id, 'anamnese' as tipo, beneficiaria_id, dados, created_at, created_by FROM anamnese_social WHERE beneficiaria_id = $1`, [beneficiariaId]),
-      pool.query(`SELECT id, 'ficha_evolucao' as tipo, beneficiaria_id, dados, created_at, created_by FROM ficha_evolucao WHERE beneficiaria_id = $1`, [beneficiariaId]),
-      pool.query(`SELECT id, 'termos_consentimento' as tipo, beneficiaria_id, dados, created_at, created_by FROM termos_consentimento WHERE beneficiaria_id = $1`, [beneficiariaId]),
+      pool.query(
+        'SELECT id, tipo, beneficiaria_id, dados, status, schema_version, assinaturas, created_at, usuario_id as created_by FROM formularios WHERE beneficiaria_id = $1',
+        [beneficiariaId]
+      ),
+      pool.query(
+        `SELECT id, 'anamnese' as tipo, beneficiaria_id, dados, schema_version, assinaturas, created_at, created_by FROM anamnese_social WHERE beneficiaria_id = $1`,
+        [beneficiariaId]
+      ),
+      pool.query(
+        `SELECT id, 'ficha_evolucao' as tipo, beneficiaria_id, dados, schema_version, assinaturas, created_at, created_by FROM ficha_evolucao WHERE beneficiaria_id = $1`,
+        [beneficiariaId]
+      ),
+      pool.query(
+        `SELECT id, 'termos_consentimento' as tipo, beneficiaria_id, dados, schema_version, assinaturas, created_at, created_by, revogado_em, revogado_por, revogacao_motivo FROM termos_consentimento WHERE beneficiaria_id = $1`,
+        [beneficiariaId]
+      ),
       pool.query(`SELECT id, 'visao_holistica' as tipo, beneficiaria_id, dados, created_at, created_by FROM visao_holistica WHERE beneficiaria_id = $1`, [beneficiariaId])
     ]);
-    const data = [...gen.rows, ...ana.rows, ...evo.rows, ...ter.rows, ...vis.rows].sort((a, b) => (new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
+    const data = [
+      ...gen.rows.map((row) => normalizeFormRow(row)),
+      ...ana.rows.map((row) => normalizeFormRow(row)),
+      ...evo.rows.map((row) => normalizeFormRow(row)),
+      ...ter.rows.map((row) => normalizeFormRow(row)),
+      ...vis.rows
+    ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     res.json(successResponse({ data, total: data.length }));
     return;
   } catch (error) {
@@ -511,6 +765,8 @@ router.post('/:tipo', authenticateToken,
       dados: z.any().optional(),
       status: z.string().optional(),
       observacoes: z.string().optional(),
+      schema_version: z.string().max(50).optional(),
+      assinaturas: z.array(z.any()).optional(),
     }),
     params: z.object({ tipo: z.string().min(1) }),
     query: z.any().optional(),
@@ -518,15 +774,26 @@ router.post('/:tipo', authenticateToken,
   async (req: AuthenticatedRequest, res): Promise<void> => {
   try {
     const { tipo } = req.params as any;
-    const { beneficiaria_id, dados, status, observacoes } = (req.body || {}) as any;
+    const { beneficiaria_id, dados, status, observacoes, schema_version, assinaturas } = (req.body || {}) as any;
     const userId = Number(req.user!.id);
     if (!beneficiaria_id) { res.status(400).json(errorResponse('beneficiaria_id é obrigatório')); return; }
+    const schemaVersion = resolveSchemaVersion(schema_version) ?? DEFAULT_SCHEMA_VERSION;
+    const assinaturasPayload = sanitizeAssinaturasInput(assinaturas);
     const created = await pool.query(
-      `INSERT INTO formularios (tipo, beneficiaria_id, dados, status, observacoes, usuario_id)
-       VALUES ($1,$2,$3::jsonb,COALESCE($4,'completo'),$5,$6) RETURNING *`,
-      [tipo, beneficiaria_id, JSON.stringify(dados || {}), status, observacoes || null, userId]
+      `INSERT INTO formularios (tipo, beneficiaria_id, dados, status, observacoes, schema_version, assinaturas, usuario_id)
+       VALUES ($1,$2,$3::jsonb,COALESCE($4,'completo'),$5,$6,$7::jsonb,$8) RETURNING *`,
+      [
+        tipo,
+        beneficiaria_id,
+        JSON.stringify(dados || {}),
+        status,
+        observacoes || null,
+        schemaVersion,
+        JSON.stringify(assinaturasPayload),
+        userId
+      ]
     );
-    res.status(201).json(successResponse(created.rows[0]));
+    res.status(201).json(successResponse(normalizeFormRow(created.rows[0], schemaVersion)));
     return;
   } catch (error) {
     res.status(500).json(errorResponse('Erro ao criar formulário'));
@@ -551,13 +818,34 @@ router.get('/:tipo/:id', authenticateToken, async (req: AuthenticatedRequest, re
 router.put('/:tipo/:id', authenticateToken, async (req: AuthenticatedRequest, res): Promise<void> => {
   try {
     const { tipo, id } = req.params as any;
-    const { dados, status, observacoes } = (req.body || {}) as any;
+    const body = (req.body || {}) as any;
+    const schemaProvided = hasOwn(body, 'schema_version');
+    const assinaturasProvided = hasOwn(body, 'assinaturas');
+    const schemaVersion = schemaProvided
+      ? resolveSchemaVersion(body.schema_version) ?? DEFAULT_SCHEMA_VERSION
+      : null;
+    const assinaturasPayload = assinaturasProvided ? sanitizeAssinaturasInput(body.assinaturas) : null;
     const result = await pool.query(
-      'UPDATE formularios SET dados = COALESCE($2::jsonb, dados), status = COALESCE($3, status), observacoes = COALESCE($4, observacoes), updated_at = NOW() WHERE id = $1 AND tipo = $5 RETURNING *',
-      [id, JSON.stringify(dados || null), status || null, observacoes || null, tipo]
+      `UPDATE formularios
+          SET dados = COALESCE($2::jsonb, dados),
+              status = COALESCE($3, status),
+              observacoes = COALESCE($4, observacoes),
+              schema_version = COALESCE($5, schema_version),
+              assinaturas = COALESCE($6::jsonb, assinaturas),
+              updated_at = NOW()
+        WHERE id = $1 AND tipo = $7 RETURNING *`,
+      [
+        id,
+        JSON.stringify(body.dados ?? null),
+        body.status || null,
+        body.observacoes || null,
+        schemaProvided ? schemaVersion : null,
+        assinaturasProvided ? JSON.stringify(assinaturasPayload ?? []) : null,
+        tipo
+      ]
     );
     if (result.rowCount === 0) { res.status(404).json(errorResponse('Formulário não encontrado')); return; }
-    res.json(successResponse(result.rows[0]));
+    res.json(successResponse(normalizeFormRow(result.rows[0])));
     return;
   } catch (error) {
     res.status(500).json(errorResponse('Erro ao atualizar formulário'));
@@ -570,7 +858,7 @@ router.get('/:tipo/:id/pdf', authenticateToken, async (req: AuthenticatedRequest
     const { tipo, id } = req.params as any;
     const result = await pool.query('SELECT * FROM formularios WHERE id = $1 AND tipo = $2', [id, tipo]);
     if (result.rowCount === 0) { res.status(404).json(errorResponse('Formulário não encontrado')); return; }
-    const pdf = await renderFormPdf(result.rows[0], { titulo: 'Formulário', subtitulo: `Tipo: ${tipo}` });
+    const pdf = await renderFormPdf(normalizeFormRow(result.rows[0]), { titulo: 'Formulário', subtitulo: `Tipo: ${tipo}` });
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="form_${tipo}_${id}.pdf"`);
     res.send(pdf);
