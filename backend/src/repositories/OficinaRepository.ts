@@ -152,35 +152,48 @@ export class OficinaRepository {
     }
   }
 
-  async registrarPresenca(oficinaId: number, beneficiariaId: number, presente: boolean, observacoes?: string) {
+  async registrarPresenca(
+    oficinaId: number,
+    beneficiariaId: number,
+    presente: boolean,
+    observacoes?: string,
+    dataEncontro?: string | Date
+  ) {
     const client = await pool.connect();
-    
+
     try {
       await client.query('BEGIN');
 
+      const encontroDate = dataEncontro ? new Date(dataEncontro) : new Date();
+      if (Number.isNaN(encontroDate.getTime())) {
+        throw new Error('Data do encontro inválida');
+      }
+      const dataEncontroStr = encontroDate.toISOString().slice(0, 10);
+      const dataRegistro = dataEncontro ? encontroDate : new Date();
+
       // Verifica se já existe registro
       const checkQuery = `
-        SELECT id FROM oficina_presencas 
-        WHERE oficina_id = $1 AND beneficiaria_id = $2
+        SELECT id FROM oficina_presencas
+        WHERE oficina_id = $1 AND beneficiaria_id = $2 AND data_encontro = $3
       `;
-      const checkResult = await client.query(checkQuery, [oficinaId, beneficiariaId]);
+      const checkResult = await client.query(checkQuery, [oficinaId, beneficiariaId, dataEncontroStr]);
 
       let result;
       if (checkResult.rows.length > 0) {
         // Atualiza registro existente
         result = await client.query(`
-          UPDATE oficina_presencas 
-          SET presente = $3, observacoes = $4, data_registro = CURRENT_TIMESTAMP
-          WHERE oficina_id = $1 AND beneficiaria_id = $2
+          UPDATE oficina_presencas
+          SET presente = $4, observacoes = $5, data_registro = $6
+          WHERE oficina_id = $1 AND beneficiaria_id = $2 AND data_encontro = $3
           RETURNING *
-        `, [oficinaId, beneficiariaId, presente, observacoes]);
+        `, [oficinaId, beneficiariaId, dataEncontroStr, presente, observacoes ?? null, dataRegistro]);
       } else {
         // Cria novo registro
         result = await client.query(`
-          INSERT INTO oficina_presencas (oficina_id, beneficiaria_id, presente, observacoes)
-          VALUES ($1, $2, $3, $4)
+          INSERT INTO oficina_presencas (oficina_id, beneficiaria_id, presente, observacoes, data_registro, data_encontro)
+          VALUES ($1, $2, $3, $4, $5, $6)
           RETURNING *
-        `, [oficinaId, beneficiariaId, presente, observacoes]);
+        `, [oficinaId, beneficiariaId, presente, observacoes ?? null, dataRegistro, dataEncontroStr]);
       }
 
       await client.query('COMMIT');

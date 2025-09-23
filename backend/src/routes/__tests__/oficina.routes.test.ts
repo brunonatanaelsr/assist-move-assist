@@ -75,6 +75,13 @@ describe('Oficinas Routes', () => {
     expect(res.status).toBe(400);
   });
 
+  it('POST /oficinas/:id/presencas - rejeita data inválida', async () => {
+    const res = await supertest(app)
+      .post('/oficinas/1/presencas')
+      .send({ beneficiaria_id: 1, presente: true, data: '31/12/2024' });
+    expect(res.status).toBe(400);
+  });
+
   it('GET /oficinas/:id/relatorio-presencas - 404 quando oficina inexiste', async () => {
     (mockPool.query as unknown as jest.Mock).mockResolvedValueOnce({ rowCount: 0, rows: [] } as any);
     const res = await supertest(app).get('/oficinas/999/relatorio-presencas');

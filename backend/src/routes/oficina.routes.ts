@@ -379,16 +379,23 @@ router.post('/:id/presencas', authenticateToken, authorize('oficinas.presencas.r
       return;
     }
 
-    // Usa repositório para upsert; se data for fornecida, ajusta depois
-    const registro = await oficinaRepository.registrarPresenca(oficinaId, Number(beneficiaria_id), !!presente, observacoes);
-
+    let dataEncontro: Date | undefined;
     if (data) {
-      // Atualiza data_registro explicitamente, se enviada
-      await pool.query(
-        'UPDATE oficina_presencas SET data_registro = $1 WHERE oficina_id = $2 AND beneficiaria_id = $3',
-        [data, oficinaId, beneficiaria_id]
-      );
+      const parsed = new Date(data);
+      if (Number.isNaN(parsed.getTime())) {
+        res.status(400).json(errorResponse('data do encontro inválida'));
+        return;
+      }
+      dataEncontro = parsed;
     }
+
+    const registro = await oficinaRepository.registrarPresenca(
+      oficinaId,
+      Number(beneficiaria_id),
+      !!presente,
+      observacoes,
+      dataEncontro
+    );
 
     res.status(201).json(successResponse(registro, 'Presença registrada'));
     return;
@@ -413,10 +420,10 @@ router.get('/:id/presencas', authenticateToken, authorize('oficinas.presencas.li
     `;
     const params: any[] = [oficinaId];
     if (data) {
-      query += ' AND DATE(p.data_registro) = $2';
+      query += ' AND p.data_encontro = $2';
       params.push(data);
     }
-    query += ' ORDER BY p.data_registro DESC, beneficiaria_nome';
+    query += ' ORDER BY p.data_encontro DESC, beneficiaria_nome';
 
     const result = await pool.query(query, params);
     res.json(successResponse(result.rows));
@@ -492,9 +499,9 @@ router.get('/:id/relatorio-presencas', authenticateToken, authorize('oficinas.re
 
     // Presenças
     const presencas = await pool.query(
-      `SELECT beneficiaria_id, presente, data_registro
+      `SELECT beneficiaria_id, presente, data_encontro
        FROM oficina_presencas WHERE oficina_id = $1
-       ORDER BY data_registro ASC`,
+       ORDER BY data_encontro ASC, beneficiaria_id ASC`,
       [id]
     );
 
