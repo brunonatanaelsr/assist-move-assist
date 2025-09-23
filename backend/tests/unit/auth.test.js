@@ -17,10 +17,17 @@ describe('Auth Middleware Tests', () => {
     ];
 
     for (const user of users) {
-      await pool.query(
-        'INSERT INTO usuarios (email, senha_hash, role, ativo) VALUES ($1, $2, $3, true)',
+      const result = await pool.query(
+        'INSERT INTO usuarios (email, senha_hash, papel, ativo) VALUES ($1, $2, $3, true) RETURNING id',
         [user.email, 'password_hash', user.role]
       );
+      const userId = result.rows[0]?.id;
+      if (userId) {
+        await pool.query(
+          'INSERT INTO user_roles (user_id, role, project_id) VALUES ($1,$2,NULL) ON CONFLICT DO NOTHING',
+          [userId, user.role]
+        );
+      }
     }
 
     // Gerar tokens
@@ -32,6 +39,7 @@ describe('Auth Middleware Tests', () => {
 
   afterAll(async () => {
     // Limpar usuários de teste
+    await pool.query('DELETE FROM user_roles WHERE user_id IN (SELECT id FROM usuarios WHERE email LIKE %@test.com)');
     await pool.query('DELETE FROM usuarios WHERE email LIKE %@test.com');
     await pool.end();
   });

@@ -175,6 +175,13 @@ export class AuthService {
     );
 
     const user = result.rows[0] as DatabaseUser;
+
+    await this.pool.query(
+      `INSERT INTO user_roles (user_id, role, project_id)
+       VALUES ($1, $2, NULL)
+       ON CONFLICT DO NOTHING`,
+      [user.id, user.papel]
+    );
     const token = this.generateToken({ id: user.id, email: user.email, role: user.papel });
 
     const sessionUser: AuthenticatedSessionUser = {
@@ -241,5 +248,65 @@ export class AuthService {
     }
     const newHash = await bcrypt.hash(newPassword, 12);
     await this.pool.query('UPDATE usuarios SET senha_hash = $1, data_atualizacao = NOW() WHERE id = $2', [newHash, userId]);
+  }
+
+  async getUserRolesForProject(userId: number, projectId?: number | null): Promise<string[]> {
+    const params: Array<number | null> = [userId];
+    let sql = 'SELECT role FROM user_roles WHERE user_id = $1 AND project_id IS NULL';
+
+    if (typeof projectId === 'number') {
+      params.push(projectId);
+      sql =
+        'SELECT role FROM user_roles WHERE user_id = $1 AND (project_id IS NULL OR project_id = $2)';
+    }
+
+    const result = await this.pool.query<{ role: string }>(sql, params);
+    const roles = new Set<string>();
+    for (const row of result.rows) {
+      if (row.role) {
+        roles.add(row.role.toLowerCase());
+      }
+    }
+    return Array.from(roles);
+  }
+
+  async getUserPermissionsForProject(userId: number, projectId?: number | null): Promise<string[]> {
+    const params: Array<number | null> = [userId];
+    let sql =
+      'SELECT permission FROM user_permissions WHERE user_id = $1 AND project_id IS NULL';
+
+    if (typeof projectId === 'number') {
+      params.push(projectId);
+      sql =
+        'SELECT permission FROM user_permissions WHERE user_id = $1 AND (project_id IS NULL OR project_id = $2)';
+    }
+
+    const result = await this.pool.query<{ permission: string }>(sql, params);
+    return result.rows
+      .map((row) => row.permission)
+      .filter((permission): permission is string => Boolean(permission));
+  }
+
+  async getPermissionsForRoles(roles: string[]): Promise<Record<string, string[]>> {
+    if (!roles.length) {
+      return {};
+    }
+    const normalizedRoles = roles.map((role) => role.toLowerCase());
+    const result = await this.pool.query<{ role: string; permission: string }>(
+      'SELECT role, permission FROM role_permissions WHERE role = ANY($1)',
+      [normalizedRoles]
+    );
+    const grouped: Record<string, string[]> = {};
+    for (const row of result.rows) {
+      const key = row.role?.toLowerCase();
+      if (!key || !row.permission) {
+        continue;
+      }
+      if (!grouped[key]) {
+        grouped[key] = [];
+      }
+      grouped[key].push(row.permission);
+    }
+    return grouped;
   }
 }

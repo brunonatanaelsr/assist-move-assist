@@ -55,6 +55,12 @@ async function createInitialUsers() {
       'superadmin'
     ]);
 
+    await pool.query('DELETE FROM user_roles WHERE user_id = $1 AND project_id IS NULL', [superadminResult.rows[0]?.id]);
+    await pool.query(
+      'INSERT INTO user_roles (user_id, role, project_id) VALUES ($1,$2,NULL) ON CONFLICT DO NOTHING',
+      [superadminResult.rows[0]?.id, 'superadmin']
+    );
+
     console.log('✅ Superadmin criado:', superadminResult.rows[0]);
 
     // Criar admin
@@ -65,6 +71,12 @@ async function createInitialUsers() {
       'admin'
     ]);
 
+    await pool.query('DELETE FROM user_roles WHERE user_id = $1 AND project_id IS NULL', [adminResult.rows[0]?.id]);
+    await pool.query(
+      'INSERT INTO user_roles (user_id, role, project_id) VALUES ($1,$2,NULL) ON CONFLICT DO NOTHING',
+      [adminResult.rows[0]?.id, 'admin']
+    );
+
     console.log('✅ Admin criado:', adminResult.rows[0]);
 
     const e2eResult = await pool.query(upsertUser, [
@@ -73,6 +85,12 @@ async function createInitialUsers() {
       e2ePasswordHash,
       E2E_ROLE
     ]);
+
+    await pool.query('DELETE FROM user_roles WHERE user_id = $1 AND project_id IS NULL', [e2eResult.rows[0]?.id]);
+    await pool.query(
+      'INSERT INTO user_roles (user_id, role, project_id) VALUES ($1,$2,NULL) ON CONFLICT DO NOTHING',
+      [e2eResult.rows[0]?.id, E2E_ROLE]
+    );
 
     console.log('✅ Usuário E2E criado:', {
       id: e2eResult.rows[0]?.id,

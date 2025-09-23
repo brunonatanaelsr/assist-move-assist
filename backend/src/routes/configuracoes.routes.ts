@@ -3,6 +3,59 @@ import { authenticateToken, AuthenticatedRequest, authorize } from '../middlewar
 import { pool } from '../config/database';
 import { successResponse, errorResponse } from '../utils/responseFormatter';
 import redis from '../lib/redis';
+
+const buildUserPermissionCacheKey = (userId: number, projectId: number | null) =>
+  projectId === null ? `perms:user:${userId}:global` : `perms:user:${userId}:project:${projectId}`;
+
+const buildUserRoleCacheKey = (userId: number, projectId: number | null) =>
+  projectId === null ? `roles:user:${userId}:global` : `roles:user:${userId}:project:${projectId}`;
+
+const parseProjectScope = (value: unknown): number | null => {
+  if (value === undefined || value === null || value === '') {
+    return null;
+  }
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || Number.isNaN(parsed) || parsed < 0) {
+    throw new Error('Parâmetro projectId inválido');
+  }
+  return Math.trunc(parsed);
+};
+
+const extractProjectFromRequest = (req: AuthenticatedRequest): number | null => {
+  const queryValue = (req.query as Record<string, unknown> | undefined)?.projectId;
+  if (typeof queryValue !== 'undefined') {
+    return parseProjectScope(Array.isArray(queryValue) ? queryValue[0] : queryValue);
+  }
+  const bodyValue = (req.body as Record<string, unknown> | undefined)?.projectId;
+  if (typeof bodyValue !== 'undefined') {
+    return parseProjectScope(bodyValue);
+  }
+  return null;
+};
+
+const invalidateUserCaches = async (userId: number, projectId: number | null) => {
+  const cacheKeys = [buildUserPermissionCacheKey(userId, projectId), buildUserRoleCacheKey(userId, projectId)];
+  try {
+    await redis.del(...cacheKeys);
+  } catch {
+    // ignore cache errors
+  }
+};
+
+const purgeUserScopedCaches = async (userId: number) => {
+  try {
+    const keys = await (redis as any).keys(`perms:user:${userId}:*`);
+    if (keys?.length) {
+      await (redis as any).del(...keys);
+    }
+    const roleKeys = await (redis as any).keys(`roles:user:${userId}:*`);
+    if (roleKeys?.length) {
+      await (redis as any).del(...roleKeys);
+    }
+  } catch {
+    // ignore cache errors
+  }
+};
 import bcrypt from 'bcryptjs';
 
 const router = Router();
@@ -68,7 +121,7 @@ router.put('/usuarios/:id', authenticateToken, authorize('users.manage'), async 
     const prev = await pool.query('SELECT papel FROM usuarios WHERE id = $1', [id]);
     const oldRole = prev.rows[0]?.papel || null;
     const r = await pool.query(
-      `UPDATE usuarios SET 
+      `UPDATE usuarios SET
          nome = COALESCE($2,nome),
          papel = COALESCE($3,papel),
          ativo = COALESCE($4,ativo),
@@ -82,13 +135,20 @@ router.put('/usuarios/:id', authenticateToken, authorize('users.manage'), async 
       [id, nome, papel, ativo, cargo, departamento, bio, telefone, avatar_url]
     );
     if (r.rowCount === 0) { res.status(404).json(errorResponse('Usuário não encontrado')); return; }
-    // Invalida cache de permissões do usuário
-    try { await redis.del(`perms:user:${id}`); } catch {}
-    // Se papel mudou, invalida cache do papel novo e antigo
+    // Sincroniza papel global na tabela user_roles
     const newRole = r.rows[0].papel;
+    if (newRole) {
+      await pool.query('DELETE FROM user_roles WHERE user_id = $1 AND project_id IS NULL', [id]);
+      await pool.query(
+        'INSERT INTO user_roles (user_id, role, project_id) VALUES ($1,$2,NULL) ON CONFLICT DO NOTHING',
+        [id, newRole]
+      );
+    }
+    await purgeUserScopedCaches(Number(id));
+    // Se papel mudou, invalida cache do papel novo e antigo
     if (newRole && newRole !== oldRole) {
-      try { await redis.del(`perms:role:${newRole}`); } catch {}
-      if (oldRole) { try { await redis.del(`perms:role:${oldRole}`); } catch {} }
+      try { await redis.del(`perms:role:${String(newRole).toLowerCase()}`); } catch {}
+      if (oldRole) { try { await redis.del(`perms:role:${String(oldRole).toLowerCase()}`); } catch {} }
     }
     res.json(successResponse(r.rows[0]));
     return;
@@ -209,7 +269,19 @@ router.get('/usuarios/:id/permissions', authenticateToken, authorize('users.mana
   const authReq = req as AuthenticatedRequest;
   try {
     const { id } = authReq.params as any;
-    const r = await pool.query('SELECT permission FROM user_permissions WHERE user_id = $1', [id]);
+    let projectId: number | null;
+    try {
+      projectId = extractProjectFromRequest(authReq);
+    } catch (error) {
+      res.status(400).json(errorResponse((error as Error).message));
+      return;
+    }
+    const params = projectId === null ? [id] : [id, projectId];
+    const whereClause = projectId === null ? 'project_id IS NULL' : 'project_id = $2';
+    const r = await pool.query(
+      `SELECT permission FROM user_permissions WHERE user_id = $1 AND ${whereClause} ORDER BY permission`,
+      params
+    );
     res.json(successResponse(r.rows.map((x:any)=>x.permission)));
     return;
   } catch {
@@ -224,12 +296,26 @@ router.put('/usuarios/:id/permissions', authenticateToken, authorize('users.mana
     const { id } = authReq.params as any;
     const { permissions } = (authReq.body ?? {}) as Record<string, any>;
     if (!Array.isArray(permissions)) { res.status(400).json(errorResponse('permissions deve ser array')); return; }
-  await pool.query('DELETE FROM user_permissions WHERE user_id = $1', [id]);
-  for (const p of permissions) {
-    await pool.query('INSERT INTO user_permissions (user_id, permission) VALUES ($1,$2) ON CONFLICT DO NOTHING', [id, p]);
-  }
-  try { await redis.del(`perms:user:${id}`); } catch {}
-  res.json(successResponse({ id, permissions }));
+    let projectId: number | null;
+    try {
+      projectId = extractProjectFromRequest(authReq);
+    } catch (error) {
+      res.status(400).json(errorResponse((error as Error).message));
+      return;
+    }
+    if (projectId === null) {
+      await pool.query('DELETE FROM user_permissions WHERE user_id = $1 AND project_id IS NULL', [id]);
+    } else {
+      await pool.query('DELETE FROM user_permissions WHERE user_id = $1 AND project_id = $2', [id, projectId]);
+    }
+    for (const p of permissions) {
+      await pool.query(
+        'INSERT INTO user_permissions (user_id, permission, project_id) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING',
+        [id, p, projectId]
+      );
+    }
+    await invalidateUserCaches(Number(id), projectId);
+    res.json(successResponse({ id, projectId, permissions }));
     return;
   } catch {
     res.status(500).json(errorResponse('Erro ao atualizar permissões do usuário'));

@@ -20,7 +20,7 @@ async function main() {
     await client.query(
       `INSERT INTO usuarios (nome, email, senha_hash, papel, ativo, data_criacao, data_atualizacao)
        VALUES ($1,$2,$3,'superadmin', true, NOW(), NOW())
-       ON CONFLICT (email) DO UPDATE SET 
+       ON CONFLICT (email) DO UPDATE SET
          senha_hash = EXCLUDED.senha_hash,
          papel = 'superadmin',
          ativo = TRUE,
@@ -28,6 +28,15 @@ async function main() {
       `,
       [name, email.toLowerCase(), hash]
     );
+    const userResult = await client.query('SELECT id FROM usuarios WHERE email = $1', [email.toLowerCase()]);
+    const userId = userResult.rows[0]?.id;
+    if (userId) {
+      await client.query('DELETE FROM user_roles WHERE user_id = $1 AND project_id IS NULL', [userId]);
+      await client.query(
+        'INSERT INTO user_roles (user_id, role, project_id) VALUES ($1,$2,NULL) ON CONFLICT DO NOTHING',
+        [userId, 'superadmin']
+      );
+    }
     await client.query('COMMIT');
     console.log(`✅ Superadmin garantido: ${email}`);
   } catch (e) {

@@ -187,7 +187,7 @@ export class UsuarioRepository extends BaseRepository<Usuario> {
   async search(termo: string): Promise<Usuario[]> {
     const sql = `
       SELECT * FROM ${this.tableName}
-      WHERE 
+      WHERE
         (
           nome ILIKE $1 OR 
           email ILIKE $1 OR 
@@ -215,6 +215,65 @@ export class UsuarioRepository extends BaseRepository<Usuario> {
       await super.update(id, { ultimo_login: new Date() });
     } catch (error) {
       logger.error('Erro ao atualizar último login:', error);
+      throw error;
+    }
+  }
+
+  async getRolesByProject(userId: number, projectId?: number | null): Promise<string[]> {
+    const params: Array<number | null> = [userId];
+    let sql = `
+      SELECT role
+      FROM user_roles
+      WHERE user_id = $1 AND project_id IS NULL
+    `;
+
+    if (typeof projectId === 'number') {
+      params.push(projectId);
+      sql = `
+        SELECT role
+        FROM user_roles
+        WHERE user_id = $1 AND (project_id IS NULL OR project_id = $2)
+      `;
+    }
+
+    try {
+      const result = await query<{ role: string }>(sql, params);
+      const roles = new Set<string>();
+      result
+        .map((row) => row.role)
+        .filter((role): role is string => Boolean(role))
+        .forEach((role) => roles.add(role.toLowerCase()));
+      return Array.from(roles);
+    } catch (error) {
+      logger.error('Erro ao buscar papéis por projeto:', error);
+      throw error;
+    }
+  }
+
+  async getPermissionsByProject(userId: number, projectId?: number | null): Promise<string[]> {
+    const params: Array<number | null> = [userId];
+    let sql = `
+      SELECT permission
+      FROM user_permissions
+      WHERE user_id = $1 AND project_id IS NULL
+    `;
+
+    if (typeof projectId === 'number') {
+      params.push(projectId);
+      sql = `
+        SELECT permission
+        FROM user_permissions
+        WHERE user_id = $1 AND (project_id IS NULL OR project_id = $2)
+      `;
+    }
+
+    try {
+      const result = await query<{ permission: string }>(sql, params);
+      return result
+        .map((row) => row.permission)
+        .filter((permission): permission is string => Boolean(permission));
+    } catch (error) {
+      logger.error('Erro ao buscar permissões por projeto:', error);
       throw error;
     }
   }

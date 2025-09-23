@@ -3,7 +3,6 @@ import type { ParamsDictionary } from 'express-serve-static-core';
 import type { ParsedQs } from 'qs';
 import jwt from 'jsonwebtoken';
 import { loggerService } from '../services/logger';
-import { pool } from '../config/database';
 import redisClient from '../lib/redis';
 import { authService } from '../services';
 import { env } from '../config/env';
@@ -52,6 +51,14 @@ export const AuthService = {
   register: (...args: Parameters<typeof authService.register>) => authService.register(...args),
   updateProfile: (...args: Parameters<typeof authService.updateProfile>) => authService.updateProfile(...args),
   changePassword: (...args: Parameters<typeof authService.changePassword>) => authService.changePassword(...args),
+  getUserRolesForProject: (...args: Parameters<typeof authService.getUserRolesForProject>) =>
+    authService.getUserRolesForProject(...args),
+  getUserPermissionsForProject: (
+    ...args: Parameters<typeof authService.getUserPermissionsForProject>
+  ) => authService.getUserPermissionsForProject(...args),
+  getPermissionsForRoles: (
+    ...args: Parameters<typeof authService.getPermissionsForRoles>
+  ) => authService.getPermissionsForRoles(...args),
   generateToken(payload: JWTPayload): string {
     if (!shouldUseFallback(authService.generateToken)) {
       return authService.generateToken({
@@ -187,6 +194,176 @@ export const requireAdmin = requireRole('admin');
 // Middleware para gestores
 export const requireGestor = requireRole('gestor');
 
+const PROJECT_PARAM_KEYS = ['projectId', 'project_id', 'projetoId', 'projeto_id'] as const;
+const CACHE_TTL_SECONDS = 300;
+const GLOBAL_SCOPE_CACHE_KEY = 'global';
+
+type ProjectScope = number | null;
+
+interface AuthorizeProjectOptions {
+  selector?: (req: Request) => ProjectScope;
+  requireProject?: boolean;
+}
+
+const toScopeKey = (scope: ProjectScope) =>
+  typeof scope === 'number' ? `project:${scope}` : GLOBAL_SCOPE_CACHE_KEY;
+
+const pickFirstValue = (value: unknown): unknown => (Array.isArray(value) ? value[0] : value);
+
+const parseProjectIdentifier = (value: unknown): ProjectScope => {
+  if (value === undefined || value === null) {
+    return null;
+  }
+  const rawValue = typeof value === 'string' ? value.trim() : value;
+  if (rawValue === '') {
+    return null;
+  }
+  const parsed = Number(rawValue);
+  if (!Number.isFinite(parsed) || Number.isNaN(parsed) || parsed < 0) {
+    throw new Error('INVALID_PROJECT_ID');
+  }
+  return Math.trunc(parsed);
+};
+
+const defaultProjectSelector = (req: Request): ProjectScope => {
+  for (const key of PROJECT_PARAM_KEYS) {
+    if (req.params && Object.prototype.hasOwnProperty.call(req.params, key)) {
+      return parseProjectIdentifier((req.params as Record<string, unknown>)[key]);
+    }
+  }
+  for (const key of PROJECT_PARAM_KEYS) {
+    const value = (req.query as Record<string, unknown>)[key];
+    if (typeof value !== 'undefined') {
+      return parseProjectIdentifier(pickFirstValue(value));
+    }
+  }
+  if (req.body && typeof req.body === 'object' && req.body !== null) {
+    for (const key of PROJECT_PARAM_KEYS) {
+      const value = (req.body as Record<string, unknown>)[key];
+      if (typeof value !== 'undefined') {
+        return parseProjectIdentifier(value);
+      }
+    }
+  }
+  return null;
+};
+
+const readCache = async <T>(key: string): Promise<T | null> => {
+  try {
+    const raw = await redisClient.get(key);
+    if (!raw) {
+      return null;
+    }
+    return JSON.parse(raw) as T;
+  } catch (error) {
+    loggerService.warn('Falha ao recuperar dados do cache', {
+      key,
+      error: (error as Error).message
+    });
+    return null;
+  }
+};
+
+const writeCache = async (key: string, value: unknown) => {
+  try {
+    await redisClient.setex(key, CACHE_TTL_SECONDS, JSON.stringify(value));
+  } catch (error) {
+    loggerService.warn('Não foi possível armazenar dados no cache', {
+      key,
+      error: (error as Error).message
+    });
+  }
+};
+
+const loadAdditionalRoles = async (userId: number, projectId: ProjectScope): Promise<string[]> => {
+  const scopeKey = toScopeKey(projectId);
+  const cacheKey = `roles:user:${userId}:${scopeKey}`;
+  let roles = await readCache<string[]>(cacheKey);
+  if (!roles) {
+    roles = await AuthService.getUserRolesForProject(userId, projectId);
+    await writeCache(cacheKey, roles);
+  }
+  return roles;
+};
+
+const loadUserDirectPermissions = async (
+  userId: number,
+  projectId: ProjectScope
+): Promise<string[]> => {
+  const scopeKey = toScopeKey(projectId);
+  const cacheKey = `perms:user:${userId}:${scopeKey}`;
+  let permissions = await readCache<string[]>(cacheKey);
+  if (!permissions) {
+    permissions = await AuthService.getUserPermissionsForProject(userId, projectId);
+    await writeCache(cacheKey, permissions);
+  }
+  return permissions;
+};
+
+const loadPermissionsFromRoles = async (roles: Set<string>): Promise<Set<string>> => {
+  const permissions = new Set<string>();
+  const missingRoles: string[] = [];
+  for (const role of roles) {
+    if (!role) {
+      continue;
+    }
+    const cacheKey = `perms:role:${role}`;
+    const cached = await readCache<string[]>(cacheKey);
+    if (cached) {
+      cached.forEach((permission) => permissions.add(permission));
+    } else {
+      missingRoles.push(role);
+    }
+  }
+
+  if (missingRoles.length > 0) {
+    const fetched = await AuthService.getPermissionsForRoles(missingRoles);
+    for (const role of missingRoles) {
+      const perms = fetched[role] ?? [];
+      perms.forEach((permission) => permissions.add(permission));
+      await writeCache(`perms:role:${role}`, perms);
+    }
+  }
+
+  return permissions;
+};
+
+const getEffectiveRoles = async (
+  user: AuthenticatedUser,
+  projectId: ProjectScope
+): Promise<Set<string>> => {
+  const roles = new Set<string>();
+  const baseRole = (user.role || '').toLowerCase();
+  if (baseRole) {
+    roles.add(baseRole);
+  }
+  const additionalRoles = await loadAdditionalRoles(user.id, projectId);
+  additionalRoles
+    .map((role) => role.toLowerCase())
+    .filter((role) => role)
+    .forEach((role) => roles.add(role));
+  return roles;
+};
+
+const resolvePermissionsForScope = async (
+  user: AuthenticatedUser,
+  projectId: ProjectScope
+): Promise<{ permissions: Set<string>; roles: Set<string> }> => {
+  const roles = await getEffectiveRoles(user, projectId);
+  const [rolePermissions, directPermissions] = await Promise.all([
+    loadPermissionsFromRoles(roles),
+    loadUserDirectPermissions(user.id, projectId)
+  ]);
+  const permissions = new Set<string>([
+    ...Array.from(rolePermissions),
+    ...directPermissions
+  ]);
+  return { permissions, roles };
+};
+
+const hasSuperAdminRole = (roles: Set<string>) =>
+  roles.has('superadmin') || roles.has('super_admin');
+
 // RBAC baseado em role_permissions (DB)
 export const authorize = (required: string | string[]) => {
   const requiredPerms = Array.isArray(required) ? required : [required];
@@ -195,69 +372,83 @@ export const authorize = (required: string | string[]) => {
       if (!req.user) {
         return res.status(401).json({ error: 'Usuário não autenticado' });
       }
-      const role = (req.user.role || '').toLowerCase();
-      if (!role) return res.status(403).json({ error: 'Sem papel associado' });
-      // Superadmin tem acesso total
-      if (role === 'superadmin' || role === 'super_admin') return next();
 
-      // Cache keys
-      const roleKey = `perms:role:${role}`;
-      const userKey = `perms:user:${req.user.id}`;
-      let rolePerms: string[] | null = null;
-      let userPerms: string[] | null = null;
+      const { permissions, roles } = await resolvePermissionsForScope(req.user, null);
+
+      if (hasSuperAdminRole(roles)) {
+        req.user.permissions = Array.from(permissions);
+        return next();
+      }
+
+      const ok = requiredPerms.every((permission) => permissions.has(permission));
+      if (!ok) {
+        loggerService.audit('ACCESS_DENIED', req.user.id, {
+          required: requiredPerms,
+          have: Array.from(permissions),
+          scope: 'global'
+        });
+        return res.status(403).json({ error: 'Permissão negada', required: requiredPerms });
+      }
+
+      req.user.permissions = Array.from(permissions);
+      return next();
+    } catch (error) {
+      loggerService.error('Erro ao verificar permissões', error);
+      return res.status(500).json({ error: 'Erro ao verificar permissões' });
+    }
+  };
+};
+
+export const authorizeForProject = (
+  required: string | string[],
+  options?: AuthorizeProjectOptions
+) => {
+  const requiredPerms = Array.isArray(required) ? required : [required];
+  const selector = options?.selector ?? defaultProjectSelector;
+  const requireProject = options?.requireProject ?? false;
+
+  return async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ error: 'Usuário não autenticado' });
+      }
+
+      let projectId: ProjectScope;
       try {
-        const [rjson, ujson] = await Promise.all([
-          redisClient.get(roleKey),
-          redisClient.get(userKey)
-        ]);
-        rolePerms = rjson ? (JSON.parse(rjson) as string[]) : null;
-        userPerms = ujson ? (JSON.parse(ujson) as string[]) : null;
-      } catch (error) {
-        loggerService.warn('Falha ao recuperar permissões em cache', {
-          role,
-          userId: req.user.id,
-          error: (error as Error).message
+        projectId = selector(req);
+      } catch {
+        return res.status(400).json({ error: 'Parâmetro projectId inválido' });
+      }
+
+      if (requireProject && (projectId === null || typeof projectId !== 'number')) {
+        return res.status(400).json({ error: 'Identificador de projeto obrigatório' });
+      }
+
+      const { permissions, roles } = await resolvePermissionsForScope(req.user, projectId);
+
+      if (hasSuperAdminRole(roles)) {
+        req.user.permissions = Array.from(permissions);
+        return next();
+      }
+
+      const ok = requiredPerms.every((permission) => permissions.has(permission));
+      if (!ok) {
+        loggerService.audit('ACCESS_DENIED', req.user.id, {
+          required: requiredPerms,
+          have: Array.from(permissions),
+          scope: typeof projectId === 'number' ? projectId : 'global'
+        });
+        return res.status(403).json({
+          error: 'Permissão negada',
+          required: requiredPerms,
+          scope: typeof projectId === 'number' ? projectId : 'global'
         });
       }
 
-      if (!rolePerms) {
-        const rp = await pool.query<{ permission: string }>(
-          'SELECT permission FROM role_permissions WHERE role = $1',
-          [role]
-        );
-        rolePerms = rp.rows.map((row) => row.permission);
-        try {
-          await redisClient.setex(roleKey, 300, JSON.stringify(rolePerms));
-        } catch (error) {
-          loggerService.warn('Não foi possível armazenar permissões de role no cache', {
-            role,
-            error: (error as Error).message
-          });
-        }
-      }
-      if (!userPerms) {
-        const up = await pool.query<{ permission: string }>(
-          'SELECT permission FROM user_permissions WHERE user_id = $1',
-          [req.user.id]
-        );
-        userPerms = up.rows.map((row) => row.permission);
-        try {
-          await redisClient.setex(userKey, 300, JSON.stringify(userPerms));
-        } catch (error) {
-          loggerService.warn('Não foi possível armazenar permissões de usuário no cache', {
-            userId: req.user.id,
-            error: (error as Error).message
-          });
-        }
-      }
-      const perms: string[] = [...new Set([...(rolePerms || []), ...(userPerms || [])])];
-      const ok = requiredPerms.every((p) => perms.includes(p));
-      if (!ok) {
-        loggerService.audit('ACCESS_DENIED', req.user.id, { role, required: requiredPerms, have: perms });
-        return res.status(403).json({ error: 'Permissão negada', required: requiredPerms });
-      }
+      req.user.permissions = Array.from(permissions);
       return next();
-    } catch (e) {
+    } catch (error) {
+      loggerService.error('Erro ao verificar permissões por projeto', error);
       return res.status(500).json({ error: 'Erro ao verificar permissões' });
     }
   };
