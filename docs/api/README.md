@@ -29,6 +29,17 @@ Todas as rotas (exceto /auth/login) requerem autenticação via Bearer Token JWT
 - `GET /users/:id/permissions` - Listar permissões
 - `PUT /users/:id/permissions` - Atualizar permissões
 
+### Mensagens
+
+- `GET /mensagens/conversas` - Listar histórico recente de mensagens diretas
+- `GET /mensagens/conversa/:usuarioId` - Recuperar conversa direta com um usuário
+- `GET /mensagens/threads` - Listar threads segmentadas por beneficiária/projeto ou gerais onde o usuário participa
+- `POST /mensagens/threads` - Criar thread contextual informando escopo (`DIRECT`, `BENEFICIARIA`, `PROJETO`) e participantes
+- `GET /mensagens/threads/:threadId` - Obter dados de uma thread, incluindo participantes e confidencialidade
+- `GET /mensagens/threads/:threadId/mensagens` - Listar mensagens da thread em ordem cronológica
+- `POST /mensagens/threads/:threadId/mensagens` - Enviar mensagem para a thread informando confidencialidade e menções
+- `POST /mensagens/enviar` - Enviar mensagem direta (`destinatario_id`) ou anexar a uma thread existente (`thread_id`), com suporte a `confidencialidade`, `beneficiaria_id`, `projeto_id` e `mentions`
+
 ### Beneficiárias
 
 - `GET /beneficiarias` - Listar beneficiárias
