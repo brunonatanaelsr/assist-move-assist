@@ -3,7 +3,22 @@ export interface Usuario {
     id: number;
     nome: string;
     email: string;
-    papel: 'superadmin' | 'admin' | 'coordenador' | 'profissional' | 'assistente' | 'usuario';
+    papel:
+      | 'superadmin'
+      | 'super_admin'
+      | 'admin'
+      | 'coordenacao'
+      | 'coordenador'
+      | 'tecnica_referencia'
+      | 'profissional'
+      | 'educadora_social'
+      | 'recepcao'
+      | 'assistente'
+      | 'voluntaria'
+      | 'financeiro_adm'
+      | 'leitura_externa'
+      | 'beneficiaria'
+      | 'usuario';
     telefone?: string;
     ultimo_login?: Date;
     ativo: boolean;
@@ -17,50 +32,76 @@ export interface Usuario {
 
 export interface Beneficiaria {
     id: number;
+    codigo: string;
     nome_completo: string;
     cpf: string;
-    rg?: string;
-    data_nascimento: Date;
-    estado_civil?: 'solteira' | 'casada' | 'divorciada' | 'viuva' | 'uniao_estavel' | 'separada';
-    email?: string;
+    rg?: string | null;
+    rg_orgao_emissor?: string | null;
+    rg_data_emissao?: string | null;
+    nis?: string | null;
+    data_nascimento: string;
     telefone: string;
-    telefone_emergencia?: string;
-    endereco: {
-        logradouro: string;
-        numero: string;
-        complemento?: string;
-        bairro: string;
-        cidade: string;
-        estado: string; // UF em maiúsculo
-        cep: string; // Somente números
-    };
-    status: 'ativa' | 'inativa' | 'arquivada';
-    observacoes?: string;
-    foto_url?: string;
-    data_cadastro: Date;
-    ultima_atualizacao: Date;
+    telefone_secundario?: string | null;
+    email?: string | null;
+    endereco?:
+        | string
+        | {
+              logradouro: string;
+              numero?: string;
+              complemento?: string;
+              bairro?: string;
+              cidade?: string;
+              estado?: string;
+              cep?: string;
+          }
+        | null;
+    bairro?: string | null;
+    cidade?: string | null;
+    estado?: string | null;
+    cep?: string | null;
+    referencia_endereco?: string | null;
+    escolaridade?: string | null;
+    estado_civil?: string | null;
+    num_dependentes?: number | null;
+    renda_familiar?: number | null;
+    situacao_moradia?: string | null;
+    observacoes_socioeconomicas?: string | null;
+    status: 'ativa' | 'inativa' | 'pendente' | 'desistente';
+    observacoes?: string | null;
+    created_at?: string;
+    updated_at?: string;
+    familiares?: Array<{
+        id?: number;
+        nome: string;
+        parentesco?: string | null;
+        data_nascimento?: string | null;
+        trabalha?: boolean | null;
+        renda_mensal?: number | null;
+        observacoes?: string | null;
+    }>;
+    vulnerabilidades?: string[];
     info_socioeconomica?: {
-        renda_familiar?: number;
-        quantidade_moradores?: number;
-        tipo_moradia?: string;
-        escolaridade?: string;
-        profissao?: string;
-        situacao_trabalho?: string;
-        beneficios_sociais?: string[];
-    };
+        renda_familiar?: number | null;
+        quantidade_moradores?: number | null;
+        tipo_moradia?: string | null;
+        escolaridade?: string | null;
+        profissao?: string | null;
+        situacao_trabalho?: string | null;
+        beneficios_sociais?: string[] | null;
+    } | null;
     dependentes?: Array<{
-        id: number;
+        id?: number;
         nome_completo: string;
-        data_nascimento: Date;
+        data_nascimento: string;
         parentesco: string;
         cpf?: string;
     }>;
     historico_atendimentos?: Array<{
         id: number;
-        data: Date;
+        data: string;
         tipo: string;
         descricao: string;
-        profissional_id: number;
+        profissional_id?: number;
     }>;
 }
 

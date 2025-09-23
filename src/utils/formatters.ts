@@ -55,30 +55,33 @@ export const calcularIdade = (dataNascimento: Date): number => {
 
 export const formatarEndereco = (endereco: Beneficiaria['endereco']): string => {
     if (!endereco) return '';
-    
+    if (typeof endereco === 'string') return endereco;
+
     const partes = [
         endereco.logradouro,
         endereco.numero,
         endereco.complemento,
         endereco.bairro,
-        `${endereco.cidade}/${endereco.estado}`,
-        formatarCEP(endereco.cep)
+        endereco.cidade && endereco.estado ? `${endereco.cidade}/${endereco.estado}` : endereco.cidade,
+        formatarCEP(endereco.cep || '')
     ].filter(Boolean);
-    
+
     return partes.join(', ');
 };
 
 export const statusBeneficiariaDisplay = (status: Beneficiaria['status']): string => {
-    const displays = {
+    const displays: Record<Beneficiaria['status'], string> = {
         ativa: 'Ativa',
         inativa: 'Inativa',
-        arquivada: 'Arquivada'
+        pendente: 'Pendente',
+        desistente: 'Desistente'
     };
-    return displays[status] || status;
+    return displays[status] ?? status;
 };
 
 export const estadoCivilDisplay = (estadoCivil: Beneficiaria['estado_civil']): string => {
-    const displays = {
+    if (!estadoCivil) return '';
+    const displays: Record<string, string> = {
         solteira: 'Solteira',
         casada: 'Casada',
         divorciada: 'Divorciada',
@@ -86,7 +89,7 @@ export const estadoCivilDisplay = (estadoCivil: Beneficiaria['estado_civil']): s
         uniao_estavel: 'União Estável',
         separada: 'Separada'
     };
-    return estadoCivil ? displays[estadoCivil] : '';
+    return displays[estadoCivil] ?? estadoCivil;
 };
 
 export const formatarBeneficiaria = (beneficiaria: Beneficiaria): Beneficiaria & {
@@ -100,6 +103,6 @@ export const formatarBeneficiaria = (beneficiaria: Beneficiaria): Beneficiaria &
         statusDisplay: statusBeneficiariaDisplay(beneficiaria.status),
         enderecoDisplay: formatarEndereco(beneficiaria.endereco),
         telefoneFormatado: formatarTelefone(beneficiaria.telefone),
-        idadeAnos: calcularIdade(beneficiaria.data_nascimento)
+        idadeAnos: calcularIdade(new Date(beneficiaria.data_nascimento))
     };
 };

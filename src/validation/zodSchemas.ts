@@ -11,15 +11,20 @@ export const beneficiariaSchema = z.object({
     .regex(/^\d{10,11}$/, 'Telefone deve ter 10 ou 11 dígitos')
     .optional(),
   email: z.string().email('Email inválido').optional().nullable(),
-  endereco: z.object({
-    cep: z.string().regex(/^\d{8}$/, 'CEP deve conter 8 dígitos'),
-    logradouro: z.string().min(3).max(100),
-    numero: z.string(),
-    complemento: z.string().optional(),
-    bairro: z.string(),
-    cidade: z.string(),
-    estado: z.string().length(2)
-  }).optional(),
+  endereco: z
+    .union([
+      z.string().min(3).max(255),
+      z.object({
+        cep: z.string().regex(/^\d{8}$/, 'CEP deve conter 8 dígitos'),
+        logradouro: z.string().min(3).max(100),
+        numero: z.string(),
+        complemento: z.string().optional(),
+        bairro: z.string(),
+        cidade: z.string(),
+        estado: z.string().length(2)
+      })
+    ])
+    .optional(),
   escolaridade: z.enum([
     'fundamental_incompleto',
     'fundamental_completo',
@@ -33,7 +38,6 @@ export const beneficiariaSchema = z.object({
     'ativa',
     'inativa',
     'pendente',
-    'desligada',
-    'arquivada'
+    'desistente'
   ]).default('pendente')
 });

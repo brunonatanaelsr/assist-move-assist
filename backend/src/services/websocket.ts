@@ -168,8 +168,10 @@ export class WebSocketService {
   }
 
   public broadcastToRole(role: string, message: any): void {
+    const expected = role.toLowerCase();
     this.clients.forEach((client, userId) => {
-      if (client.user?.role === role && client.readyState === WebSocket.OPEN) {
+      const clientRole = String(client.user?.role || '').toLowerCase();
+      if (clientRole === expected && client.readyState === WebSocket.OPEN) {
         client.send(JSON.stringify({
           ...message,
           timestamp: new Date().toISOString()
@@ -191,22 +193,26 @@ export class WebSocketService {
 
   // Métodos específicos do domínio
   public notifyNewBeneficiaria(beneficiaria: any, createdBy: string): void {
-    this.broadcastToRole('admin', {
-      type: 'new_beneficiaria',
-      data: {
-        beneficiaria,
-        createdBy
-      },
-      message: `Nova beneficiária cadastrada: ${beneficiaria.nome_completo}`
-    });
+    const rolesAlvo = [
+      'admin',
+      'coordenacao',
+      'tecnica_referencia',
+      'educadora_social',
+      'recepcao',
+      'voluntaria',
+      'financeiro_adm',
+      'leitura_externa'
+    ];
 
-    this.broadcastToRole('profissional', {
-      type: 'new_beneficiaria',
-      data: {
-        beneficiaria,
-        createdBy
-      },
-      message: `Nova beneficiária cadastrada: ${beneficiaria.nome_completo}`
+    rolesAlvo.forEach(role => {
+      this.broadcastToRole(role, {
+        type: 'new_beneficiaria',
+        data: {
+          beneficiaria,
+          createdBy
+        },
+        message: `Nova beneficiária cadastrada: ${beneficiaria.nome_completo}`
+      });
     });
   }
 

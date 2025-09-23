@@ -13,10 +13,13 @@ describe('OficinasService', () => {
       vagas_total: 20,
       status: 'ativa'
     };
-    vi.spyOn(OficinasService, 'listar').mockResolvedValue([oficina]);
+    vi.spyOn(OficinasService, 'listar').mockResolvedValue({
+      success: true,
+      data: [oficina],
+    } as any);
     const res = await OficinasService.listar();
-    expect(Array.isArray(res)).toBe(true);
-    expect(res[0].nome).toBe('Oficina Teste');
+    expect(res.success).toBe(true);
+    expect(res.data?.[0].nome).toBe('Oficina Teste');
   });
 
   it('criar deve retornar oficina criada', async () => {
