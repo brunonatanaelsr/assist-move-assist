@@ -149,7 +149,7 @@ router.post('/verificar-conflito', authenticateToken, authorize('oficinas.confli
 }));
 
 // Obter oficina específica
-router.get('/:id', authorize('oficinas.ler'), catchAsync(async (req, res): Promise<void> => {
+router.get('/:id', authorize('oficinas.ler', { scope: { type: 'oficina', param: 'id' } }), catchAsync(async (req, res): Promise<void> => {
   try {
     const id = parseInt(String(req.params.id));
     const oficina = await oficinaService.buscarOficina(id);
@@ -199,7 +199,7 @@ router.post('/', authorize('oficinas.criar'), catchAsync(async (req, res): Promi
 }));
 
 // Atualizar oficina
-router.put('/:id', authorize('oficinas.editar'), catchAsync(async (req, res): Promise<void> => {
+router.put('/:id', authorize('oficinas.editar', { scope: { type: 'oficina', param: 'id' } }), catchAsync(async (req, res): Promise<void> => {
   try {
     const id = parseInt(String(req.params.id));
     const user = (req as any).user;
@@ -250,7 +250,7 @@ router.put('/:id', authorize('oficinas.editar'), catchAsync(async (req, res): Pr
 }));
 
 // Excluir oficina (soft delete)
-router.delete('/:id', authorize('oficinas.excluir'), catchAsync(async (req, res): Promise<void> => {
+router.delete('/:id', authorize('oficinas.excluir', { scope: { type: 'oficina', param: 'id' } }), catchAsync(async (req, res): Promise<void> => {
   try {
     const id = parseInt(String(req.params.id));
     const user = (req as any).user;
@@ -281,7 +281,7 @@ router.delete('/:id', authorize('oficinas.excluir'), catchAsync(async (req, res)
 }));
 
 // Obter participantes de uma oficina
-router.get('/:id/participantes', authenticateToken, authorize('oficinas.participantes.ver'), catchAsync(async (req, res): Promise<void> => {
+router.get('/:id/participantes', authenticateToken, authorize('oficinas.participantes.ver', { scope: { type: 'oficina', param: 'id' } }), catchAsync(async (req, res): Promise<void> => {
   try {
     const id = parseInt(String(req.params.id));
     const participantes = await oficinaService.listarParticipantes(id);
@@ -302,7 +302,7 @@ router.get('/:id/participantes', authenticateToken, authorize('oficinas.particip
 }));
 
 // Adicionar participante à oficina (mapeia para participação no projeto da oficina)
-router.post('/:id/participantes', authenticateToken, requireGestor, authorize('oficinas.participantes.adicionar'), catchAsync(async (req, res): Promise<void> => {
+router.post('/:id/participantes', authenticateToken, requireGestor, authorize('oficinas.participantes.adicionar', { scope: { type: 'oficina', param: 'id' } }), catchAsync(async (req, res): Promise<void> => {
   try {
     const oficinaId = parseInt(String(req.params.id));
     const { beneficiaria_id, observacoes } = req.body || {};
@@ -343,7 +343,7 @@ router.post('/:id/participantes', authenticateToken, requireGestor, authorize('o
 }));
 
 // Remover participante da oficina (soft delete da participação no projeto)
-router.delete('/:id/participantes/:beneficiariaId', authenticateToken, requireGestor, authorize('oficinas.participantes.remover'), catchAsync(async (req, res): Promise<void> => {
+router.delete('/:id/participantes/:beneficiariaId', authenticateToken, requireGestor, authorize('oficinas.participantes.remover', { scope: { type: 'oficina', param: 'id' } }), catchAsync(async (req, res): Promise<void> => {
   try {
     const oficinaId = parseInt(String(req.params.id));
     const beneficiariaId = parseInt(String(req.params.beneficiariaId));
@@ -370,7 +370,7 @@ router.delete('/:id/participantes/:beneficiariaId', authenticateToken, requireGe
 }));
 
 // Registrar presença em uma oficina para uma beneficiária
-router.post('/:id/presencas', authenticateToken, authorize('oficinas.presencas.registrar'), catchAsync(async (req, res): Promise<void> => {
+router.post('/:id/presencas', authenticateToken, authorize('oficinas.presencas.registrar', { scope: { type: 'oficina', param: 'id' } }), catchAsync(async (req, res): Promise<void> => {
   try {
     const oficinaId = parseInt(String(req.params.id));
     const { beneficiaria_id, presente, observacoes, data } = req.body || {};
@@ -400,7 +400,7 @@ router.post('/:id/presencas', authenticateToken, authorize('oficinas.presencas.r
 }));
 
 // Listar presenças de uma oficina (opcionalmente filtrar por data YYYY-MM-DD)
-router.get('/:id/presencas', authenticateToken, authorize('oficinas.presencas.listar'), catchAsync(async (req, res): Promise<void> => {
+router.get('/:id/presencas', authenticateToken, authorize('oficinas.presencas.listar', { scope: { type: 'oficina', param: 'id' } }), catchAsync(async (req, res): Promise<void> => {
   try {
     const oficinaId = parseInt(String(req.params.id));
     const data = (req.query.data as string) || '';
@@ -464,7 +464,7 @@ router.get('/:id/resumo', authenticateToken, catchAsync(async (req, res): Promis
 
 
 // Relatório de presenças (PDF/Excel)
-router.get('/:id/relatorio-presencas', authenticateToken, authorize('oficinas.relatorio.exportar'), catchAsync(async (req, res): Promise<void> => {
+router.get('/:id/relatorio-presencas', authenticateToken, authorize('oficinas.relatorio.exportar', { scope: { type: 'oficina', param: 'id' } }), catchAsync(async (req, res): Promise<void> => {
   try {
     const id = parseInt(String(req.params.id));
     const formato = String(req.query.formato || 'pdf').toLowerCase();

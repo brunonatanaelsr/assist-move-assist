@@ -25,7 +25,7 @@ router.get('/', authorize('projetos.ler'), catchAsync(async (req, res): Promise<
   }
 }));
 
-router.get('/:id', authorize('projetos.ler'), catchAsync(async (req, res): Promise<void> => {
+router.get('/:id', authorize('projetos.ler', { scope: { type: 'project', param: 'id' } }), catchAsync(async (req, res): Promise<void> => {
   try {
     const projeto = await projetoService.buscarProjeto(Number(req.params.id));
     res.json(successResponse(projeto, 'Projeto carregado com sucesso'));
@@ -51,7 +51,7 @@ router.post('/', authorize('projetos.criar'), catchAsync(async (req, res): Promi
   }
 }));
 
-router.put('/:id', authorize('projetos.editar'), catchAsync(async (req, res): Promise<void> => {
+router.put('/:id', authorize('projetos.editar', { scope: { type: 'project', param: 'id' } }), catchAsync(async (req, res): Promise<void> => {
   try {
     const data = updateProjetoSchema.parse(req.body);
     const projeto = await projetoService.atualizarProjeto(Number(req.params.id), data);
@@ -65,7 +65,7 @@ router.put('/:id', authorize('projetos.editar'), catchAsync(async (req, res): Pr
   }
 }));
 
-router.delete('/:id', authorize('projetos.excluir'), catchAsync(async (req, res): Promise<void> => {
+router.delete('/:id', authorize('projetos.excluir', { scope: { type: 'project', param: 'id' } }), catchAsync(async (req, res): Promise<void> => {
   try {
     await projetoService.excluirProjeto(Number(req.params.id));
     res.json(successResponse(null, 'Projeto removido com sucesso'));

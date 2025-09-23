@@ -7,6 +7,18 @@ import bcrypt from 'bcryptjs';
 
 const router = Router();
 
+const invalidateUserPermissionCache = async (userId: number) => {
+  try {
+    const keys = await (redis as any).keys(`perms:user:${userId}:*`);
+    if (keys && keys.length) {
+      await (redis as any).del(...keys);
+    }
+  } catch {}
+  try {
+    await redis.del(`perms:user:${userId}`);
+  } catch {}
+};
+
 // Usuários
 router.get('/usuarios', authenticateToken, authorize('users.manage'), async (_req, res) => {
   try {
@@ -83,7 +95,7 @@ router.put('/usuarios/:id', authenticateToken, authorize('users.manage'), async 
     );
     if (r.rowCount === 0) { res.status(404).json(errorResponse('Usuário não encontrado')); return; }
     // Invalida cache de permissões do usuário
-    try { await redis.del(`perms:user:${id}`); } catch {}
+    await invalidateUserPermissionCache(Number(id));
     // Se papel mudou, invalida cache do papel novo e antigo
     const newRole = r.rows[0].papel;
     if (newRole && newRole !== oldRole) {
@@ -202,15 +214,50 @@ router.put('/roles/:role/permissions', authenticateToken, authorize('roles.manag
   }
 });
 
-export default router;
-
 // ---- Permissões por usuário ----
 router.get('/usuarios/:id/permissions', authenticateToken, authorize('users.manage'), async (req, res) => {
   const authReq = req as AuthenticatedRequest;
   try {
     const { id } = authReq.params as any;
-    const r = await pool.query('SELECT permission FROM user_permissions WHERE user_id = $1', [id]);
-    res.json(successResponse(r.rows.map((x:any)=>x.permission)));
+    const scopeType = String((authReq.query as any).scopeType || (authReq.query as any).scope_type || '').trim();
+    const scopeIdRaw = (authReq.query as any).scopeId ?? (authReq.query as any).scope_id;
+
+    const params: Array<string | number> = [id];
+    let sql = 'SELECT permission, projeto_id, oficina_id FROM user_permissions WHERE user_id = $1';
+
+    if (scopeType) {
+      if (!scopeIdRaw && scopeIdRaw !== 0) {
+        res.status(400).json(errorResponse('scopeId é obrigatório quando scopeType é informado'));
+        return;
+      }
+      const scopeId = Number(scopeIdRaw);
+      if (!Number.isFinite(scopeId)) {
+        res.status(400).json(errorResponse('scopeId inválido'));
+        return;
+      }
+
+      if (scopeType === 'project' || scopeType === 'projeto') {
+        sql += ' AND projeto_id = $2';
+        params.push(scopeId);
+      } else if (scopeType === 'oficina') {
+        sql += ' AND oficina_id = $2';
+        params.push(scopeId);
+      } else {
+        res.status(400).json(errorResponse('scopeType inválido'));
+        return;
+      }
+    }
+
+    const r = await pool.query(sql, params);
+    res.json(
+      successResponse(
+        r.rows.map((row: any) => ({
+          permission: row.permission,
+          projeto_id: row.projeto_id,
+          oficina_id: row.oficina_id
+        }))
+      )
+    );
     return;
   } catch {
     res.status(500).json(errorResponse('Erro ao obter permissões do usuário'));
@@ -222,17 +269,229 @@ router.put('/usuarios/:id/permissions', authenticateToken, authorize('users.mana
   const authReq = req as AuthenticatedRequest;
   try {
     const { id } = authReq.params as any;
-    const { permissions } = (authReq.body ?? {}) as Record<string, any>;
-    if (!Array.isArray(permissions)) { res.status(400).json(errorResponse('permissions deve ser array')); return; }
-  await pool.query('DELETE FROM user_permissions WHERE user_id = $1', [id]);
-  for (const p of permissions) {
-    await pool.query('INSERT INTO user_permissions (user_id, permission) VALUES ($1,$2) ON CONFLICT DO NOTHING', [id, p]);
-  }
-  try { await redis.del(`perms:user:${id}`); } catch {}
-  res.json(successResponse({ id, permissions }));
+    const { permissions, scopeType, scopeId } = (authReq.body ?? {}) as Record<string, any>;
+    if (!Array.isArray(permissions)) {
+      res.status(400).json(errorResponse('permissions deve ser array'));
+      return;
+    }
+
+    let normalizedScope: 'project' | 'oficina' | null = null;
+    let scopeValue: number | null = null;
+
+    if (scopeType) {
+      const type = String(scopeType).toLowerCase();
+      if (type === 'project' || type === 'projeto') {
+        normalizedScope = 'project';
+      } else if (type === 'oficina') {
+        normalizedScope = 'oficina';
+      } else {
+        res.status(400).json(errorResponse('scopeType inválido'));
+        return;
+      }
+
+      if (scopeId === undefined || scopeId === null) {
+        res.status(400).json(errorResponse('scopeId é obrigatório quando scopeType é informado'));
+        return;
+      }
+
+      scopeValue = Number(scopeId);
+      if (!Number.isFinite(scopeValue)) {
+        res.status(400).json(errorResponse('scopeId inválido'));
+        return;
+      }
+    }
+
+    if (normalizedScope === null) {
+      await pool.query('DELETE FROM user_permissions WHERE user_id = $1 AND projeto_id IS NULL AND oficina_id IS NULL', [id]);
+      for (const permission of permissions) {
+        await pool.query(
+          `INSERT INTO user_permissions (user_id, permission, projeto_id, oficina_id, created_at, updated_at)
+           VALUES ($1,$2,NULL,NULL,NOW(),NOW())
+           ON CONFLICT DO NOTHING`,
+          [id, permission]
+        );
+      }
+    } else if (normalizedScope === 'project' && scopeValue !== null) {
+      await pool.query('DELETE FROM user_permissions WHERE user_id = $1 AND projeto_id = $2', [id, scopeValue]);
+      for (const permission of permissions) {
+        await pool.query(
+          `INSERT INTO user_permissions (user_id, permission, projeto_id, oficina_id, created_at, updated_at)
+           VALUES ($1,$2,$3,NULL,NOW(),NOW())
+           ON CONFLICT DO NOTHING`,
+          [id, permission, scopeValue]
+        );
+      }
+    } else if (normalizedScope === 'oficina' && scopeValue !== null) {
+      await pool.query('DELETE FROM user_permissions WHERE user_id = $1 AND oficina_id = $2', [id, scopeValue]);
+      for (const permission of permissions) {
+        await pool.query(
+          `INSERT INTO user_permissions (user_id, permission, projeto_id, oficina_id, created_at, updated_at)
+           VALUES ($1,$2,NULL,$3,NOW(),NOW())
+           ON CONFLICT DO NOTHING`,
+          [id, permission, scopeValue]
+        );
+      }
+    }
+
+    await invalidateUserPermissionCache(Number(id));
+
+    res.json(
+      successResponse({
+        id,
+        permissions,
+        scopeType: normalizedScope,
+        scopeId: scopeValue
+      })
+    );
     return;
   } catch {
     res.status(500).json(errorResponse('Erro ao atualizar permissões do usuário'));
     return;
   }
 });
+
+// ---- Papéis com escopo ----
+router.get('/usuarios/:id/roles', authenticateToken, authorize('users.manage'), async (req, res) => {
+  const authReq = req as AuthenticatedRequest;
+  try {
+    const { id } = authReq.params as any;
+    const scopeType = String((authReq.query as any).scopeType || (authReq.query as any).scope_type || '').trim();
+    const scopeIdRaw = (authReq.query as any).scopeId ?? (authReq.query as any).scope_id;
+
+    const params: Array<string | number> = [id];
+    let sql = 'SELECT id, role, projeto_id, oficina_id, created_at, updated_at FROM user_role_scopes WHERE user_id = $1';
+
+    if (scopeType) {
+      if (!scopeIdRaw && scopeIdRaw !== 0) {
+        res.status(400).json(errorResponse('scopeId é obrigatório quando scopeType é informado'));
+        return;
+      }
+      const scopeId = Number(scopeIdRaw);
+      if (!Number.isFinite(scopeId)) {
+        res.status(400).json(errorResponse('scopeId inválido'));
+        return;
+      }
+
+      if (scopeType === 'project' || scopeType === 'projeto') {
+        sql += ' AND projeto_id = $2';
+        params.push(scopeId);
+      } else if (scopeType === 'oficina') {
+        sql += ' AND oficina_id = $2';
+        params.push(scopeId);
+      } else {
+        res.status(400).json(errorResponse('scopeType inválido'));
+        return;
+      }
+    }
+
+    const result = await pool.query(sql, params);
+    res.json(successResponse(result.rows));
+    return;
+  } catch (error) {
+    res.status(500).json(errorResponse('Erro ao obter papéis escopados do usuário'));
+    return;
+  }
+});
+
+router.post('/usuarios/:id/roles', authenticateToken, authorize('users.manage'), async (req, res) => {
+  const authReq = req as AuthenticatedRequest;
+  try {
+    const { id } = authReq.params as any;
+    const { role, scopeType, scopeId } = (authReq.body ?? {}) as Record<string, any>;
+
+    if (!role) {
+      res.status(400).json(errorResponse('role é obrigatório'));
+      return;
+    }
+
+    if (!scopeType || scopeId === undefined || scopeId === null) {
+      res.status(400).json(errorResponse('scopeType e scopeId são obrigatórios'));
+      return;
+    }
+
+    const type = String(scopeType).toLowerCase();
+    const scopeValue = Number(scopeId);
+    if (!Number.isFinite(scopeValue)) {
+      res.status(400).json(errorResponse('scopeId inválido'));
+      return;
+    }
+
+    let insertSql = '';
+    const params: Array<string | number> = [id, role];
+
+    if (type === 'project' || type === 'projeto') {
+      insertSql =
+        `INSERT INTO user_role_scopes (user_id, role, projeto_id, oficina_id, created_at, updated_at)
+         VALUES ($1,$2,$3,NULL,NOW(),NOW())
+         ON CONFLICT DO NOTHING
+         RETURNING id, role, projeto_id, oficina_id, created_at, updated_at`;
+      params.push(scopeValue);
+    } else if (type === 'oficina') {
+      insertSql =
+        `INSERT INTO user_role_scopes (user_id, role, projeto_id, oficina_id, created_at, updated_at)
+         VALUES ($1,$2,NULL,$3,NOW(),NOW())
+         ON CONFLICT DO NOTHING
+         RETURNING id, role, projeto_id, oficina_id, created_at, updated_at`;
+      params.push(scopeValue);
+    } else {
+      res.status(400).json(errorResponse('scopeType inválido'));
+      return;
+    }
+
+    const result = await pool.query(insertSql, params);
+    await invalidateUserPermissionCache(Number(id));
+
+    res.status(result.rowCount ? 201 : 200).json(successResponse(result.rows[0] ?? null));
+    return;
+  } catch (error) {
+    res.status(500).json(errorResponse('Erro ao vincular papel escopado'));
+    return;
+  }
+});
+
+router.delete('/usuarios/:id/roles', authenticateToken, authorize('users.manage'), async (req, res) => {
+  const authReq = req as AuthenticatedRequest;
+  try {
+    const { id } = authReq.params as any;
+    const { role, scopeType, scopeId } = (authReq.body ?? {}) as Record<string, any>;
+
+    if (!role) {
+      res.status(400).json(errorResponse('role é obrigatório'));
+      return;
+    }
+
+    const type = String(scopeType || '').toLowerCase();
+    const scopeValue = scopeId !== undefined && scopeId !== null ? Number(scopeId) : NaN;
+
+    if (!type || !Number.isFinite(scopeValue)) {
+      res.status(400).json(errorResponse('scopeType e scopeId são obrigatórios para remoção'));
+      return;
+    }
+
+    let deleteSql = '';
+    const params: Array<string | number> = [id, role];
+
+    if (type === 'project' || type === 'projeto') {
+      deleteSql = 'DELETE FROM user_role_scopes WHERE user_id = $1 AND role = $2 AND projeto_id = $3 RETURNING id';
+      params.push(scopeValue);
+    } else if (type === 'oficina') {
+      deleteSql = 'DELETE FROM user_role_scopes WHERE user_id = $1 AND role = $2 AND oficina_id = $3 RETURNING id';
+      params.push(scopeValue);
+    } else {
+      res.status(400).json(errorResponse('scopeType inválido'));
+      return;
+    }
+
+    const result = await pool.query(deleteSql, params);
+    await invalidateUserPermissionCache(Number(id));
+
+    const removed = (result.rowCount ?? 0) > 0;
+    res.json(successResponse({ removed }));
+    return;
+  } catch (error) {
+    res.status(500).json(errorResponse('Erro ao remover papel escopado'));
+    return;
+  }
+});
+
+export default router;

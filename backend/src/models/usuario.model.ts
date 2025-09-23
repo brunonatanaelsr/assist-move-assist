@@ -1,8 +1,10 @@
+import type { UserRole } from '../types/auth';
+
 export interface Usuario {
     id: number;
     email: string;
     nome: string;
-    perfil: 'admin' | 'coordenador' | 'atendente' | 'usuario';
+    perfil: UserRole;
     senha_hash: string;
     avatar_url?: string;
     cpf?: string;

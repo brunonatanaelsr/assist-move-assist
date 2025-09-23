@@ -164,9 +164,10 @@ export const requireRole = (roles: string | string[]) => {
       return res.status(401).json({ error: 'Usuário não autenticado' });
     }
 
-    const allowedRoles = Array.isArray(roles) ? roles : [roles];
+    const allowedRoles = (Array.isArray(roles) ? roles : [roles]).map((role) => role.toLowerCase());
+    const currentRole = (req.user.role || '').toLowerCase();
 
-    if (!allowedRoles.includes(req.user.role)) {
+    if (!allowedRoles.includes(currentRole)) {
       loggerService.audit('ACCESS_DENIED', req.user.id, {
         required_roles: allowedRoles,
         user_role: req.user.role
@@ -179,85 +180,226 @@ export const requireRole = (roles: string | string[]) => {
 };
 
 // Middleware para profissionais
-export const requireProfissional = requireRole(['admin', 'profissional', 'superadmin', 'super_admin']);
+export const requireProfissional = requireRole([
+  'admin',
+  'profissional',
+  'tecnica_referencia',
+  'educadora_social',
+  'superadmin',
+  'super_admin'
+]);
 
 // Middleware para administradores
 export const requireAdmin = requireRole('admin');
 
 // Middleware para gestores
-export const requireGestor = requireRole('gestor');
+export const requireGestor = requireRole([
+  'gestor',
+  'coordenacao',
+  'tecnica_referencia',
+  'admin',
+  'superadmin',
+  'super_admin'
+]);
 
-// RBAC baseado em role_permissions (DB)
-export const authorize = (required: string | string[]) => {
+type ScopeType = 'project' | 'oficina';
+
+interface ScopeOptions {
+  type: ScopeType;
+  param?: string;
+  extractor?: (req: Request) => string | number | null | undefined;
+  optional?: boolean;
+}
+
+interface AuthorizeOptions {
+  scope?: ScopeOptions;
+}
+
+const getScopeIdentifier = (req: Request, scope?: ScopeOptions): { type: ScopeType; id: number } | null => {
+  if (!scope) {
+    return null;
+  }
+
+  let raw: string | number | null | undefined;
+  if (scope.extractor) {
+    raw = scope.extractor(req);
+  } else if (scope.param) {
+    const paramName = scope.param;
+    const readValue = (source?: Record<string, unknown>) => {
+      if (!source) {
+        return undefined;
+      }
+      return source[paramName] as string | number | null | undefined;
+    };
+    raw =
+      readValue(req.params as Record<string, unknown>) ??
+      readValue(req.body as Record<string, unknown> | undefined) ??
+      readValue(req.query as Record<string, unknown>);
+  }
+
+  if (raw === undefined || raw === null || raw === '') {
+    if (scope.optional) {
+      return null;
+    }
+    throw Object.assign(new Error('Escopo obrigatório não informado'), { status: 400 });
+  }
+
+  const id = Number(raw);
+  if (!Number.isFinite(id) || Number.isNaN(id)) {
+    throw Object.assign(new Error('Identificador de escopo inválido'), { status: 400 });
+  }
+
+  return { type: scope.type, id };
+};
+
+const loadRolePermissions = async (role: string): Promise<string[]> => {
+  const normalized = role.toLowerCase();
+  const cacheKey = `perms:role:${normalized}`;
+  try {
+    const cached = await redisClient.get(cacheKey);
+    if (cached) {
+      return JSON.parse(cached) as string[];
+    }
+  } catch (error) {
+    loggerService.warn('Falha ao buscar permissões de role em cache', {
+      role: normalized,
+      error: (error as Error).message
+    });
+  }
+
+  const result = await pool.query<{ permission: string }>(
+    'SELECT permission FROM role_permissions WHERE role = $1',
+    [normalized]
+  );
+  const permissions = result.rows.map((row) => row.permission);
+
+  try {
+    await redisClient.setex(cacheKey, 300, JSON.stringify(permissions));
+  } catch (error) {
+    loggerService.warn('Não foi possível armazenar permissões de role no cache', {
+      role: normalized,
+      error: (error as Error).message
+    });
+  }
+
+  return permissions;
+};
+
+const loadUserPermissions = async (
+  userId: number,
+  scope?: { type: ScopeType; id: number }
+): Promise<string[]> => {
+  const cacheKey = scope
+    ? `perms:user:${userId}:${scope.type}:${scope.id}`
+    : `perms:user:${userId}:global`;
+
+  try {
+    const cached = await redisClient.get(cacheKey);
+    if (cached) {
+      return JSON.parse(cached) as string[];
+    }
+  } catch (error) {
+    loggerService.warn('Falha ao buscar permissões de usuário em cache', {
+      userId,
+      scope,
+      error: (error as Error).message
+    });
+  }
+
+  let queryText = 'SELECT permission FROM user_permissions WHERE user_id = $1 AND projeto_id IS NULL AND oficina_id IS NULL';
+  const params: Array<string | number> = [userId];
+
+  if (scope) {
+    if (scope.type === 'project') {
+      queryText = 'SELECT permission FROM user_permissions WHERE user_id = $1 AND projeto_id = $2';
+    } else {
+      queryText = 'SELECT permission FROM user_permissions WHERE user_id = $1 AND oficina_id = $2';
+    }
+    params.push(scope.id);
+  }
+
+  const result = await pool.query<{ permission: string }>(queryText, params);
+  const permissions = result.rows.map((row) => row.permission);
+
+  try {
+    await redisClient.setex(cacheKey, 300, JSON.stringify(permissions));
+  } catch (error) {
+    loggerService.warn('Não foi possível armazenar permissões de usuário no cache', {
+      userId,
+      scope,
+      error: (error as Error).message
+    });
+  }
+
+  return permissions;
+};
+
+// RBAC baseado em role_permissions (DB) com suporte a escopos
+export const authorize = (required: string | string[], options?: AuthorizeOptions) => {
   const requiredPerms = Array.isArray(required) ? required : [required];
+
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.user) {
         return res.status(401).json({ error: 'Usuário não autenticado' });
       }
-      const role = (req.user.role || '').toLowerCase();
-      if (!role) return res.status(403).json({ error: 'Sem papel associado' });
-      // Superadmin tem acesso total
-      if (role === 'superadmin' || role === 'super_admin') return next();
 
-      // Cache keys
-      const roleKey = `perms:role:${role}`;
-      const userKey = `perms:user:${req.user.id}`;
-      let rolePerms: string[] | null = null;
-      let userPerms: string[] | null = null;
+      const baseRole = (req.user.role || '').toLowerCase();
+      if (!baseRole) {
+        return res.status(403).json({ error: 'Sem papel associado' });
+      }
+
+      if (baseRole === 'superadmin' || baseRole === 'super_admin') {
+        return next();
+      }
+
+      let scopeInfo: { type: ScopeType; id: number } | null = null;
       try {
-        const [rjson, ujson] = await Promise.all([
-          redisClient.get(roleKey),
-          redisClient.get(userKey)
-        ]);
-        rolePerms = rjson ? (JSON.parse(rjson) as string[]) : null;
-        userPerms = ujson ? (JSON.parse(ujson) as string[]) : null;
+        scopeInfo = getScopeIdentifier(req, options?.scope);
       } catch (error) {
-        loggerService.warn('Falha ao recuperar permissões em cache', {
-          role,
-          userId: req.user.id,
-          error: (error as Error).message
-        });
+        const err = error as Error & { status?: number };
+        const status = err.status ?? 400;
+        return res.status(status).json({ error: err.message });
       }
 
-      if (!rolePerms) {
-        const rp = await pool.query<{ permission: string }>(
-          'SELECT permission FROM role_permissions WHERE role = $1',
-          [role]
-        );
-        rolePerms = rp.rows.map((row) => row.permission);
-        try {
-          await redisClient.setex(roleKey, 300, JSON.stringify(rolePerms));
-        } catch (error) {
-          loggerService.warn('Não foi possível armazenar permissões de role no cache', {
-            role,
-            error: (error as Error).message
-          });
-        }
+      const roles = new Set<string>([baseRole]);
+      if (scopeInfo) {
+        const scopeQuery =
+          scopeInfo.type === 'project'
+            ? 'SELECT role FROM user_role_scopes WHERE user_id = $1 AND projeto_id = $2'
+            : 'SELECT role FROM user_role_scopes WHERE user_id = $1 AND oficina_id = $2';
+        const scopedRoles = await pool.query<{ role: string }>(scopeQuery, [req.user.id, scopeInfo.id]);
+        scopedRoles.rows.forEach((row) => roles.add((row.role || '').toLowerCase()));
       }
-      if (!userPerms) {
-        const up = await pool.query<{ permission: string }>(
-          'SELECT permission FROM user_permissions WHERE user_id = $1',
-          [req.user.id]
-        );
-        userPerms = up.rows.map((row) => row.permission);
-        try {
-          await redisClient.setex(userKey, 300, JSON.stringify(userPerms));
-        } catch (error) {
-          loggerService.warn('Não foi possível armazenar permissões de usuário no cache', {
-            userId: req.user.id,
-            error: (error as Error).message
-          });
-        }
+
+      const permissions = new Set<string>();
+
+      const roleList = Array.from(roles).filter(Boolean);
+      const rolePermissions = await Promise.all(roleList.map((role) => loadRolePermissions(role)));
+      rolePermissions.forEach((rolePerm) => rolePerm.forEach((perm) => permissions.add(perm)));
+
+      const globalUserPerms = await loadUserPermissions(req.user.id);
+      globalUserPerms.forEach((perm) => permissions.add(perm));
+
+      if (scopeInfo) {
+        const scopedUserPerms = await loadUserPermissions(req.user.id, scopeInfo);
+        scopedUserPerms.forEach((perm) => permissions.add(perm));
       }
-      const perms: string[] = [...new Set([...(rolePerms || []), ...(userPerms || [])])];
-      const ok = requiredPerms.every((p) => perms.includes(p));
-      if (!ok) {
-        loggerService.audit('ACCESS_DENIED', req.user.id, { role, required: requiredPerms, have: perms });
+
+      const hasAll = requiredPerms.every((permission) => permissions.has(permission));
+      if (!hasAll) {
+        loggerService.audit('ACCESS_DENIED', req.user.id, {
+          role: baseRole,
+          required: requiredPerms,
+          have: Array.from(permissions),
+          scope: scopeInfo ?? undefined
+        });
         return res.status(403).json({ error: 'Permissão negada', required: requiredPerms });
       }
+
       return next();
-    } catch (e) {
+    } catch (error) {
+      loggerService.error('Erro ao verificar permissões', error);
       return res.status(500).json({ error: 'Erro ao verificar permissões' });
     }
   };

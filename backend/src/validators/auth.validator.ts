@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { USER_ROLES } from '../types/auth';
 
 // Schema para login
 export const loginSchema = z.object({
@@ -34,7 +35,7 @@ export const userSchema = z.object({
   id: z.string(),
   nome: z.string().min(3, 'Nome deve ter pelo menos 3 caracteres'),
   email: z.string().email('Email inválido'),
-  papel: z.enum(['user', 'gestor', 'admin', 'super_admin']),
+  papel: z.enum(USER_ROLES),
   telefone: z.string().nullable().optional(),
   ativo: z.boolean().default(true),
   senha_hash: z.string(),

@@ -8,7 +8,8 @@ import type {
   AuthenticatedSessionUser,
   AuthResponse,
   JWTPayload,
-  RegisterRequest
+  RegisterRequest,
+  UserRole
 } from '../types/auth';
 
 interface DatabaseUser {
@@ -16,7 +17,7 @@ interface DatabaseUser {
   email: string;
   senha_hash: string;
   nome: string;
-  papel: 'user' | 'gestor' | 'admin' | 'super_admin' | 'superadmin';
+  papel: UserRole | string;
   ativo: boolean;
   avatar_url?: string | null;
   ultimo_login: Date | null;

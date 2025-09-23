@@ -208,10 +208,12 @@ router.post(
       const { familiares, vulnerabilidades, ...beneficiariaPayload } = parsed;
 
       // Validar CPF único
-      const existingBeneficiaria = await beneficiariasRepository.findByCPF(beneficiariaPayload.cpf);
-
-      if (existingBeneficiaria) {
-        throw new AppError('CPF já cadastrado', 400);
+      const cpfPayload = beneficiariaPayload.cpf;
+      if (cpfPayload) {
+        const existingBeneficiaria = await beneficiariasRepository.findByCPF(cpfPayload);
+        if (existingBeneficiaria) {
+          throw new AppError('CPF já cadastrado', 400);
+        }
       }
 
       const beneficiariaData = Object.fromEntries(
@@ -247,7 +249,7 @@ router.post(
         res.status(400).json({
           success: false,
           message: 'Dados inválidos',
-          errors: error.errors
+          errors: error.issues
         });
         return;
       }
@@ -333,7 +335,7 @@ router.put(
         res.status(400).json({
           success: false,
           message: 'Dados inválidos',
-          errors: error.errors
+          errors: error.issues
         });
         return;
       }

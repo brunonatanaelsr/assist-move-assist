@@ -3,6 +3,7 @@ import { Pool, PoolConfig } from 'pg';
 import path from 'path';
 import fs from 'fs';
 import { factory } from 'factory-girl';
+import { USER_ROLES } from '../../types/auth';
 
 let sequence = 1;
 
@@ -134,7 +135,7 @@ factory.define('user', Object, {
   nome: () => uniqueString('Usuário Teste'),
   email: () => uniqueEmail(),
   senha: () => uniqueString('senha'),
-  role: () => sample(['admin', 'coordenador', 'tecnico'] as const),
+  role: () => sample(USER_ROLES),
   created_at: () => new Date()
 });
 

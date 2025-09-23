@@ -1,6 +1,27 @@
 import type { PERMISSIONS } from './permissions';
 
-export type UserRole = 'admin' | 'coordenador' | 'profissional' | 'assistente';
+export const USER_ROLES = [
+  'user',
+  'usuario',
+  'admin',
+  'super_admin',
+  'superadmin',
+  'gestor',
+  'operador',
+  'coordenador',
+  'coordenacao',
+  'profissional',
+  'assistente',
+  'tecnica_referencia',
+  'educadora_social',
+  'recepcao',
+  'voluntaria',
+  'financeiro_adm',
+  'leitura_externa',
+  'beneficiaria'
+] as const;
+
+export type UserRole = (typeof USER_ROLES)[number];
 
 export interface User {
   id: number;
