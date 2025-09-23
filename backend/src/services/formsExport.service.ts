@@ -151,16 +151,60 @@ export const renderTermosPdf = (form: any): Promise<Buffer> => {
     doc.on('end', () => resolve(Buffer.concat(chunks)));
 
     const d = form?.dados || {};
+    const tipo = form?.tipo || d.tipo_termo || d.tipo || 'Termo de Consentimento';
+    const versaoTexto = form?.versao_texto || d.versao_texto || d.versao || null;
+    const decisaoRaw = form?.decisao || (d.aceito || d.aceite ? 'granted' : null);
+    const decisao = decisaoRaw === 'granted' ? 'Concedido' : decisaoRaw === 'denied' ? 'Negado' : 'Não informado';
+    const baseLegal = form?.base_legal || d.base_legal || null;
+    let evidencia: Record<string, any> = {};
+    if (typeof form?.evidencia === 'string') {
+      try {
+        const parsed = JSON.parse(form.evidencia);
+        if (parsed && typeof parsed === 'object') {
+          evidencia = parsed;
+        }
+      } catch (err) {
+        evidencia = {};
+      }
+    } else if (form?.evidencia && typeof form.evidencia === 'object') {
+      evidencia = form.evidencia;
+    }
+
     doc.fontSize(18).text('Termo de Consentimento', { underline: true });
     doc.moveDown();
     kv(doc, 'Beneficiária', form?.beneficiaria_id);
     kv(doc, 'Data', form?.created_at);
+    kv(doc, 'Tipo', tipo);
+    if (versaoTexto) {
+      kv(doc, 'Versão do Texto', versaoTexto);
+    }
+    if (baseLegal) {
+      kv(doc, 'Base Legal', baseLegal);
+    }
+    kv(doc, 'Decisão', decisao);
     doc.moveDown();
     doc.fontSize(12).text('Conteúdo do Termo', { underline: true });
     doc.moveDown(0.5);
     doc.font('Helvetica').fontSize(10).text(d.texto || d.conteudo || '-', { width: 500 });
     doc.moveDown();
     kv(doc, 'Ciente/Aceite', d.aceite || d.assinado || d.concorda);
+    if (Object.keys(evidencia).length > 0) {
+      doc.moveDown();
+      doc.fontSize(12).text('Evidências do Consentimento', { underline: true });
+      doc.moveDown(0.5);
+      if (evidencia.registrado_em) {
+        kv(doc, 'Registrado em', evidencia.registrado_em);
+      }
+      if (evidencia.ip) {
+        kv(doc, 'Endereço IP', evidencia.ip);
+      }
+      if (evidencia.user_agent) {
+        kv(doc, 'User Agent', evidencia.user_agent);
+      }
+      if (evidencia.assinatura) {
+        kv(doc, 'Assinatura', evidencia.assinatura);
+      }
+    }
     doc.end();
   });
 };

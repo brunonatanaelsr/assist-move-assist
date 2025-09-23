@@ -13,6 +13,13 @@ import { ArrowLeft, Shield, FileText, CheckCircle, Download, Loader2 } from 'luc
 import { formatDate } from '@/lib/dayjs';
 import { apiService } from '@/services/apiService';
 
+interface TermoEvidencia {
+  registrado_em?: string;
+  ip?: string;
+  user_agent?: string;
+  assinatura?: string;
+}
+
 interface TermoConsentimento {
   beneficiaria_id: number;
   tipo_termo: 'lgpd' | 'tratamento_dados' | 'uso_imagem' | 'participacao_pesquisa' | 'atendimento_psicossocial';
@@ -28,6 +35,9 @@ interface TermoConsentimento {
   finalidades_especificas: string;
   direitos_conhecidos: string[];
   revogacao_informada: boolean;
+  versao_texto?: string;
+  base_legal?: string;
+  assinatura?: string;
 }
 
 interface TermoConsentimentoRegistro extends Partial<TermoConsentimento> {
@@ -37,12 +47,16 @@ interface TermoConsentimentoRegistro extends Partial<TermoConsentimento> {
   revogado_por?: number | null;
   revogacao_motivo?: string | null;
   ativo: boolean;
+  decisao?: 'granted' | 'denied';
+  evidencia?: TermoEvidencia | null;
 }
 
 export default function TermosConsentimento() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const beneficiariaId = parseInt(id || '0', 10);
+  const TERMO_VERSAO_PADRAO = '1.0';
+  const TERMO_BASE_LEGAL_PADRAO = 'consentimento do titular';
   const [loading, setLoading] = useState(false);
   const [beneficiaria, setBeneficiaria] = useState<any>(null);
   const [activeSection, setActiveSection] = useState<'novo' | 'historico'>('novo');
@@ -58,7 +72,10 @@ export default function TermosConsentimento() {
     revogacao_informada: false,
     direitos_conhecidos: [],
     responsavel_aplicacao: 'Usuário Logado',
-    local_aplicacao: 'Sede do Projeto Move Marias'
+    local_aplicacao: 'Sede do Projeto Move Marias',
+    versao_texto: TERMO_VERSAO_PADRAO,
+    base_legal: TERMO_BASE_LEGAL_PADRAO,
+    assinatura: ''
   });
 
   const [termosExistentes, setTermosExistentes] = useState<TermoConsentimentoRegistro[]>([]);
@@ -155,10 +172,17 @@ export default function TermosConsentimento() {
 
     try {
       setLoading(true);
-      const response = await apiService.post('/formularios/termos-consentimento', {
+      const versaoTexto = (termoData.versao_texto || '').trim() || TERMO_VERSAO_PADRAO;
+      const baseLegal = (termoData.base_legal || '').trim() || TERMO_BASE_LEGAL_PADRAO;
+      const assinatura = (termoData.assinatura || '').trim();
+      const payload = {
         ...termoData,
+        versao_texto: versaoTexto,
+        base_legal: baseLegal,
+        assinatura: assinatura || undefined,
         data_aceite: new Date().toISOString()
-      });
+      };
+      const response = await apiService.post('/formularios/termos-consentimento', payload);
 
       if (response.success) {
         toast({
@@ -175,7 +199,10 @@ export default function TermosConsentimento() {
           revogacao_informada: false,
           direitos_conhecidos: [],
           responsavel_aplicacao: 'Usuário Logado',
-          local_aplicacao: 'Sede do Projeto Move Marias'
+          local_aplicacao: 'Sede do Projeto Move Marias',
+          versao_texto: TERMO_VERSAO_PADRAO,
+          base_legal: TERMO_BASE_LEGAL_PADRAO,
+          assinatura: ''
         });
       } else {
         const description = response.message || (response as any)?.error || 'Não foi possível salvar o termo de consentimento.';
@@ -492,6 +519,51 @@ export default function TermosConsentimento() {
               </CardContent>
             </Card>
 
+            {/* Metadados do Consentimento */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Metadados e Evidências</CardTitle>
+                <CardDescription>
+                  Informações utilizadas para rastreabilidade do consentimento conforme LGPD
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="versao_texto">Versão do Termo</Label>
+                    <Input
+                      id="versao_texto"
+                      placeholder="Ex: 1.0"
+                      value={termoData.versao_texto || ''}
+                      onChange={(e) => setTermoData({ ...termoData, versao_texto: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="base_legal">Base Legal</Label>
+                    <Input
+                      id="base_legal"
+                      placeholder="Ex: consentimento do titular"
+                      value={termoData.base_legal || ''}
+                      onChange={(e) => setTermoData({ ...termoData, base_legal: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="assinatura">Assinatura Digital (opcional)</Label>
+                  <Input
+                    id="assinatura"
+                    placeholder="Identificador da assinatura ou token"
+                    value={termoData.assinatura || ''}
+                    onChange={(e) => setTermoData({ ...termoData, assinatura: e.target.value })}
+                  />
+                  <p className="text-sm text-muted-foreground">
+                    Essa informação será registrada como evidência adicional do consentimento.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
             {/* Consentimento */}
             <Card>
               <CardHeader>
@@ -568,6 +640,12 @@ export default function TermosConsentimento() {
                   {termosExistentes.map((termo) => {
                     const label = tiposTermos[termo.tipo_termo as keyof typeof tiposTermos] || 'Termo de Consentimento';
                     const dataAceite = termo.data_aceite || termo.created_at;
+                    const decisaoLabel = termo.decisao === 'granted'
+                      ? 'Concedido'
+                      : termo.decisao === 'denied'
+                        ? 'Negado'
+                        : 'Não informado';
+                    const evidencia = termo.evidencia;
                     return (
                       <div key={termo.id} className="border rounded-lg p-4 space-y-3">
                         <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
@@ -624,6 +702,15 @@ export default function TermosConsentimento() {
                           <p>
                             <strong>Responsável:</strong> {termo.responsavel_aplicacao || 'Não informado'}
                           </p>
+                          <p>
+                            <strong>Decisão:</strong> {decisaoLabel}
+                          </p>
+                          <p>
+                            <strong>Versão do Termo:</strong> {termo.versao_texto || 'Não informada'}
+                          </p>
+                          <p>
+                            <strong>Base Legal:</strong> {termo.base_legal || 'Não informada'}
+                          </p>
                           {termo.revogado_em && (
                             <p>
                               <strong>Revogado em:</strong> {formatDate(termo.revogado_em, 'DD/MM/YYYY HH:mm')}
@@ -638,6 +725,21 @@ export default function TermosConsentimento() {
                             <p>
                               <strong>Observações:</strong> {termo.observacoes}
                             </p>
+                          )}
+                          {evidencia && (
+                            <div>
+                              <strong>Evidências Registradas:</strong>
+                              <ul className="list-disc ml-4 space-y-1">
+                                {evidencia.registrado_em && (
+                                  <li>
+                                    Registrado em: {formatDate(evidencia.registrado_em, 'DD/MM/YYYY HH:mm')}
+                                  </li>
+                                )}
+                                {evidencia.ip && <li>IP: {evidencia.ip}</li>}
+                                {evidencia.user_agent && <li>User Agent: {evidencia.user_agent}</li>}
+                                {evidencia.assinatura && <li>Assinatura: {evidencia.assinatura}</li>}
+                              </ul>
+                            </div>
                           )}
                         </div>
                       </div>
