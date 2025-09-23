@@ -1,6 +1,7 @@
 import express, { Request as ExpressRequest, Response as ExpressResponse, NextFunction } from 'express';
 import { loggerService } from '../services/logger';
 import { createRouterInstance } from '../utils/router';
+import { authenticateToken, authorize } from '../middleware/auth';
 
 // Types auxiliares
 // Usamos os tipos nativos do Express para evitar conflitos
@@ -11,8 +12,8 @@ import { createRouterInstance } from '../utils/router';
 // Rotas de autenticação
 import authRoutes from './auth.routes';
 
-// Rotas de auditoria (temporariamente desabilitado)
-const auditoriaRoutes = createRouterInstance();
+// Rotas de auditoria
+import auditoriaRoutes from './auditoria.routes';
 
 // Rotas de beneficiárias
 import beneficiariasRoutes from './beneficiarias.routes';
@@ -131,7 +132,7 @@ router.use('/organizacoes', organizacoesRoutes);
 // 6. Rotas administrativas
 router.use('/dashboard', dashboardRoutes);
 router.use('/relatorios', relatoriosRoutes);
-router.use('/auditoria', auditoriaRoutes);
+router.use('/auditoria', authenticateToken, authorize('auditoria.ler'), auditoriaRoutes);
 router.use('/configuracoes', configuracoesRoutes);
 
 // ========== ROTA RAIZ DA API ==========
