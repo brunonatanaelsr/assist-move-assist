@@ -13,14 +13,14 @@ export const participacaoSchema = z.object({
     'interesse',
     'inscrita'
   ]).default('inscrita'),
-  data_inscricao: z.date(),
-  data_conclusao: z.date().nullable().optional(),
+  data_inscricao: z.coerce.date(),
+  data_conclusao: z.coerce.date().nullable().optional(),
   observacoes: z.string().max(1000).nullable().optional(),
   certificado_emitido: z.boolean().default(false),
   presenca_percentual: z.number().min(0).max(100).default(0),
   ativo: z.boolean().default(true),
-  data_criacao: z.date(),
-  data_atualizacao: z.date()
+  data_criacao: z.coerce.date(),
+  data_atualizacao: z.coerce.date()
 });
 
 // Schema para criação de participação
