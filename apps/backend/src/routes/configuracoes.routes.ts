@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { authenticateToken, AuthenticatedRequest, authorize } from '../middleware/auth';
 import { pool } from '../config/database';
 import { successResponse, errorResponse } from '../utils/responseFormatter';
-import redis from '../lib/redis';
+import { redis } from '../lib/redis';
 import bcrypt from 'bcryptjs';
 
 const router = Router();

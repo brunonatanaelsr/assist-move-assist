@@ -6,9 +6,9 @@ import { ProjetoService } from '../services/projeto.service';
 import { pool } from '../config/database';
 
 const router = express.Router();
-import redis from '../lib/redis';
+import { redis } from '../lib/redis';
 import { catchAsync } from '../middleware/errorHandler';
-const projetoService = new ProjetoService(pool, redis as any);
+const projetoService = new ProjetoService(pool, redis);
 
 router.use(authenticateToken);
 

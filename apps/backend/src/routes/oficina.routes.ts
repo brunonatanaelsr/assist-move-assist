@@ -11,10 +11,10 @@ import { catchAsync } from '../middleware/errorHandler';
 
 const router = express.Router();
 
-import redis from '../lib/redis';
+import { redis } from '../lib/redis';
 import { loggerService } from '../services/logger';
 
-const oficinaService = new OficinaService(pool, redis as any);
+const oficinaService = new OficinaService(pool, redis);
 const oficinaRepository = new OficinaRepository();
 
 // Aplicar autenticação a todas as rotas

@@ -1,5 +1,5 @@
 import { Pool } from 'pg';
-import type Redis from 'ioredis';
+import type { RedisClient } from '../lib/redis';
 import { loggerService } from '../services/logger';
 import { cacheService } from './cache.service';
 import {
@@ -15,10 +15,10 @@ import { formatArrayDates, formatObjectDates } from '../utils/dateFormatter';
 
 export class OficinaService {
   private pool: Pool;
-  private redis: Redis;
+  private redis: RedisClient;
   private readonly CACHE_TTL = 300; // 5 minutos
 
-  constructor(pool: Pool, redis: Redis) {
+  constructor(pool: Pool, redis: RedisClient) {
     this.pool = pool;
     this.redis = redis;
   }

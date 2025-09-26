@@ -1,5 +1,5 @@
 import { Router, Request, Response, type RequestHandler } from 'express';
-import redis from '../lib/redis';
+import { redis } from '../lib/redis';
 import { authenticateToken, AuthenticatedRequest } from '../middleware/auth';
 import { successResponse, errorResponse } from '../utils/responseFormatter';
 import { uploadSingle, UPLOAD_DIR } from '../middleware/upload';
@@ -12,7 +12,7 @@ import { z } from 'zod';
 
 const router = Router();
 
-const feedService = new FeedService(pool, redis as any);
+const feedService = new FeedService(pool, redis);
 
 interface ExtendedRequest extends AuthenticatedRequest {
   file?: Express.Multer.File;
