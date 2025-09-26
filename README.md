@@ -190,6 +190,7 @@ Credenciais padrão para automação e QA estão documentadas em [`docs/TEST_CRE
 
 ## Documentação complementar
 
+- [Guia de Execução em Desenvolvimento](docs/GUIA_EXECUCAO_DESENVOLVIMENTO.md)
 - [Guia de Deploy](docs/deployment/README.md)
 - [Guia de RBAC/Administração](README-ADMIN.md)
 - [Credenciais de Teste](docs/TEST_CREDENTIALS.md)
