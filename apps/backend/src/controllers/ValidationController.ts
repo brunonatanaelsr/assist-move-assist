@@ -3,9 +3,14 @@ import { redis } from '../lib/redis';
 import { validate_cpf } from '../utils/cpf-validator';
 import { logger } from '../services/logger';
 import { ValidationError } from '../utils';
+import { BeneficiariasService } from '../services/beneficiarias.service';
+import { pool } from '../config/database';
 
 export class ValidationController {
   private readonly CACHE_TTL = 60 * 5; // 5 minutos
+  constructor(
+    private readonly searchService: BeneficiariasService = new BeneficiariasService(pool, redis)
+  ) {}
 
   async validateCpf(req: Request, res: Response) {
     const { cpf } = req.body;

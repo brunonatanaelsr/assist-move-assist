@@ -17,6 +17,7 @@ import auditoriaRoutes from './auditoria.routes';
 
 // Rotas de beneficiárias
 import beneficiariasRoutes from './beneficiarias.routes';
+import validationRoutes from './validation.routes';
 
 // Rotas de configurações
 import configuracoesRoutes from './configuracoes.routes';
@@ -108,6 +109,7 @@ router.use('/auth', authRoutes);
 
 // 3. Rotas principais de negócio
 router.use('/beneficiarias', beneficiariasRoutes);
+router.use('/validation', validationRoutes);
 router.use('/projetos', projetosRoutes);
 router.use('/oficinas', oficinasRoutes);
 router.use('/participacoes', participacoesRoutes);

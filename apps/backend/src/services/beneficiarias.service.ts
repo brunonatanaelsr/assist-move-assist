@@ -40,6 +40,41 @@ export class BeneficiariasService {
     private readonly redis: Redis
   ) {}
 
+  async searchBeneficiarias(searchTerm: string, limit = 10) {
+    const term = searchTerm.trim();
+
+    if (!term) {
+      return [];
+    }
+
+    const cacheKey = `beneficiarias:search:${term.toLowerCase()}:${limit}`;
+
+    return withCache(cacheKey, async () => {
+      const likeTerm = `%${term}%`;
+
+      const { rows } = await this.db.query(
+        `
+          SELECT
+            b.id,
+            b.nome_completo,
+            b.cpf,
+            b.status,
+            b.created_at,
+            b.updated_at
+          FROM beneficiarias b
+          WHERE
+            b.deleted_at IS NULL
+            AND (b.nome_completo ILIKE $1 OR b.cpf ILIKE $2)
+          ORDER BY b.nome_completo ASC
+          LIMIT $3
+        `,
+        [likeTerm, likeTerm, limit]
+      );
+
+      return rows;
+    }, 60);
+  }
+
   async listar({
     search = '',
     status = 'ATIVO',
