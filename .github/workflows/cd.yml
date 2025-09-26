@@ -1,0 +1,53 @@
+name: CD
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  deploy:
+    name: 🚀 Deploy
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: 🏗 Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '20.x'
+        cache: 'npm'
+        
+    - name: 📦 Install Dependencies
+      run: |
+        npm ci
+        npm --prefix apps/frontend ci
+        npm --prefix apps/backend ci
+        
+    - name: 🏗 Build Frontend
+      run: npm --prefix apps/frontend run build
+      
+    - name: 🏗 Build Backend
+      run: npm --prefix apps/backend run build
+      
+    - name: 🐳 Login to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKER_HUB_USERNAME }}
+        password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
+        
+    - name: 🏗 Build and Push Docker Images
+      run: |
+        docker build -t assistmove/frontend:${{ github.ref_name }} -f docker/Dockerfile.frontend.production .
+        docker build -t assistmove/backend:${{ github.ref_name }} -f docker/Dockerfile.backend.production .
+        docker push assistmove/frontend:${{ github.ref_name }}
+        docker push assistmove/backend:${{ github.ref_name }}
+        
+    - name: 📝 Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          apps/frontend/dist/**/*
+          apps/backend/dist/**/*
+        body_path: CHANGELOG.md

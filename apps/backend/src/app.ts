@@ -81,6 +81,12 @@ app.get('/health', (req, res) => {
 app.use('/api', apiRoutes);
 app.use('/api/feed', feedRoutes);
 
+// Documentação OpenAPI/Swagger (apenas em desenvolvimento)
+if (env.NODE_ENV === 'development') {
+  const { docsRouter } = require('./openapi/docs');
+  app.use('/api/docs', docsRouter);
+}
+
 // Error handling
 app.use(errorHandler);
 
@@ -105,6 +111,9 @@ server.listen(PORT, () => {
   logger.info(`🚀 Servidor rodando na porta ${PORT}`);
   logger.info(`📊 Health check: http://localhost:${PORT}/health`);
   logger.info(`🌐 API base: http://localhost:${PORT}/api`);
+  if (env.NODE_ENV === 'development') {
+    logger.info(`📚 API Docs: http://localhost:${PORT}/api/docs`);
+  }
 });
 
 // Graceful shutdown

@@ -29,15 +29,17 @@ Sistema completo de gestão para institutos sociais com acompanhamento de benefi
 
 ```
 assist-move-assist/
-├── backend/                # API Express (TypeScript)
-│   ├── src/                # Código-fonte
-│   ├── scripts/            # Migrações, seeds e utilitários
-│   └── prisma/             # Migrações SQL organizadas
-├── public/                 # Assets estáticos do frontend
-├── src/                    # Frontend React + Vite + Tailwind
-├── scripts/                # Automatizações (deploy, e2e, codespaces, etc.)
-├── docs/                   # Guias complementares (deploy, API, testes)
-└── docker-compose*.yml     # Orquestração Docker dev/prod
+├── apps/                  # Aplicações principais
+│   ├── frontend/          # Frontend React + Vite + Tailwind
+│   │   ├── src/          # Código-fonte do frontend
+│   │   └── public/       # Assets estáticos
+│   └── backend/          # API Express (TypeScript)
+│       ├── src/          # Código-fonte do backend
+│       ├── scripts/      # Migrações, seeds e utilitários
+│       └── prisma/       # Migrações SQL organizadas
+├── scripts/              # Automatizações (deploy, e2e, codespaces, etc.)
+├── docs/                 # Guias complementares (deploy, API, testes)
+└── docker-compose*.yml   # Orquestração Docker dev/prod
 ```
 
 ## Requisitos
