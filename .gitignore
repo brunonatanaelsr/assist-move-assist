@@ -37,3 +37,6 @@ tests/.auth/
 *.njsproj
 *.sln
 *.sw?
+
+# TypeScript build caches
+*.tsbuildinfo
