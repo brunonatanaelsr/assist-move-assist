@@ -1,4 +1,4 @@
-import IORedis from 'ioredis';
+import Redis from 'ioredis';
 import { config } from '../config';
 import { loggerService as logger } from '../services/logger';
 
@@ -122,15 +122,17 @@ class InMemoryRedis {
     } as any;
   }
 
-  on() { /* no-op for stub */ }
+  on() {
+    return this;
+  }
 }
 
-function createRedis() {
+function createRedis(): Redis {
   if (String(process.env.REDIS_DISABLED).toLowerCase() === 'true') {
     logger.warn('REDIS_DISABLED=true — usando stub em memória');
-    return new InMemoryRedis() as unknown as IORedis;
+    return new InMemoryRedis() as unknown as Redis;
   }
-  const client = new IORedis({
+  const client = new Redis({
     host: config.redis.host,
     port: config.redis.port,
     maxRetriesPerRequest: 1,
@@ -141,7 +143,7 @@ function createRedis() {
       }
       return Math.min(times * 100, 3000);
     }
-  }) as unknown as IORedis;
+  }) as unknown as Redis;
 
   (client as any).on('error', (error: Error) => {
     logger.error('Erro na conexão com Redis:', error);
@@ -152,5 +154,6 @@ function createRedis() {
   return client;
 }
 
+export type RedisClient = ReturnType<typeof createRedis>;
 export const redis = createRedis();
 export default redis;

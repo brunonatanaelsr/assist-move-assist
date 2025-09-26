@@ -1,5 +1,5 @@
 import { Pool } from 'pg';
-import type Redis from 'ioredis';
+import type { RedisClient } from '../lib/redis';
 import { loggerService } from '../services/logger';
 import { z } from 'zod';
 import { feedPostSchema, feedCommentSchema } from '../validators/feed.validator';
@@ -11,10 +11,10 @@ export type FeedComment = z.infer<typeof feedCommentSchema>;
 
 export class FeedService {
   private pool: Pool;
-  private redis: Redis;
+  private redis: RedisClient;
   private readonly CACHE_TTL = 300; // 5 minutos
 
-  constructor(pool: Pool, redis: Redis) {
+  constructor(pool: Pool, redis: RedisClient) {
     this.pool = pool;
     this.redis = redis;
   }

@@ -1,6 +1,5 @@
 import { db } from '../services/db';
-import type Redis from 'ioredis';
-import redis from '../lib/redis';
+import { redis } from '../lib/redis';
 import { loggerService } from '../services/logger';
 
 const CACHE_TTL = 300; // 5 minutos

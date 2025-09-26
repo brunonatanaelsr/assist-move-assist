@@ -1,5 +1,5 @@
 import { Pool } from 'pg';
-import type Redis from 'ioredis';
+import type { RedisClient } from '../lib/redis';
 import { logger } from '../services/logger';
 import { AppError } from '../utils';
 import { validateBeneficiaria } from '../validators/beneficiaria.validator';
@@ -37,7 +37,7 @@ interface BeneficiariaInput {
 export class BeneficiariasService {
   constructor(
     private readonly db: Pool,
-    private readonly redis: Redis
+    private readonly redis: RedisClient
   ) {}
 
   async searchBeneficiarias(searchTerm: string, limit = 10) {

@@ -2,13 +2,12 @@ import express from 'express';
 import { db } from '../services/db';
 import { authenticateToken } from '../middleware/auth';
 import { loggerService } from '../services/logger';
-import type Redis from 'ioredis';
 import { DashboardRepository } from '../repositories/DashboardRepository';
 import { pool } from '../config/database';
-import redis from '../lib/redis';
+import { redis } from '../lib/redis';
 
 const router = express.Router();
-const dashboardRepository = new DashboardRepository(pool, redis as Redis);
+const dashboardRepository = new DashboardRepository(pool, redis);
 
 // GET /dashboard/stats - Obter estatísticas do dashboard
 router.get('/stats', authenticateToken, async (req: express.Request, res: express.Response): Promise<void> => {

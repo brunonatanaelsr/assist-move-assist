@@ -1,5 +1,5 @@
 import { Pool } from 'pg';
-import type Redis from 'ioredis';
+import type { RedisClient } from '../lib/redis';
 import { loggerService } from '../services/logger';
 import bcrypt from 'bcryptjs';
 import jwt, { SignOptions } from 'jsonwebtoken';
@@ -31,7 +31,7 @@ export class AuthService {
 
   constructor(
     private pool: Pool,
-    private redis: Redis
+    private redis: RedisClient
   ) {
     this.jwtSecret = env.JWT_SECRET;
     this.jwtExpiry = env.JWT_EXPIRY;
