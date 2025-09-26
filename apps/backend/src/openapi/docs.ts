@@ -2,7 +2,7 @@ import express from 'express';
 import swaggerUi from 'swagger-ui-express';
 import { OpenAPIGenerator } from '@asteasolutions/zod-to-openapi';
 import { registry } from './routes';
-import { apiSpec } from './spec';
+import { apiSpec } from './apiSpec';
 
 const router = express.Router();
 

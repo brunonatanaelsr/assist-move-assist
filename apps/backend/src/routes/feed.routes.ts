@@ -1,4 +1,4 @@
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, type RequestHandler } from 'express';
 import redis from '../lib/redis';
 import { authenticateToken, AuthenticatedRequest } from '../middleware/auth';
 import { successResponse, errorResponse } from '../utils/responseFormatter';
@@ -19,10 +19,14 @@ interface ExtendedRequest extends AuthenticatedRequest {
 }
 
 // Upload de imagem
+const uploadImageMiddleware = (fieldName: string): RequestHandler => (
+  uploadSingle(fieldName) as unknown as RequestHandler
+);
+
 router.post(
   '/upload-image',
   authenticateToken,
-  uploadSingle('image'),
+  uploadImageMiddleware('image'),
   catchAsync(async (req: ExtendedRequest, res: Response) => {
     try {
       if (!req.file) {

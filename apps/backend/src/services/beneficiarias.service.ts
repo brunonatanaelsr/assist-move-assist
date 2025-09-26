@@ -29,7 +29,7 @@ interface Beneficiaria {
 interface BeneficiariaInput {
   nome_completo: string;
   cpf: string;
-  data_nascimento: string;
+  data_nascimento: Date;
   telefone: string;
   email?: string;
 }

@@ -32,12 +32,13 @@ export class ValidationController {
 
       return res.json({ isValid });
 
-    } catch (error) {
-      logger.error('Erro ao validar CPF', { 
+    } catch (error: unknown) {
+      const message = this.getErrorMessage(error);
+      logger.error('Erro ao validar CPF', {
         cpf,
-        error: error.message
+        error: message
       });
-      
+
       throw new ValidationError('Erro ao validar CPF');
     }
   }
@@ -68,12 +69,13 @@ export class ValidationController {
         warnings: isDisposable ? ['Email temporário não permitido'] : []
       });
 
-    } catch (error) {
+    } catch (error: unknown) {
+      const message = this.getErrorMessage(error);
       logger.error('Erro ao validar email', {
         email,
-        error: error.message
+        error: message
       });
-      
+
       throw new ValidationError('Erro ao validar email');
     }
   }
@@ -114,12 +116,13 @@ export class ValidationController {
 
       return res.json({ isValid: true });
 
-    } catch (error) {
+    } catch (error: unknown) {
+      const message = this.getErrorMessage(error);
       logger.error('Erro ao validar telefone', {
         telefone,
-        error: error.message
+        error: message
       });
-      
+
       throw new ValidationError('Erro ao validar telefone');
     }
   }
@@ -148,13 +151,30 @@ export class ValidationController {
 
       return res.json(results);
 
-    } catch (error) {
+    } catch (error: unknown) {
+      const message = this.getErrorMessage(error);
       logger.error('Erro na busca de beneficiárias', {
         query,
-        error: error.message
+        error: message
       });
-      
+
       throw new ValidationError('Erro ao realizar busca');
+    }
+  }
+
+  private getErrorMessage(error: unknown): string {
+    if (error instanceof Error) {
+      return error.message;
+    }
+
+    if (typeof error === 'string') {
+      return error;
+    }
+
+    try {
+      return JSON.stringify(error);
+    } catch (stringifyError) {
+      return 'Unknown error';
     }
   }
 }
