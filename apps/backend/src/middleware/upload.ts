@@ -1,7 +1,6 @@
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
-import { Request } from 'express';
 import { AppError } from '../utils';
 
 // Diretório único de uploads baseado no CWD do processo
@@ -12,10 +11,10 @@ if (!fs.existsSync(uploadDir)) {
 
 // Configuração do armazenamento
 const storage = multer.diskStorage({
-  destination: (req: Request, file: Express.Multer.File, cb: (error: Error | null, destination: string) => void) => {
+  destination: (req, file, cb) => {
     cb(null, uploadDir);
   },
-  filename: (req: Request, file: Express.Multer.File, cb: (error: Error | null, filename: string) => void) => {
+  filename: (req, file, cb) => {
     // Gerar nome único para o arquivo
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
     const ext = path.extname(file.originalname);
@@ -24,7 +23,7 @@ const storage = multer.diskStorage({
 });
 
 // Filtro de arquivos (somente imagens)
-const fileFilter = (req: Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+const fileFilter: NonNullable<multer.Options['fileFilter']> = (req, file, cb) => {
   // Permitir apenas imagens
   if (file.mimetype.startsWith('image/')) {
     cb(null, true);
@@ -63,7 +62,7 @@ const ALLOWED_DOC_MIME: readonly string[] = [
 
 const uploadAny = multer({
   storage,
-  fileFilter: (req: Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+  fileFilter: (req, file, cb) => {
     if (ALLOWED_DOC_MIME.includes(file.mimetype)) return cb(null, true);
     return cb(new AppError('Tipo de arquivo não permitido', 400));
   },

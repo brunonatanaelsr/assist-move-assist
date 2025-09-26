@@ -1,6 +1,4 @@
-import { OpenAPIObject } from 'openapi3-ts/oas31';
-
-export const apiSpec: Partial<OpenAPIObject> = {
+export const apiSpec = {
   openapi: '3.1.0',
   info: {
     title: 'Assist Move API',

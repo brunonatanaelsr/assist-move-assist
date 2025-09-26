@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, type RequestHandler } from 'express';
 import { loggerService } from '../services/logger';
 import { authenticateToken, AuthenticatedRequest } from '../middleware/auth';
 import { pool } from '../config/database';
@@ -30,7 +30,11 @@ router.get('/:beneficiariaId', authenticateToken, catchAsync(async (req, res) =>
 }));
 
 // POST /documentos/:beneficiariaId/upload - upload de documento
-router.post('/:beneficiariaId/upload', authenticateToken, uploadAnySingle('file'), catchAsync(async (req, res): Promise<void> => {
+const uploadFileMiddleware = (fieldName: string): RequestHandler => (
+  uploadAnySingle(fieldName) as unknown as RequestHandler
+);
+
+router.post('/:beneficiariaId/upload', authenticateToken, uploadFileMiddleware('file'), catchAsync(async (req, res): Promise<void> => {
   const authReq = req as AuthenticatedRequest & { file?: Express.Multer.File };
   try {
     const { beneficiariaId } = authReq.params as any;
@@ -70,7 +74,7 @@ router.post('/:beneficiariaId/upload', authenticateToken, uploadAnySingle('file'
 }));
 
 // PUT /documentos/:documentoId - nova versão
-router.put('/:documentoId', authenticateToken, uploadAnySingle('file'), catchAsync(async (req, res): Promise<void> => {
+router.put('/:documentoId', authenticateToken, uploadFileMiddleware('file'), catchAsync(async (req, res): Promise<void> => {
   const authReq = req as AuthenticatedRequest & { file?: Express.Multer.File };
   try {
     const { documentoId } = authReq.params as any;

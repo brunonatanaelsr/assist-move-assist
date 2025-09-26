@@ -1,4 +1,4 @@
-import { Router, Response } from 'express';
+import { Router, Response, type RequestHandler } from 'express';
 import { authenticateToken, AuthenticatedRequest } from '../middleware/auth';
 import { uploadAnySingle, UPLOAD_DIR } from '../middleware/upload';
 import path from 'path';
@@ -13,10 +13,14 @@ router.get('/test', (_req, res: Response) => {
 });
 
 // POST /upload - upload genérico de arquivo (imagens e PDFs)
+const uploadFileHandler = (fieldName: string): RequestHandler => (
+  uploadAnySingle(fieldName) as unknown as RequestHandler
+);
+
 router.post(
   '/',
   authenticateToken,
-  uploadAnySingle('file'),
+  uploadFileHandler('file'),
   async (req: AuthenticatedRequest & { file?: Express.Multer.File }, res: Response): Promise<void> => {
     try {
       if (!req.file) {

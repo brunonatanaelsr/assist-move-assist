@@ -5,16 +5,25 @@ type SearchService = {
   searchBeneficiarias: jest.Mock;
 };
 
-const redisMock = {
-  get: jest.fn(),
-  setex: jest.fn(),
+type RedisMock = {
+  get: jest.Mock;
+  setex: jest.Mock;
 };
 
-jest.mock('../lib/redis', () => ({
-  __esModule: true,
-  redis: redisMock,
-  default: redisMock,
-}));
+jest.mock('../lib/redis', () => {
+  const redisMock: RedisMock = {
+    get: jest.fn(),
+    setex: jest.fn(),
+  };
+
+  return {
+    __esModule: true,
+    redis: redisMock,
+    default: redisMock,
+  };
+});
+
+const { redis: redisMock } = jest.requireMock('../lib/redis') as { redis: RedisMock };
 
 describe('ValidationController - searchBeneficiarias', () => {
   let controller: ValidationController;
