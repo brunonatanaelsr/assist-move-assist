@@ -27,6 +27,9 @@ tests/.auth/
 .env.prod
 .env.production
 
+# HTTP client artifacts
+cookies.txt
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
