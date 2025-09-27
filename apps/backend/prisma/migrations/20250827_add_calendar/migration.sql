@@ -31,8 +31,8 @@ CREATE TABLE "RecurrenceRule" (
     "frequency" "RecurrenceFrequency" NOT NULL,
     "interval" INTEGER NOT NULL DEFAULT 1,
     "until_date" TIMESTAMP(3),
-    "by_weekday" INTEGER[],
-    "exceptions" TIMESTAMP(3)[],
+    "by_weekday" INTEGER[] DEFAULT ARRAY[]::INTEGER[],
+    "exceptions" TIMESTAMP(3)[] DEFAULT ARRAY[]::TIMESTAMP(3)[],
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
