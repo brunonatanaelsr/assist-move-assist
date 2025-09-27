@@ -41,13 +41,13 @@ CREATE TABLE "ReportExecution" (
 );
 
 -- AddForeignKey
-ALTER TABLE "ReportTemplate" ADD CONSTRAINT "ReportTemplate_created_by_id_fkey" FOREIGN KEY ("created_by_id") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "ReportTemplate" ADD CONSTRAINT "ReportTemplate_created_by_id_fkey" FOREIGN KEY ("created_by_id") REFERENCES "usuarios"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "ReportTemplate" ADD CONSTRAINT "ReportTemplate_updated_by_id_fkey" FOREIGN KEY ("updated_by_id") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "ReportTemplate" ADD CONSTRAINT "ReportTemplate_updated_by_id_fkey" FOREIGN KEY ("updated_by_id") REFERENCES "usuarios"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "ReportExecution" ADD CONSTRAINT "ReportExecution_template_id_fkey" FOREIGN KEY ("template_id") REFERENCES "ReportTemplate"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "ReportExecution" ADD CONSTRAINT "ReportExecution_created_by_id_fkey" FOREIGN KEY ("created_by_id") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "ReportExecution" ADD CONSTRAINT "ReportExecution_created_by_id_fkey" FOREIGN KEY ("created_by_id") REFERENCES "usuarios"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
