@@ -1,7 +1,7 @@
-// Arquivo temporário para o conteúdo correto
-import { BaseRepository } from './base.repository';
+import { Prisma } from '@prisma/client';
+import { PaginatedResult, PaginationParams } from './base.repository';
 import { Beneficiaria, CreateBeneficiariaDTO, UpdateBeneficiariaDTO } from '../models/beneficiaria.model';
-import { query } from '../config/database';
+import { prisma } from '../services/prisma';
 import { logger } from '../services/logger';
 
 interface EstatisticasBeneficiarias {
@@ -12,60 +12,212 @@ interface EstatisticasBeneficiarias {
     mediaIdade: number;
 }
 
-export class BeneficiariaRepository extends BaseRepository<Beneficiaria> {
-    constructor() {
-        super('beneficiarias', true); // Habilitamos soft delete
+const orderableFields = new Set([
+    'id',
+    'nome_completo',
+    'cpf',
+    'cidade',
+    'estado',
+    'created_at',
+    'updated_at',
+]);
+
+export class BeneficiariaRepository {
+    private readonly softDelete = true;
+
+    private buildOrderBy(field: string, direction: 'ASC' | 'DESC'): Prisma.BeneficiariaOrderByWithRelationInput {
+        const normalized = orderableFields.has(field) ? field : 'id';
+        const prismaDirection = direction === 'DESC' ? 'desc' : 'asc';
+        return { [normalized]: prismaDirection };
     }
 
-    // Método para criar uma nova beneficiária com validações
     async create(data: CreateBeneficiariaDTO): Promise<Beneficiaria> {
         try {
-            // Verifica se já existe uma beneficiária com o mesmo CPF
-            const existingBeneficiaria = await this.findByCPF(data.cpf);
-            if (existingBeneficiaria) {
+            const existing = await this.findByCPF(data.cpf);
+            if (existing) {
                 throw new Error('Já existe uma beneficiária cadastrada com este CPF');
             }
 
-            return super.create(data);
+            const created = await prisma.beneficiaria.create({
+                data: {
+                    ...data,
+                    tipo_violencia: data.tipo_violencia ?? [],
+                },
+            });
+
+            return created as Beneficiaria;
         } catch (error) {
             logger.error('Erro ao criar beneficiária:', error);
             throw error;
         }
     }
 
-    // Método para buscar por CPF
-    async findByCPF(cpf: string): Promise<Beneficiaria | null> {
-        const sql = `
-            SELECT * FROM ${this.tableName}
-            WHERE cpf = $1 AND deleted_at IS NULL
-        `;
+    async findById(id: number): Promise<Beneficiaria | null> {
+        try {
+            const beneficiaria = await prisma.beneficiaria.findFirst({
+                where: {
+                    id,
+                    deleted_at: this.softDelete ? null : undefined,
+                },
+            });
+            return (beneficiaria as Beneficiaria) ?? null;
+        } catch (error) {
+            logger.error('Erro ao buscar beneficiária por ID:', error);
+            throw error;
+        }
+    }
+
+    async findAll(params: PaginationParams = {}): Promise<PaginatedResult<Beneficiaria>> {
+        const {
+            page = 1,
+            limit = 10,
+            orderBy = 'id',
+            orderDirection = 'ASC',
+        } = params;
+
+        const skip = (page - 1) * limit;
 
         try {
-            const result = await query<Beneficiaria>(sql, [cpf]);
-            return result[0] || null;
+            const [total, data] = await Promise.all([
+                prisma.beneficiaria.count({
+                    where: this.softDelete
+                        ? { deleted_at: null }
+                        : undefined,
+                }),
+                prisma.beneficiaria.findMany({
+                    where: this.softDelete ? { deleted_at: null } : undefined,
+                    orderBy: this.buildOrderBy(orderBy, orderDirection),
+                    skip,
+                    take: limit,
+                }),
+            ]);
+
+            const totalPages = Math.ceil(total / limit) || 1;
+
+            return {
+                data: data as Beneficiaria[],
+                total,
+                page,
+                limit,
+                totalPages,
+            };
+        } catch (error) {
+            logger.error('Erro ao listar beneficiárias:', error);
+            throw error;
+        }
+    }
+
+    async update(id: number, data: UpdateBeneficiariaDTO): Promise<Beneficiaria | null> {
+        try {
+            const result = await prisma.beneficiaria.updateMany({
+                where: {
+                    id,
+                    deleted_at: this.softDelete ? null : undefined,
+                },
+                data: {
+                    ...data,
+                    tipo_violencia: data.tipo_violencia ?? undefined,
+                    updated_at: new Date(),
+                },
+            });
+
+            if (result.count === 0) {
+                return null;
+            }
+
+            return this.findById(id);
+        } catch (error) {
+            logger.error('Erro ao atualizar beneficiária:', error);
+            throw error;
+        }
+    }
+
+    async delete(id: number): Promise<boolean> {
+        try {
+            if (this.softDelete) {
+                const result = await prisma.beneficiaria.updateMany({
+                    where: {
+                        id,
+                        deleted_at: null,
+                    },
+                    data: {
+                        deleted_at: new Date(),
+                        updated_at: new Date(),
+                    },
+                });
+                return result.count > 0;
+            }
+
+            const result = await prisma.beneficiaria.deleteMany({ where: { id } });
+            return result.count > 0;
+        } catch (error) {
+            logger.error('Erro ao deletar beneficiária:', error);
+            throw error;
+        }
+    }
+
+    async restore(id: number): Promise<Beneficiaria | null> {
+        if (!this.softDelete) {
+            throw new Error('Restore só está disponível para tabelas com soft delete');
+        }
+
+        try {
+            const restored = await prisma.beneficiaria.updateMany({
+                where: {
+                    id,
+                    deleted_at: { not: null },
+                },
+                data: {
+                    deleted_at: null,
+                    updated_at: new Date(),
+                },
+            });
+
+            if (restored.count === 0) {
+                return null;
+            }
+
+            return this.findById(id);
+        } catch (error) {
+            logger.error('Erro ao restaurar beneficiária:', error);
+            throw error;
+        }
+    }
+
+    async findByCPF(cpf: string): Promise<Beneficiaria | null> {
+        try {
+            const beneficiaria = await prisma.beneficiaria.findFirst({
+                where: {
+                    cpf,
+                    deleted_at: this.softDelete ? null : undefined,
+                },
+            });
+            return (beneficiaria as Beneficiaria) ?? null;
         } catch (error) {
             logger.error('Erro ao buscar beneficiária por CPF:', error);
             throw error;
         }
     }
 
-    // Método para buscar por status
     async findByStatus(status: Beneficiaria['status']): Promise<Beneficiaria[]> {
-        const sql = `
-            SELECT * FROM ${this.tableName}
-            WHERE status = $1 AND deleted_at IS NULL
-            ORDER BY nome
-        `;
-
         try {
-            return await query<Beneficiaria>(sql, [status]);
+            const beneficiarias = await prisma.beneficiaria.findMany({
+                where: {
+                    status,
+                    deleted_at: this.softDelete ? null : undefined,
+                },
+                orderBy: {
+                    nome_completo: 'asc',
+                },
+            });
+
+            return beneficiarias as Beneficiaria[];
         } catch (error) {
             logger.error('Erro ao buscar beneficiárias por status:', error);
             throw error;
         }
     }
 
-    // Método para busca avançada
     async search(params: {
         nome?: string;
         cpf?: string;
@@ -75,142 +227,142 @@ export class BeneficiariaRepository extends BaseRepository<Beneficiaria> {
         dataInicio?: Date;
         dataFim?: Date;
     }): Promise<Beneficiaria[]> {
-        const conditions: string[] = ['deleted_at IS NULL'];
-        const values: any[] = [];
-        let paramCount = 1;
+        const where: Prisma.BeneficiariaWhereInput = {
+            deleted_at: this.softDelete ? null : undefined,
+        };
 
         if (params.nome) {
-            conditions.push(`nome ILIKE $${paramCount}`);
-            values.push(`%${params.nome}%`);
-            paramCount++;
+            where.nome_completo = { contains: params.nome, mode: 'insensitive' };
         }
 
         if (params.cpf) {
-            conditions.push(`cpf LIKE $${paramCount}`);
-            values.push(`%${params.cpf.replace(/\D/g, '')}%`);
-            paramCount++;
+            const clean = params.cpf.replace(/\D/g, '');
+            where.cpf = { contains: clean };
         }
 
         if (params.cidade) {
-            conditions.push(`cidade ILIKE $${paramCount}`);
-            values.push(`%${params.cidade}%`);
-            paramCount++;
+            where.cidade = { contains: params.cidade, mode: 'insensitive' };
         }
 
         if (params.estado) {
-            conditions.push(`estado = $${paramCount}`);
-            values.push(params.estado.toUpperCase());
-            paramCount++;
+            where.estado = { equals: params.estado.toUpperCase() };
         }
 
         if (params.status) {
-            conditions.push(`status = $${paramCount}`);
-            values.push(params.status);
-            paramCount++;
+            where.status = params.status;
         }
 
-        if (params.dataInicio) {
-            conditions.push(`data_nascimento >= $${paramCount}`);
-            values.push(params.dataInicio);
-            paramCount++;
+        if (params.dataInicio || params.dataFim) {
+            where.data_nascimento = {};
+            if (params.dataInicio) {
+                where.data_nascimento.gte = params.dataInicio;
+            }
+            if (params.dataFim) {
+                where.data_nascimento.lte = params.dataFim;
+            }
         }
-
-        if (params.dataFim) {
-            conditions.push(`data_nascimento <= $${paramCount}`);
-            values.push(params.dataFim);
-            paramCount++;
-        }
-
-        const sql = `
-            SELECT * FROM ${this.tableName}
-            WHERE ${conditions.join(' AND ')}
-            ORDER BY nome
-            LIMIT 100
-        `;
 
         try {
-            return await query<Beneficiaria>(sql, values);
+            const beneficiarias = await prisma.beneficiaria.findMany({
+                where,
+                orderBy: {
+                    nome_completo: 'asc',
+                },
+                take: 100,
+            });
+
+            return beneficiarias as Beneficiaria[];
         } catch (error) {
             logger.error('Erro na busca avançada de beneficiárias:', error);
             throw error;
         }
     }
 
-    // Método para buscar beneficiárias por usuário responsável
     async findByUsuario(usuarioId: number): Promise<Beneficiaria[]> {
-        const sql = `
-            SELECT * FROM ${this.tableName}
-            WHERE usuario_id = $1 AND deleted_at IS NULL
-            ORDER BY nome
-        `;
-
         try {
-            return await query<Beneficiaria>(sql, [usuarioId]);
+            const beneficiarias = await prisma.beneficiaria.findMany({
+                where: {
+                    usuario_id: usuarioId,
+                    deleted_at: this.softDelete ? null : undefined,
+                },
+                orderBy: {
+                    nome_completo: 'asc',
+                },
+            });
+
+            return beneficiarias as Beneficiaria[];
         } catch (error) {
             logger.error('Erro ao buscar beneficiárias por usuário:', error);
             throw error;
         }
     }
 
-    // Método para estatísticas
     async getEstatisticas(): Promise<EstatisticasBeneficiarias> {
-        const sql = `
-            WITH estatisticas AS (
-                SELECT 
-                    COUNT(*) as total,
-                    status,
-                    cidade,
-                    estado,
-                    AVG(EXTRACT(YEAR FROM age(data_nascimento))) as media_idade,
-                    COUNT(*) FILTER (WHERE status = 'ativa') as ativas,
-                    COUNT(*) FILTER (WHERE status = 'inativa') as inativas,
-                    COUNT(*) FILTER (WHERE status = 'pendente') as pendentes,
-                    COUNT(*) FILTER (WHERE status = 'desistente') as desistentes
-                FROM ${this.tableName}
-                WHERE deleted_at IS NULL
-                GROUP BY status, cidade, estado
-            )
-            SELECT 
-                SUM(total) as total,
-                JSON_AGG(DISTINCT jsonb_build_object(
-                    'status', status,
-                    'total', COUNT(*)
-                )) as por_status,
-                JSON_AGG(DISTINCT jsonb_build_object(
-                    'cidade', cidade,
-                    'total', COUNT(*)
-                )) as por_cidade,
-                JSON_AGG(DISTINCT jsonb_build_object(
-                    'estado', estado,
-                    'total', COUNT(*)
-                )) as por_estado,
-                AVG(media_idade) as media_idade
-            FROM estatisticas;
-        `;
-
         try {
-            const result = await query<any>(sql);
-            const data = result[0];
+            const [row] = await prisma.$queryRawUnsafe<Array<{
+                total: number;
+                por_status: Array<{ status: string; total: number }> | null;
+                por_cidade: Array<{ cidade: string | null; total: number }> | null;
+                por_estado: Array<{ estado: string | null; total: number }> | null;
+                media_idade: number | null;
+            }>>(`
+                WITH estatisticas AS (
+                    SELECT
+                        COUNT(*) as total,
+                        status,
+                        cidade,
+                        estado,
+                        AVG(EXTRACT(YEAR FROM age(data_nascimento))) as media_idade
+                    FROM beneficiarias
+                    WHERE deleted_at IS NULL
+                    GROUP BY status, cidade, estado
+                )
+                SELECT
+                    SUM(total) as total,
+                    JSON_AGG(DISTINCT jsonb_build_object(
+                        'status', status,
+                        'total', COUNT(*)
+                    )) as por_status,
+                    JSON_AGG(DISTINCT jsonb_build_object(
+                        'cidade', cidade,
+                        'total', COUNT(*)
+                    )) as por_cidade,
+                    JSON_AGG(DISTINCT jsonb_build_object(
+                        'estado', estado,
+                        'total', COUNT(*)
+                    )) as por_estado,
+                    AVG(media_idade) as media_idade
+                FROM estatisticas;
+            `);
+
+            const total = row?.total ?? 0;
+            const porStatus = (row?.por_status ?? []).reduce<Record<string, number>>((acc, item) => {
+                if (item?.status) {
+                    acc[item.status] = Number(item.total ?? 0);
+                }
+                return acc;
+            }, {});
+
+            const porCidade = (row?.por_cidade ?? []).reduce<Record<string, number>>((acc, item) => {
+                if (item?.cidade) {
+                    acc[item.cidade] = Number(item.total ?? 0);
+                }
+                return acc;
+            }, {});
+
+            const porEstado = (row?.por_estado ?? []).reduce<Record<string, number>>((acc, item) => {
+                if (item?.estado) {
+                    acc[item.estado] = Number(item.total ?? 0);
+                }
+                return acc;
+            }, {});
 
             return {
-                total: parseInt(data.total) || 0,
-                porStatus: data.por_status?.reduce((acc: any, curr: any) => {
-                    acc[curr.status] = curr.total;
-                    return acc;
-                }, {}) || {},
-                porCidade: data.por_cidade?.reduce((acc: any, curr: any) => {
-                    if (curr.cidade) {
-                        acc[curr.cidade] = curr.total;
-                    }
-                    return acc;
-                }, {}) || {},
-                porEstado: data.por_estado?.reduce((acc: any, curr: any) => {
-                    if (curr.estado) {
-                        acc[curr.estado] = curr.total;
-                    }
-                    return acc;
-                }, {}) || {},
-                mediaIdade: parseFloat(data.media_idade) || 0
+                total: Number(total) || 0,
+                porStatus,
+                porCidade,
+                porEstado,
+                mediaIdade: row?.media_idade ? Number(row.media_idade) : 0,
             };
         } catch (error) {
             logger.error('Erro ao obter estatísticas das beneficiárias:', error);
