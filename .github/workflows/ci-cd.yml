@@ -22,14 +22,14 @@ jobs:
       - name: Install dependencies (root + backend)
         run: |
           npm ci
-          npm --prefix backend ci
+          npm --prefix apps/backend ci
 
       - name: Run frontend unit tests
         run: npm test
 
       - name: Run backend unit tests
         run: |
-          cd backend
+          cd apps/backend
           npm test
         env:
           REDIS_DISABLED: 'true' # Se quiser Redis real aqui, remova isso e adicione services.
@@ -67,12 +67,12 @@ jobs:
 
       - name: Install backend deps
         run: |
-          cd backend
+          cd apps/backend
           npm ci
 
       - name: Bootstrap migration compat tables
         run: |
-          cd backend
+          cd apps/backend
           node - <<'NODE'
           const { Client } = require('pg');
           const client = new Client({
@@ -134,7 +134,7 @@ jobs:
 
       - name: Build + Migrate + Start API
         run: |
-          cd backend
+          cd apps/backend
           npm run build
           npm run migrate:node
           node scripts/seed-superadmin.js
@@ -160,7 +160,7 @@ jobs:
 
       - name: Run config smoke
         run: |
-          cd backend
+          cd apps/backend
           npm run smoke:config
         env:
           API_BASE: http://localhost:3000/api
@@ -169,7 +169,7 @@ jobs:
 
       - name: Run reports smoke
         run: |
-          cd backend
+          cd apps/backend
           npm run smoke:reports
         env:
           API_BASE: http://localhost:3000/api
@@ -211,11 +211,11 @@ jobs:
       - name: Install deps (root + backend)
         run: |
           npm ci
-          npm --prefix backend ci
+          npm --prefix apps/backend ci
 
       - name: Bootstrap migration compat tables
         run: |
-          cd backend
+          cd apps/backend
           node - <<'NODE'
           const { Client } = require('pg');
           const client = new Client({
@@ -277,7 +277,7 @@ jobs:
 
       - name: Build + Migrate + Start API
         run: |
-          cd backend
+          cd apps/backend
           npm run build
           npm run migrate:node
           node scripts/seed-superadmin.js
@@ -354,12 +354,12 @@ jobs:
 
       - name: Install backend deps
         run: |
-          cd backend
+          cd apps/backend
           npm ci
 
       - name: Run integration tests (testcontainers)
         run: |
-          cd backend
+          cd apps/backend
           RUN_INTEGRATION=1 npm run test:integration
 
   # Deployment é feito pelo deploy-vps.yml via SSH no servidor

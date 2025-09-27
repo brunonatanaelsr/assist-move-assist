@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." &> /dev/null && pwd)
-BACKEND_DIR="$ROOT_DIR/backend"
+BACKEND_DIR="$ROOT_DIR/apps/backend"
 
 API_HOST="127.0.0.1"
 API_PORT="3000"

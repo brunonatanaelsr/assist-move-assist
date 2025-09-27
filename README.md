@@ -58,8 +58,8 @@ assist-move-assist/
 
 1. Copie os templates para arquivos locais:
    ```bash
-   cp .env.example .env.local
-   cp backend/.env.example backend/.env
+    cp .env.example .env.local
+    cp apps/backend/.env.example apps/backend/.env
    ```
 2. Ajuste credenciais conforme sua infraestrutura. Para desenvolvimento padrão, mantenha os valores sugeridos:
 
@@ -71,7 +71,7 @@ assist-move-assist/
    VITE_WS_URL=ws://localhost:3000
    ```
 
-   **Backend (`backend/.env`)**
+    **Backend (`apps/backend/.env`)**
 
    ```env
    PORT=3000
@@ -84,7 +84,7 @@ assist-move-assist/
    CORS_ORIGIN=http://localhost:5173
    ```
 
-3. Para ambientes diferentes, mantenha arquivos separados e utilize `ENV_FILE` ao iniciar a API (`ENV_FILE=.env.staging npm --prefix backend run start`).
+3. Para ambientes diferentes, mantenha arquivos separados e utilize `ENV_FILE` ao iniciar a API (`ENV_FILE=.env.staging npm --prefix apps/backend run start`).
 
 ## Fluxos de Execução
 
@@ -110,16 +110,16 @@ docker compose up -d
    ```
 2. **Instalar dependências**:
    ```bash
-   npm install
-   npm --prefix backend install
+    npm install
+    npm --prefix apps/backend install
    ```
-3. **Aplicar migrações + seeds** (usa `backend/src/database/migrations`):
+3. **Aplicar migrações + seeds** (usa `apps/backend/src/database/migrations`):
    ```bash
-   npm --prefix backend run migrate:node
+    npm --prefix apps/backend run migrate:node
    ```
 4. **Iniciar backend**:
    ```bash
-   (cd backend && npm run dev)
+    (cd apps/backend && npm run dev)
    ```
 5. **Iniciar frontend** (em outro terminal):
    ```bash
@@ -137,7 +137,7 @@ bash scripts/codespace-dev.sh
 
 Ele executa as etapas abaixo:
 
-- cria `.env.local` e `backend/.env` se não existirem;
+- cria `.env.local` e `apps/backend/.env` se não existirem;
 - instala dependências front/back;
 - inicia Postgres + Redis via Docker e aguarda o `pg_isready` responder;
 - aplica migrações (com seed inicial);
@@ -164,17 +164,17 @@ npm run preview             # Servir build gerado
 npm run lint                # ESLint + Prettier (check)
 npm run type-check          # TypeScript sem emitir arquivos
 npm run test                # Testes de frontend (Vitest)
-npm --prefix backend run dev        # API em watch mode
-npm --prefix backend run migrate:node # Migrações + seed automáticos
-npm --prefix backend run test       # Testes unitários backend
+npm --prefix apps/backend run dev        # API em watch mode
+npm --prefix apps/backend run migrate:node # Migrações + seed automáticos
+npm --prefix apps/backend run test       # Testes unitários backend
 npm run test:e2e            # Playwright (necessita API ativa)
 ```
 
 ## Testes
 
 - **Frontend**: `npm run test` (Vitest) ou `npm run test:watch`.
-- **Backend**: `npm --prefix backend run test` (Jest).
-- **Integração**: `npm --prefix backend run test:integration` (usa Testcontainers, requer Docker).
+- **Backend**: `npm --prefix apps/backend run test` (Jest).
+- **Integração**: `npm --prefix apps/backend run test:integration` (usa Testcontainers, requer Docker).
 - **End-to-End**: `npm run test:e2e` (Playwright) — utilize `scripts/run-e2e-local.sh` para o fluxo completo com Docker.
 
 Credenciais padrão para automação e QA estão documentadas em [`docs/TEST_CREDENTIALS.md`](docs/TEST_CREDENTIALS.md).
@@ -184,8 +184,8 @@ Credenciais padrão para automação e QA estão documentadas em [`docs/TEST_CRE
 | Sintoma                             | Causa provável                            | Como resolver                                                                                                               |
 | ----------------------------------- | ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
 | `ECONNREFUSED` ao iniciar a API     | Postgres/Redis não estão em execução      | Rode `docker compose ps` e garanta que `postgres` e `redis` estão `Up`; reinicie com `docker compose up -d postgres redis`. |
-| Frontend mostra erro 401 após login | Seeds não executaram ou JWT desatualizado | Reaplique `npm --prefix backend run migrate:node` e limpe cookies/localStorage.                                             |
-| Porta 5173 ou 3000 indisponível     | Outro processo usando as portas           | Ajuste `PORT` em `backend/.env` ou execute `npm run dev -- --port 5174`.                                                    |
+| Frontend mostra erro 401 após login | Seeds não executaram ou JWT desatualizado | Reaplique `npm --prefix apps/backend run migrate:node` e limpe cookies/localStorage.                                             |
+| Porta 5173 ou 3000 indisponível     | Outro processo usando as portas           | Ajuste `PORT` em `apps/backend/.env` ou execute `npm run dev -- --port 5174`.                                                    |
 | Playwright falha no Codespaces      | Browsers não instalados                   | Execute `npx playwright install --with-deps chromium` antes dos testes.                                                     |
 
 ## Documentação complementar

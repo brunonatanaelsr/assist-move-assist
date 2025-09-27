@@ -4,7 +4,7 @@ Este guia descreve como operar a autenticação com cookies HttpOnly e proteçã
 
 ## Estado Atual
 
-- Login já define cookie HttpOnly `auth_token` (ver `backend/src/routes/auth.routes.ts`).
+- Login já define cookie HttpOnly `auth_token` (ver `apps/backend/src/routes/auth.routes.ts`).
 - O cliente (`src/services/apiService.ts`) envia `withCredentials: true` e, se existir cookie `csrf_token`, envia `X-CSRF-Token` automaticamente.
 - Autorização no backend funciona com cookie `auth_token` ou `Authorization: Bearer` como fallback.
 
@@ -12,17 +12,17 @@ Este guia descreve como operar a autenticação com cookies HttpOnly e proteçã
 
 1. Habilitar CORS com credenciais
 
-- Em `backend/src/app.ts` CORS já está ativo. Garanta `credentials: true` e `origin` com a lista de domínios confiáveis (sem `*` em produção).
+- Em `apps/backend/src/app.ts` CORS já está ativo. Garanta `credentials: true` e `origin` com a lista de domínios confiáveis (sem `*` em produção).
 
 2. Provisionar CSRF Token (cookie + header)
 
 - Adicionar middleware CSRF e registrar o cookie não HttpOnly `csrf_token` (apenas token aleatório). O cliente devolverá esse valor em `X-CSRF-Token` para métodos mutantes.
-- Exemplo de middleware em `backend/src/middleware/csrf.ts` (já incluído neste repo) — não habilitado por padrão.
+- Exemplo de middleware em `apps/backend/src/middleware/csrf.ts` (já incluído neste repo) — não habilitado por padrão.
 
 3. Ligar CSRF no app (opcional, por etapas)
 
 ```ts
-// backend/src/app.ts
+// apps/backend/src/app.ts
 // import { csrfMiddleware } from './middleware/csrf';
 // app.use(csrfMiddleware);
 ```

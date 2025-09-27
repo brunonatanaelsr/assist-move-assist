@@ -1,5 +1,5 @@
 [{
-	"resource": "/workspaces/assist-move-assist/backend/src/middleware/security.middleware.ts",
+        "resource": "/workspaces/assist-move-assist/apps/backend/src/middleware/security.middleware.ts",
 	"owner": "typescript",
 	"code": "2339",
 	"severity": 8,
@@ -11,7 +11,7 @@
 	"endColumn": 21,
 	"origin": "extHost2"
 },{
-	"resource": "/workspaces/assist-move-assist/backend/src/middleware/security.middleware.ts",
+        "resource": "/workspaces/assist-move-assist/apps/backend/src/middleware/security.middleware.ts",
 	"owner": "typescript",
 	"code": "2339",
 	"severity": 8,

@@ -27,7 +27,7 @@ services:
 
   backend:
     build:
-      context: ./backend
+      context: ./apps/backend
       dockerfile: Dockerfile
     container_name: movemarias_backend
     ports:
@@ -58,7 +58,7 @@ services:
       - postgres
       - redis
     volumes:
-      - ./backend:/app
+      - ./apps/backend:/app
       - /app/node_modules
     networks:
       - movemarias_network

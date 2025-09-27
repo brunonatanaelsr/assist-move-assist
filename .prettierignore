@@ -1,5 +1,5 @@
 node_modules
-backend/
+apps/backend/
 src/
 dist
 coverage

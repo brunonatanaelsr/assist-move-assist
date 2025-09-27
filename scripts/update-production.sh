@@ -31,9 +31,9 @@ cp $BACKEND_DIR/.env /tmp/env_backup
 
 # Atualizar arquivos do backend
 sudo rm -rf $BACKEND_DIR/src $BACKEND_DIR/dist
-sudo cp -r backend/src $BACKEND_DIR/
-sudo cp backend/package.json $BACKEND_DIR/
-sudo cp backend/tsconfig.json $BACKEND_DIR/
+sudo cp -r apps/backend/src $BACKEND_DIR/
+sudo cp apps/backend/package.json $BACKEND_DIR/
+sudo cp apps/backend/tsconfig.json $BACKEND_DIR/
 
 # Restaurar .env
 sudo cp /tmp/env_backup $BACKEND_DIR/.env

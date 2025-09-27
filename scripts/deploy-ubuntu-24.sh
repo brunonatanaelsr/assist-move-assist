@@ -23,8 +23,8 @@ WWW_DATA_HOME="/var/www"
 
 # Diretórios
 : "${APP_DIR:=/var/www/assist-move-assist}"
-BACKEND_DIR="$APP_DIR/backend"
-FRONTEND_DIR="$APP_DIR/frontend"
+BACKEND_DIR="$APP_DIR/apps/backend"
+FRONTEND_DIR="$APP_DIR/apps/frontend"
 LOG_DIR="/var/log/assist-move-assist"
 
 # Banco de dados
@@ -109,7 +109,7 @@ git clone --branch "$BRANCH" --depth 1 "$REPO_URL" "$WORKDIR"
 
 # ======= Backend =======
 msg "Montando backend..."
-rsync -a --delete "$WORKDIR/backend/" "$BACKEND_DIR/"
+rsync -a --delete "$WORKDIR/apps/backend/" "$BACKEND_DIR/"
 chown -R www-data:www-data "$BACKEND_DIR"
 cd "$BACKEND_DIR"
 
@@ -191,17 +191,17 @@ sudo -u www-data env \
 
 # ======= Frontend =======
 msg "Montando frontend..."
-rsync -a --delete "$WORKDIR/public/" "$FRONTEND_DIR/public/" || true
-rsync -a --delete "$WORKDIR/src/" "$FRONTEND_DIR/src/"
-install -m 0644 "$WORKDIR/package.json" "$FRONTEND_DIR/package.json"
-install -m 0644 "$WORKDIR/package-lock.json" "$FRONTEND_DIR/package-lock.json"
-install -m 0644 "$WORKDIR/vite.config.ts" "$FRONTEND_DIR/vite.config.ts"
-install -m 0644 "$WORKDIR/tsconfig.json" "$FRONTEND_DIR/tsconfig.json"
-install -m 0644 "$WORKDIR/tsconfig.app.json" "$FRONTEND_DIR/tsconfig.app.json" || true
-install -m 0644 "$WORKDIR/tsconfig.node.json" "$FRONTEND_DIR/tsconfig.node.json" || true
-install -m 0644 "$WORKDIR/tailwind.config.ts" "$FRONTEND_DIR/tailwind.config.ts" || true
-install -m 0644 "$WORKDIR/postcss.config.js" "$FRONTEND_DIR/postcss.config.js" || true
-install -m 0644 "$WORKDIR/index.html" "$FRONTEND_DIR/index.html"
+rsync -a --delete "$WORKDIR/apps/frontend/public/" "$FRONTEND_DIR/public/" || true
+rsync -a --delete "$WORKDIR/apps/frontend/src/" "$FRONTEND_DIR/src/"
+install -m 0644 "$WORKDIR/apps/frontend/package.json" "$FRONTEND_DIR/package.json"
+install -m 0644 "$WORKDIR/apps/frontend/package-lock.json" "$FRONTEND_DIR/package-lock.json"
+install -m 0644 "$WORKDIR/apps/frontend/vite.config.ts" "$FRONTEND_DIR/vite.config.ts"
+install -m 0644 "$WORKDIR/apps/frontend/tsconfig.json" "$FRONTEND_DIR/tsconfig.json"
+install -m 0644 "$WORKDIR/apps/frontend/tsconfig.app.json" "$FRONTEND_DIR/tsconfig.app.json" || true
+install -m 0644 "$WORKDIR/apps/frontend/tsconfig.node.json" "$FRONTEND_DIR/tsconfig.node.json" || true
+install -m 0644 "$WORKDIR/apps/frontend/tailwind.config.ts" "$FRONTEND_DIR/tailwind.config.ts" || true
+install -m 0644 "$WORKDIR/apps/frontend/postcss.config.js" "$FRONTEND_DIR/postcss.config.js" || true
+install -m 0644 "$WORKDIR/apps/frontend/index.html" "$FRONTEND_DIR/index.html"
 chown -R www-data:www-data "$FRONTEND_DIR"
 cd "$FRONTEND_DIR"
 

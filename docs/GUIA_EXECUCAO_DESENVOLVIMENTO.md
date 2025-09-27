@@ -29,7 +29,7 @@ Crie os arquivos locais a partir dos templates disponíveis:
 
 ```bash
 cp .env.example .env.local
-cp backend/.env.example backend/.env
+cp apps/backend/.env.example apps/backend/.env
 ```
 
 Os valores padrão suportam o ambiente local. Ajuste apenas se necessário. Principais variáveis:
@@ -38,7 +38,7 @@ Os valores padrão suportam o ambiente local. Ajuste apenas se necessário. Prin
   - `APP_URL=http://localhost:5173`
   - `VITE_API_BASE_URL=http://localhost:3000/api`
   - `VITE_WS_URL=ws://localhost:3000`
-- **Backend (`backend/.env`)**
+- **Backend (`apps/backend/.env`)**
   - `PORT=3000`
   - `POSTGRES_HOST=localhost`
   - `POSTGRES_USER=assistmove`
@@ -70,7 +70,7 @@ Instale os pacotes do frontend e backend:
 
 ```bash
 npm install
-npm --prefix backend install
+npm --prefix apps/backend install
 ```
 
 ## 6. Aplicar Migrações e Seeds
@@ -78,7 +78,7 @@ npm --prefix backend install
 Execute as migrações do banco e aplique os dados iniciais necessários para autenticação e testes:
 
 ```bash
-npm --prefix backend run migrate:node
+npm --prefix apps/backend run migrate:node
 ```
 
 Caso precise resetar a base, derrube os containers com `docker compose down --volumes` e repita as etapas 4 a 6.
@@ -90,7 +90,7 @@ Com a infraestrutura pronta, suba backend e frontend em terminais separados:
 ```bash
 # Terminal 1
 docker compose up -d postgres redis  # garante que a infraestrutura está ativa
-npm --prefix backend run dev         # backend com hot-reload
+npm --prefix apps/backend run dev         # backend com hot-reload
 
 # Terminal 2
 npm run dev                          # frontend Vite
@@ -122,7 +122,7 @@ Para garantir que o ambiente está íntegro, os comandos mais utilizados são:
 ```bash
 npm run lint                # lint do frontend
 npm run test                # testes do frontend (Vitest)
-npm --prefix backend run test   # testes do backend (Jest)
+npm --prefix apps/backend run test   # testes do backend (Jest)
 ```
 
 Consulte o [README principal](../README.md) para fluxos adicionais, testes end-to-end e guias complementares.

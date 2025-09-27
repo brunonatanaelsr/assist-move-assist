@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 FRONTEND_DIR="$ROOT_DIR"
-BACKEND_DIR="$ROOT_DIR/backend"
+BACKEND_DIR="$ROOT_DIR/apps/backend"
 
 function log() {
   printf '\n[assist-move-assist] %s\n' "$1"
@@ -37,7 +37,7 @@ if [ ! -f "$ROOT_DIR/.env.local" ]; then
 fi
 
 if [ ! -f "$BACKEND_DIR/.env" ]; then
-  log "Criando backend/.env a partir de backend/.env.example"
+  log "Criando apps/backend/.env a partir de apps/backend/.env.example"
   cp "$BACKEND_DIR/.env.example" "$BACKEND_DIR/.env"
 fi
 

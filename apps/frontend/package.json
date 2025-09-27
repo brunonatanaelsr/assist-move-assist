@@ -20,7 +20,7 @@
     "test:e2e:ui": "playwright test --ui",
     "test:all": "npm run test && npm run test:e2e",
     "test:frontend": "vitest run",
-    "test:backend": "cd backend && npm test",
+    "test:backend": "cd ../backend && npm test",
     "format": "prettier --write ."
   },
   "dependencies": {
