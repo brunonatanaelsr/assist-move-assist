@@ -1,5 +1,4 @@
-import type { Express } from 'express';
-import type { Request, Response, NextFunction } from 'express-serve-static-core';
+import type { Express, Request, Response, NextFunction } from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
 import { rateLimit } from 'express-rate-limit';
@@ -7,12 +6,17 @@ import { sanitize } from 'express-mongo-sanitize';
 import xss from 'xss-clean';
 import hpp from 'hpp';
 import { loggerService } from '../services/logger';
+import { env } from './env';
 
 // Configuração base do CORS
+const rawCorsOrigins = env.CORS_ORIGIN
+  ? env.CORS_ORIGIN.split(',').map((origin) => origin.trim()).filter(Boolean)
+  : [];
+
+const allowAllOrigins = rawCorsOrigins.length === 0 || rawCorsOrigins.includes('*');
+
 const corsOptions = {
-  origin: process.env.NODE_ENV === 'production'
-    ? [process.env.FRONTEND_URL!].filter(Boolean)
-    : true,
+  origin: allowAllOrigins ? true : rawCorsOrigins,
   credentials: true,
   maxAge: 24 * 60 * 60, // 24 horas
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -84,10 +88,10 @@ const sanitizeInput = (req: Request, _res: Response, next: NextFunction) => {
 // Middleware para validar origem das requisições
 const validateOrigin = (req: Request, res: Response, next: NextFunction) => {
   const origin = req.get('origin');
-  
-  if (process.env.NODE_ENV === 'production' && origin) {
-    const allowedOrigins = [process.env.FRONTEND_URL!].filter(Boolean);
-    
+
+  if (!allowAllOrigins && env.NODE_ENV === 'production' && origin) {
+    const allowedOrigins = rawCorsOrigins;
+
     if (!allowedOrigins.includes(origin)) {
       return res.status(403).json({
         error: 'Origem não permitida'
@@ -102,7 +106,7 @@ const validateOrigin = (req: Request, res: Response, next: NextFunction) => {
 const validateContentType = (req: Request, res: Response, next: NextFunction) => {
   if (req.method === 'POST' || req.method === 'PUT') {
     const contentType = req.get('content-type');
-    
+
     if (!contentType || !contentType.includes('application/json')) {
       return res.status(415).json({
         error: 'Content-Type deve ser application/json'
@@ -131,37 +135,59 @@ const fileUploadConfig = {
 };
 
 // Função para aplicar todas as configurações de segurança
-export const setupSecurity = (app: any) => {
+export const setupSecurity = (app: Express) => {
   // Headers de segurança
   app.use(helmet(helmetConfig));
-  
+
   // CORS
   app.use(cors(corsOptions));
-  
+
   // Rate Limiting
-  app.use('/api/', generalLimiter);
-  app.use('/api/v1/', apiLimiter);
-  
+  if (!env.RATE_LIMIT_DISABLE) {
+    app.use('/api/', generalLimiter);
+    app.use('/api/v1/', apiLimiter);
+  } else {
+    loggerService.info('Rate limiting desativado via RATE_LIMIT_DISABLE');
+  }
+
   // Sanitização e validação
-  app.use(sanitizeInput);
-  app.use(validateOrigin);
-  app.use(validateContentType);
-  
+  if (!env.SECURITY_SANITIZE_DISABLE) {
+    app.use(sanitizeInput);
+  } else {
+    loggerService.warn('Sanitização desativada via SECURITY_SANITIZE_DISABLE');
+  }
+
+  if (!env.SECURITY_ORIGIN_DISABLE && !allowAllOrigins) {
+    app.use(validateOrigin);
+  } else if (env.SECURITY_ORIGIN_DISABLE) {
+    loggerService.warn('Validação de origem desativada via SECURITY_ORIGIN_DISABLE');
+  }
+
+  if (!env.SECURITY_CONTENT_TYPE_DISABLE) {
+    app.use(validateContentType);
+  } else {
+    loggerService.warn('Validação de Content-Type desativada via SECURITY_CONTENT_TYPE_DISABLE');
+  }
+
   // Proteção contra Parameter Pollution
   app.use(hpp());
-  
+
   // Logging de segurança
-  app.use((req: Request, _res: Response, next: NextFunction) => {
-    if (req.method === 'POST' || req.method === 'PUT') {
-      loggerService.info('Request segurança:', {
-        method: req.method,
-        path: req.path,
-        origin: req.get('origin'),
-        ip: req.ip
-      });
-    }
-    next();
-  });
+  if (!env.SECURITY_REQUEST_LOG_DISABLE) {
+    app.use((req: Request, _res: Response, next: NextFunction) => {
+      if (req.method === 'POST' || req.method === 'PUT') {
+        loggerService.info('Request segurança:', {
+          method: req.method,
+          path: req.path,
+          origin: req.get('origin'),
+          ip: req.ip
+        });
+      }
+      next();
+    });
+  } else {
+    loggerService.info('Security request logging desativado via SECURITY_REQUEST_LOG_DISABLE');
+  }
 };
 
 export {

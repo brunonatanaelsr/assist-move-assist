@@ -84,6 +84,16 @@ assist-move-assist/
    CORS_ORIGIN=http://localhost:5173
    ```
 
+   > **Controles de segurança do backend**: durante testes ou execuções locais é possível desativar partes do bundle de segurança via variáveis de ambiente. Ajuste apenas o necessário para o cenário de teste.
+
+   ```env
+   RATE_LIMIT_DISABLE=true                 # ignora limites de requisições globais
+   SECURITY_SANITIZE_DISABLE=true          # desativa sanitização automática de body/query
+   SECURITY_CONTENT_TYPE_DISABLE=true      # permite POST/PUT sem Content-Type application/json
+   SECURITY_ORIGIN_DISABLE=true            # desabilita validação de origem em produção
+   SECURITY_REQUEST_LOG_DISABLE=true       # suprime logs adicionais de requisições sensíveis
+   ```
+
 3. Para ambientes diferentes, mantenha arquivos separados e utilize `ENV_FILE` ao iniciar a API (`ENV_FILE=.env.staging npm --prefix apps/backend run start`).
 
 ## Fluxos de Execução

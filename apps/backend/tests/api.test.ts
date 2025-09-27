@@ -21,9 +21,29 @@ describe('API Tests', () => {
           email: 'bruno@move.com',
           password: '15002031'
         });
-      
+
       expect(res.status).toBe(200);
       expect(res.body).toHaveProperty('token');
+    });
+  });
+
+  describe('Security middleware', () => {
+    it('should include helmet security headers on /health', async () => {
+      const res = await request(app).get('/health');
+
+      expect(res.status).toBe(200);
+      expect(res.headers).toHaveProperty('x-dns-prefetch-control');
+      expect(res.headers).toHaveProperty('x-content-type-options', 'nosniff');
+    });
+
+    it('should reject payloads without application/json content type', async () => {
+      const res = await request(app)
+        .post('/api/auth/login')
+        .set('Content-Type', 'text/plain')
+        .send('email=invalid');
+
+      expect(res.status).toBe(415);
+      expect(res.body).toHaveProperty('error');
     });
   });
 

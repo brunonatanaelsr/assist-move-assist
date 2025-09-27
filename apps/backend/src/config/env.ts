@@ -29,7 +29,8 @@ const defaultsForTests = {
   POSTGRES_PORT: '5432',
   POSTGRES_DB: 'postgres',
   POSTGRES_USER: 'postgres',
-  POSTGRES_PASSWORD: 'postgres'
+  POSTGRES_PASSWORD: 'postgres',
+  SECURITY_REQUEST_LOG_DISABLE: 'true'
 } as const;
 
 const jwtExpirySchema = z
@@ -55,6 +56,10 @@ const envSchema = z.object({
   JWT_REFRESH_SECRET: z.string().optional(),
   AUTH_COOKIE_SAMESITE: z.enum(['lax', 'strict', 'none']).optional(),
   RATE_LIMIT_DISABLE: booleanFromEnv.default(false),
+  SECURITY_SANITIZE_DISABLE: booleanFromEnv.default(false),
+  SECURITY_CONTENT_TYPE_DISABLE: booleanFromEnv.default(false),
+  SECURITY_ORIGIN_DISABLE: booleanFromEnv.default(false),
+  SECURITY_REQUEST_LOG_DISABLE: booleanFromEnv.default(false),
   ENABLE_WS: booleanFromEnv.default(false),
   CORS_ORIGIN: z.string().optional(),
   POSTGRES_HOST: z.string().min(1, 'POSTGRES_HOST é obrigatório'),
