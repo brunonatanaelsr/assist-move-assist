@@ -125,6 +125,52 @@ Todas as rotas (exceto /auth/login) requerem autenticação via Bearer Token JWT
 - `GET /analytics/oficinas` - Estatísticas de oficinas
 - `GET /analytics/formularios` - Estatísticas de formulários
 
+### Configurações
+
+- `GET /configuracoes` - Recupera as preferências globais do sistema (tema, idioma, fuso horário, notificações padrão e dados da organização).
+- `PUT /configuracoes` - Atualiza parcialmente as preferências globais. Apenas campos enviados são alterados.
+
+#### Exemplo de payload (`PUT /configuracoes`)
+
+```json
+{
+  "tema": "escuro",
+  "idioma": "pt-BR",
+  "fusoHorario": "America/Sao_Paulo",
+  "notificacoes": {
+    "habilitarEmails": false,
+    "habilitarPush": true
+  },
+  "organizacao": {
+    "nome": "Move Marias",
+    "emailSuporte": "contato@move.org"
+  }
+}
+```
+
+#### Exemplo de resposta (`GET /configuracoes`)
+
+```json
+{
+  "success": true,
+  "message": "Operação realizada com sucesso",
+  "data": {
+    "tema": "escuro",
+    "idioma": "pt-BR",
+    "fusoHorario": "America/Sao_Paulo",
+    "notificacoes": {
+      "habilitarEmails": false,
+      "habilitarPush": true
+    },
+    "organizacao": {
+      "nome": "Move Marias",
+      "emailSuporte": "contato@move.org"
+    },
+    "atualizadoEm": "2024-06-01T08:30:00.000Z"
+  }
+}
+```
+
 ## Responses
 
 ### Sucesso

@@ -12,12 +12,14 @@ import { API_URL } from '@/config';
 import type { DashboardStatsResponse } from '@/types/dashboard';
 import type { ApiResponse, Pagination } from '@/types/api';
 import type {
+  ConfiguracoesGlobais,
   ConfiguracaoUsuario,
   CreateUsuarioPayload,
   PaginatedCollection,
   PermissionSummary,
   ResetPasswordPayload,
   UpdateUsuarioPayload,
+  UpdateConfiguracoesPayload,
   UsuarioPermissions,
 } from '@/types/configuracoes';
 const IS_DEV = (import.meta as any)?.env?.DEV === true || (import.meta as any)?.env?.MODE === 'development';
@@ -189,7 +191,7 @@ class ApiService {
   }
 
   async put<T>(endpoint: string, data?: any): Promise<ApiResponse<T>> {
-    const response = await this.api.put(endpoint, data);
+    const response = await this.api.put<ApiResponse<T>>(endpoint, data);
     return response.data;
   }
 
@@ -505,12 +507,12 @@ class ApiService {
   }
 
   // Métodos específicos para configurações
-  async getConfiguracoes(): Promise<ApiResponse<any>> {
-    return this.get('/configuracoes');
+  async getConfiguracoes(): Promise<ApiResponse<ConfiguracoesGlobais>> {
+    return this.get<ConfiguracoesGlobais>('/configuracoes');
   }
 
-  async updateConfiguracoes(data: any): Promise<ApiResponse<any>> {
-    return this.put('/configuracoes', data);
+  async updateConfiguracoes(data: UpdateConfiguracoesPayload): Promise<ApiResponse<ConfiguracoesGlobais>> {
+    return this.put<ConfiguracoesGlobais>('/configuracoes', data);
   }
 
   // Configurações: usuários, papéis, permissões

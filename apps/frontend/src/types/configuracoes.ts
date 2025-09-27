@@ -1,5 +1,27 @@
 import type { Pagination } from './api';
 
+export type TemaPreferido = 'claro' | 'escuro' | 'sistema';
+
+export interface ConfiguracoesGlobais {
+  tema: TemaPreferido;
+  idioma: string;
+  fusoHorario: string;
+  notificacoes: {
+    habilitarEmails: boolean;
+    habilitarPush: boolean;
+  };
+  organizacao: {
+    nome: string | null;
+    emailSuporte: string | null;
+  };
+  atualizadoEm: string | null;
+}
+
+export type UpdateConfiguracoesPayload = Partial<Omit<ConfiguracoesGlobais, 'atualizadoEm'>> & {
+  notificacoes?: Partial<ConfiguracoesGlobais['notificacoes']>;
+  organizacao?: Partial<ConfiguracoesGlobais['organizacao']>;
+};
+
 export interface ConfiguracaoUsuario {
   id: number;
   email: string;
