@@ -3,6 +3,12 @@ import pool from '../config/database';
 import redis from '../config/redis';
 import { cacheService } from '../services/cache.service';
 
+const INACTIVE_PROJECT_STATUSES = new Set(['cancelado', 'concluido']);
+const PROJECT_INACTIVE_ERROR_MESSAGE = 'Projetos cancelados ou concluídos não aceitam novas matrículas';
+
+const normalizeStatus = (status: unknown): string =>
+  typeof status === 'string' ? status.toLowerCase() : '';
+
 // Logger personalizado para evitar problemas de console
 const logger = {
   error: (message: string, error?: any) => {
@@ -166,10 +172,12 @@ export const criarMatricula = async (req: Request, res: Response) => {
       });
     }
 
-    if (projetoCheck.rows[0].status !== 'ativo') {
+    const projetoStatus = normalizeStatus(projetoCheck.rows[0].status);
+
+    if (INACTIVE_PROJECT_STATUSES.has(projetoStatus)) {
       return res.status(400).json({
         success: false,
-        error: 'Projeto não está ativo para novas matrículas'
+        error: PROJECT_INACTIVE_ERROR_MESSAGE
       });
     }
 
@@ -505,9 +513,9 @@ export const verificarElegibilidade = async (req: Request, res: Response) => {
     };
 
     // Verificações básicas
-    if (projeto.rows[0].status !== 'ativo') {
+    if (INACTIVE_PROJECT_STATUSES.has(normalizeStatus(projeto.rows[0].status))) {
       resultado.elegivel = false;
-      resultado.motivos.push('Projeto não está ativo para novas matrículas');
+      resultado.motivos.push(PROJECT_INACTIVE_ERROR_MESSAGE);
     }
 
     if (matriculaExistente.rows.length > 0) {
