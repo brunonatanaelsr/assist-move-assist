@@ -82,7 +82,13 @@ assist-move-assist/
    # DATABASE_URL=postgresql://assistmove:assistmove123@localhost:5432/assist_move_assist # opcional (scripts/e2e)
    REDIS_HOST=127.0.0.1
    REDIS_PORT=6379
-   CORS_ORIGIN=http://localhost:5173
+  CORS_ORIGIN=http://localhost:5173
+  ```
+
+   > Para liberar múltiplos frontends informe uma lista separada por vírgulas, por exemplo:
+
+   ```env
+   CORS_ORIGIN=http://localhost:5173,http://localhost:4173
    ```
 
 3. Para ambientes diferentes, mantenha arquivos separados e utilize `ENV_FILE` ao iniciar a API (`ENV_FILE=.env.staging npm --prefix apps/backend run start`).

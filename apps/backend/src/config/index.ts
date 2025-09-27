@@ -1,6 +1,27 @@
 import path from 'path';
 import { env } from './env';
 
+const parseCorsOrigin = (originList?: string) => {
+  if (!originList) {
+    return undefined;
+  }
+
+  const parsedOrigins = originList
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter((origin) => origin.length > 0);
+
+  if (parsedOrigins.length === 0) {
+    return undefined;
+  }
+
+  if (parsedOrigins.length === 1 && parsedOrigins[0] === '*') {
+    return '*';
+  }
+
+  return parsedOrigins;
+};
+
 const config = {
   // Configurações do servidor
   server: {
@@ -56,7 +77,7 @@ const config = {
 
   // Configurações de cors
   cors: {
-    origin: env.CORS_ORIGIN || '*',
+    origin: parseCorsOrigin(env.CORS_ORIGIN),
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
     allowedHeaders: ['Content-Type', 'Authorization'],
   },
