@@ -12,10 +12,14 @@ const authenticateToken = jest.fn((req: any, _res: any, next: any) => {
 
 const authorizeMiddleware = jest.fn((_req: any, _res: any, next: any) => next());
 const authorize = jest.fn(() => authorizeMiddleware);
+const requireProfissional = jest.fn((_req: any, _res: any, next: any) => next());
+const requireGestor = jest.fn((_req: any, _res: any, next: any) => next());
 
 jest.mock('../../middleware/auth', () => ({
   authenticateToken,
-  authorize: (permission: string) => authorize(permission),
+  authorize: authorize as any,
+  requireProfissional,
+  requireGestor,
 }));
 
 const mockQuery = jest.fn();
@@ -25,15 +29,21 @@ jest.mock('../../config/database', () => {
   return { pool, default: pool };
 });
 
-const { apiRoutes } = require('../api');
+let app: express.Express;
 
-const app = express();
-app.use(express.json());
-app.use(apiRoutes);
+const setupApp = () => {
+  const { apiRoutes } = require('../api');
+  const application = express();
+  application.use(express.json());
+  application.use(apiRoutes);
+  return application;
+};
 
 describe('Configurações globais - rotas /configuracoes', () => {
   beforeEach(() => {
+    jest.resetModules();
     jest.clearAllMocks();
+    app = setupApp();
   });
 
   it('deve retornar configurações padrão quando não houver registros', async () => {
