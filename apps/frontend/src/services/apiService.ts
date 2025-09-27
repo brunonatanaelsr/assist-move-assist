@@ -4,9 +4,13 @@
  */
 
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
-import type { Beneficiaria, BeneficiariaFiltros } from '../../../backend/src/types/beneficiarias';
-import type { Oficina } from '../../../backend/src/types/oficina';
-import type { AuthResponse, AuthenticatedSessionUser } from '../../../backend/src/types/auth';
+import type {
+  AuthResponse,
+  AuthenticatedSessionUser,
+  Beneficiaria,
+  BeneficiariaFiltros,
+  Oficina,
+} from '@assist/types';
 import { translateErrorMessage } from '@/lib/apiError';
 import { API_URL } from '@/config';
 import type { DashboardStatsResponse } from '@/types/dashboard';
