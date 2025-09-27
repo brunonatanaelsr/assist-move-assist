@@ -13,7 +13,7 @@ O Assist Move Assist é um sistema monorepo baseado em TypeScript, dividido em d
 
 ### Backend (Node.js + Express)
 - API RESTful com Express
-- Banco de dados PostgreSQL com Prisma ORM
+- Banco de dados PostgreSQL com node-postgres (SQL puro)
 - Cache e filas com Redis
 - WebSocket para notificações em tempo real
 - JWT para autenticação
@@ -38,7 +38,7 @@ assist-move-assist/
 │       │   ├── models/
 │       │   ├── repositories/
 │       │   └── websocket/
-│       └── prisma/      # Schema e migrações
+│       └── src/database/migrations/ # Migrações SQL versionadas
 ├── docker/             # Configurações Docker
 ├── scripts/           # Scripts de automação
 └── docs/             # Documentação
@@ -84,7 +84,7 @@ assist-move-assist/
 
 3. **Banco de Dados**
    - PostgreSQL para persistência
-   - Prisma para ORM e migrações
+   - node-postgres (`pg`) com scripts SQL para migrações
    - Índices otimizados
    - Conexão com pool
 

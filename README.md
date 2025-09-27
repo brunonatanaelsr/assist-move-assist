@@ -36,7 +36,7 @@ assist-move-assist/
 │   └── backend/          # API Express (TypeScript)
 │       ├── src/          # Código-fonte do backend
 │       ├── scripts/      # Migrações, seeds e utilitários
-│       └── prisma/       # Migrações SQL organizadas
+│       └── src/database/migrations/ # Migrações SQL versionadas
 ├── scripts/              # Automatizações (deploy, e2e, codespaces, etc.)
 ├── docs/                 # Guias complementares (deploy, API, testes)
 └── docker-compose*.yml   # Orquestração Docker dev/prod
@@ -79,6 +79,7 @@ assist-move-assist/
    POSTGRES_USER=assistmove
    POSTGRES_PASSWORD=assistmove123
    POSTGRES_DB=assist_move_assist
+   # DATABASE_URL=postgresql://assistmove:assistmove123@localhost:5432/assist_move_assist # opcional (scripts/e2e)
    REDIS_HOST=127.0.0.1
    REDIS_PORT=6379
    CORS_ORIGIN=http://localhost:5173
