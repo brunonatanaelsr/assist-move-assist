@@ -84,16 +84,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const privilegedRoles = useMemo(
+    () => new Set(['admin', 'super_admin', 'superadmin']),
+    []
+  );
+
+  const isAdmin = !!(user?.papel && privilegedRoles.has(user.papel));
+
   return (
-    <AuthContext.Provider value={{ 
-      user, 
-      profile: user, // alias para compatibilidade
-      loading, 
-      signIn, 
-      signOut,
-      isAuthenticated: !!user,
-      isAdmin: user?.papel === 'admin' || user?.papel === 'super_admin' || user?.papel === 'superadmin'
-    }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        profile: user, // alias para compatibilidade
+        loading,
+        signIn,
+        signOut,
+        isAuthenticated: !!user,
+        isAdmin
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

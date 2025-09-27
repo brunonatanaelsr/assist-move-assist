@@ -7,11 +7,11 @@ interface ProtectedRouteProps {
   adminOnly?: boolean;
 }
 
-export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ 
-  children, 
-  adminOnly = false 
+export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
+  children,
+  adminOnly = false
 }) => {
-  const { user, loading } = useAuth();
+  const { user, loading, isAdmin } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -19,7 +19,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     if (!loading) {
       if (user) {
         // Usuário autenticado: segue fluxo normal
-        if (adminOnly && user.papel !== 'admin') {
+        if (adminOnly && !isAdmin) {
           console.log('ProtectedRoute: Usuário sem privilégios de admin');
           navigate('/', { replace: true });
         }
@@ -28,7 +28,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
         // Isso evita flakiness nos testes E2E no carregamento inicial.
       }
     }
-  }, [loading, user, adminOnly, navigate, location]);
+  }, [loading, user, adminOnly, navigate, location, isAdmin]);
 
   // Show loading state while checking authentication
   if (loading) {
