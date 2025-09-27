@@ -28,51 +28,166 @@ enum ReportScheduleFrequency {
   MONTHLY
 }
 
+enum EventType {
+  OFICINA
+  REUNIAO
+  ATIVIDADE
+  OUTRO
+}
+
+enum EventStatus {
+  AGENDADO
+  CONFIRMADO
+  CANCELADO
+  CONCLUIDO
+}
+
+enum RecurrenceFrequency {
+  DAILY
+  WEEKLY
+  MONTHLY
+}
+
+enum ParticipantResponse {
+  ACCEPTED
+  DECLINED
+  TENTATIVE
+  PENDING
+}
+
+enum NotificationType {
+  EMAIL
+  PUSH
+  SMS
+}
+
 // Modelos
+model User {
+  id               Int       @id @default(autoincrement())
+  email            String    @unique
+  senhaHash        String    @map("senha_hash")
+  nome             String
+  papel            String    @default("user")
+  ativo            Boolean   @default(true)
+  avatarUrl        String?   @map("avatar_url")
+  ultimoLogin      DateTime? @map("ultimo_login")
+  cargo            String?
+  departamento     String?
+  bio              String?
+  telefone         String?
+  dataCriacao      DateTime  @default(now()) @map("data_criacao")
+  dataAtualizacao  DateTime  @updatedAt @map("data_atualizacao")
+
+  // Relações de relatórios
+  createdReportTemplates ReportTemplate[] @relation("CreatedReportTemplates")
+  updatedReportTemplates ReportTemplate[] @relation("UpdatedReportTemplates")
+  reportExecutions       ReportExecution[]
+
+  // Relações de calendário
+  organizedEvents     CalendarEvent[]   @relation("OrganizedEvents")
+  eventParticipations EventParticipant[]
+
+  @@map("usuarios")
+}
+
 model ReportTemplate {
-  id          Int      @id @default(autoincrement())
+  id          Int       @id @default(autoincrement())
   name        String
   description String?
   type        ReportType
-  filters     Json     @default("{}")
-  metrics     String[]
-  charts      Json     @default("{}")
-  schedule    Json?
-  created_at  DateTime @default(now())
-  updated_at  DateTime @updatedAt
-  
+  filters     Json      @default("{}") @db.JsonB
+  metrics     String[]  @default([]) @db.Text
+  charts      Json      @default("{}") @db.JsonB
+  schedule    Json?     @db.JsonB
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
   // Relações
-  created_by    User     @relation("CreatedReportTemplates", fields: [created_by_id], references: [id])
-  created_by_id Int
-  updated_by    User     @relation("UpdatedReportTemplates", fields: [updated_by_id], references: [id])
-  updated_by_id Int
-  
+  createdBy   User @relation("CreatedReportTemplates", fields: [createdById], references: [id])
+  createdById Int  @map("created_by_id")
+  updatedBy   User @relation("UpdatedReportTemplates", fields: [updatedById], references: [id])
+  updatedById Int  @map("updated_by_id")
+
   executions ReportExecution[]
 }
 
 model ReportExecution {
-  id             Int      @id @default(autoincrement())
-  template       ReportTemplate @relation(fields: [template_id], references: [id])
-  template_id    Int
-  status         String
-  error_message  String?
-  execution_time Int?
-  output_format  String
-  output_url     String?
-  created_at     DateTime @default(now())
-  
+  id            Int       @id @default(autoincrement())
+  status        String
+  errorMessage  String?   @map("error_message")
+  executionTime Int?      @map("execution_time")
+  outputFormat  String    @map("output_format")
+  outputUrl     String?   @map("output_url")
+  createdAt     DateTime  @default(now()) @map("created_at")
+
   // Relações
-  created_by    User     @relation(fields: [created_by_id], references: [id])
-  created_by_id Int
+  template    ReportTemplate @relation(fields: [templateId], references: [id])
+  templateId  Int            @map("template_id")
+  createdBy   User           @relation(fields: [createdById], references: [id])
+  createdById Int            @map("created_by_id")
 }
 
-// Modelo User existente atualizado
-model User {
-  id        Int      @id @default(autoincrement())
-  // ... outros campos existentes ...
+model CalendarEvent {
+  id               Int              @id @default(autoincrement())
+  title            String
+  description      String?
+  startDate        DateTime         @map("start_date")
+  endDate          DateTime         @map("end_date")
+  allDay           Boolean          @default(false) @map("all_day")
+  location         String?
+  type             EventType
+  status           EventStatus
+  projectId        Int?             @map("project_id")
+  organizerId      Int              @map("organizer_id")
+  recurrenceRuleId Int?             @map("recurrence_rule_id")
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime         @updatedAt @map("updated_at")
 
-  // Relações de relatórios
-  created_report_templates ReportTemplate[] @relation("CreatedReportTemplates")
-  updated_report_templates ReportTemplate[] @relation("UpdatedReportTemplates")
-  report_executions       ReportExecution[]
+  organizer      User             @relation("OrganizedEvents", fields: [organizerId], references: [id])
+  recurrenceRule RecurrenceRule?  @relation(fields: [recurrenceRuleId], references: [id])
+  participants   EventParticipant[]
+  notifications  CalendarNotification[]
+}
+
+model RecurrenceRule {
+  id          Int         @id @default(autoincrement())
+  frequency   RecurrenceFrequency
+  interval    Int         @default(1)
+  untilDate   DateTime?   @map("until_date")
+  byWeekday   Int[]       @default([]) @map("by_weekday")
+  exceptions  DateTime[]  @default([])
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+
+  events CalendarEvent[]
+}
+
+model EventParticipant {
+  id            Int                 @id @default(autoincrement())
+  response      ParticipantResponse @default(PENDING)
+  attended      Boolean?
+  notes         String?
+  createdAt     DateTime            @default(now()) @map("created_at")
+  updatedAt     DateTime            @updatedAt @map("updated_at")
+
+  eventId       Int                 @map("event_id")
+  participantId Int                 @map("participant_id")
+  event         CalendarEvent       @relation(fields: [eventId], references: [id])
+  participant   User                @relation(fields: [participantId], references: [id])
+
+  @@unique([eventId, participantId])
+}
+
+model CalendarNotification {
+  id            Int               @id @default(autoincrement())
+  type          NotificationType
+  minutesBefore Int               @map("minutes_before")
+  sent          Boolean           @default(false)
+  scheduledFor  DateTime?         @map("scheduled_for")
+  sentAt        DateTime?         @map("sent_at")
+  createdAt     DateTime          @default(now()) @map("created_at")
+  updatedAt     DateTime          @updatedAt @map("updated_at")
+
+  eventId Int           @map("event_id")
+  event   CalendarEvent @relation(fields: [eventId], references: [id])
 }

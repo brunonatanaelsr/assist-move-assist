@@ -14,7 +14,7 @@ CREATE TABLE "ReportTemplate" (
     "description" TEXT,
     "type" "ReportType" NOT NULL,
     "filters" JSONB NOT NULL DEFAULT '{}',
-    "metrics" TEXT[],
+    "metrics" TEXT[] DEFAULT ARRAY[]::TEXT[],
     "charts" JSONB NOT NULL DEFAULT '{}',
     "schedule" JSONB,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
