@@ -5,7 +5,237 @@ import { successResponse, errorResponse } from '../utils/responseFormatter';
 import { redis } from '../lib/redis';
 import bcrypt from 'bcryptjs';
 
+type TemaPreferido = 'claro' | 'escuro' | 'sistema';
+
+interface ConfiguracoesPersistidas {
+  tema: TemaPreferido;
+  idioma: string;
+  fusoHorario: string;
+  notificacoes: {
+    habilitarEmails: boolean;
+    habilitarPush: boolean;
+  };
+  organizacao: {
+    nome: string | null;
+    emailSuporte: string | null;
+  };
+}
+
+interface ConfiguracoesResposta extends ConfiguracoesPersistidas {
+  atualizadoEm: string | null;
+}
+
+type AtualizacaoConfiguracoes = Partial<ConfiguracoesPersistidas> & {
+  notificacoes?: Partial<ConfiguracoesPersistidas['notificacoes']>;
+  organizacao?: Partial<ConfiguracoesPersistidas['organizacao']>;
+};
+
+const DEFAULT_CONFIGURACOES: ConfiguracoesPersistidas = {
+  tema: 'sistema',
+  idioma: 'pt-BR',
+  fusoHorario: 'America/Sao_Paulo',
+  notificacoes: {
+    habilitarEmails: true,
+    habilitarPush: false,
+  },
+  organizacao: {
+    nome: null,
+    emailSuporte: null,
+  },
+};
+
+const TEMA_VALIDO = new Set<TemaPreferido>(['claro', 'escuro', 'sistema']);
+
+const ensureConfiguracoesTable = async () => {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS configuracoes_globais (
+      id INTEGER PRIMARY KEY,
+      payload JSONB NOT NULL,
+      updated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW()
+    )
+  `);
+};
+
+interface ConfiguracoesRow {
+  payload: ConfiguracoesPersistidas | string;
+  updated_at: Date | string | null;
+}
+
+const toResponse = (row: ConfiguracoesRow | null): ConfiguracoesResposta => {
+  if (!row) {
+    return { ...DEFAULT_CONFIGURACOES, atualizadoEm: null };
+  }
+  const parsed = typeof row.payload === 'string' ? JSON.parse(row.payload) : row.payload;
+  return {
+    tema: parsed?.tema ?? DEFAULT_CONFIGURACOES.tema,
+    idioma: parsed?.idioma ?? DEFAULT_CONFIGURACOES.idioma,
+    fusoHorario: parsed?.fusoHorario ?? DEFAULT_CONFIGURACOES.fusoHorario,
+    notificacoes: {
+      habilitarEmails: parsed?.notificacoes?.habilitarEmails ?? DEFAULT_CONFIGURACOES.notificacoes.habilitarEmails,
+      habilitarPush: parsed?.notificacoes?.habilitarPush ?? DEFAULT_CONFIGURACOES.notificacoes.habilitarPush,
+    },
+    organizacao: {
+      nome: parsed?.organizacao?.nome ?? DEFAULT_CONFIGURACOES.organizacao.nome,
+      emailSuporte: parsed?.organizacao?.emailSuporte ?? DEFAULT_CONFIGURACOES.organizacao.emailSuporte,
+    },
+    atualizadoEm: row.updated_at ? new Date(row.updated_at).toISOString() : null,
+  };
+};
+
+const loadConfiguracoes = async (): Promise<ConfiguracoesResposta | null> => {
+  const result = await pool.query('SELECT payload, updated_at FROM configuracoes_globais WHERE id = 1');
+  if (!result.rows?.length) {
+    return null;
+  }
+  return toResponse(result.rows[0] as ConfiguracoesRow);
+};
+
+const persistConfiguracoes = async (payload: ConfiguracoesPersistidas): Promise<ConfiguracoesResposta> => {
+  const result = await pool.query(
+    `
+      INSERT INTO configuracoes_globais (id, payload, updated_at)
+      VALUES (1, $1::jsonb, NOW())
+      ON CONFLICT (id) DO UPDATE
+        SET payload = EXCLUDED.payload,
+            updated_at = NOW()
+      RETURNING payload, updated_at
+    `,
+    [JSON.stringify(payload)]
+  );
+  return toResponse(result.rows[0] as ConfiguracoesRow);
+};
+
+const sanitizePayload = (input: any): AtualizacaoConfiguracoes => {
+  if (!input || typeof input !== 'object') {
+    return {};
+  }
+  const sanitized: AtualizacaoConfiguracoes = {};
+
+  if (typeof input.tema === 'string') {
+    const tema = input.tema.toLowerCase();
+    if (TEMA_VALIDO.has(tema as TemaPreferido)) {
+      sanitized.tema = tema as TemaPreferido;
+    }
+  }
+
+  if (typeof input.idioma === 'string') {
+    const idioma = input.idioma.trim();
+    if (idioma) {
+      sanitized.idioma = idioma;
+    }
+  }
+
+  if (typeof input.fusoHorario === 'string') {
+    const tz = input.fusoHorario.trim();
+    if (tz) {
+      sanitized.fusoHorario = tz;
+    }
+  }
+
+  if (input.notificacoes && typeof input.notificacoes === 'object') {
+    const notificacoes: Partial<ConfiguracoesPersistidas['notificacoes']> = {};
+    if (typeof input.notificacoes.habilitarEmails === 'boolean') {
+      notificacoes.habilitarEmails = input.notificacoes.habilitarEmails;
+    }
+    if (typeof input.notificacoes.habilitarPush === 'boolean') {
+      notificacoes.habilitarPush = input.notificacoes.habilitarPush;
+    }
+    if (Object.keys(notificacoes).length > 0) {
+      sanitized.notificacoes = notificacoes;
+    }
+  }
+
+  if (input.organizacao && typeof input.organizacao === 'object') {
+    const organizacao: Partial<ConfiguracoesPersistidas['organizacao']> = {};
+    if ('nome' in input.organizacao) {
+      const nome = typeof input.organizacao.nome === 'string' ? input.organizacao.nome.trim() : null;
+      organizacao.nome = nome && nome.length ? nome : null;
+    }
+    if ('emailSuporte' in input.organizacao) {
+      const email = typeof input.organizacao.emailSuporte === 'string' ? input.organizacao.emailSuporte.trim() : null;
+      organizacao.emailSuporte = email && email.length ? email : null;
+    }
+    if (Object.keys(organizacao).length > 0) {
+      sanitized.organizacao = organizacao;
+    }
+  }
+
+  return sanitized;
+};
+
+const mergeConfiguracoes = (
+  atual: ConfiguracoesPersistidas,
+  patch: AtualizacaoConfiguracoes
+): ConfiguracoesPersistidas => {
+  const merged: ConfiguracoesPersistidas = {
+    tema: patch.tema ?? atual.tema,
+    idioma: patch.idioma ?? atual.idioma,
+    fusoHorario: patch.fusoHorario ?? atual.fusoHorario,
+    notificacoes: { ...atual.notificacoes },
+    organizacao: { ...atual.organizacao },
+  };
+
+  if (patch.notificacoes) {
+    if (patch.notificacoes.habilitarEmails !== undefined) {
+      merged.notificacoes.habilitarEmails = patch.notificacoes.habilitarEmails;
+    }
+    if (patch.notificacoes.habilitarPush !== undefined) {
+      merged.notificacoes.habilitarPush = patch.notificacoes.habilitarPush;
+    }
+  }
+
+  if (patch.organizacao) {
+    if (patch.organizacao.nome !== undefined) {
+      merged.organizacao.nome = patch.organizacao.nome;
+    }
+    if (patch.organizacao.emailSuporte !== undefined) {
+      merged.organizacao.emailSuporte = patch.organizacao.emailSuporte;
+    }
+  }
+
+  return merged;
+};
+
 const router = Router();
+
+router.get('/', authenticateToken, authorize('users.manage'), async (_req, res) => {
+  try {
+    await ensureConfiguracoesTable();
+    const existentes = await loadConfiguracoes();
+    if (!existentes) {
+      const defaults = await persistConfiguracoes(DEFAULT_CONFIGURACOES);
+      res.json(successResponse(defaults));
+      return;
+    }
+    res.json(successResponse(existentes));
+  } catch (error) {
+    res.status(500).json(errorResponse('Erro ao carregar configurações globais'));
+  }
+});
+
+router.put('/', authenticateToken, authorize('users.manage'), async (req, res) => {
+  try {
+    await ensureConfiguracoesTable();
+    const patch = sanitizePayload((req as AuthenticatedRequest).body);
+    const possuiAlteracoes = Boolean(
+      patch.tema !== undefined ||
+      patch.idioma !== undefined ||
+      patch.fusoHorario !== undefined ||
+      patch.notificacoes !== undefined ||
+      patch.organizacao !== undefined
+    );
+    if (!possuiAlteracoes) {
+      res.status(400).json(errorResponse('Nenhuma configuração válida fornecida'));
+      return;
+    }
+    const atuais = (await loadConfiguracoes()) ?? (await persistConfiguracoes(DEFAULT_CONFIGURACOES));
+    const atualizadas = mergeConfiguracoes(atuais, patch);
+    const resposta = await persistConfiguracoes(atualizadas);
+    res.json(successResponse(resposta));
+  } catch (error) {
+    res.status(500).json(errorResponse('Erro ao atualizar configurações globais'));
+  }
+});
 
 // Usuários
 router.get('/usuarios', authenticateToken, authorize('users.manage'), async (_req, res) => {
