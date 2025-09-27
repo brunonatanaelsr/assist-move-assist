@@ -7,6 +7,7 @@ type Primitive = string | number | null;
 class InMemoryRedis {
   private kv = new Map<string, { value: string; expiresAt?: number }>();
   private lists = new Map<string, string[]>();
+  private hashes = new Map<string, Map<string, string>>();
 
   private isExpired(key: string) {
     const entry = this.kv.get(key);
@@ -49,6 +50,7 @@ class InMemoryRedis {
     for (const k of list) {
       if (this.kv.delete(k)) count++;
       if (this.lists.delete(k)) count++;
+      if (this.hashes.delete(k)) count++;
     }
     return count;
   }
@@ -58,7 +60,8 @@ class InMemoryRedis {
     const rx = new RegExp(`^${esc}$`);
     return [
       ...Array.from(this.kv.keys()),
-      ...Array.from(this.lists.keys())
+      ...Array.from(this.lists.keys()),
+      ...Array.from(this.hashes.keys())
     ].filter((k, i, arr) => arr.indexOf(k) === i).filter((k) => rx.test(k));
   }
 
@@ -110,6 +113,18 @@ class InMemoryRedis {
     return removed;
   }
 
+  async hset(key: string, field: string, value: Primitive): Promise<number> {
+    const str = value === null ? 'null' : String(value);
+    let hash = this.hashes.get(key);
+    if (!hash) {
+      hash = new Map();
+      this.hashes.set(key, hash);
+    }
+    const existed = hash.has(field);
+    hash.set(field, str);
+    return existed ? 0 : 1;
+  }
+
   multi() {
     const self = this;
     const ops: Array<() => Promise<any>> = [];
@@ -118,6 +133,7 @@ class InMemoryRedis {
       del(...keys: string[]) { ops.push(() => self.del(...keys)); return this; },
       lpush(key: string, value: string) { ops.push(() => self.lpush(key, value)); return this; },
       lrem(key: string, count: number, value: string) { ops.push(() => self.lrem(key, count, value)); return this; },
+      hset(key: string, field: string, value: Primitive) { ops.push(() => self.hset(key, field, value)); return this; },
       async exec() { const results: any[] = []; for (const fn of ops) { results.push(await fn()); } return results; }
     } as any;
   }
