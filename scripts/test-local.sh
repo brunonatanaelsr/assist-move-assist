@@ -25,12 +25,12 @@ log_warning() { echo -e "${YELLOW}⚠️  $1${NC}"; }
 log_info "Verificando arquivos essenciais..."
 
 FILES=(
-    "backend/app-production-complete.js"
-    "backend/.env.production"
-    "backend/package.json"
+    "apps/backend/app-production-complete.js"
+    "apps/backend/.env.production"
+    "apps/backend/package.json"
     "migrations/postgresql_complete_schema.sql"
     "scripts/deploy-complete.sh"
-    "backend/scripts/create-initial-data.js"
+    "apps/backend/scripts/create-initial-data.js"
 )
 
 for file in "${FILES[@]}"; do
@@ -46,7 +46,7 @@ done
 log_info "Verificando sintaxe JavaScript..."
 
 if command -v node &> /dev/null; then
-    node -c backend/app-production-complete.js
+    node -c apps/backend/app-production-complete.js
     log_success "Sintaxe JavaScript válida"
 else
     log_warning "Node.js não encontrado - pulando verificação de sintaxe"
@@ -70,13 +70,13 @@ fi
 # 4. Verificar configurações
 log_info "Verificando configurações..."
 
-if grep -q "POSTGRES_HOST" backend/.env.production; then
+  if grep -q "POSTGRES_HOST" apps/backend/.env.production; then
     log_success "Configurações PostgreSQL encontradas"
 else
     log_error "Configurações PostgreSQL não encontradas"
 fi
 
-if grep -q "JWT_SECRET" backend/.env.production; then
+  if grep -q "JWT_SECRET" apps/backend/.env.production; then
     log_success "Configuração JWT encontrada"
 else
     log_error "Configuração JWT não encontrada"
@@ -88,7 +88,7 @@ log_info "Verificando dependências..."
 DEPS=("express" "cors" "helmet" "bcryptjs" "jsonwebtoken" "pg")
 
 for dep in "${DEPS[@]}"; do
-    if grep -q "\"$dep\"" backend/package.json; then
+    if grep -q "\"$dep\"" apps/backend/package.json; then
         log_success "Dependência encontrada: $dep"
     else
         log_error "Dependência não encontrada: $dep"
@@ -112,7 +112,7 @@ log_info "Verificando endpoints no código..."
 ENDPOINTS=("/api/auth/login" "/api/beneficiarias" "/health")
 
 for endpoint in "${ENDPOINTS[@]}"; do
-    if grep -q "$endpoint" backend/app-production-complete.js; then
+    if grep -q "$endpoint" apps/backend/app-production-complete.js; then
         log_success "Endpoint encontrado: $endpoint"
     else
         log_error "Endpoint não encontrado: $endpoint"
@@ -125,7 +125,7 @@ log_info "Verificando middleware de segurança..."
 MIDDLEWARE=("helmet" "cors" "rateLimit" "authenticateToken")
 
 for mw in "${MIDDLEWARE[@]}"; do
-    if grep -q "$mw" backend/app-production-complete.js; then
+    if grep -q "$mw" apps/backend/app-production-complete.js; then
         log_success "Middleware encontrado: $mw"
     else
         log_error "Middleware não encontrado: $mw"
@@ -135,13 +135,13 @@ done
 # 9. Verificar funções de hash
 log_info "Verificando funções de hash..."
 
-if grep -q "bcrypt.compare" backend/app-production-complete.js; then
+  if grep -q "bcrypt.compare" apps/backend/app-production-complete.js; then
     log_success "Verificação de senha encontrada"
 else
     log_error "Verificação de senha não encontrada"
 fi
 
-if grep -q "bcrypt.hash" backend/scripts/create-initial-data.js; then
+  if grep -q "bcrypt.hash" apps/backend/scripts/create-initial-data.js; then
     log_success "Hash de senha encontrado no script"
 else
     log_error "Hash de senha não encontrado no script"
@@ -157,14 +157,14 @@ total_files=${#FILES[@]}
 log_success "Arquivos verificados: $total_files/$total_files"
 
 # Verificar se há algum TODO ou FIXME
-if grep -r "TODO\|FIXME" backend/ --include="*.js" &> /dev/null; then
+  if grep -r "TODO\|FIXME" apps/backend/ --include="*.js" &> /dev/null; then
     log_warning "TODOs encontrados no código - revisar antes do deploy"
 else
     log_success "Nenhum TODO pendente encontrado"
 fi
 
 # Verificar tamanho dos arquivos principais
-main_file_size=$(stat -c%s "backend/app-production-complete.js" 2>/dev/null || echo "0")
+  main_file_size=$(stat -c%s "apps/backend/app-production-complete.js" 2>/dev/null || echo "0")
 if [[ $main_file_size -gt 10000 ]]; then
     log_success "Arquivo principal tem tamanho adequado ($main_file_size bytes)"
 else

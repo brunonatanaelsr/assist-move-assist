@@ -47,7 +47,7 @@ Migrations that define presets and permissions:
 
 ## How authorize() works
 
-- Location: `backend/src/middleware/auth.ts`
+- Location: `apps/backend/src/middleware/auth.ts`
 - Reads the authenticated user `req.user.role` and `req.user.id`.
 - If role is `superadmin` or `super_admin`, allows.
 - Fetches permissions from Postgres and caches them in Redis for 300s:
@@ -79,20 +79,20 @@ Superadmin login (seeded automatically after migration):
 ## Initial setup / Migration
 
 - Ensure Postgres and Redis are up (docker compose or your infra)
-- Run migrations (auto-seed superadmin and presets):
-  - `npm --prefix backend run migrate` (or `migrate:node` if psql is unavailable)
-- Start backend: `npm --prefix backend run dev`
+  - Run migrations (auto-seed superadmin and presets):
+    - `npm --prefix apps/backend run migrate` (or `migrate:node` if psql is unavailable)
+  - Start backend: `npm --prefix apps/backend run dev`
 - Start frontend: `npm run dev`
 
 ## Smoke tests (local)
 
-- Config smoke (RBAC on config routes):
-  - `npm --prefix backend run smoke:config`
-- Reports smoke (authorizations on reports):
-  - `npm --prefix backend run smoke:reports`
-- Chat smokes (optional):
-  - `npm --prefix backend run smoke:chat`
-  - `npm --prefix backend run smoke:chat:offline`
+  - Config smoke (RBAC on config routes):
+    - `npm --prefix apps/backend run smoke:config`
+  - Reports smoke (authorizations on reports):
+    - `npm --prefix apps/backend run smoke:reports`
+  - Chat smokes (optional):
+    - `npm --prefix apps/backend run smoke:chat`
+    - `npm --prefix apps/backend run smoke:chat:offline`
 
 Tip: Before smokes, make sure API is running on `http://localhost:3000/api`.
 
@@ -107,7 +107,7 @@ Tip: Before smokes, make sure API is running on `http://localhost:3000/api`.
 
 - “403 Permission denied” after changing role/permissions:
   - Wait a few seconds (Redis TTL is 300s) or re-save role/permissions (triggers invalidation), or clear Redis keys `perms:role:*` / `perms:user:*`.
-- Superadmin cannot log in:
-  - Re-run migrations; ensure seed ran (`backend/scripts/create-initial-data.js`).
+  - Superadmin cannot log in:
+    - Re-run migrations; ensure seed ran (`apps/backend/scripts/create-initial-data.js`).
 - UI doesn’t list new permissions:
   - Use the search box or increase limit; the list is paginated.

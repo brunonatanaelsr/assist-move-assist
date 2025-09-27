@@ -16,7 +16,7 @@ fi
 pkill -f "npm|node|tsx" >/dev/null 2>&1 && echo "✅ Processos Node encerrados" || echo "ℹ️ Nenhum processo Node/TSX em execução"
 
 # 2. Corrigir variáveis de ambiente do backend
-cat > backend/.env <<'ENVEOF'
+cat > apps/backend/.env <<'ENVEOF'
 NODE_ENV=development
 PORT=4000
 
@@ -50,7 +50,7 @@ MAX_FILE_SIZE=10485760
 CORS_ORIGIN=http://localhost:5173
 ENVEOF
 
-echo "✅ backend/.env atualizado"
+echo "✅ apps/backend/.env atualizado"
 
 # 3. Corrigir docker-compose.yml
 cat > docker-compose.yml <<'DOCKEREOF'
@@ -92,16 +92,16 @@ DOCKEREOF
 echo "✅ docker-compose.yml atualizado"
 
 # 4. Garantir que package.json existe no backend
-if [ ! -f backend/package.json ]; then
+if [ ! -f apps/backend/package.json ]; then
   echo "❌ package.json não encontrado no backend!"
   exit 1
 fi
 
 # 5. Limpar node_modules e locks
-if [ -d backend/node_modules ]; then
-  rm -rf backend/node_modules
+if [ -d apps/backend/node_modules ]; then
+  rm -rf apps/backend/node_modules
 fi
-rm -f backend/package-lock.json
+rm -f apps/backend/package-lock.json
 
 echo "🧹 Limpando node_modules na raiz..."
 if [ -d node_modules ]; then
@@ -114,6 +114,6 @@ chmod +x "$REPO_ROOT/fix-environment.sh"
 cat <<'MSG'
 ✅ Ambiente corrigido! Agora executar:
 1. docker-compose up -d postgres redis
-2. cd backend && npm install && npm run dev
+2. cd apps/backend && npm install && npm run dev
 3. Em outro terminal: npm install
 MSG

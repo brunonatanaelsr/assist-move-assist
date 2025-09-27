@@ -45,18 +45,18 @@ jobs:
       - name: Install dependencies (root + backend)
         run: |
           npm ci
-          npm --prefix backend ci
+          npm --prefix apps/backend ci
 
       - name: Prepare migration metadata tables
-        working-directory: backend
+        working-directory: apps/backend
         run: npm run premigrate:node
 
       - name: Build backend
-        working-directory: backend
+        working-directory: apps/backend
         run: npm run build
 
       - name: Apply migrations and seed data
-        working-directory: backend
+        working-directory: apps/backend
         env:
           SUPERADMIN_EMAIL: bruno@move.com
           SUPERADMIN_PASSWORD: 15002031
@@ -70,7 +70,7 @@ jobs:
           node scripts/create-initial-data.js
 
       - name: Start API server
-        working-directory: backend
+        working-directory: apps/backend
         env:
           NODE_ENV: test
           PORT: 3000

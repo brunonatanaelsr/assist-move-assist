@@ -14,8 +14,8 @@
 
 - **Problema:** Faltavam endpoints `/api/declaracoes` e `/api/recibos`
 - **Solução:** Criados arquivos completos:
-  - `backend/src/routes/declaracoes.routes.ts`
-  - `backend/src/routes/recibos.routes.ts`
+  - `apps/backend/src/routes/declaracoes.routes.ts`
+  - `apps/backend/src/routes/recibos.routes.ts`
   - Registrados no `api.ts`
 
 #### 3. **TABELAS NO BANCO DE DADOS** ✅ CORRIGIDO
