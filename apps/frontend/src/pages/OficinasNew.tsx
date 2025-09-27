@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,31 +14,18 @@ import { formatDate } from '@/lib/dayjs';
 import { apiService } from '@/services/apiService';
 import { oficinasService } from '@/services/oficinas.service';
 import { Download } from 'lucide-react';
-
-// Interface com tipos mais específicos para as datas e status
-interface Oficina {
-  id: number;
-  nome: string;
-  descricao?: string | null;
-  instrutor?: string | null;
-  data_inicio: string; // ISO date string
-  data_fim?: string | null; // ISO date string
-  horario_inicio: string; // HH:mm
-  horario_fim: string; // HH:mm
-  local?: string | null;
-  vagas_total: number;
-  vagas_ocupadas?: number;
-  status: 'ativa' | 'inativa' | 'pausada' | 'concluida';
-  ativo: boolean;
-  projeto_id?: number | null;
-  projeto_nome?: string | null;
-  responsavel_id?: number | null;
-  responsavel_nome?: string | null;
-  total_participantes?: number;
-  data_criacao: string; // ISO date string
-  data_atualizacao: string; // ISO date string
-  dias_semana?: string | null;
-}
+import { useCreateOficina, useDeleteOficina, useOficinas, useOficinaResumo, useUpdateOficina } from '@/hooks/useOficinas';
+import {
+  formatDateForInput,
+  getOficinaStatusMetadata,
+  getVagasDisponiveis,
+  initialOficinaFormValues,
+  mapOficinaToFormValues,
+  normalizeResumoDate,
+  resumoIndicators,
+  validateAndNormalizeOficina,
+} from '@/utils/oficinas';
+import type { Oficina, OficinaFormValues } from '@/types/oficinas';
 
 interface Projeto {
   id: number;
@@ -47,231 +35,104 @@ interface Projeto {
 }
 
 export default function OficinasNew() {
-  const [oficinas, setOficinas] = useState<Oficina[]>([]);
-  const [projetos, setProjetos] = useState<Projeto[]>([]);
-  const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingOficina, setEditingOficina] = useState<Oficina | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [formValues, setFormValues] = useState<OficinaFormValues>(initialOficinaFormValues);
+  const [formError, setFormError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
 
-  // ✅ Função auxiliar para formatar datas ISO para input[type="date"]
-  const formatDateForInput = (isoDate: string) => {
-    if (!isoDate) return '';
-    return isoDate.split('T')[0]; // Pega apenas a parte da data antes do 'T'
-  };
-  
-  const [formData, setFormData] = useState({
-    nome: '',
-    descricao: '',
-    instrutor: '',
-    data_inicio: '',
-    data_fim: '',
-    horario_inicio: '',
-    horario_fim: '',
-    local: '',
-    vagas_total: 20,
-    status: 'ativa' as 'ativa' | 'inativa' | 'pausada' | 'concluida',
-    projeto_id: '',
-    dias_semana: ''
+  const oficinasQuery = useOficinas();
+  const oficinasResponse = oficinasQuery.data;
+  const oficinas = useMemo<Oficina[]>(() => {
+    if (!oficinasResponse || oficinasResponse.success === false) return [];
+    return Array.isArray(oficinasResponse.data) ? oficinasResponse.data : [];
+  }, [oficinasResponse]);
+
+  const createOficina = useCreateOficina();
+  const updateOficina = useUpdateOficina(editingOficina?.id ?? 0);
+  const deleteOficina = useDeleteOficina();
+
+  const projetosQuery = useQuery({
+    queryKey: ['projetos', 'ativos'],
+    queryFn: () => apiService.getProjetos(),
   });
 
-  useEffect(() => {
-    carregarDados();
-  }, []);
+  const projetos = useMemo<Projeto[]>(() => {
+    if (!projetosQuery.data?.success) return [];
+    return (projetosQuery.data.data ?? []).filter((p: Projeto) =>
+      p.status === 'planejamento' || p.status === 'em_andamento'
+    );
+  }, [projetosQuery.data]);
 
-  const carregarDados = async () => {
-    await Promise.all([carregarOficinas(), carregarProjetos()]);
-  };
-
-  const carregarOficinas = async () => {
-    try {
-      setLoading(true);
-      const response = await apiService.getOficinas();
-      if (response.success) {
-        const lista = Array.isArray(response.data) ? response.data : [];
-        const oficinasNormalizadas: Oficina[] = lista.map((oficina: any) => ({
-          id: Number(oficina.id),
-          nome: oficina.nome,
-          descricao: oficina.descricao ?? null,
-          instrutor: oficina.instrutor ?? null,
-          data_inicio: oficina.data_inicio ?? '',
-          data_fim: oficina.data_fim ?? null,
-          horario_inicio: oficina.horario_inicio ?? '',
-          horario_fim: oficina.horario_fim ?? '',
-          local: oficina.local ?? null,
-          vagas_total: Number(oficina.vagas_total ?? 0),
-          vagas_ocupadas: oficina.vagas_ocupadas ?? undefined,
-          status: (['ativa', 'inativa', 'pausada', 'concluida'].includes(oficina.status)
-            ? oficina.status
-            : 'ativa') as Oficina['status'],
-          ativo: Boolean(oficina.ativo ?? true),
-          projeto_id: oficina.projeto_id ?? null,
-          projeto_nome: oficina.projeto_nome ?? null,
-          responsavel_id: oficina.responsavel_id ?? null,
-          responsavel_nome: oficina.responsavel_nome ?? null,
-          total_participantes: oficina.total_participantes ?? undefined,
-          data_criacao: oficina.data_criacao ?? new Date().toISOString(),
-          data_atualizacao: oficina.data_atualizacao ?? new Date().toISOString(),
-          dias_semana: oficina.dias_semana ?? null,
-        }));
-        setOficinas(oficinasNormalizadas);
-      }
-    } catch (error) {
-      console.error('Erro ao carregar oficinas:', error);
-      setError('Erro ao carregar oficinas');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const carregarProjetos = async () => {
-    try {
-      const response = await apiService.getProjetos();
-      console.log('Resposta da API projetos:', response);
-      if (response.success) {
-        console.log('Projetos recebidos:', response.data);
-        // Permitir projetos em planejamento ou em andamento para associação
-        const projetosFiltrados = (response.data ?? []).filter((p: Projeto) =>
-          p.status === 'planejamento' || p.status === 'em_andamento'
-        );
-        console.log('Projetos após filtragem:', projetosFiltrados);
-        setProjetos(projetosFiltrados);
-      }
-    } catch (error) {
-      console.error('Erro ao carregar projetos:', error);
-    }
-  };
+  const isLoading = oficinasQuery.isLoading;
+  const isRefetching = oficinasQuery.isRefetching;
+  const showLoading = isLoading || isRefetching;
+  const backendListError = oficinasResponse && oficinasResponse.success === false ? oficinasResponse.message : undefined;
+  const listError = oficinasQuery.isError
+    ? (oficinasQuery.error as Error | undefined)
+    : backendListError
+    ? new Error(backendListError)
+    : undefined;
+  const isSubmitting = createOficina.isPending || updateOficina.isPending;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
+    setFormError(null);
     setSuccess(null);
 
-    // ✅ VALIDAÇÃO MELHORADA
-    if (!formData.nome?.trim() || !formData.data_inicio || !formData.horario_inicio || !formData.horario_fim) {
-      setError('Por favor, preencha todos os campos obrigatórios');
+    const validation = validateAndNormalizeOficina(formValues);
+    if (!validation.success) {
+      setFormError(validation.message);
       return;
     }
 
-    const vagasTotais = parseInt(formData.vagas_total.toString());
-    if (isNaN(vagasTotais) || vagasTotais <= 0) {
-      setError('O número de vagas deve ser maior que zero');
-      return;
-    }
-
-    // ✅ VALIDAÇÃO DE HORÁRIOS
-    if (formData.horario_inicio >= formData.horario_fim) {
-      setError('O horário de início deve ser anterior ao horário de fim');
-      return;
-    }
-
-    // ✅ VALIDAÇÃO DE DATAS
-    if (formData.data_fim && formData.data_inicio > formData.data_fim) {
-      setError('A data de início deve ser anterior à data de fim');
-      return;
-    }
+    const payload = validation.payload;
 
     try {
-      setSubmitting(true);
-
-      const dados = {
-        nome: formData.nome.trim(),
-        descricao: formData.descricao?.trim() || null,
-        instrutor: formData.instrutor?.trim() || null,
-        data_inicio: formData.data_inicio,
-        data_fim: formData.data_fim || null,
-        horario_inicio: formData.horario_inicio,
-        horario_fim: formData.horario_fim,
-        local: formData.local?.trim() || null,
-        vagas_total: vagasTotais,
-        projeto_id: (formData.projeto_id && formData.projeto_id !== 'none') ? parseInt(formData.projeto_id) : null,
-        status: formData.status || 'ativa',
-        dias_semana: formData.dias_semana?.trim() || null
-      };
-
-      console.log('Enviando dados:', dados); // ✅ DEBUG
-
-      const response = editingOficina 
-        ? await apiService.updateOficina(editingOficina.id.toString(), dados)
-        : await apiService.createOficina(dados);
-
-      if (response.success) {
-        setSuccess(editingOficina ? 'Oficina atualizada com sucesso!' : 'Oficina criada com sucesso!');
-        setDialogOpen(false);
-        resetForm();
-        await carregarOficinas(); // ✅ AGUARDAR RECARREGAMENTO
+      if (editingOficina) {
+        await updateOficina.mutateAsync(payload);
+        setSuccess('Oficina atualizada com sucesso!');
       } else {
-        setError(response.message || 'Erro ao salvar oficina');
+        await createOficina.mutateAsync(payload);
+        setSuccess('Oficina criada com sucesso!');
       }
-    } catch (error) {
-      console.error('Erro detalhado:', error);
-      setError('Erro ao salvar oficina');
-    } finally {
-      setSubmitting(false);
+
+      setDialogOpen(false);
+      setEditingOficina(null);
+      setFormValues(initialOficinaFormValues);
+    } catch (mutationError: any) {
+      const message = mutationError?.message || 'Erro ao salvar oficina';
+      setFormError(message);
     }
   };
 
   const handleEdit = (oficina: Oficina) => {
-    console.log('Editando oficina:', oficina);
     setEditingOficina(oficina);
-        
-    const formDataEdit = {
-      nome: oficina.nome,
-      descricao: oficina.descricao || '',
-      instrutor: oficina.instrutor || '',
-      data_inicio: formatDateForInput(oficina.data_inicio), // Usando a função global
-      data_fim: oficina.data_fim ? formatDateForInput(oficina.data_fim) : '', // Usando a função global
-      horario_inicio: oficina.horario_inicio,
-      horario_fim: oficina.horario_fim,
-      local: oficina.local || '',
-      vagas_total: oficina.vagas_total,
-      status: oficina.status || 'ativa',
-      projeto_id: oficina.projeto_id?.toString() || 'none',
-      dias_semana: oficina.dias_semana || ''
-    };
-    
-    console.log('Form data para edição:', formDataEdit);
-    setFormData(formDataEdit);
+    setFormValues(mapOficinaToFormValues(oficina));
+    setFormError(null);
     setDialogOpen(true);
   };
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = (id: number) => {
     if (!confirm('Tem certeza que deseja excluir esta oficina?')) return;
 
-    try {
-      const response = await apiService.deleteOficina(id.toString());
+    setSuccess(null);
+    setFormError(null);
 
-      if (response.success) {
+    deleteOficina.mutate(id, {
+      onSuccess: () => {
         setSuccess('Oficina excluída com sucesso!');
-        carregarOficinas();
-      } else {
-        setError('Erro ao excluir oficina');
-      }
-    } catch (error) {
-      setError('Erro ao excluir oficina');
-      console.error('Erro ao excluir oficina:', error);
-    }
+      },
+      onError: (mutationError: any) => {
+        setFormError(mutationError?.message || 'Erro ao excluir oficina');
+      },
+    });
   };
 
   const resetForm = () => {
-    setFormData({
-      nome: '',
-      descricao: '',
-      instrutor: '',
-      data_inicio: '',
-      data_fim: '',
-      horario_inicio: '',
-      horario_fim: '',
-      local: '',
-      vagas_total: 20,
-      status: 'ativa',
-      projeto_id: 'none',
-      dias_semana: ''
-    });
+    setFormValues(initialOficinaFormValues);
     setEditingOficina(null);
-    setError(null);
+    setFormError(null);
   };
 
   const baixarRelatorio = async (oficinaId: number, formato: 'pdf' | 'excel' = 'pdf') => {
@@ -288,27 +149,8 @@ export default function OficinasNew() {
       window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Erro ao baixar relatório de presenças:', error);
-      setError('Erro ao gerar relatório de presenças');
+      setFormError('Erro ao gerar relatório de presenças');
     }
-  };
-
-  const getStatusColor = (status: string, vagas_total: number, vagas_ocupadas: number = 0) => {
-    if (status === 'inativa' || status === 'pausada') return 'bg-red-100 text-red-800';
-    if (status === 'concluida') return 'bg-primary/10 text-primary';
-    if (vagas_ocupadas >= vagas_total) return 'bg-orange-100 text-orange-800';
-    return 'bg-green-100 text-green-800';
-  };
-
-  const getStatusText = (status: string, vagas_total: number, vagas_ocupadas: number = 0) => {
-    if (status === 'inativa') return 'Inativa';
-    if (status === 'pausada') return 'Pausada';
-    if (status === 'concluida') return 'Concluída';
-    if (status === 'ativa' && vagas_ocupadas >= vagas_total) return 'Lotada';
-    return 'Ativa';
-  };
-
-  const getVagasDisponiveis = (vagas_total: number, vagas_ocupadas: number = 0) => {
-    return Math.max(0, vagas_total - vagas_ocupadas);
   };
 
   return (
@@ -340,10 +182,10 @@ export default function OficinasNew() {
               </DialogDescription>
             </DialogHeader>
             
-            {error && (
+            {formError && (
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{error}</AlertDescription>
+                <AlertDescription>{formError}</AlertDescription>
               </Alert>
             )}
 
@@ -353,8 +195,8 @@ export default function OficinasNew() {
                   <Label htmlFor="nome">Nome da Oficina *</Label>
                   <Input
                     id="nome"
-                    value={formData.nome}
-                    onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
+                    value={formValues.nome}
+                    onChange={(e) => setFormValues({ ...formValues, nome: e.target.value })}
                     placeholder="Ex: Curso de Informática Básica"
                     required
                   />
@@ -364,8 +206,8 @@ export default function OficinasNew() {
                   <Label htmlFor="descricao">Descrição</Label>
                   <Textarea
                     id="descricao"
-                    value={formData.descricao}
-                    onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
+                    value={formValues.descricao}
+                    onChange={(e) => setFormValues({ ...formValues, descricao: e.target.value })}
                     placeholder="Descreva o conteúdo e objetivos da oficina"
                     rows={3}
                   />
@@ -376,15 +218,15 @@ export default function OficinasNew() {
                     <Label htmlFor="instrutor">Instrutor</Label>
                     <Input
                       id="instrutor"
-                      value={formData.instrutor}
-                      onChange={(e) => setFormData({ ...formData, instrutor: e.target.value })}
+                      value={formValues.instrutor}
+                      onChange={(e) => setFormValues({ ...formValues, instrutor: e.target.value })}
                       placeholder="Nome do instrutor"
                     />
                   </div>
 
                   <div>
                     <Label htmlFor="projeto_id">Projeto Associado</Label>
-                    <Select value={formData.projeto_id} onValueChange={(value) => setFormData({ ...formData, projeto_id: value })}>
+                    <Select value={formValues.projeto_id} onValueChange={(value) => setFormValues({ ...formValues, projeto_id: value })}>
                       <SelectTrigger>
                         <SelectValue placeholder="Selecione um projeto (opcional)" />
                       </SelectTrigger>
@@ -406,8 +248,8 @@ export default function OficinasNew() {
                     <Input
                       id="data_inicio"
                       type="date"
-                      value={formData.data_inicio}
-                      onChange={(e) => setFormData({ ...formData, data_inicio: e.target.value })}
+                      value={formValues.data_inicio}
+                      onChange={(e) => setFormValues({ ...formValues, data_inicio: e.target.value })}
                       required
                     />
                   </div>
@@ -417,8 +259,8 @@ export default function OficinasNew() {
                     <Input
                       id="data_fim"
                       type="date"
-                      value={formData.data_fim}
-                      onChange={(e) => setFormData({ ...formData, data_fim: e.target.value })}
+                      value={formValues.data_fim}
+                      onChange={(e) => setFormValues({ ...formValues, data_fim: e.target.value })}
                     />
                   </div>
                 </div>
@@ -429,8 +271,8 @@ export default function OficinasNew() {
                     <Input
                       id="horario_inicio"
                       type="time"
-                      value={formData.horario_inicio}
-                      onChange={(e) => setFormData({ ...formData, horario_inicio: e.target.value })}
+                      value={formValues.horario_inicio}
+                      onChange={(e) => setFormValues({ ...formValues, horario_inicio: e.target.value })}
                       required
                     />
                   </div>
@@ -440,8 +282,8 @@ export default function OficinasNew() {
                     <Input
                       id="horario_fim"
                       type="time"
-                      value={formData.horario_fim}
-                      onChange={(e) => setFormData({ ...formData, horario_fim: e.target.value })}
+                      value={formValues.horario_fim}
+                      onChange={(e) => setFormValues({ ...formValues, horario_fim: e.target.value })}
                       required
                     />
                   </div>
@@ -452,8 +294,8 @@ export default function OficinasNew() {
                     <Label htmlFor="local">Local</Label>
                     <Input
                       id="local"
-                      value={formData.local}
-                      onChange={(e) => setFormData({ ...formData, local: e.target.value })}
+                      value={formValues.local}
+                      onChange={(e) => setFormValues({ ...formValues, local: e.target.value })}
                       placeholder="Ex: Sala 1, Laboratório, Online"
                     />
                   </div>
@@ -464,8 +306,8 @@ export default function OficinasNew() {
                       id="vagas_total"
                       type="number"
                       min="1"
-                      value={formData.vagas_total}
-                      onChange={(e) => setFormData({ ...formData, vagas_total: parseInt(e.target.value) })}
+                      value={formValues.vagas_total}
+                      onChange={(e) => setFormValues({ ...formValues, vagas_total: Number(e.target.value) || 0 })}
                       required
                     />
                   </div>
@@ -475,15 +317,15 @@ export default function OficinasNew() {
                   <Label htmlFor="dias_semana">Dias da Semana</Label>
                   <Input
                     id="dias_semana"
-                    value={formData.dias_semana}
-                    onChange={(e) => setFormData({ ...formData, dias_semana: e.target.value })}
+                    value={formValues.dias_semana}
+                    onChange={(e) => setFormValues({ ...formValues, dias_semana: e.target.value })}
                     placeholder="Ex: Segunda, Quarta e Sexta"
                   />
                 </div>
 
                 <div>
                   <Label htmlFor="status">Status da Oficina</Label>
-                  <Select value={formData.status} onValueChange={(value: any) => setFormData({ ...formData, status: value })}>
+                  <Select value={formValues.status} onValueChange={(value: any) => setFormValues({ ...formValues, status: value as Oficina['status'] })}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -498,15 +340,15 @@ export default function OficinasNew() {
               </div>
 
               <div className="flex justify-end gap-2 pt-4">
-                <Button 
-                  type="button" 
-                  variant="outline" 
+                <Button
+                  type="button"
+                  variant="outline"
                   onClick={() => setDialogOpen(false)}
                 >
                   Cancelar
                 </Button>
-                <Button type="submit" disabled={submitting}>
-                  {submitting ? 'Salvando...' : (editingOficina ? 'Salvar Alterações' : 'Criar Oficina')}
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? 'Salvando...' : (editingOficina ? 'Salvar Alterações' : 'Criar Oficina')}
                 </Button>
               </div>
             </form>
@@ -521,7 +363,16 @@ export default function OficinasNew() {
         </Alert>
       )}
 
-      {loading ? (
+      {listError && (
+        <Alert variant="destructive" className="border-red-200 bg-red-50" data-testid="oficinas-error">
+          <AlertCircle className="h-4 w-4 text-red-600" />
+          <AlertDescription className="text-red-800">
+            {listError.message || 'Erro ao carregar oficinas'}
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {showLoading ? (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {[1, 2, 3, 4, 5, 6].map((i) => (
             <Card key={i} className="animate-pulse">
@@ -552,130 +403,172 @@ export default function OficinasNew() {
         </Card>
       ) : (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {oficinas.map((oficina) => (
-            <Card key={oficina.id} className="hover:shadow-md transition-shadow">
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <CardTitle className="flex items-center gap-2 text-lg">
-                      <GraduationCap className="h-5 w-5" />
-                      {oficina.nome}
-                    </CardTitle>
-                    <CardDescription className="mt-2">
-                      {oficina.descricao || 'Sem descrição disponível'}
-                    </CardDescription>
-                  </div>
-                  <div className="flex gap-1">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => baixarRelatorio(oficina.id, 'pdf')}
-                      title="Baixar relatório de presenças (PDF)"
-                    >
-                      <Download className="h-4 w-4" /> PDF
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => baixarRelatorio(oficina.id, 'excel')}
-                      title="Baixar relatório de presenças (Excel)"
-                    >
-                      <Download className="h-4 w-4" /> XLSX
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleEdit(oficina)}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleDelete(oficina.id)}
-                      className="text-red-600 hover:text-red-700"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <Badge className={getStatusColor(oficina.status, oficina.vagas_total, oficina.vagas_ocupadas || 0)}>
-                    {getStatusText(oficina.status, oficina.vagas_total, oficina.vagas_ocupadas || 0)}
-                  </Badge>
-                  <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                    <Users className="h-4 w-4" />
-                    <span>
-                      {oficina.vagas_ocupadas || 0}/{oficina.vagas_total} vagas
-                    </span>
-                  </div>
-                </div>
+          {oficinas.map((oficina) => {
+            const statusMeta = getOficinaStatusMetadata(
+              oficina.status,
+              oficina.vagas_total,
+              oficina.vagas_ocupadas
+            );
+            const vagasDisponiveis = getVagasDisponiveis(oficina.vagas_total, oficina.vagas_ocupadas);
 
-                <div className="space-y-2 text-sm">
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Calendar className="h-4 w-4" />
-                    <span>
-                      {formatDate(oficina.data_inicio, 'DD/MM/YYYY')}
-                      {oficina.data_fim && (
-                        <> até {formatDate(oficina.data_fim, 'DD/MM/YYYY')}</>
-                      )}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Clock className="h-4 w-4" />
-                    <span>
-                      {oficina.horario_inicio} às {oficina.horario_fim}
-                    </span>
-                  </div>
-
-                  {oficina.instrutor && (
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <User className="h-4 w-4" />
-                      <span>{oficina.instrutor}</span>
+            return (
+              <Card key={oficina.id} className="hover:shadow-md transition-shadow">
+                <CardHeader>
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <CardTitle className="flex items-center gap-2 text-lg">
+                        <GraduationCap className="h-5 w-5" />
+                        {oficina.nome}
+                      </CardTitle>
+                      <CardDescription className="mt-2">
+                        {oficina.descricao || 'Sem descrição disponível'}
+                      </CardDescription>
                     </div>
-                  )}
-
-                  {oficina.projeto_nome && (
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Target className="h-4 w-4" />
-                      <span>{oficina.projeto_nome}</span>
+                    <div className="flex gap-1">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => baixarRelatorio(oficina.id, 'pdf')}
+                        title="Baixar relatório de presenças (PDF)"
+                      >
+                        <Download className="h-4 w-4" /> PDF
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => baixarRelatorio(oficina.id, 'excel')}
+                        title="Baixar relatório de presenças (Excel)"
+                      >
+                        <Download className="h-4 w-4" /> XLSX
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleEdit(oficina)}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDelete(oficina.id)}
+                        className="text-red-600 hover:text-red-700"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
-                  )}
-
-                  {oficina.local && (
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <MapPin className="h-4 w-4" />
-                      <span>{oficina.local}</span>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Badge className={statusMeta.badgeClass}>{statusMeta.label}</Badge>
+                    <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                      <Users className="h-4 w-4" />
+                      <span>
+                        {oficina.vagas_ocupadas || 0}/{oficina.vagas_total} vagas
+                      </span>
                     </div>
-                  )}
-                </div>
+                  </div>
 
-                {/* Progress bar para ocupação */}
-                <div className="space-y-1">
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>Ocupação</span>
-                    <span>{Math.round(((oficina.vagas_ocupadas || 0) / oficina.vagas_total) * 100)}%</span>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Calendar className="h-4 w-4" />
+                      <span>
+                        {formatDate(oficina.data_inicio, 'DD/MM/YYYY')}
+                        {oficina.data_fim && (
+                          <> até {formatDate(oficina.data_fim, 'DD/MM/YYYY')}</>
+                        )}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Clock className="h-4 w-4" />
+                      <span>
+                        {oficina.horario_inicio} às {oficina.horario_fim}
+                      </span>
+                    </div>
+
+                    {oficina.instrutor && (
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <User className="h-4 w-4" />
+                        <span>{oficina.instrutor}</span>
+                      </div>
+                    )}
+
+                    {oficina.projeto_nome && (
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Target className="h-4 w-4" />
+                        <span>{oficina.projeto_nome}</span>
+                      </div>
+                    )}
+
+                    {oficina.local && (
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <MapPin className="h-4 w-4" />
+                        <span>{oficina.local}</span>
+                      </div>
+                    )}
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div 
-                      className="bg-primary h-2 rounded-full transition-all" 
-                      style={{ 
-                        width: `${Math.min(((oficina.vagas_ocupadas || 0) / oficina.vagas_total) * 100, 100)}%` 
-                      }}
-                    ></div>
+
+                  <OficinaResumoIndicators oficinaId={oficina.id} />
+
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>Ocupação</span>
+                      <span>{Math.round(((oficina.vagas_ocupadas || 0) / oficina.vagas_total) * 100)}%</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className="bg-primary h-2 rounded-full transition-all"
+                        style={{
+                          width: `${Math.min(((oficina.vagas_ocupadas || 0) / oficina.vagas_total) * 100, 100)}%`
+                        }}
+                      ></div>
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {vagasDisponiveis} vagas disponíveis
+                    </div>
                   </div>
-                  <div className="text-xs text-muted-foreground">
-                    {getVagasDisponiveis(oficina.vagas_total, oficina.vagas_ocupadas)} vagas disponíveis
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
     </div>
   );
 }
+
+const OficinaResumoIndicators: React.FC<{ oficinaId: number }> = ({ oficinaId }) => {
+  const { data, isLoading, isError } = useOficinaResumo(oficinaId);
+  const backendError = data && data.success === false ? data.message : undefined;
+
+  if (isLoading) {
+    return <div className="text-xs text-muted-foreground">Carregando resumo...</div>;
+  }
+
+  if (isError || backendError) {
+    return (
+      <div className="text-xs text-muted-foreground" data-testid={`oficina-resumo-error-${oficinaId}`}>
+        Não foi possível carregar o resumo
+      </div>
+    );
+  }
+
+  const resumo = normalizeResumoDate(data?.data ?? null);
+  const indicators = resumoIndicators(resumo);
+
+  if (!resumo || indicators.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+      {indicators.map(({ label, value }) => (
+        <span key={label} className="rounded-md bg-muted px-2 py-1">
+          <span className="font-medium text-foreground">{label}:</span> {value}
+        </span>
+      ))}
+    </div>
+  );
+};

@@ -1,6 +1,12 @@
 import { z } from 'zod';
 import { beneficiariaSchema } from '../validation/zodSchemas';
 import { apiService } from '@/services/apiService';
+import type {
+  BeneficiariaListResponse,
+  BeneficiariaResponse,
+  BeneficiariaResumoResponse,
+  ListBeneficiariasParams,
+} from '@/types/beneficiarias';
 
 type Beneficiaria = z.infer<typeof beneficiariaSchema>;
 
@@ -48,35 +54,55 @@ export const api = {
 
 // Serviços para beneficiárias delegando ao apiService
 export const beneficiariasService = {
-  listar: async (params?: { page?: number; limit?: number; search?: string; status?: string; escolaridade?: string; }) => {
-    const res = await apiService.getBeneficiarias(params);
-    if (res.success) return res.data;
-    throw new Error(res.message || 'Erro ao listar beneficiárias');
+  listar: async (params: ListBeneficiariasParams = {}): Promise<BeneficiariaListResponse> => {
+    const response = await apiService.getBeneficiarias(params);
+
+    if (!response.success) {
+      return {
+        ...response,
+        data: [],
+      } satisfies BeneficiariaListResponse;
+    }
+
+    const data = Array.isArray(response.data) ? response.data : [];
+
+    return {
+      ...response,
+      data,
+    } satisfies BeneficiariaListResponse;
   },
-  buscarPorId: async (id: string) => {
-    const res = await apiService.getBeneficiaria(id);
-    if (res.success) return res.data;
-    throw new Error(res.message || 'Erro ao buscar beneficiária');
+  buscarPorId: async (id: string): Promise<BeneficiariaResponse> => {
+    const response = await apiService.getBeneficiaria(id);
+
+    if (!response.success) {
+      return response as BeneficiariaResponse;
+    }
+
+    return {
+      ...response,
+      data: response.data,
+    } satisfies BeneficiariaResponse;
   },
-  buscarResumo: async (id: string) => {
-    const res = await apiService.get(`/beneficiarias/${id}/resumo`);
-    if (res.success) return res.data;
-    throw new Error(res.message || 'Erro ao buscar resumo');
+  buscarResumo: async (id: string): Promise<BeneficiariaResumoResponse> => {
+    const response = await apiService.get(`/beneficiarias/${id}/resumo`);
+
+    if (!response.success) {
+      return {
+        ...response,
+        data: undefined,
+      } satisfies BeneficiariaResumoResponse;
+    }
+
+    return response as BeneficiariaResumoResponse;
   },
   criar: async (beneficiaria: Omit<Beneficiaria, 'id'>) => {
-    const res = await apiService.createBeneficiaria(beneficiaria as any);
-    if (res.success) return res.data;
-    throw new Error(res.message || 'Erro ao criar beneficiária');
+    return apiService.createBeneficiaria(beneficiaria as any);
   },
   atualizar: async (id: string, beneficiaria: Partial<Beneficiaria>) => {
-    const res = await apiService.updateBeneficiaria(id, beneficiaria as any);
-    if (res.success) return res.data;
-    throw new Error(res.message || 'Erro ao atualizar beneficiária');
+    return apiService.updateBeneficiaria(id, beneficiaria as any);
   },
   excluir: async (id: string) => {
-    const res = await apiService.deleteBeneficiaria(id);
-    if (res.success) return res.data;
-    throw new Error(res.message || 'Erro ao excluir beneficiária');
+    return apiService.deleteBeneficiaria(id);
   },
 };
 

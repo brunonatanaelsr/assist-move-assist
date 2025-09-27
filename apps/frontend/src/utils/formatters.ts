@@ -79,6 +79,21 @@ export const statusBeneficiariaDisplay = (status: Beneficiaria['status']): strin
     return displays[status] ?? status;
 };
 
+export const stripNonDigits = (value: string): string => value.replace(/\D/g, '');
+
+export const formatDateLocale = (
+    dateString?: string | null,
+    locale: string = 'pt-BR',
+    fallback: string = '-'
+): string => {
+    if (!dateString) return fallback;
+    const parsed = new Date(dateString);
+    if (Number.isNaN(parsed.getTime())) {
+        return fallback;
+    }
+    return parsed.toLocaleDateString(locale);
+};
+
 export const estadoCivilDisplay = (estadoCivil: Beneficiaria['estado_civil']): string => {
     if (!estadoCivil) return '';
     const displays: Record<string, string> = {

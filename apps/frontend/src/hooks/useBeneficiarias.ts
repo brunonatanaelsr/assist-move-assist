@@ -1,6 +1,12 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, type UseQueryResult } from '@tanstack/react-query';
 import { beneficiariasService } from '../services/api';
 import type { Beneficiaria } from '@/types/shared';
+import type {
+  BeneficiariaListResponse,
+  BeneficiariaResponse,
+  BeneficiariaResumoResponse,
+  ListBeneficiariasParams,
+} from '@/types/beneficiarias';
 import { toast } from 'sonner';
 
 // Keys para React Query
@@ -14,14 +20,8 @@ export const beneficiariasKeys = {
 
 // Hook para listar beneficiárias
 // ...existing code...
-export const useBeneficiarias = (params?: {
-  page?: number;
-  limit?: number;
-  search?: string;
-  status?: 'ativa' | 'inativa' | 'pendente' | 'desistente';
-  escolaridade?: string;
-}) => {
-  return useQuery({
+export const useBeneficiarias = (params: ListBeneficiariasParams = {}): UseQueryResult<BeneficiariaListResponse> => {
+  return useQuery<BeneficiariaListResponse>({
     queryKey: beneficiariasKeys.list(params),
     queryFn: () => beneficiariasService.listar(params),
   });
@@ -30,8 +30,8 @@ export const useBeneficiarias = (params?: {
 export default useBeneficiarias;
 
 // Hook para buscar beneficiária por ID
-export const useBeneficiaria = (id: string) => {
-  return useQuery({
+export const useBeneficiaria = (id: string): UseQueryResult<BeneficiariaResponse> => {
+  return useQuery<BeneficiariaResponse>({
     queryKey: beneficiariasKeys.detail(id),
     queryFn: () => beneficiariasService.buscarPorId(id),
     enabled: !!id,
@@ -39,8 +39,8 @@ export const useBeneficiaria = (id: string) => {
 };
 
 // Hook para buscar resumo da beneficiária
-export const useBeneficiariaResumo = (id: string) => {
-  return useQuery({
+export const useBeneficiariaResumo = (id: string): UseQueryResult<BeneficiariaResumoResponse> => {
+  return useQuery<BeneficiariaResumoResponse>({
     queryKey: [...beneficiariasKeys.detail(id), 'resumo'],
     queryFn: () => beneficiariasService.buscarResumo(id),
     enabled: !!id,

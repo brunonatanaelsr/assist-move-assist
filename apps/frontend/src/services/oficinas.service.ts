@@ -1,56 +1,13 @@
 import { api } from './api';
 import type { ApiResponse, Pagination } from '@/types/api';
-
-export interface Oficina {
-  id: number;
-  nome: string;
-  descricao?: string | null;
-  instrutor?: string | null;
-  data_inicio: string;
-  data_fim?: string | null;
-  horario_inicio: string;
-  horario_fim: string;
-  local?: string | null;
-  vagas_total: number;
-  vagas_ocupadas?: number;
-  status: 'ativa' | 'inativa' | 'pausada' | 'concluida';
-  dias_semana?: string;
-}
-
-export interface CreateOficinaDTO {
-  nome: string;
-  descricao?: string | null;
-  instrutor?: string | null;
-  data_inicio: string;
-  data_fim?: string | null;
-  horario_inicio: string;
-  horario_fim: string;
-  local?: string | null;
-  vagas_total: number;
-  dias_semana?: string;
-  projeto_id?: number;
-  status?: 'ativa' | 'inativa' | 'pausada' | 'concluida';
-}
-
-export interface UpdateOficinaDTO extends Partial<CreateOficinaDTO> {}
-
-export interface ListOficinasParams {
-  page?: number;
-  limit?: number;
-  search?: string;
-  status?: string;
-  projeto_id?: number;
-  data_inicio?: string;
-  data_fim?: string;
-  instrutor?: string;
-  sort?: keyof Oficina;
-  order?: 'asc' | 'desc';
-}
-
-export interface AddParticipanteDTO {
-  beneficiaria_id: number;
-  observacoes?: string;
-}
+import type {
+  AddParticipanteDTO,
+  CreateOficinaDTO,
+  ListOficinasParams,
+  Oficina,
+  OficinaResumo,
+  UpdateOficinaDTO,
+} from '@/types/oficinas';
 
 interface ListOficinasPayload {
   data: Oficina[];
@@ -61,7 +18,7 @@ export const OficinasService = {
   // Listar oficinas com filtros e paginação
   listar: async (params: ListOficinasParams = {}) => {
     const searchParams = new URLSearchParams();
-    
+
     Object.entries(params).forEach(([key, value]) => {
       if (value !== undefined) {
         searchParams.append(key, value.toString());
@@ -92,50 +49,50 @@ export const OficinasService = {
   },
 
   // Buscar oficina por ID
-  buscarPorId: async (id: number) => {
-    const response = await api.get(`/oficinas/${id}`);
+  buscarPorId: async (id: number): Promise<ApiResponse<Oficina>> => {
+    const response = await api.get<ApiResponse<Oficina>>(`/oficinas/${id}`);
     return response.data;
   },
 
   // Criar nova oficina
-  criar: async (data: CreateOficinaDTO) => {
-    const response = await api.post('/oficinas', data);
+  criar: async (data: CreateOficinaDTO): Promise<ApiResponse<Oficina>> => {
+    const response = await api.post<ApiResponse<Oficina>>('/oficinas', data);
     return response.data;
   },
 
   // Atualizar oficina existente
-  atualizar: async (id: number, data: UpdateOficinaDTO) => {
-    const response = await api.put(`/oficinas/${id}`, data);
+  atualizar: async (id: number, data: UpdateOficinaDTO): Promise<ApiResponse<Oficina>> => {
+    const response = await api.put<ApiResponse<Oficina>>(`/oficinas/${id}`, data);
     return response.data;
   },
 
   // Excluir oficina
-  excluir: async (id: number) => {
-    const response = await api.delete(`/oficinas/${id}`);
+  excluir: async (id: number): Promise<ApiResponse<void>> => {
+    const response = await api.delete<ApiResponse<void>>(`/oficinas/${id}`);
     return response.data;
   },
 
   // Adicionar participante à oficina
-  adicionarParticipante: async (id: number, data: AddParticipanteDTO) => {
-    const response = await api.post(`/oficinas/${id}/participantes`, data);
+  adicionarParticipante: async (id: number, data: AddParticipanteDTO): Promise<ApiResponse<void>> => {
+    const response = await api.post<ApiResponse<void>>(`/oficinas/${id}/participantes`, data);
     return response.data;
   },
 
   // Remover participante da oficina
-  removerParticipante: async (id: number, beneficiariaId: number) => {
-    const response = await api.delete(`/oficinas/${id}/participantes/${beneficiariaId}`);
+  removerParticipante: async (id: number, beneficiariaId: number): Promise<ApiResponse<void>> => {
+    const response = await api.delete<ApiResponse<void>>(`/oficinas/${id}/participantes/${beneficiariaId}`);
     return response.data;
   },
 
   // Listar participantes de uma oficina
-  listarParticipantes: async (id: number) => {
-    const response = await api.get(`/oficinas/${id}/participantes`);
+  listarParticipantes: async (id: number): Promise<ApiResponse<any>> => {
+    const response = await api.get<ApiResponse<any>>(`/oficinas/${id}/participantes`);
     return response.data;
   },
 
   // Marcar presença
   marcarPresenca: async (oficinaId: number, beneficiariaId: number, data: string, presente: boolean) => {
-    const response = await api.post(`/oficinas/${oficinaId}/presencas`, {
+    const response = await api.post<ApiResponse<void>>(`/oficinas/${oficinaId}/presencas`, {
       beneficiaria_id: beneficiariaId,
       data,
       presente
@@ -149,13 +106,13 @@ export const OficinasService = {
     if (data) {
       searchParams.append('data', data);
     }
-    const response = await api.get(`/oficinas/${id}/presencas?${searchParams.toString()}`);
+    const response = await api.get<ApiResponse<any>>(`/oficinas/${id}/presencas?${searchParams.toString()}`);
     return response.data;
   },
 
   // Buscar resumo da oficina (total de participantes, média de presença, etc)
-  buscarResumo: async (id: number) => {
-    const response = await api.get(`/oficinas/${id}/resumo`);
+  buscarResumo: async (id: number): Promise<ApiResponse<OficinaResumo>> => {
+    const response = await api.get<ApiResponse<OficinaResumo>>(`/oficinas/${id}/resumo`);
     return response.data;
   },
 

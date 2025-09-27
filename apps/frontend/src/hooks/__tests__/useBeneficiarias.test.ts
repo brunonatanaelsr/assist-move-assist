@@ -5,7 +5,10 @@ import useBeneficiarias from '../useBeneficiarias';
 import { createQueryClientWrapper } from './testUtils';
 
 beforeEach(() => {
-  vi.spyOn(beneficiariasService, 'listar').mockResolvedValue([]);
+  vi.spyOn(beneficiariasService, 'listar').mockResolvedValue({
+    success: true,
+    data: [],
+  });
 });
 
 afterEach(() => {
