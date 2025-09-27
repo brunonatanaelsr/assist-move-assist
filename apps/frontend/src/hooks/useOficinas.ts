@@ -1,5 +1,14 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { oficinasService, type Oficina, type CreateOficinaDTO, type UpdateOficinaDTO, type ListOficinasParams, type AddParticipanteDTO } from '../services/oficinas.service';
+import { useQuery, useMutation, useQueryClient, type UseQueryResult } from '@tanstack/react-query';
+import { oficinasService } from '../services/oficinas.service';
+import type {
+  AddParticipanteDTO,
+  CreateOficinaDTO,
+  ListOficinasParams,
+  Oficina,
+  OficinaResumo,
+  UpdateOficinaDTO,
+  OficinasApiResponse,
+} from '@/types/oficinas';
 import { toast } from 'sonner';
 
 // Keys para React Query
@@ -15,31 +24,28 @@ export const oficinasKeys = {
 };
 
 // Listar oficinas
-export const useOficinas = (params: ListOficinasParams = {}) => {
-  return useQuery({
+export const useOficinas = (params: ListOficinasParams = {}): UseQueryResult<OficinasApiResponse> =>
+  useQuery<OficinasApiResponse>({
     queryKey: oficinasKeys.list(params),
     queryFn: () => oficinasService.listar(params),
   });
-};
 export default useOficinas;
 
 // Buscar oficina por ID
-export const useOficina = (id: number) => {
-  return useQuery({
+export const useOficina = (id: number) =>
+  useQuery({
     queryKey: oficinasKeys.detail(id),
     queryFn: () => oficinasService.buscarPorId(id),
     enabled: !!id,
   });
-};
 
 // Buscar resumo da oficina
-export const useOficinaResumo = (id: number) => {
-  return useQuery({
+export const useOficinaResumo = (id: number) =>
+  useQuery<{ success: boolean; data?: OficinaResumo; message?: string }>({
     queryKey: oficinasKeys.resumo(id),
     queryFn: () => oficinasService.buscarResumo(id),
     enabled: !!id,
   });
-};
 
 // Criar oficina
 export const useCreateOficina = () => {
