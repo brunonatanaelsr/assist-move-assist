@@ -82,16 +82,17 @@ const sanitizeInput = (req: Request, _res: Response, next: NextFunction) => {
 };
 
 // Middleware para validar origem das requisições
-const validateOrigin = (req: Request, res: Response, next: NextFunction) => {
+const validateOrigin = (req: Request, res: Response, next: NextFunction): void => {
   const origin = req.get('origin');
   
   if (process.env.NODE_ENV === 'production' && origin) {
     const allowedOrigins = [process.env.FRONTEND_URL!].filter(Boolean);
     
     if (!allowedOrigins.includes(origin)) {
-      return res.status(403).json({
+      res.status(403).json({
         error: 'Origem não permitida'
       });
+      return;
     }
   }
   
@@ -99,14 +100,15 @@ const validateOrigin = (req: Request, res: Response, next: NextFunction) => {
 };
 
 // Middleware para validar content-type
-const validateContentType = (req: Request, res: Response, next: NextFunction) => {
+const validateContentType = (req: Request, res: Response, next: NextFunction): void => {
   if (req.method === 'POST' || req.method === 'PUT') {
     const contentType = req.get('content-type');
     
     if (!contentType || !contentType.includes('application/json')) {
-      return res.status(415).json({
+      res.status(415).json({
         error: 'Content-Type deve ser application/json'
       });
+      return;
     }
   }
   

@@ -1,10 +1,7 @@
 import type { Express } from 'express';
 import express from 'express';
-import cors from 'cors';
-import helmet from 'helmet';
 import compression from 'compression';
 import morgan from 'morgan';
-import rateLimit from 'express-rate-limit';
 import { createServer } from 'http';
 
 import apiRoutes from './routes/api';
@@ -15,9 +12,12 @@ import { errorHandler } from './middleware/errorHandler';
 import { logger } from './services/logger';
 import { pool } from './config/database';
 import { env } from './config/env';
+import { applySecurity } from './middleware/security.middleware';
 
 const app: Express = express();
 const server = createServer(app);
+
+applySecurity(app);
 
 if (env.ENABLE_WS) {
   try {
@@ -29,34 +29,7 @@ if (env.ENABLE_WS) {
   }
 }
 
-// Middleware de segurança
-app.use(helmet());
 app.use(compression());
-
-// CORS
-const corsOrigin = env.CORS_ORIGIN || (env.NODE_ENV === 'development' ? '*' : '');
-const corsOptions = {
-  origin: corsOrigin === '*' || corsOrigin === '' ? true : corsOrigin.split(',').map((o) => o.trim()),
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-};
-app.use(cors(corsOptions));
-
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutos
-  max: 100, // máximo 100 requests por IP
-  message: 'Muitas tentativas, tente novamente em 15 minutos.',
-});
-
-const rateLimitDisabled = env.RATE_LIMIT_DISABLE;
-
-if (!rateLimitDisabled) {
-  app.use('/api/', limiter);
-} else {
-  logger.info('Rate limiting desativado via RATE_LIMIT_DISABLE');
-}
 
 // Logging
 app.use(morgan('combined', { stream: { write: (message) => logger.info(message.trim()) } }));

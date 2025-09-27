@@ -1,25 +1,38 @@
-[{
-        "resource": "/workspaces/assist-move-assist/apps/backend/src/middleware/security.middleware.ts",
-	"owner": "typescript",
-	"code": "2339",
-	"severity": 8,
-	"message": "A propriedade 'json' não existe no tipo 'typeof import(\"express\")'.",
-	"source": "ts",
-	"startLineNumber": 71,
-	"startColumn": 17,
-	"endLineNumber": 71,
-	"endColumn": 21,
-	"origin": "extHost2"
-},{
-        "resource": "/workspaces/assist-move-assist/apps/backend/src/middleware/security.middleware.ts",
-	"owner": "typescript",
-	"code": "2339",
-	"severity": 8,
-	"message": "A propriedade 'urlencoded' não existe no tipo 'typeof import(\"express\")'.",
-	"source": "ts",
-	"startLineNumber": 78,
-	"startColumn": 17,
-	"endLineNumber": 78,
-	"endColumn": 27,
-	"origin": "extHost2"
-}]
+import type { Express } from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import hpp from 'hpp';
+
+import {
+  apiLimiter,
+  corsOptions,
+  generalLimiter,
+  helmetConfig,
+  sanitizeInput,
+  validateContentType,
+  validateOrigin
+} from '../config/security';
+import { env } from '../config/env';
+import { logger } from '../services/logger';
+
+/**
+ * Register security middlewares for the Express application.
+ */
+export function applySecurity(app: Express): void {
+  app.use(helmet(helmetConfig));
+  app.use(cors(corsOptions));
+  app.use(hpp());
+
+  app.use(sanitizeInput);
+  app.use(validateOrigin);
+  app.use(validateContentType);
+
+  if (!env.RATE_LIMIT_DISABLE) {
+    app.use('/api/', generalLimiter);
+    app.use('/api/v1/', apiLimiter);
+  } else {
+    logger.info('Rate limiting desativado via RATE_LIMIT_DISABLE');
+  }
+}
+
+export default applySecurity;
