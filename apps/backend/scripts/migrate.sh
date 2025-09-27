@@ -42,7 +42,28 @@ PRIORITY_ORDER=(
 
 # Montar lista final de migrações: primeiro as prioritárias, depois o restante ordenado
 declare -a FILES_TO_RUN=()
-declare -A PRIORITY_SET=()
+
+# Bash 3.x (macOS) não suporta arrays associativos, portanto
+# usamos uma lista simples separada por quebras de linha para
+# registrar quais migrações já foram marcadas como prioritárias.
+PRIORITY_TRACK=""
+
+add_priority_track() {
+  local file="$1"
+  if [ -z "$PRIORITY_TRACK" ]; then
+    PRIORITY_TRACK="$file"
+  else
+    PRIORITY_TRACK="$PRIORITY_TRACK"$'\n'"$file"
+  fi
+}
+
+is_tracked_priority() {
+  local file="$1"
+  if [ -z "$PRIORITY_TRACK" ]; then
+    return 1
+  fi
+  printf '%s\n' "$PRIORITY_TRACK" | grep -Fxq "$file"
+}
 
 ALL_MIGRATIONS=()
 while IFS= read -r migration_file; do
@@ -52,12 +73,12 @@ done < <(find "$MIGRATIONS_DIR" -maxdepth 1 -type f -name '*.sql' -exec basename
 for priority_file in "${PRIORITY_ORDER[@]}"; do
   if [ -f "$MIGRATIONS_DIR/$priority_file" ]; then
     FILES_TO_RUN+=("$priority_file")
-    PRIORITY_SET["$priority_file"]=1
+    add_priority_track "$priority_file"
   fi
 done
 
 for file in "${ALL_MIGRATIONS[@]}"; do
-  if [ -z "${PRIORITY_SET[$file]}" ]; then
+  if ! is_tracked_priority "$file"; then
     FILES_TO_RUN+=("$file")
   fi
 done
