@@ -36,8 +36,9 @@ describe('Beneficiárias API', () => {
         .send(beneficiariaData);
 
       expect(response.status).toBe(201);
-      expect(response.body).toHaveProperty('id');
-      expect(response.body.nome_completo).toBe(beneficiariaData.nome_completo);
+      expect(response.body.success).toBe(true);
+      expect(response.body.data).toHaveProperty('id');
+      expect(response.body.data.nome_completo).toBe(beneficiariaData.nome_completo);
     });
 
     it('deve validar dados obrigatórios', async () => {
@@ -77,9 +78,10 @@ describe('Beneficiárias API', () => {
         .query({ page: 1, limit: 10 });
 
       expect(response.status).toBe(200);
-      expect(response.body.items).toHaveLength(10);
-      expect(response.body).toHaveProperty('total');
-      expect(response.body).toHaveProperty('pages');
+      expect(response.body.success).toBe(true);
+      expect(response.body.data.items).toHaveLength(10);
+      expect(response.body.data.pagination.total).toBeGreaterThan(0);
+      expect(response.body.data.pagination).toHaveProperty('pages');
     });
 
     it('deve filtrar por termo de busca', async () => {
@@ -94,8 +96,9 @@ describe('Beneficiárias API', () => {
         .query({ search: 'Maria' });
 
       expect(response.status).toBe(200);
-      expect(response.body.items).toHaveLength(1);
-      expect(response.body.items[0].nome_completo).toBe('Maria da Silva');
+      expect(response.body.success).toBe(true);
+      expect(response.body.data.items).toHaveLength(1);
+      expect(response.body.data.items[0].nome_completo).toBe('Maria da Silva');
     });
 
     it('deve ordenar resultados', async () => {
@@ -109,7 +112,8 @@ describe('Beneficiárias API', () => {
         .query({ sort: 'nome_completo', order: 'asc' });
 
       expect(response.status).toBe(200);
-      expect(response.body.items[0].nome_completo).toBe('Ana');
+      expect(response.body.success).toBe(true);
+      expect(response.body.data.items[0].nome_completo).toBe('Ana');
     });
   });
 
@@ -122,7 +126,8 @@ describe('Beneficiárias API', () => {
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(response.status).toBe(200);
-      expect(response.body.id).toBe(beneficiaria.id);
+      expect(response.body.success).toBe(true);
+      expect(response.body.data.id).toBe(beneficiaria.id);
     });
 
     it('deve retornar 404 para ID inexistente', async () => {
@@ -131,6 +136,37 @@ describe('Beneficiárias API', () => {
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(response.status).toBe(404);
+    });
+  });
+
+  describe('GET /beneficiarias/:id/resumo', () => {
+    it('deve retornar resumo consolidado', async () => {
+      const beneficiaria = await factory.create('beneficiaria');
+
+      const response = await request(app)
+        .get(`/api/beneficiarias/${beneficiaria.id}/resumo`)
+        .set('Authorization', `Bearer ${authToken}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.data.beneficiaria.id).toBe(beneficiaria.id);
+      expect(response.body.data.formularios.total).toBeGreaterThanOrEqual(0);
+    });
+  });
+
+  describe('GET /beneficiarias/:id/atividades', () => {
+    it('deve retornar lista paginada de atividades', async () => {
+      const beneficiaria = await factory.create('beneficiaria');
+
+      const response = await request(app)
+        .get(`/api/beneficiarias/${beneficiaria.id}/atividades`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .query({ page: 1, limit: 10 });
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(Array.isArray(response.body.data.data)).toBe(true);
+      expect(response.body.data.pagination).toMatchObject({ page: 1, limit: 10 });
     });
   });
 
@@ -148,7 +184,8 @@ describe('Beneficiárias API', () => {
         .send(updateData);
 
       expect(response.status).toBe(200);
-      expect(response.body.nome_completo).toBe(updateData.nome_completo);
+      expect(response.body.success).toBe(true);
+      expect(response.body.data.nome_completo).toBe(updateData.nome_completo);
     });
 
     it('deve validar dados na atualização', async () => {
@@ -172,7 +209,8 @@ describe('Beneficiárias API', () => {
         .delete(`/api/beneficiarias/${beneficiaria.id}`)
         .set('Authorization', `Bearer ${authToken}`);
 
-      expect(response.status).toBe(204);
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
 
       // Verificar se foi realmente deletada
       const getResponse = await request(app)

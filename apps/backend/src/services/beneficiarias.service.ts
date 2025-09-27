@@ -1,46 +1,49 @@
 import { Pool } from 'pg';
 import type { RedisClient } from '../lib/redis';
+import { BeneficiariasRepository } from '../repositories/beneficiariasRepository';
 import { logger } from '../services/logger';
-import { AppError } from '../utils';
-import { validateBeneficiaria } from '../validators/beneficiaria.validator';
+import { AppError, BaseError } from '../utils';
 import { withCache } from '../utils/redisCache';
 import { cacheService } from './cache.service';
+import { validateBeneficiaria } from '../validators/beneficiaria.validator';
+import type { BeneficiariaDetalhada } from '../models/beneficiaria';
+import type {
+  Beneficiaria,
+  BeneficiariaAtividadeLista,
+  BeneficiariaCreatePayload,
+  BeneficiariaResumoDetalhado,
+  BeneficiariaUpdatePayload
+} from '../types/beneficiarias';
 
 interface ListBeneficiariasParams {
-  search?: string;
-  status?: string;
   page?: number;
   limit?: number;
-  bairro?: string;
-}
-
-interface Beneficiaria {
-  id: number;
-  nome_completo: string;
-  cpf: string;
-  data_nascimento: Date;
-  telefone: string;
-  email?: string;
-  status: string;  
-  created_at: Date;
-  updated_at: Date;
-}
-
-interface BeneficiariaInput {
-  nome_completo: string;
-  cpf: string;
-  data_nascimento: Date;
-  telefone: string;
-  email?: string;
+  filtros?: {
+    status?: 'ativa' | 'inativa' | 'em_acompanhamento';
+    medida_protetiva?: boolean;
+    tipo_violencia?: string[];
+    data_inicio?: Date;
+    data_fim?: Date;
+  };
 }
 
 export class BeneficiariasService {
-  constructor(
-    private readonly db: Pool,
-    private readonly redis: RedisClient
-  ) {}
+  private readonly repository: BeneficiariasRepository;
 
-  async searchBeneficiarias(searchTerm: string, limit = 10) {
+  constructor(
+    repositoryOrPool: BeneficiariasRepository | Pool,
+    // Mantém o parâmetro redis para compatibilidade com instâncias existentes
+    _redis?: RedisClient,
+    repositoryOverride?: BeneficiariasRepository
+  ) {
+    this.repository = repositoryOverride
+      ? repositoryOverride
+      : repositoryOrPool instanceof BeneficiariasRepository
+        ? repositoryOrPool
+        : new BeneficiariasRepository(repositoryOrPool);
+  }
+
+  async searchBeneficiarias(searchTerm: string, limit = 10): Promise<Beneficiaria[]> {
     const term = searchTerm.trim();
 
     if (!term) {
@@ -50,218 +53,171 @@ export class BeneficiariasService {
     const cacheKey = `beneficiarias:search:${term.toLowerCase()}:${limit}`;
 
     return withCache(cacheKey, async () => {
-      const likeTerm = `%${term}%`;
-
-      const { rows } = await this.db.query(
-        `
-          SELECT
-            b.id,
-            b.nome_completo,
-            b.cpf,
-            b.status,
-            b.created_at,
-            b.updated_at
-          FROM beneficiarias b
-          WHERE
-            b.deleted_at IS NULL
-            AND (b.nome_completo ILIKE $1 OR b.cpf ILIKE $2)
-          ORDER BY b.nome_completo ASC
-          LIMIT $3
-        `,
-        [likeTerm, likeTerm, limit]
-      );
-
-      return rows;
+      const rows = await this.repository.buscarPorTexto(term, limit);
+      return rows.slice(0, limit);
     }, 60);
   }
 
-  async listar({
-    search = '',
-    status = 'ATIVO',
-    page = 1,
-    limit = 10,
-    bairro
-  }: ListBeneficiariasParams = {}) {
-    try {
-      // Usar cache para consultas frequentes
-      const cacheKey = `beneficiarias:list:${search}:${status}:${page}:${limit}:${bairro}`;
-      
-      return await withCache(cacheKey, async () => {
-        const offset = (page - 1) * limit;
-        const params: any[] = [];
-        let query = `
-          SELECT b.*, e.bairro
-          FROM beneficiarias b
-          LEFT JOIN enderecos e ON e.beneficiaria_id = b.id
-          WHERE 1=1
-        `;
+  async listarAtivas({ page = 1, limit = 10, filtros }: ListBeneficiariasParams = {}) {
+    const cacheKey = `beneficiarias:list:${page}:${limit}:${JSON.stringify(filtros ?? {})}`;
 
-        if (search) {
-          params.push(`%${search}%`);
-          query += ` AND (b.nome_completo ILIKE $${params.length} OR b.cpf ILIKE $${params.length})`;
-        }
-
-        if (status) {
-          params.push(status);
-          query += ` AND b.status = $${params.length}`;
-        }
-
-        if (bairro) {
-          params.push(`%${bairro}%`);
-          query += ` AND e.bairro ILIKE $${params.length}`;
-        }
-
-        // Contar total antes da paginação
-        const countQuery = query.replace('b.*, e.bairro', 'COUNT(*) as total');
-        const { total } = (await this.db.query(countQuery, params)).rows[0];
-
-        // Adicionar ordenação e paginação
-        query += ` ORDER BY b.created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
-        params.push(limit, offset);
-
-        const { rows: beneficiarias } = await this.db.query(query, params);
-
-        return {
-          beneficiarias,
-          pagination: {
-            page,
-            limit,
-            total: parseInt(total),
-            pages: Math.ceil(total / limit)
-          }
-        };
-      }, 300); // Cache por 5 minutos
-
-    } catch (error) {
-      logger.error('Erro ao listar beneficiárias:', { error });
-      throw new AppError('Erro ao listar beneficiárias', 500);
-    }
+    return withCache(cacheKey, async () => {
+      return this.repository.listarAtivas(page, limit, filtros);
+    }, 300);
   }
 
-  async criar(data: BeneficiariaInput) {
+  async getDetalhes(id: number): Promise<BeneficiariaDetalhada> {
+    const beneficiaria = await this.repository.findWithRelations(id);
+    if (!beneficiaria) {
+      throw new AppError('Beneficiária não encontrada', 404);
+    }
+    return beneficiaria;
+  }
+
+  async getResumo(id: number): Promise<BeneficiariaResumoDetalhado> {
+    const cacheKey = `beneficiarias:${id}:resumo`;
+
+    return withCache(cacheKey, async () => {
+      const resumo = await this.repository.getResumo(id);
+      if (!resumo) {
+        throw new AppError('Beneficiária não encontrada', 404);
+      }
+      return resumo;
+    }, 300);
+  }
+
+  async getAtividades(
+    id: number,
+    page: number = 1,
+    limit: number = 20
+  ): Promise<BeneficiariaAtividadeLista> {
+    const safePage = Math.max(1, page);
+    const safeLimit = Math.min(Math.max(1, limit), 100);
+    const cacheKey = `beneficiarias:${id}:atividades:${safePage}:${safeLimit}`;
+
+    return withCache(cacheKey, async () => {
+      const resumo = await this.repository.getResumo(id);
+      if (!resumo) {
+        throw new AppError('Beneficiária não encontrada', 404);
+      }
+      return this.repository.getAtividades(id, safePage, safeLimit);
+    }, 120);
+  }
+
+  async createBeneficiaria(
+    data: BeneficiariaCreatePayload,
+    options: { skipValidation?: boolean } = {}
+  ): Promise<BeneficiariaDetalhada> {
     try {
-      // Validar dados
-      const validatedData = await validateBeneficiaria(data);
+      const { skipValidation = false } = options;
+      const validated = skipValidation ? data : await validateBeneficiaria(data as any);
+      const { familiares, vulnerabilidades, ...beneficiariaPayload } = validated;
 
-      // Verificar CPF duplicado
-      const existingCPF = await this.db.query(
-        'SELECT id FROM beneficiarias WHERE cpf = $1',
-        [validatedData.cpf]
-      );
-
-      if (existingCPF.rows.length) {
-        throw new AppError('CPF já cadastrado', 400);
+      if (beneficiariaPayload.cpf) {
+        const existing = await this.repository.findByCPF(beneficiariaPayload.cpf);
+        if (existing) {
+          throw new AppError('CPF já cadastrado', 400);
+        }
       }
 
-      // Inserir beneficiária
-      const query = `
-        INSERT INTO beneficiarias (
-          nome_completo,
-          cpf,
-          data_nascimento,
-          telefone,
-          email,
-          status,
-          created_at,
-          updated_at
-        ) VALUES ($1, $2, $3, $4, $5, 'ATIVO', NOW(), NOW())
-        RETURNING *
-      `;
+      const beneficiaria = await this.repository.createWithRelations(
+        beneficiariaPayload as any,
+        familiares,
+        vulnerabilidades
+      );
 
-      const { rows: [beneficiaria] } = await this.db.query(query, [
-        validatedData.nome_completo,
-        validatedData.cpf,
-        validatedData.data_nascimento,
-        validatedData.telefone,
-        validatedData.email
-      ]);
-
-      // Invalidar cache
-      await cacheService.deletePattern('beneficiarias:list:*');
+      await this.invalidateCaches(beneficiaria.id);
 
       return beneficiaria;
-
     } catch (error) {
       logger.error('Erro ao criar beneficiária:', { error });
-      if (error instanceof AppError) throw error;
+      if (error instanceof AppError) {
+        throw error;
+      }
+      if (error instanceof BaseError) {
+        throw new AppError(error.message, error.status);
+      }
       throw new AppError('Erro ao criar beneficiária', 500);
     }
   }
 
-  async atualizar(id: number, data: Partial<BeneficiariaInput>) {
+  async updateBeneficiaria(
+    id: number,
+    data: BeneficiariaUpdatePayload,
+    options: { skipValidation?: boolean } = {}
+  ): Promise<BeneficiariaDetalhada> {
     try {
-      // Verificar se existe
-      const existingBeneficiaria = await this.db.query(
-        'SELECT id FROM beneficiarias WHERE id = $1',
-        [id]
-      );
-
-      if (!existingBeneficiaria.rows.length) {
+      const existing = await this.repository.findById(id);
+      if (!existing) {
         throw new AppError('Beneficiária não encontrada', 404);
       }
 
-      // Validar dados parciais
-      const validatedData = await validateBeneficiaria(data, true);
+      const { skipValidation = false } = options;
+      const validated = skipValidation ? data : await validateBeneficiaria(data as any, true);
+      const { familiares, vulnerabilidades, ...payload } = validated;
 
-      // Montar query dinâmica
-      const fields: string[] = [];
-      const values: any[] = [];
-      let paramCount = 1;
-
-      Object.entries(validatedData).forEach(([key, value]) => {
-        if (value !== undefined) {
-          fields.push(`${key} = $${paramCount}`);
-          values.push(value);
-          paramCount++;
+      if (payload.cpf && payload.cpf !== existing.cpf) {
+        const cpfExists = await this.repository.findByCPF(payload.cpf);
+        if (cpfExists && cpfExists.id !== id) {
+          throw new AppError('CPF já cadastrado para outra beneficiária', 400);
         }
-      });
-
-      if (!fields.length) {
-        throw new AppError('Nenhum dado para atualizar', 400);
       }
 
-      values.push(id);
-      const query = `
-        UPDATE beneficiarias 
-        SET ${fields.join(', ')}, updated_at = NOW()
-        WHERE id = $${paramCount}
-        RETURNING *
-      `;
+      const sanitized = Object.fromEntries(
+        Object.entries(payload).filter(([, value]) => value !== undefined && value !== null)
+      );
 
-      const { rows: [beneficiaria] } = await this.db.query(query, values);
+      const beneficiaria = await this.repository.updateWithRelations(
+        id,
+        sanitized as any,
+        familiares,
+        vulnerabilidades
+      );
 
-      // Invalidar cache
-      await cacheService.deletePattern('beneficiarias:list:*');
+      await this.invalidateCaches(id);
 
       return beneficiaria;
-
     } catch (error) {
       logger.error('Erro ao atualizar beneficiária:', { error });
-      if (error instanceof AppError) throw error;
+      if (error instanceof AppError) {
+        throw error;
+      }
+      if (error instanceof BaseError) {
+        throw new AppError(error.message, error.status);
+      }
       throw new AppError('Erro ao atualizar beneficiária', 500);
     }
   }
 
-  async excluir(id: number) {
+  async deleteBeneficiaria(id: number): Promise<void> {
     try {
-      const result = await this.db.query(
-        'UPDATE beneficiarias SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING id',
-        ['INATIVO', id]
-      );
-
-      if (!result.rows.length) {
-        throw new AppError('Beneficiária não encontrada', 404);
-      }
-
-      // Invalidar cache
-      await cacheService.deletePattern('beneficiarias:list:*');
-
-      return { success: true };
-
+      await this.repository.softDelete(id);
+      await this.invalidateCaches(id);
     } catch (error) {
       logger.error('Erro ao excluir beneficiária:', { error });
-      if (error instanceof AppError) throw error;
+      if (error instanceof AppError) {
+        throw error;
+      }
+      if (error instanceof BaseError) {
+        throw new AppError(error.message, error.status);
+      }
       throw new AppError('Erro ao excluir beneficiária', 500);
     }
+  }
+
+  async findByCPF(cpf: string) {
+    return this.repository.findByCPF(cpf);
+  }
+
+  async buscarPorId(id: number): Promise<Beneficiaria> {
+    return this.repository.buscarPorId(id);
+  }
+
+  private async invalidateCaches(id?: number) {
+    const tasks = [cacheService.deletePattern('beneficiarias:list:*')];
+    if (id) {
+      tasks.push(cacheService.deletePattern(`beneficiarias:${id}:*`));
+    }
+    await Promise.all(tasks);
   }
 }

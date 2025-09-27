@@ -81,3 +81,52 @@ export interface BeneficiariaCreatePayload
 
 export interface BeneficiariaUpdatePayload
   extends Partial<BeneficiariaCreatePayload> {}
+
+export interface BeneficiariaResumoDetalhado {
+  beneficiaria: {
+    id: number;
+    nome_completo: string;
+    status: BeneficiariaStatus;
+    created_at: Date;
+    updated_at: Date;
+  };
+  formularios: {
+    total: number;
+    anamnese: number;
+    ficha_evolucao: number;
+    termos: number;
+    visao_holistica: number;
+    genericos: number;
+  };
+  atendimentos: {
+    total: number;
+    ultimo_atendimento: Date | null;
+  };
+  participacoes: {
+    total_ativas: number;
+  };
+}
+
+export type BeneficiariaAtividadeTipo =
+  | 'formulario'
+  | 'anamnese'
+  | 'ficha_evolucao'
+  | 'termos_consentimento'
+  | 'visao_holistica';
+
+export interface BeneficiariaAtividade {
+  type: BeneficiariaAtividadeTipo;
+  id: number;
+  created_at: Date;
+  created_by: number | null;
+  created_by_name?: string | null;
+}
+
+export interface BeneficiariaAtividadeLista {
+  data: BeneficiariaAtividade[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+  };
+}

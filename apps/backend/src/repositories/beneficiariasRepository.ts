@@ -1,6 +1,10 @@
 import { Pool, PoolClient } from 'pg';
 import { PostgresBaseRepository } from './postgresBaseRepository';
 import { Beneficiaria, BeneficiariaDetalhada, BeneficiariaFamiliar } from '../models/beneficiaria';
+import {
+  BeneficiariaAtividadeLista,
+  BeneficiariaResumoDetalhado
+} from '../types/beneficiarias';
 import { NotFoundError, AppError } from '../utils';
 
 export class BeneficiariasRepository extends PostgresBaseRepository<Beneficiaria> {
@@ -238,10 +242,10 @@ export class BeneficiariasRepository extends PostgresBaseRepository<Beneficiaria
     return this.findByField('cpf', cpf);
   }
 
-  async buscarPorTexto(texto: string): Promise<Beneficiaria[]> {
+  async buscarPorTexto(texto: string, limit: number = 10): Promise<Beneficiaria[]> {
     const result = await this.query(
       `SELECT * FROM beneficiarias
-       WHERE 
+       WHERE
          deleted_at IS NULL AND
          (
            nome_completo ILIKE $1 OR
@@ -251,14 +255,14 @@ export class BeneficiariasRepository extends PostgresBaseRepository<Beneficiaria
            endereco ILIKE $1
          )
        ORDER BY
-         CASE 
+         CASE
            WHEN nome_completo ILIKE $1 THEN 1
            WHEN cpf LIKE $1 THEN 2
            ELSE 3
          END,
          nome_completo ASC
-       LIMIT 10`,
-      [`%${texto}%`]
+       LIMIT $2`,
+      [`%${texto}%`, limit]
     );
 
     return result.rows;
@@ -361,6 +365,105 @@ export class BeneficiariasRepository extends PostgresBaseRepository<Beneficiaria
     }
 
     return result.rows[0];
+  }
+
+  async getResumo(id: number): Promise<BeneficiariaResumoDetalhado | null> {
+    const info = await this.query(
+      `SELECT id, nome_completo, status, created_at, updated_at
+         FROM beneficiarias
+        WHERE id = $1 AND deleted_at IS NULL`,
+      [id]
+    );
+
+    if (info.rowCount === 0) {
+      return null;
+    }
+
+    const [anamnese, ficha, termos, visao, genericos, atendimentos, participacoes] = await Promise.all([
+      this.query('SELECT COUNT(*)::int AS total FROM anamnese_social WHERE beneficiaria_id = $1', [id]),
+      this.query('SELECT COUNT(*)::int AS total FROM ficha_evolucao WHERE beneficiaria_id = $1', [id]),
+      this.query('SELECT COUNT(*)::int AS total FROM termos_consentimento WHERE beneficiaria_id = $1', [id]),
+      this.query('SELECT COUNT(*)::int AS total FROM visao_holistica WHERE beneficiaria_id = $1', [id]),
+      this.query('SELECT COUNT(*)::int AS total FROM formularios WHERE beneficiaria_id = $1', [id]),
+      this.query(
+        'SELECT COUNT(*)::int AS total, MAX(data_atendimento) AS ultimo FROM historico_atendimentos WHERE beneficiaria_id = $1',
+        [id]
+      ),
+      this.query(
+        'SELECT COUNT(*)::int AS total FROM participacoes WHERE beneficiaria_id = $1 AND ativo = true',
+        [id]
+      )
+    ]);
+
+    return {
+      beneficiaria: info.rows[0],
+      formularios: {
+        total:
+          anamnese.rows[0].total +
+          ficha.rows[0].total +
+          termos.rows[0].total +
+          visao.rows[0].total +
+          genericos.rows[0].total,
+        anamnese: anamnese.rows[0].total,
+        ficha_evolucao: ficha.rows[0].total,
+        termos: termos.rows[0].total,
+        visao_holistica: visao.rows[0].total,
+        genericos: genericos.rows[0].total
+      },
+      atendimentos: {
+        total: atendimentos.rows[0].total,
+        ultimo_atendimento: atendimentos.rows[0].ultimo
+      },
+      participacoes: {
+        total_ativas: participacoes.rows[0].total
+      }
+    };
+  }
+
+  async getAtividades(
+    beneficiariaId: number,
+    page: number,
+    limit: number
+  ): Promise<BeneficiariaAtividadeLista> {
+    const offset = (page - 1) * limit;
+
+    const baseQuery = `
+      SELECT * FROM (
+        SELECT 'formulario'::text AS type, id, created_at, usuario_id AS created_by, NULL::text AS created_by_name
+          FROM formularios WHERE beneficiaria_id = $1
+        UNION ALL
+        SELECT 'anamnese'::text AS type, id, created_at, created_by, NULL::text AS created_by_name
+          FROM anamnese_social WHERE beneficiaria_id = $1
+        UNION ALL
+        SELECT 'ficha_evolucao'::text AS type, id, created_at, created_by, NULL::text AS created_by_name
+          FROM ficha_evolucao WHERE beneficiaria_id = $1
+        UNION ALL
+        SELECT 'termos_consentimento'::text AS type, id, created_at, created_by, NULL::text AS created_by_name
+          FROM termos_consentimento WHERE beneficiaria_id = $1
+        UNION ALL
+        SELECT 'visao_holistica'::text AS type, id, created_at, created_by, NULL::text AS created_by_name
+          FROM visao_holistica WHERE beneficiaria_id = $1
+      ) acts
+    `;
+
+    const [items, total] = await Promise.all([
+      this.query(
+        `${baseQuery}
+         ORDER BY created_at DESC
+         LIMIT $2 OFFSET $3`,
+        [beneficiariaId, limit, offset]
+      ),
+      this.query(`SELECT COUNT(*)::int AS total FROM (${baseQuery}) counted`, [beneficiariaId])
+    ]);
+
+    return {
+      data: items.rows,
+      pagination: {
+        page,
+        limit,
+        total: total.rows[0].total
+      }
+    };
   }
 
   async atualizarStatus(
