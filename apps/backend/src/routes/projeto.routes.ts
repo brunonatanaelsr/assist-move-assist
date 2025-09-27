@@ -1,7 +1,7 @@
 import express from 'express';
 import { authenticateToken, requireGestor, authorize } from '../middleware/auth';
 import { successResponse, errorResponse } from '../utils/responseFormatter';
-import { createProjetoSchema, updateProjetoSchema, projetoFilterSchema } from '../validators/projeto.validator';
+import { createProjetoSchema, projetoFilterSchema } from '../validators/projeto.validator';
 import { ProjetoService } from '../services/projeto.service';
 import { pool } from '../config/database';
 
@@ -53,12 +53,12 @@ router.post('/', authorize('projetos.criar'), catchAsync(async (req, res): Promi
 
 router.put('/:id', authorize('projetos.editar'), catchAsync(async (req, res): Promise<void> => {
   try {
-    const data = updateProjetoSchema.parse(req.body);
-    const projeto = await projetoService.atualizarProjeto(Number(req.params.id), data);
+    const projeto = await projetoService.atualizarProjeto(Number(req.params.id), req.body);
     res.json(successResponse(projeto, 'Projeto atualizado com sucesso'));
     return;
   } catch (error: any) {
     if (error.name === 'ZodError') { res.status(400).json(errorResponse('Dados inválidos')); return; }
+    if (error.message === 'Nenhum campo para atualizar') { res.status(400).json(errorResponse(error.message)); return; }
     if (error.message === 'Projeto não encontrado') { res.status(404).json(errorResponse(error.message)); return; }
     res.status(500).json(errorResponse('Erro ao atualizar projeto'));
     return;
