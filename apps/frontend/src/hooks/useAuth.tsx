@@ -44,25 +44,57 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const savedUser = authService.getUser?.();
-    if (savedUser) setUser(savedUser);
-    setLoading(false);
+    let isMounted = true;
+
+    const initialize = async () => {
+      try {
+        const currentUser = await authService.fetchCurrentUser();
+        if (isMounted) {
+          setUser(currentUser);
+        }
+      } catch (error) {
+        if (isMounted) {
+          setUser(null);
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    initialize();
+
+    const handleForcedLogout = () => {
+      authService.clearCachedUser();
+      if (isMounted) {
+        setUser(null);
+        setLoading(false);
+      }
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('auth:logout', handleForcedLogout);
+    }
+
+    return () => {
+      isMounted = false;
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('auth:logout', handleForcedLogout);
+      }
+    };
   }, [authService]);
 
   const signIn = async (email: string, password: string): Promise<{ error?: Error }> => {
     try {
       setLoading(true);
-      const response = await authService.login({ email, password });
-      // Tipagem explícita do retorno esperado
-      type LoginResponse = { token?: string; user?: User };
-      const resp = response as LoginResponse;
-      if (resp.token) {
-        localStorage.setItem('auth_token', resp.token);
-        localStorage.setItem('token', resp.token);
-      }
-      if (resp.user) {
-        localStorage.setItem('user', JSON.stringify(resp.user));
-        setUser(resp.user);
+      await authService.login({ email, password });
+
+      try {
+        const currentUser = await authService.fetchCurrentUser();
+        setUser(currentUser);
+      } catch (fetchError) {
+        return { error: fetchError as Error };
       }
       return {};
     } catch (error) {
@@ -77,8 +109,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(true);
       await authService.logout();
     } finally {
-      localStorage.removeItem("auth_token");
-      localStorage.removeItem("user");
       setUser(null);
       setLoading(false);
     }

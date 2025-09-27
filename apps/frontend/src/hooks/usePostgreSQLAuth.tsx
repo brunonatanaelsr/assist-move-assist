@@ -54,20 +54,10 @@ export const PostgreSQLAuthProvider: React.FC<AuthProviderProps> = ({ children }
   useEffect(() => {
     const load = async () => {
       try {
-        // Verificar se há token antes de fazer a requisição
-        const token = localStorage.getItem('token');
-        if (!token) {
-          if (IS_DEV) console.log('Nenhum token encontrado, usuário não autenticado');
-          setUser(null);
-          setProfile(null);
-          setLoading(false);
-          return;
-        }
-
-        if (IS_DEV) console.log('Token encontrado, carregando usuário...');
+        if (IS_DEV) console.log('Carregando usuário autenticado...');
         const response = await apiService.getCurrentUser();
         if (IS_DEV) console.log('Response getCurrentUser:', response);
-        
+
         if (response && response.success && response.data && response.data.user) {
           const userData = response.data.user;
           const userProfile: Profile = {
@@ -82,13 +72,11 @@ export const PostgreSQLAuthProvider: React.FC<AuthProviderProps> = ({ children }
           setProfile(userProfile);
         } else {
           if (IS_DEV) console.log('Response inválido ou usuário não encontrado');
-          localStorage.removeItem('token');
           setUser(null);
           setProfile(null);
         }
       } catch (error) {
         if (IS_DEV) console.error('Error loading user:', error);
-        localStorage.removeItem('token');
         setUser(null);
         setProfile(null);
       } finally {
@@ -107,27 +95,27 @@ export const PostgreSQLAuthProvider: React.FC<AuthProviderProps> = ({ children }
       const response = await apiService.login(email, password);
       if (IS_DEV) console.log('Response do apiService:', response);
 
-      if (response && response.data && response.data.user) {
-        const userData = response.data.user;
+      if (response && response.success) {
+        const currentUser = await apiService.getCurrentUser();
 
-        if (response.data.token) {
-          localStorage.setItem('token', response.data.token);
+        if (currentUser.success && currentUser.data?.user) {
+          const userData = currentUser.data.user;
+          const userProfile: Profile = {
+            id: userData.id,
+            nome: userData.nome,
+            email: userData.email,
+            papel: userData.papel,
+            ativo: userData.ativo ?? true
+          };
+          setUser(userProfile);
+          setProfile(userProfile);
+          return { error: null };
         }
 
-        const userProfile: Profile = {
-          id: userData.id,
-          nome: userData.nome,
-          email: userData.email,
-          papel: userData.papel,
-          ativo: userData.ativo ?? true
-        };
-        setUser(userProfile);
-        setProfile(userProfile);
-
-        return { error: null };
-      } else {
-        return { error: { message: response.message || 'Erro ao fazer login' } };
+        return { error: { message: currentUser.message || 'Usuário não encontrado após login' } };
       }
+
+      return { error: { message: response.message || 'Erro ao fazer login' } };
     } catch (error: any) {
       if (IS_DEV) console.error('Login error:', error);
       return { error: { message: error.message || 'Erro de conexão' } };
@@ -138,7 +126,7 @@ export const PostgreSQLAuthProvider: React.FC<AuthProviderProps> = ({ children }
 
   const signOut = async () => {
     try {
-      localStorage.removeItem('token');
+      await apiService.post('/auth/logout', undefined);
       setUser(null);
       setProfile(null);
       return { error: null };

@@ -86,37 +86,12 @@ export default async function globalSetup(_config: FullConfig) {
       );
     }
 
-    const payload = await response.json();
-    const token: string | undefined = payload?.token;
-    const user = payload?.user ?? {
-      email: testUser.email,
-      nome: testUser.name,
-      papel: testUser.role,
-    };
-
-    if (!token) {
-      throw new Error('Login response did not include a token.');
-    }
+    await response.json().catch(() => null);
 
     const existingState = await apiContext.storageState();
-    const normalizedBaseUrl = baseURL.replace(/\/$/, '');
-    const origins = existingState.origins?.filter(
-      (origin) => origin.origin !== normalizedBaseUrl
-    );
-
     storageState = {
       cookies: existingState.cookies ?? [],
-      origins: [
-        ...(origins ?? []),
-        {
-          origin: normalizedBaseUrl,
-          localStorage: [
-            { name: 'auth_token', value: token },
-            { name: 'token', value: token },
-            { name: 'user', value: JSON.stringify(user) },
-          ],
-        },
-      ],
+      origins: existingState.origins ?? [],
     };
   } catch (error) {
     console.warn(

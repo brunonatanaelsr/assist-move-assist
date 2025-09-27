@@ -26,6 +26,7 @@ import type {
   UpdateConfiguracoesPayload,
   UsuarioPermissions,
 } from '@/types/configuracoes';
+import { AuthService } from '@/services/auth.service';
 const IS_DEV = (import.meta as any)?.env?.DEV === true || (import.meta as any)?.env?.MODE === 'development';
 
 type SessionUser = AuthenticatedSessionUser & { ativo?: boolean };
@@ -44,8 +45,13 @@ function getCookie(name: string): string | null {
 }
 
 
+type AxiosRetryConfig = AxiosRequestConfig & { _retry?: boolean };
+
 class ApiService {
   private api: AxiosInstance;
+  private authToken: string | null = null;
+  private refreshPromise: Promise<void> | null = null;
+  private authService = AuthService.getInstance();
 
   constructor() {
     this.api = axios.create({
@@ -60,9 +66,11 @@ class ApiService {
     // Interceptor para adicionar token em todas as requisições
     this.api.interceptors.request.use(
       (config) => {
-        const token = localStorage.getItem('token') || localStorage.getItem('auth_token');
-        if (token && token !== 'undefined') {
-          config.headers.Authorization = `Bearer ${token}`;
+        if (this.authToken) {
+          config.headers = {
+            ...config.headers,
+            Authorization: `Bearer ${this.authToken}`
+          };
         } else if (config.headers && 'Authorization' in config.headers) {
           delete (config.headers as any).Authorization;
         }
@@ -105,19 +113,28 @@ class ApiService {
           data: wrappedResponse
         };
       },
-      (error) => {
+      async (error) => {
         if (IS_DEV) console.error('API Error:', error);
-        
-        // Tratar erro de autenticação
-        if (error.response && error.response.status === 401) {
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
-          // HashRouter-safe redirect
-          if (typeof window !== 'undefined') {
-            window.location.hash = '#/auth';
+
+        const status = error.response?.status;
+        const originalRequest = error.config as AxiosRetryConfig | undefined;
+
+        if (status === 401 && originalRequest && !originalRequest._retry) {
+          originalRequest._retry = true;
+
+          try {
+            await this.refreshSession();
+            return this.api(originalRequest);
+          } catch (refreshError) {
+            this.clearSession();
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(new CustomEvent('auth:logout'));
+              window.location.hash = '#/auth';
+            }
+            return Promise.reject(refreshError);
           }
         }
-        
+
         // Criar resposta de erro padronizada
         const rawMessage = error.response?.data?.message || error.message;
         const errorResponse: ApiResponse = {
@@ -133,6 +150,30 @@ class ApiService {
         return Promise.reject(error);
       }
     );
+  }
+
+  setAuthToken(token: string | null) {
+    this.authToken = token;
+  }
+
+  clearSession() {
+    this.authToken = null;
+    this.authService.clearCachedUser();
+  }
+
+  private async refreshSession(): Promise<void> {
+    if (!this.refreshPromise) {
+      this.refreshPromise = this.authService
+        .refreshToken()
+        .catch((error) => {
+          throw error;
+        })
+        .finally(() => {
+          this.refreshPromise = null;
+        });
+    }
+
+    return this.refreshPromise;
   }
 
   // Métodos genéricos para API
