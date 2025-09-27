@@ -26,6 +26,7 @@ import type {
   UpdateConfiguracoesPayload,
   UsuarioPermissions,
 } from '@/types/configuracoes';
+import { AuthService } from '@/services/auth.service';
 const IS_DEV = (import.meta as any)?.env?.DEV === true || (import.meta as any)?.env?.MODE === 'development';
 
 type SessionUser = AuthenticatedSessionUser & { ativo?: boolean };
@@ -57,16 +58,9 @@ class ApiService {
       },
     });
 
-    // Interceptor para adicionar token em todas as requisições
+    // Interceptor para adicionar cabeçalhos dinâmicos em todas as requisições
     this.api.interceptors.request.use(
       (config) => {
-        const token = localStorage.getItem('token') || localStorage.getItem('auth_token');
-        if (token && token !== 'undefined') {
-          config.headers.Authorization = `Bearer ${token}`;
-        } else if (config.headers && 'Authorization' in config.headers) {
-          delete (config.headers as any).Authorization;
-        }
-
         // CSRF header opcional (se o backend validar)
         const csrf = getCookie('csrf_token');
         if (csrf && config.method && ['post','put','patch','delete'].includes(config.method)) {
@@ -110,8 +104,8 @@ class ApiService {
         
         // Tratar erro de autenticação
         if (error.response && error.response.status === 401) {
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
+          const authService = AuthService.getInstance();
+          authService.setUser(null);
           // HashRouter-safe redirect
           if (typeof window !== 'undefined') {
             window.location.hash = '#/auth';

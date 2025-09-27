@@ -44,10 +44,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const savedUser = authService.getUser?.();
+    const savedUser = authService.getUser();
     if (savedUser) setUser(savedUser);
     setLoading(false);
   }, [authService]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const handleUserChange = (event: Event) => {
+      const detail = (event as CustomEvent<User | null>).detail ?? null;
+      setUser(detail);
+    };
+
+    window.addEventListener("auth:user-changed", handleUserChange);
+    return () => {
+      window.removeEventListener("auth:user-changed", handleUserChange);
+    };
+  }, []);
 
   const signIn = async (email: string, password: string): Promise<{ error?: Error }> => {
     try {
@@ -56,12 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Tipagem explícita do retorno esperado
       type LoginResponse = { token?: string; user?: User };
       const resp = response as LoginResponse;
-      if (resp.token) {
-        localStorage.setItem('auth_token', resp.token);
-        localStorage.setItem('token', resp.token);
-      }
       if (resp.user) {
-        localStorage.setItem('user', JSON.stringify(resp.user));
         setUser(resp.user);
       }
       return {};
@@ -77,8 +86,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(true);
       await authService.logout();
     } finally {
-      localStorage.removeItem("auth_token");
-      localStorage.removeItem("user");
       setUser(null);
       setLoading(false);
     }

@@ -33,7 +33,8 @@ export async function downloadPdf(options: DownloadPdfOptions): Promise<boolean>
     // Fazer requisição para o PDF
     const response = await fetch(endpoint, {
       method: 'GET',
-      headers
+      headers,
+      credentials: 'include'
     });
     
     if (!response.ok) {
@@ -135,7 +136,10 @@ export async function printPdf(endpoint: string, token?: string): Promise<boolea
       headers['Authorization'] = `Bearer ${token}`;
     }
     
-    const response = await fetch(endpoint, { headers });
+    const response = await fetch(endpoint, {
+      headers,
+      credentials: 'include'
+    });
     
     if (!response.ok) {
       throw new Error(`Erro HTTP: ${response.status}`);

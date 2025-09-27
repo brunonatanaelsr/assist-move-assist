@@ -95,8 +95,7 @@ export default function DeclaracoesRecibos() {
         // Fazer download do PDF usando utilitário
         const declaracaoId = (response.data as any)?.declaracao?.id;
         if (declaracaoId) {
-          const token = localStorage.getItem('token') || '';
-          const downloadOk = await downloadDeclaracao(declaracaoId, token);
+          const downloadOk = await downloadDeclaracao(declaracaoId);
           
           if (!downloadOk) {
             alert('PDF gerado, mas houve problema no download. Verifique se permite downloads neste site.');
@@ -133,8 +132,7 @@ export default function DeclaracoesRecibos() {
         // Fazer download do PDF usando utilitário
         const reciboId = (response.data as any)?.recibo?.id;
         if (reciboId) {
-          const token = localStorage.getItem('token') || '';
-          const downloadOk = await downloadRecibo(reciboId, token);
+          const downloadOk = await downloadRecibo(reciboId);
           
           if (!downloadOk) {
             alert('PDF gerado, mas houve problema no download. Verifique se permite downloads neste site.');
