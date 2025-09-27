@@ -76,6 +76,28 @@ router.patch('/:id', authenticateToken,
   }
 });
 
+// DELETE /notifications/:id
+router.delete('/:id', authenticateToken,
+  validateRequest(z.object({
+    params: z.object({ id: z.coerce.number() }),
+    body: z.any().optional(),
+    query: z.any().optional(),
+  })),
+  async (req: AuthenticatedRequest, res): Promise<void> => {
+  try {
+    const userId = Number(req.user!.id);
+    const { id } = req.params as any;
+    const notificationId = Number(id);
+    const result = await pool.query('DELETE FROM notifications WHERE id = $1 AND user_id = $2 RETURNING id', [notificationId, userId]);
+    if (result.rowCount === 0) { res.status(404).json(errorResponse('Notificação não encontrada')); return; }
+    res.json(successResponse({ id: result.rows[0].id }));
+    return;
+  } catch (error) {
+    res.status(500).json(errorResponse('Erro ao remover notificação'));
+    return;
+  }
+});
+
 // POST /notifications/mark-all-read
 router.post('/mark-all-read', authenticateToken, async (req: AuthenticatedRequest, res): Promise<void> => {
   try {
