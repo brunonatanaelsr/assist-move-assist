@@ -1,15 +1,20 @@
 import api from '@/config/api';
 import axios from 'axios';
 
+export interface AuthUser {
+  id: number;
+  email: string;
+  nome: string;
+  papel: string;
+  avatar_url?: string;
+  [key: string]: unknown;
+}
+
 export interface AuthResponse {
   token: string;
-  user: {
-    id: number;
-    email: string;
-    nome: string;
-    papel: string;
-    avatar_url?: string;
-  };
+  user: AuthUser;
+  roles?: string[];
+  permissions?: string[];
 }
 
 export interface LoginCredentials {
@@ -36,6 +41,21 @@ export class AuthService {
     } catch (error) {
       if (axios.isAxiosError(error)) {
         throw new Error(error.response?.data?.message || 'Erro ao fazer login');
+      }
+      throw error;
+    }
+  }
+
+  async me(): Promise<{ user: AuthUser | null; roles?: string[]; permissions?: string[]; token?: string }> {
+    try {
+      const response = await api.get<{ user: AuthUser | null; roles?: string[]; permissions?: string[]; token?: string }>(
+        '/auth/me',
+        { withCredentials: true }
+      );
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw error;
       }
       throw error;
     }

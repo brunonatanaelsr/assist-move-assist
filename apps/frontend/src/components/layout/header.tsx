@@ -15,10 +15,9 @@ import { Badge } from "@/components/ui/badge";
 import { NotificationsPopover } from "@/components/NotificationsPopover";
 
 export default function Header() {
-  const { profile, signOut } = useAuth();
-  
-  // Verificar se é admin baseado no profile
-  const isAdmin = profile?.papel === 'admin' || profile?.papel === 'super_admin';
+  const { profile, signOut, hasRole } = useAuth();
+
+  const isAdmin = hasRole(['admin', 'super_admin', 'superadmin']);
 
   const handleLogout = async () => {
     await signOut();

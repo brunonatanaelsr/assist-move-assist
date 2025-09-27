@@ -1,34 +1,31 @@
-import { ReactNode, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { ReactNode, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 
 interface ProtectedRouteProps {
   children: ReactNode;
   adminOnly?: boolean;
+  requiredPermissions?: string[];
+  requiredRoles?: string[];
+  fallback?: ReactNode;
 }
 
 export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   children,
-  adminOnly = false
+  adminOnly = false,
+  requiredPermissions = [],
+  requiredRoles = [],
+  fallback
 }) => {
-  const { user, loading, isAdmin } = useAuth();
+  const { user, loading, hasPermission, hasRole } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
 
-  useEffect(() => {
-    if (!loading) {
-      if (user) {
-        // Usuário autenticado: segue fluxo normal
-        if (adminOnly && !isAdmin) {
-          console.log('ProtectedRoute: Usuário sem privilégios de admin');
-          navigate('/', { replace: true });
-        }
-      } else {
-        // Não autenticado: não redireciona automaticamente. Exibimos CTA de login.
-        // Isso evita flakiness nos testes E2E no carregamento inicial.
-      }
+  const normalizedRoles = useMemo(() => {
+    if (adminOnly) {
+      return [...new Set([...requiredRoles, 'admin', 'super_admin', 'superadmin'])];
     }
-  }, [loading, user, adminOnly, navigate, location, isAdmin]);
+    return requiredRoles;
+  }, [adminOnly, requiredRoles]);
 
   // Show loading state while checking authentication
   if (loading) {
@@ -59,6 +56,22 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
           Entrar
         </button>
       </div>
+    );
+  }
+
+  const lacksPermissions = requiredPermissions.length > 0 && !hasPermission(requiredPermissions);
+  const lacksRoles = normalizedRoles.length > 0 && !hasRole(normalizedRoles);
+
+  if (lacksPermissions || lacksRoles) {
+    return (
+      fallback ?? (
+        <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center" data-testid="forbidden-access">
+          <h1 className="text-3xl font-bold mb-4">403 - Acesso negado</h1>
+          <p className="text-muted-foreground mb-6 max-w-md">
+            Você não possui as permissões necessárias para visualizar este conteúdo. Solicite acesso ao administrador do sistema.
+          </p>
+        </div>
+      )
     );
   }
 

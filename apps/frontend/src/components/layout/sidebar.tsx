@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useMemo, useState, useCallback } from "react";
 import { NavLink, useLocation } from "react-router-dom";
-import { 
-  Users, 
-  FileText, 
+import {
+  Users,
+  FileText,
   Heart, 
   BarChart3, 
   Settings, 
@@ -17,70 +17,97 @@ import {
   GraduationCap,
   TrendingUp,
   FolderKanban,
-  MessageSquare
+  MessageSquare,
+  type LucideIcon
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/useAuth";
 
-const menuItems = [
+type SidebarChild = {
+  title: string;
+  href: string;
+  requiredPermissions?: string[];
+  requiredRoles?: string[];
+};
+
+type SidebarItem = {
+  title: string;
+  icon: LucideIcon;
+  href?: string;
+  children?: SidebarChild[];
+  requiredPermissions?: string[];
+  requiredRoles?: string[];
+};
+
+const MENU_ITEMS: SidebarItem[] = [
   {
-    title: "Dashboard", 
+    title: "Dashboard",
     icon: Home,
     href: "/dashboard"
   },
   {
     title: "Beneficiárias",
     icon: Users,
-    href: "/beneficiarias"
+    href: "/beneficiarias",
+    requiredPermissions: ["beneficiarias.view"]
   },
   {
     title: "Novo Cadastro",
     icon: UserPlus,
-    href: "/beneficiarias/nova"
+    href: "/beneficiarias/nova",
+    requiredPermissions: ["beneficiarias.create"]
   },
   {
     title: "Oficinas",
     icon: GraduationCap,
-    href: "/oficinas"
+    href: "/oficinas",
+    requiredPermissions: ["oficinas.view"]
   },
   {
     title: "Projetos",
     icon: FolderKanban,
-    href: "/projetos"
+    href: "/projetos",
+    requiredPermissions: ["projetos.view"]
   },
   {
     title: "Feed",
     icon: Heart,
-    href: "/feed"
+    href: "/feed",
+    requiredPermissions: ["feed.view"]
   },
   {
     title: "Chat Interno",
     icon: MessageSquare,
-    href: "/chat-interno"
+    href: "/chat-interno",
+    requiredPermissions: ["comunicacao.chat"]
   },
   {
     title: "Formulários",
     icon: FileText,
+    requiredPermissions: ["formularios.view"],
     children: [
-      { title: "Declarações e Recibos", href: "/declaracoes-recibos" },
-      { title: "Anamnese Social", href: "/formularios/anamnese" },
-      { title: "Ficha de Evolução", href: "/formularios/evolucao" },
-      { title: "Termo de Consentimento", href: "/formularios/termo" },
-      { title: "Visão Holística", href: "/formularios/visao" },
-      { title: "Roda da Vida", href: "/formularios/roda-vida" },
-      { title: "Plano de Ação", href: "/formularios/plano" },
-      { title: "Matrícula de Projetos", href: "/formularios/matricula" }
+      { title: "Declarações e Recibos", href: "/declaracoes-recibos", requiredPermissions: ["formularios.declaracoes"] },
+      { title: "Anamnese Social", href: "/formularios/anamnese", requiredPermissions: ["formularios.anamnese"] },
+      { title: "Ficha de Evolução", href: "/formularios/evolucao", requiredPermissions: ["formularios.evolucao"] },
+      { title: "Termo de Consentimento", href: "/formularios/termo", requiredPermissions: ["formularios.termo"] },
+      { title: "Visão Holística", href: "/formularios/visao", requiredPermissions: ["formularios.visao"] },
+      { title: "Roda da Vida", href: "/formularios/roda_vida", requiredPermissions: ["formularios.roda_vida"] },
+      { title: "Plano de Ação", href: "/formularios/plano", requiredPermissions: ["formularios.plano"] },
+      { title: "Matrícula de Projetos", href: "/formularios/matricula", requiredPermissions: ["formularios.matricula"] }
     ]
   },
   {
     title: "Relatórios",
     icon: BarChart3,
-    href: "/relatorios"
+    href: "/relatorios",
+    requiredPermissions: ["relatorios.view"]
   },
   {
     title: "Analytics",
     icon: TrendingUp,
-    href: "/analytics"
+    href: "/analytics",
+    requiredPermissions: ["analytics.view"]
   }
 ];
 
@@ -88,10 +115,43 @@ export default function Sidebar() {
   const [isOpen, setIsOpen] = useState(false);
   const [expandedItems, setExpandedItems] = useState<string[]>(["Formulários"]);
   const location = useLocation();
+  const { hasPermission, hasRole } = useAuth();
+
+  const canAccess = useCallback(
+    (item: { requiredPermissions?: string[]; requiredRoles?: string[] }) => {
+      const permissionAllowed = item.requiredPermissions ? hasPermission(item.requiredPermissions) : true;
+      const roleAllowed = item.requiredRoles ? hasRole(item.requiredRoles) : true;
+      return permissionAllowed && roleAllowed;
+    },
+    [hasPermission, hasRole]
+  );
+
+  const menuItems = useMemo(() => {
+    return MENU_ITEMS.reduce<SidebarItem[]>((acc, item) => {
+      if (item.children?.length) {
+        const visibleChildren = item.children.filter((child) => canAccess(child));
+
+        const includeParent = item.href ? canAccess(item) : visibleChildren.length > 0;
+        if (!includeParent) {
+          return acc;
+        }
+
+        acc.push({ ...item, children: visibleChildren });
+        return acc;
+      }
+
+      if (!canAccess(item)) {
+        return acc;
+      }
+
+      acc.push(item);
+      return acc;
+    }, []);
+  }, [canAccess]);
 
   const toggleExpanded = (title: string) => {
-    setExpandedItems(prev => 
-      prev.includes(title) 
+    setExpandedItems(prev =>
+      prev.includes(title)
         ? prev.filter(item => item !== title)
         : [...prev, title]
     );
@@ -100,6 +160,11 @@ export default function Sidebar() {
   const isActive = (href: string) => {
     return location.pathname === href || location.pathname.startsWith(href + "/");
   };
+
+  const canSeeSettings = canAccess({
+    requiredPermissions: ["configuracoes.manage"],
+    requiredRoles: ["admin", "super_admin", "superadmin"]
+  });
 
   return (
     <>
@@ -162,7 +227,7 @@ export default function Sidebar() {
                         expandedItems.includes(item.title) && "rotate-90"
                       )} />
                     </Button>
-                    {expandedItems.includes(item.title) && (
+                    {item.children.length > 0 && expandedItems.includes(item.title) && (
                       <div className="ml-6 mt-2 space-y-1">
                         {item.children.map((child) => (
                           <NavLink
@@ -210,21 +275,23 @@ export default function Sidebar() {
           </nav>
 
           {/* Footer */}
-          <div className="p-4 border-t border-sidebar-border">
-            <NavLink
-              to="/configuracoes"
-              className={({ isActive }) => cn(
-                "flex items-center gap-2 w-full px-3 py-2 rounded-md text-sm font-medium transition-colors",
-                isActive 
-                  ? "bg-primary text-primary-foreground shadow-soft" 
-                  : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-              )}
-              onClick={() => setIsOpen(false)}
-            >
-              <Settings className="h-4 w-4" />
-              Configurações
-            </NavLink>
-          </div>
+          {canSeeSettings && (
+            <div className="p-4 border-t border-sidebar-border">
+              <NavLink
+                to="/configuracoes"
+                className={({ isActive }) => cn(
+                  "flex items-center gap-2 w-full px-3 py-2 rounded-md text-sm font-medium transition-colors",
+                  isActive
+                    ? "bg-primary text-primary-foreground shadow-soft"
+                    : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                )}
+                onClick={() => setIsOpen(false)}
+              >
+                <Settings className="h-4 w-4" />
+                Configurações
+              </NavLink>
+            </div>
+          )}
         </div>
       </aside>
     </>
