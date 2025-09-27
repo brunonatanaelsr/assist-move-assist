@@ -206,7 +206,8 @@ export class ProjetoService {
   async atualizarProjeto(id: number, data: UpdateProjetoDTO): Promise<Projeto> {
     try {
       // Validar dados
-      const validatedData = updateProjetoSchema.parse(data);
+      const originalData = (data ?? {}) as Record<string, unknown>;
+      const validatedData = updateProjetoSchema.parse(originalData);
 
       // Verificar se projeto existe
       const projetoCheck = await this.pool.query(
@@ -219,8 +220,12 @@ export class ProjetoService {
       }
 
       const fieldsToUpdate = Object.entries(validatedData)
-        .filter(([_, value]) => value !== undefined)
+        .filter(([key, value]) => value !== undefined && Object.prototype.hasOwnProperty.call(originalData, key) && originalData[key] !== undefined)
         .map(([key, _]) => key);
+
+      if (fieldsToUpdate.length === 0) {
+        throw new Error('Nenhum campo para atualizar');
+      }
 
       const setClauses = fieldsToUpdate.map((field, index) => `${field} = $${index + 1}`);
       const queryParams = fieldsToUpdate.map(field => validatedData[field as keyof UpdateProjetoDTO]);
