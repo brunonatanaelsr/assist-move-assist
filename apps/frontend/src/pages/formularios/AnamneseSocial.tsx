@@ -7,11 +7,12 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ArrowLeft, Save, FileText, User, Home, Heart, Users, Briefcase, GraduationCap, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Save, FileText, User, Home, Heart, Users, Briefcase, GraduationCap, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { apiService } from '@/services/apiService';
 import useAutosave from '@/hooks/useAutosave';
 import { useToast } from '@/components/ui/use-toast';
 import { Stepper } from '@/components/ui/stepper';
+import { useAuth } from '@/hooks/useAuth';
 
 interface AnamneseSocialData {
   beneficiaria_id: number;
@@ -57,6 +58,7 @@ interface AnamneseSocialData {
 export default function AnamneseSocial() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { hasPermission, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(false);
   const [beneficiaria, setBeneficiaria] = useState<any>(null);
   const [formData, setFormData] = useState<Partial<AnamneseSocialData>>({
@@ -73,6 +75,8 @@ export default function AnamneseSocial() {
   const { toast } = useToast();
   const { hasDraft, restored, restore, clear } = useAutosave({ key: autosaveKey, data: formData, debounceMs: 1000, enabled: true });
   const [step, setStep] = useState(0);
+  const canViewFormularios = hasPermission('formularios.ler');
+  const canEditFormularios = hasPermission(['formularios.editar', 'formularios.criar'], 'any');
 
   useEffect(() => {
     if (id) {
@@ -130,6 +134,10 @@ export default function AnamneseSocial() {
   };
 
   const salvarAnamnese = async () => {
+    if (!canEditFormularios) {
+      toast({ title: 'Acesso restrito', description: 'Você não possui permissão para alterar este formulário.' });
+      return;
+    }
     try {
       setLoading(true);
       const response = await apiService.post('/formularios/anamnese', formData);
@@ -156,6 +164,32 @@ export default function AnamneseSocial() {
       }
     });
   };
+
+  if (authLoading && !canViewFormularios) {
+    return (
+      <div className="flex items-center justify-center min-h-[40vh]">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (!canViewFormularios) {
+    return (
+      <div className="container mx-auto max-w-4xl p-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Permissão necessária</CardTitle>
+            <CardDescription>Você não possui acesso ao formulário de anamnese social.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              Solicite à coordenação o acesso <span className="font-medium">formularios.ler</span> para continuar.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background p-6">
@@ -197,7 +231,7 @@ export default function AnamneseSocial() {
           </div>
         </div>
 
-        <div className="grid gap-6">
+        <fieldset disabled={!canEditFormularios} className="grid gap-6">
           {/* Composição Familiar */}
           <Card>
             <CardHeader>
@@ -568,12 +602,12 @@ export default function AnamneseSocial() {
             <Button variant="outline" onClick={() => navigate(`/beneficiarias/${id}`)}>
               Cancelar
             </Button>
-            <Button onClick={salvarAnamnese} disabled={loading}>
+            <Button onClick={salvarAnamnese} disabled={loading || !canEditFormularios}>
               <Save className="h-4 w-4 mr-2" />
               {loading ? 'Salvando...' : 'Salvar Anamnese'}
             </Button>
           </div>
-        </div>
+        </fieldset>
       </div>
     </div>
   );

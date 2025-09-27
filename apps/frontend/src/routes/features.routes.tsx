@@ -1,5 +1,6 @@
 import { lazy } from "react";
 import { Route } from "react-router-dom";
+import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 
 // Lazy loaded components
 const Analytics = lazy(() => import("@/pages/Analytics"));
@@ -15,15 +16,85 @@ const NotificationsPage = lazy(() => import("@/pages/Notifications"));
 
 export const FeaturesRoutes = () => (
   <>
-    <Route path="analytics" element={<Analytics />} />
-    <Route path="oficinas" element={<OficinasNew />} />
-    <Route path="participantes" element={<ParticipantesIndisponivel />} />
-    <Route path="chat-interno" element={<ChatInterno />} />
-    <Route path="atividades" element={<Atividades />} />
-    <Route path="calendar" element={<CalendarPage />} />
-    <Route path="feed" element={<FeedNew />} />
-    <Route path="projetos" element={<ProjetosNew />} />
-    <Route path="relatorios" element={<Relatorios />} />
-    <Route path="notifications" element={<NotificationsPage />} />
+    <Route
+      path="analytics"
+      element={(
+        <ProtectedRoute requiredPermissions={["relatorios.ler"]}>
+          <Analytics />
+        </ProtectedRoute>
+      )}
+    />
+    <Route
+      path="oficinas"
+      element={(
+        <ProtectedRoute requiredPermissions={["oficinas.ler"]}>
+          <OficinasNew />
+        </ProtectedRoute>
+      )}
+    />
+    <Route
+      path="participantes"
+      element={(
+        <ProtectedRoute requiredPermissions={["participacoes.ler"]}>
+          <ParticipantesIndisponivel />
+        </ProtectedRoute>
+      )}
+    />
+    <Route
+      path="chat-interno"
+      element={(
+        <ProtectedRoute requiredPermissions={["mensagens.ler"]}>
+          <ChatInterno />
+        </ProtectedRoute>
+      )}
+    />
+    <Route
+      path="atividades"
+      element={(
+        <ProtectedRoute requiredPermissions={["relatorios.ler"]}>
+          <Atividades />
+        </ProtectedRoute>
+      )}
+    />
+    <Route
+      path="calendar"
+      element={(
+        <ProtectedRoute requiredPermissions={["projetos.ler"]}>
+          <CalendarPage />
+        </ProtectedRoute>
+      )}
+    />
+    <Route
+      path="feed"
+      element={(
+        <ProtectedRoute requiredPermissions={["feed.ler"]}>
+          <FeedNew />
+        </ProtectedRoute>
+      )}
+    />
+    <Route
+      path="projetos"
+      element={(
+        <ProtectedRoute requiredPermissions={["projetos.ler"]}>
+          <ProjetosNew />
+        </ProtectedRoute>
+      )}
+    />
+    <Route
+      path="relatorios"
+      element={(
+        <ProtectedRoute requiredPermissions={["relatorios.ler"]}>
+          <Relatorios />
+        </ProtectedRoute>
+      )}
+    />
+    <Route
+      path="notifications"
+      element={(
+        <ProtectedRoute requiredPermissions={["mensagens.ler", "mensagens.criar"]} permissionMode="any">
+          <NotificationsPage />
+        </ProtectedRoute>
+      )}
+    />
   </>
 );

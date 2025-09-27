@@ -3,6 +3,7 @@ import {
   useState,
   useEffect,
   useMemo,
+  useCallback,
   createContext,
   useContext,
   type ReactNode,
@@ -34,6 +35,8 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   isAuthenticated: boolean;
   isAdmin: boolean;
+  permissions: string[];
+  hasPermission: (permission: string | string[], mode?: "all" | "any") => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -42,11 +45,58 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const authService = useMemo(() => AuthService.getInstance(), []);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [permissions, setPermissions] = useState<string[]>(() => {
+    try {
+      const stored = localStorage.getItem('permissions');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          return parsed.map((permission) => String(permission));
+        }
+      }
+    } catch (error) {
+      console.warn('Não foi possível restaurar permissões do armazenamento local', error);
+    }
+    return [];
+  });
 
   useEffect(() => {
-    const savedUser = authService.getUser?.();
-    if (savedUser) setUser(savedUser);
-    setLoading(false);
+    let isMounted = true;
+    const initializeSession = async () => {
+      const savedUser = authService.getUser?.();
+      if (savedUser && isMounted) {
+        setUser(savedUser as User);
+      }
+
+      try {
+        if (authService.isAuthenticated()) {
+          const session = await authService.fetchSession();
+          if (!isMounted) return;
+          if (session.user) {
+            const nextUser = session.user as User;
+            setUser(nextUser);
+            localStorage.setItem('user', JSON.stringify(nextUser));
+          }
+          if (session.permissions) {
+            const normalized = session.permissions.map((permission) => String(permission));
+            setPermissions(normalized);
+            localStorage.setItem('permissions', JSON.stringify(normalized));
+          }
+        }
+      } catch (error) {
+        console.warn('Falha ao inicializar sessão de autenticação', error);
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    void initializeSession();
+
+    return () => {
+      isMounted = false;
+    };
   }, [authService]);
 
   const signIn = async (email: string, password: string): Promise<{ error?: Error }> => {
@@ -64,6 +114,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.setItem('user', JSON.stringify(resp.user));
         setUser(resp.user);
       }
+      const fetchedPermissions = await authService.fetchPermissions();
+      setPermissions(fetchedPermissions);
+      localStorage.setItem('permissions', JSON.stringify(fetchedPermissions));
       return {};
     } catch (error) {
       return { error: error as Error };
@@ -79,7 +132,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       localStorage.removeItem("auth_token");
       localStorage.removeItem("user");
+      localStorage.removeItem("permissions");
       setUser(null);
+      setPermissions([]);
       setLoading(false);
     }
   };
@@ -91,6 +146,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const isAdmin = !!(user?.papel && privilegedRoles.has(user.papel));
 
+  const hasPermission = useCallback(
+    (permission: string | string[], mode: "all" | "any" = "all") => {
+      const required = Array.isArray(permission) ? permission : [permission];
+      if (required.length === 0) return true;
+      if (!permissions || permissions.length === 0) return false;
+      const normalizedRequired = required.map((item) => String(item));
+      if (mode === "any") {
+        return normalizedRequired.some((item) => permissions.includes(item));
+      }
+      return normalizedRequired.every((item) => permissions.includes(item));
+    },
+    [permissions]
+  );
+
   return (
     <AuthContext.Provider
       value={{
@@ -100,7 +169,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signIn,
         signOut,
         isAuthenticated: !!user,
-        isAdmin
+        isAdmin,
+        permissions,
+        hasPermission
       }}
     >
       {children}

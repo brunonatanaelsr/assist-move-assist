@@ -18,12 +18,39 @@ import useCEP from '@/hooks/useCEP';
 
 export default function CadastroBeneficiaria() {
   const navigate = useNavigate();
-  const { profile } = useAuth();
+  const { profile, hasPermission, loading: authLoading } = useAuth();
+  const canCreateBeneficiaria = hasPermission('beneficiarias.criar');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string | undefined>>({});
   const [success, setSuccess] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  if (authLoading && !canCreateBeneficiaria) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (!canCreateBeneficiaria) {
+    return (
+      <div className="container mx-auto max-w-3xl p-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Acesso restrito</CardTitle>
+            <CardDescription>Você não possui permissão para cadastrar novas beneficiárias.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              Caso acredite que isso seja um engano, entre em contato com a coordenação do Instituto Move Marias para solicitar o acesso <span className="font-medium">beneficiarias.criar</span>.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   // Form state
   const [formData, setFormData] = useState({

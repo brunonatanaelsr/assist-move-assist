@@ -30,6 +30,7 @@ describe('ProtectedRoute', () => {
   });
 
   it('permite que usuários super_admin acessem rotas exclusivas de admin', () => {
+    const hasPermission = vi.fn(() => true);
     mockUseAuth.mockReturnValue({
       user: { id: 1, nome: 'Super Admin', papel: 'super_admin' },
       profile: null,
@@ -37,7 +38,9 @@ describe('ProtectedRoute', () => {
       signIn: vi.fn(),
       signOut: vi.fn(),
       isAuthenticated: true,
-      isAdmin: true
+      isAdmin: true,
+      permissions: ['admin'],
+      hasPermission
     });
 
     render(
@@ -50,5 +53,58 @@ describe('ProtectedRoute', () => {
 
     expect(screen.getByText('Área Administrativa')).toBeInTheDocument();
     expect(mockNavigate).not.toHaveBeenCalled();
+    expect(hasPermission).not.toHaveBeenCalled();
+  });
+
+  it('bloqueia rota quando usuário não possui permissão requerida', () => {
+    const hasPermission = vi.fn(() => false);
+    mockUseAuth.mockReturnValue({
+      user: { id: 2, nome: 'Colaborador', papel: 'admin' },
+      profile: null,
+      loading: false,
+      signIn: vi.fn(),
+      signOut: vi.fn(),
+      isAuthenticated: true,
+      isAdmin: true,
+      permissions: [],
+      hasPermission
+    });
+
+    render(
+      <MemoryRouter>
+        <ProtectedRoute requiredPermissions={['feed.criar']}>
+          <div>Feed</div>
+        </ProtectedRoute>
+      </MemoryRouter>
+    );
+
+    expect(mockNavigate).toHaveBeenCalledWith('/', { replace: true });
+  });
+
+  it('permite rota quando usuário possui permissão requerida', () => {
+    const hasPermission = vi.fn(() => true);
+    mockUseAuth.mockReturnValue({
+      user: { id: 3, nome: 'Analista', papel: 'coordenacao' },
+      profile: null,
+      loading: false,
+      signIn: vi.fn(),
+      signOut: vi.fn(),
+      isAuthenticated: true,
+      isAdmin: false,
+      permissions: ['feed.criar'],
+      hasPermission
+    });
+
+    render(
+      <MemoryRouter>
+        <ProtectedRoute requiredPermissions={['feed.criar']}>
+          <div>Feed liberado</div>
+        </ProtectedRoute>
+      </MemoryRouter>
+    );
+
+    expect(screen.getByText('Feed liberado')).toBeInTheDocument();
+    expect(mockNavigate).not.toHaveBeenCalled();
+    expect(hasPermission).toHaveBeenCalledWith(['feed.criar'], 'all');
   });
 });

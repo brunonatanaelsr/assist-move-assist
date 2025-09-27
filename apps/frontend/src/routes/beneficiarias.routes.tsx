@@ -1,5 +1,6 @@
 import { lazy } from "react";
 import { Route } from "react-router-dom";
+import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 
 // Lazy loaded components
 const Beneficiarias = lazy(() => import("@/pages/BeneficiariasFixed"));
@@ -19,22 +20,120 @@ const MatriculaProjetos = lazy(() => import("@/pages/formularios/MatriculaProjet
 
 export const BeneficiariasRoutes = () => (
   <Route path="beneficiarias">
-    <Route index element={<Beneficiarias />} />
-    <Route path="nova" element={<CadastroBeneficiaria />} />
+    <Route
+      index
+      element={(
+        <ProtectedRoute requiredPermissions={["beneficiarias.ler"]}>
+          <Beneficiarias />
+        </ProtectedRoute>
+      )}
+    />
+    <Route
+      path="nova"
+      element={(
+        <ProtectedRoute requiredPermissions={["beneficiarias.criar"]}>
+          <CadastroBeneficiaria />
+        </ProtectedRoute>
+      )}
+    />
     <Route path=":id">
-      <Route index element={<DetalhesBeneficiaria />} />
-      <Route path="editar" element={<EditarBeneficiaria />} />
+      <Route
+        index
+        element={(
+          <ProtectedRoute requiredPermissions={["beneficiarias.ler"]}>
+            <DetalhesBeneficiaria />
+          </ProtectedRoute>
+        )}
+      />
+      <Route
+        path="editar"
+        element={(
+          <ProtectedRoute requiredPermissions={["beneficiarias.editar"]}>
+            <EditarBeneficiaria />
+          </ProtectedRoute>
+        )}
+      />
       <Route path="formularios">
-        <Route index element={<FormulariosBeneficiaria />} />
-        <Route path="evolucao" element={<EvolucaoBeneficiaria />} />
-        <Route path="anamnese-social" element={<AnamneseSocial />} />
-        <Route path="roda-vida" element={<RodaVida />} />
-        <Route path="ficha-evolucao" element={<FichaEvolucao />} />
-        <Route path="declaracoes-recibos" element={<DeclaracoesRecibos />} />
-        <Route path="termos-consentimento" element={<TermosConsentimento />} />
-        <Route path="visao-holistica" element={<VisaoHolistica />} />
-        <Route path="plano-acao" element={<PlanoAcao />} />
-        <Route path="matricula-projetos" element={<MatriculaProjetos />} />
+        <Route
+          index
+          element={(
+            <ProtectedRoute requiredPermissions={["formularios.ler"]}>
+              <FormulariosBeneficiaria />
+            </ProtectedRoute>
+          )}
+        />
+        <Route
+          path="evolucao"
+          element={(
+            <ProtectedRoute requiredPermissions={["formularios.ler"]}>
+              <EvolucaoBeneficiaria />
+            </ProtectedRoute>
+          )}
+        />
+        <Route
+          path="anamnese-social"
+          element={(
+            <ProtectedRoute requiredPermissions={["formularios.ler"]}>
+              <AnamneseSocial />
+            </ProtectedRoute>
+          )}
+        />
+        <Route
+          path="roda-vida"
+          element={(
+            <ProtectedRoute requiredPermissions={["formularios.ler"]}>
+              <RodaVida />
+            </ProtectedRoute>
+          )}
+        />
+        <Route
+          path="ficha-evolucao"
+          element={(
+            <ProtectedRoute requiredPermissions={["formularios.ler"]}>
+              <FichaEvolucao />
+            </ProtectedRoute>
+          )}
+        />
+        <Route
+          path="declaracoes-recibos"
+          element={(
+            <ProtectedRoute requiredPermissions={["formularios.ler"]}>
+              <DeclaracoesRecibos />
+            </ProtectedRoute>
+          )}
+        />
+        <Route
+          path="termos-consentimento"
+          element={(
+            <ProtectedRoute requiredPermissions={["formularios.ler"]}>
+              <TermosConsentimento />
+            </ProtectedRoute>
+          )}
+        />
+        <Route
+          path="visao-holistica"
+          element={(
+            <ProtectedRoute requiredPermissions={["formularios.ler"]}>
+              <VisaoHolistica />
+            </ProtectedRoute>
+          )}
+        />
+        <Route
+          path="plano-acao"
+          element={(
+            <ProtectedRoute requiredPermissions={["formularios.ler"]}>
+              <PlanoAcao />
+            </ProtectedRoute>
+          )}
+        />
+        <Route
+          path="matricula-projetos"
+          element={(
+            <ProtectedRoute requiredPermissions={["formularios.ler"]}>
+              <MatriculaProjetos />
+            </ProtectedRoute>
+          )}
+        />
       </Route>
     </Route>
   </Route>

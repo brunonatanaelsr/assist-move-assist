@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useAuth } from '@/hooks/useAuth';
+import { Loader2 } from 'lucide-react';
 
 type Row = {
   id: number;
@@ -29,9 +31,11 @@ export default function FormulariosBeneficiaria() {
   const [loading, setLoading] = useState(true);
   const [tipo, setTipo] = useState<string>('todos');
   const [search, setSearch] = useState('');
+  const { hasPermission, loading: authLoading } = useAuth();
+  const canViewFormularios = hasPermission('formularios.ler');
 
   const load = async () => {
-    if (!beneficiariaId) return;
+    if (!beneficiariaId || !canViewFormularios) return;
     try {
       setLoading(true);
       const resp = await apiService.listFormulariosBeneficiaria(beneficiariaId);
@@ -43,7 +47,7 @@ export default function FormulariosBeneficiaria() {
     }
   };
 
-  useEffect(() => { load(); }, [beneficiariaId]);
+  useEffect(() => { if (canViewFormularios) { void load(); } }, [beneficiariaId, canViewFormularios]);
 
   const filtered = useMemo(() => {
     let r = [...rows];
@@ -91,6 +95,31 @@ export default function FormulariosBeneficiaria() {
     }
   };
 
+  if (authLoading && !canViewFormularios) {
+    return (
+      <div className="flex items-center justify-center min-h-[40vh]">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (!canViewFormularios) {
+    return (
+      <div className="container mx-auto max-w-4xl p-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Permissão necessária</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              Você não possui autorização para visualizar os formulários desta beneficiária. Solicite o acesso <span className="font-medium">formularios.ler</span> à equipe responsável.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="p-4">
       <Card>
@@ -108,10 +137,14 @@ export default function FormulariosBeneficiaria() {
             </Select>
             <Input placeholder="Buscar no conteúdo" value={search} onChange={e => setSearch(e.target.value)} className="max-w-sm" />
             <div className="flex-1" />
-            <Button variant="outline" onClick={load} disabled={loading}>{loading ? 'Atualizando...' : 'Atualizar'}</Button>
-            <Button asChild>
-              <Link to={`/beneficiarias/${beneficiariaId}/formularios/evolucao`}>Ver evolução</Link>
+            <Button variant="outline" onClick={load} disabled={loading}>
+              {loading ? 'Atualizando...' : 'Atualizar'}
             </Button>
+            {canViewFormularios && (
+              <Button asChild>
+                <Link to={`/beneficiarias/${beneficiariaId}/formularios/evolucao`}>Ver evolução</Link>
+              </Button>
+            )}
           </div>
 
           <div className="grid gap-2">
@@ -123,8 +156,12 @@ export default function FormulariosBeneficiaria() {
                   <div className="text-xs text-muted-foreground">ID: {row.id} • Beneficiária: {row.beneficiaria_id}</div>
                 </div>
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={() => openForm(row)}>Abrir</Button>
-                  <Button variant="outline" size="sm" onClick={() => exportPdf(row)}>Exportar PDF</Button>
+                  <Button variant="outline" size="sm" onClick={() => openForm(row)} disabled={!canViewFormularios}>
+                    Abrir
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => exportPdf(row)} disabled={!canViewFormularios}>
+                    Exportar PDF
+                  </Button>
                 </div>
               </div>
             ))}

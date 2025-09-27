@@ -82,7 +82,33 @@ const tiposPost = [
 // ...restante do código existente...
 
 export default function Feed() {
-  const { isAdmin, profile, user } = useAuth();
+  const { profile, user, hasPermission } = useAuth();
+  const canCreatePost = hasPermission('feed.criar');
+  const canEditPosts = hasPermission('feed.editar');
+  const canDeletePosts = hasPermission('feed.excluir');
+  const isSuperAdmin = String((user as any)?.papel || '').toLowerCase() === 'superadmin';
+  const isOwnPost = (post: Post) => String(post.autor_id) === String((profile as any)?.id);
+  const canEditPost = (post: Post) => {
+    if (!canEditPosts) return false;
+    if (isOwnPost(post)) return true;
+    return isSuperAdmin;
+  };
+  const canRemovePost = (post: Post) => {
+    if (!canDeletePosts) return false;
+    if (isOwnPost(post)) return true;
+    return isSuperAdmin;
+  };
+  const isOwnComment = (comment: Comment) => String(comment.autor_id) === String((profile as any)?.id);
+  const canEditComment = (comment: Comment) => {
+    if (!canEditPosts) return false;
+    if (isOwnComment(comment)) return true;
+    return isSuperAdmin;
+  };
+  const canRemoveComment = (comment: Comment) => {
+    if (!canDeletePosts) return false;
+    if (isOwnComment(comment)) return true;
+    return isSuperAdmin;
+  };
   const { toast } = useToast();
   const { socket, isConnected: isSockConnected } = useSocket();
   
@@ -407,6 +433,10 @@ export default function Feed() {
 
   // Editar comentário
   const startEditComment = (comment: Comment) => {
+    if (!canEditComment(comment)) {
+      toast({ title: 'Acesso restrito', description: 'Você não pode editar este comentário.', variant: 'destructive' });
+      return;
+    }
     setEditingComment(prev => ({ ...prev, [comment.id]: true }));
     setEditCommentText(prev => ({ ...prev, [comment.id]: comment.conteudo }));
   };
@@ -417,6 +447,12 @@ export default function Feed() {
   };
 
   const saveEditComment = async (postId: number, commentId: number) => {
+    const comment = (comments[postId] || []).find(c => c.id === commentId);
+    if (!comment || !canEditComment(comment)) {
+      toast({ title: 'Acesso restrito', description: 'Você não pode editar este comentário.', variant: 'destructive' });
+      return;
+    }
+
     const conteudo = (editCommentText[commentId] || '').trim();
     if (!conteudo) {
       toast({ title: 'Erro', description: 'Comentário não pode ser vazio', variant: 'destructive' });
@@ -440,6 +476,15 @@ export default function Feed() {
   };
 
   const handleDeleteComment = async (postId: number, commentId: number) => {
+    const comment = (comments[postId] || []).find(c => c.id === commentId);
+    if (!comment || !canRemoveComment(comment)) {
+      toast({
+        title: 'Acesso restrito',
+        description: 'Você não possui permissão para remover este comentário.',
+        variant: 'destructive',
+      });
+      return;
+    }
     try {
       const resp = await apiService.deleteComment(commentId);
       if (resp.success || resp === undefined) {
@@ -541,7 +586,16 @@ export default function Feed() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     console.log('handleSubmit chamado', { formData });
-    
+
+    if (!canCreatePost) {
+      toast({
+        title: 'Acesso restrito',
+        description: 'Você não possui permissão para criar publicações no feed.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     if (!formData.titulo || !formData.conteudo) {
       console.log('Validação falhou', { titulo: formData.titulo, conteudo: formData.conteudo });
       toast({
@@ -618,17 +672,25 @@ export default function Feed() {
   };
 
   // Excluir post
-  const handleDeletePost = async (postId: number) => {
-    // Confirmar exclusão
+  const handleDeletePost = async (post: Post) => {
+    if (!canRemovePost(post)) {
+      toast({
+        title: 'Acesso restrito',
+        description: 'Você não possui permissão para excluir este post.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     if (!confirm('Tem certeza que deseja excluir este post?')) {
       return;
     }
 
     try {
       // Adicionar post ao conjunto de exclusões
-      setDeletingPosts(prev => new Set([...prev, postId]));
+      setDeletingPosts(prev => new Set([...prev, post.id]));
 
-      const response = await apiService.deleteFeedPost(postId);
+      const response = await apiService.deleteFeedPost(post.id);
 
       if (response.success) {
         // Recarregar dados
@@ -651,7 +713,7 @@ export default function Feed() {
       // Remover post do conjunto de exclusões
       setDeletingPosts(prev => {
         const newSet = new Set(prev);
-        newSet.delete(postId);
+        newSet.delete(post.id);
         return newSet;
       });
     }
@@ -659,6 +721,14 @@ export default function Feed() {
 
   // Iniciar edição de post
   const handleEditPost = (post: Post) => {
+    if (!canEditPost(post)) {
+      toast({
+        title: 'Acesso restrito',
+        description: 'Você não possui permissão para editar este post.',
+        variant: 'destructive',
+      });
+      return;
+    }
     setEditingPost(post);
     setEditFormData({
       tipo: post.tipo,
@@ -764,9 +834,18 @@ export default function Feed() {
   // Submeter edição do post
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!editingPost) return;
-    
+
+    if (!canEditPost(editingPost)) {
+      toast({
+        title: 'Acesso restrito',
+        description: 'Você não possui permissão para atualizar este post.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     if (!editFormData.titulo || !editFormData.conteudo) {
       toast({
         title: 'Erro',
@@ -842,26 +921,9 @@ export default function Feed() {
   };
 
   // Verificar se o usuário pode editar/excluir um post
-  const canModifyPost = (post: Post) => {
-    // 1. Autor do post pode sempre editar/excluir seus próprios posts
-    if (String(post.autor_id) === String((profile as any)?.id)) {
-      return true;
-    }
-    
-    // 2. Apenas superadmin pode editar/excluir posts de outros usuários
-    if ((user as any)?.papel === 'superadmin') {
-      return true;
-    }
-    
-    // 3. Admins comuns NÃO podem editar posts de outros usuários
-    return false;
-  };
+  const canModifyPost = (post: Post) => canEditPost(post) || canRemovePost(post);
 
-  const canModifyComment = (comment: Comment) => {
-    if (String(comment.autor_id) === String((profile as any)?.id)) return true;
-    if ((user as any)?.papel === 'superadmin') return true;
-    return false;
-  };
+  const canModifyComment = (comment: Comment) => canEditComment(comment) || canRemoveComment(comment);
 
   const getInitials = (name?: string | null) => {
     if (!name) return 'UN'; // UN = Usuário não identificado
@@ -913,16 +975,20 @@ export default function Feed() {
             </div>
             <p className="text-gray-600">
               Acompanhe as últimas novidades e conquistas
-              {(user as any)?.papel === 'superadmin' && (
-                <span className="ml-2 text-blue-600 text-sm">• Você pode editar/excluir qualquer post</span>
+              {canEditPosts && (
+                <span className="ml-2 text-blue-600 text-sm">
+                  • Você pode editar {isSuperAdmin ? 'qualquer post' : 'os posts que você criou'}
+                </span>
               )}
-              {(user as any)?.papel === 'admin' && (
-                <span className="ml-2 text-amber-600 text-sm">• Você pode editar/excluir apenas seus posts</span>
+              {canDeletePosts && (
+                <span className="ml-2 text-rose-600 text-sm">
+                  • Você pode excluir {isSuperAdmin ? 'qualquer post' : 'os posts que você criou'}
+                </span>
               )}
             </p>
           </div>
-          
-          {isAdmin && (
+
+          {canCreatePost && (
             <Dialog open={showForm} onOpenChange={setShowForm}>
               <DialogTrigger asChild>
                 <Button>
@@ -1316,9 +1382,9 @@ export default function Feed() {
                     {canModifyPost(post) && (
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             className="h-8 w-8 p-0"
                             disabled={deletingPosts.has(post.id)}
                           >
@@ -1330,21 +1396,25 @@ export default function Feed() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            onClick={() => handleEditPost(post)}
-                            disabled={deletingPosts.has(post.id)}
-                          >
-                            <Edit2 className="h-4 w-4 mr-2" />
-                            Editar post
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => handleDeletePost(post.id)}
-                            className="text-red-600 focus:text-red-600"
-                            disabled={deletingPosts.has(post.id)}
-                          >
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Excluir post
-                          </DropdownMenuItem>
+                          {canEditPost(post) && (
+                            <DropdownMenuItem
+                              onClick={() => handleEditPost(post)}
+                              disabled={deletingPosts.has(post.id)}
+                            >
+                              <Edit2 className="h-4 w-4 mr-2" />
+                              Editar post
+                            </DropdownMenuItem>
+                          )}
+                          {canRemovePost(post) && (
+                            <DropdownMenuItem
+                              onClick={() => handleDeletePost(post)}
+                              className="text-red-600 focus:text-red-600"
+                              disabled={deletingPosts.has(post.id)}
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Excluir post
+                            </DropdownMenuItem>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     )}
@@ -1429,12 +1499,16 @@ export default function Feed() {
                                       <p className="text-sm text-gray-700 flex-1">{comment.conteudo}</p>
                                       {canModifyComment(comment) && (
                                         <div className="flex gap-1">
-                                          <Button variant="ghost" size="sm" className="h-8 px-2" onClick={() => startEditComment(comment)}>
-                                            <Edit2 className="h-4 w-4" />
-                                          </Button>
-                                          <Button variant="ghost" size="sm" className="h-8 px-2 text-red-600" onClick={() => handleDeleteComment(post.id, comment.id)}>
-                                            <Trash2 className="h-4 w-4" />
-                                          </Button>
+                                          {canEditComment(comment) && (
+                                            <Button variant="ghost" size="sm" className="h-8 px-2" onClick={() => startEditComment(comment)}>
+                                              <Edit2 className="h-4 w-4" />
+                                            </Button>
+                                          )}
+                                          {canRemoveComment(comment) && (
+                                            <Button variant="ghost" size="sm" className="h-8 px-2 text-red-600" onClick={() => handleDeleteComment(post.id, comment.id)}>
+                                              <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                          )}
                                         </div>
                                       )}
                                     </div>

@@ -15,6 +15,7 @@ import { formatDate } from '@/lib/dayjs';
 import { apiService } from '@/services/apiService';
 import type { LucideIcon } from 'lucide-react';
 import { toast } from 'sonner';
+import { useAuth } from '@/hooks/useAuth';
 
 type Beneficiaria = any;
 
@@ -155,6 +156,7 @@ export default function DetalhesBeneficiaria() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { hasPermission, loading: authLoading } = useAuth();
   const [beneficiaria, setBeneficiaria] = useState<Beneficiaria | null>(null);
   const [participacoes, setParticipacoes] = useState<Participacao[]>([]);
   const [documentos, setDocumentos] = useState<Documento[]>([]);
@@ -172,6 +174,8 @@ export default function DetalhesBeneficiaria() {
   const [atividadesError, setAtividadesError] = useState<string | null>(null);
   const [atividadesHasMore, setAtividadesHasMore] = useState(false);
   const [exportingAtividadeId, setExportingAtividadeId] = useState<number | null>(null);
+  const canEditBeneficiaria = hasPermission('beneficiarias.editar');
+  const canViewFormularios = hasPermission('formularios.ler');
 
   const atividadesOrdenadas = useMemo(() => {
     return [...atividades].sort((a, b) => {
@@ -242,12 +246,16 @@ export default function DetalhesBeneficiaria() {
       carregarDados();
       carregarAtividades(1);
     }
+  }, [id]);
 
-    // Verificar se deve ativar o modo de edição
-    if (searchParams.get('edit') === 'true') {
+  useEffect(() => {
+    if (authLoading) return;
+    if (searchParams.get('edit') === 'true' && canEditBeneficiaria) {
       setEditMode(true);
+    } else if (!canEditBeneficiaria && editMode) {
+      setEditMode(false);
     }
-  }, [id, searchParams]);
+  }, [searchParams, canEditBeneficiaria, authLoading, editMode]);
 
   const carregarDados = async () => {
     try {
@@ -304,6 +312,10 @@ export default function DetalhesBeneficiaria() {
 
   const salvarAlteracoes = async () => {
     if (!beneficiaria || !id) return;
+    if (!canEditBeneficiaria) {
+      toast.warning('Você não possui permissão para atualizar os dados da beneficiária.');
+      return;
+    }
 
     try {
       const response = await apiService.updateBeneficiaria(id, beneficiaria);
@@ -502,26 +514,32 @@ export default function DetalhesBeneficiaria() {
           </div>
           
           <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={() => navigate(`/beneficiarias/${id}/formularios/visao-holistica`)}>
-              <Eye className="h-4 w-4 mr-2" />
-              Ver PAEDI
-            </Button>
-            {editMode ? (
-              <>
-                <Button variant="outline" onClick={() => setEditMode(false)}>
-                  <X className="h-4 w-4 mr-2" />
-                  Cancelar
-                </Button>
-                <Button onClick={salvarAlteracoes}>
-                  <Save className="h-4 w-4 mr-2" />
-                  Salvar
-                </Button>
-              </>
-            ) : (
-              <Button onClick={() => setEditMode(true)}>
-                <Edit className="h-4 w-4 mr-2" />
-                Editar
+            {canViewFormularios && (
+              <Button variant="outline" onClick={() => navigate(`/beneficiarias/${id}/formularios/visao-holistica`)}>
+                <Eye className="h-4 w-4 mr-2" />
+                Ver PAEDI
               </Button>
+            )}
+            {editMode ? (
+              canEditBeneficiaria ? (
+                <>
+                  <Button variant="outline" onClick={() => setEditMode(false)}>
+                    <X className="h-4 w-4 mr-2" />
+                    Cancelar
+                  </Button>
+                  <Button onClick={salvarAlteracoes}>
+                    <Save className="h-4 w-4 mr-2" />
+                    Salvar
+                  </Button>
+                </>
+              ) : null
+            ) : (
+              canEditBeneficiaria && (
+                <Button onClick={() => setEditMode(true)}>
+                  <Edit className="h-4 w-4 mr-2" />
+                  Editar
+                </Button>
+              )
             )}
           </div>
         </div>

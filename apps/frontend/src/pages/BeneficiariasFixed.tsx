@@ -24,6 +24,7 @@ import { apiService } from "@/services/apiService";
 import { ListSkeleton } from "@/components/ui/list-skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import usePersistedFilters from "@/hooks/usePersistedFilters";
+import { useAuth } from "@/hooks/useAuth";
 
 // Tipo correto baseado no banco real
 interface Beneficiaria {
@@ -54,6 +55,7 @@ interface Beneficiaria {
 
 export default function BeneficiariasFixed() {
   const navigate = useNavigate();
+  const { hasPermission } = useAuth();
   const [showFilters, setShowFilters] = useState(false);
   const { state: filterState, set: setFilters } = usePersistedFilters({ key: 'beneficiarias:filters', initial: { search: '', status: 'Todas', programa: 'Todos', page: 1 }});
   const searchTerm = filterState.search as string;
@@ -69,6 +71,10 @@ export default function BeneficiariasFixed() {
     aguardando: 0,
     inativas: 0
   });
+  const canCreateBeneficiaria = hasPermission('beneficiarias.criar');
+  const canEditBeneficiaria = hasPermission('beneficiarias.editar');
+  const canViewBeneficiaria = hasPermission('beneficiarias.ler');
+  const canViewFormularios = hasPermission('formularios.ler');
 
   // Função para obter status da beneficiária baseado nos dados reais
   const getBeneficiariaStatus = (beneficiaria: Beneficiaria) => {
@@ -202,10 +208,12 @@ export default function BeneficiariasFixed() {
             Gerencie o cadastro das beneficiárias do instituto
           </p>
         </div>
-        <Button className="w-fit" size="lg" onClick={() => navigate('/beneficiarias/nova')} data-testid="cadastrar-beneficiaria">
-          <Plus className="h-4 w-4 mr-2" />
-          Nova Beneficiária
-        </Button>
+        {canCreateBeneficiaria && (
+          <Button className="w-fit" size="lg" onClick={() => navigate('/beneficiarias/nova')} data-testid="cadastrar-beneficiaria">
+            <Plus className="h-4 w-4 mr-2" />
+            Nova Beneficiária
+          </Button>
+        )}
       </div>
 
       {/* Stats */}
@@ -350,8 +358,8 @@ export default function BeneficiariasFixed() {
                       <EmptyState
                         title={searchTerm ? 'Nenhuma beneficiária encontrada' : 'Nenhuma beneficiária cadastrada'}
                         description={searchTerm ? 'Ajuste sua busca ou filtros e tente novamente.' : 'Comece cadastrando a primeira beneficiária.'}
-                        actionLabel={!searchTerm ? 'Cadastrar beneficiária' : undefined}
-                        onAction={!searchTerm ? () => navigate('/beneficiarias/nova') : undefined}
+                        actionLabel={!searchTerm && canCreateBeneficiaria ? 'Cadastrar beneficiária' : undefined}
+                        onAction={!searchTerm && canCreateBeneficiaria ? () => navigate('/beneficiarias/nova') : undefined}
                       />
                     </TableCell>
                   </TableRow>
@@ -390,18 +398,24 @@ export default function BeneficiariasFixed() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => navigate(`/beneficiarias/${beneficiaria.id}`)}>
-                              <Eye className="mr-2 h-4 w-4" />
-                              Ver PAEDI
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => navigate(`/beneficiarias/${beneficiaria.id}/editar`)}>
-                              <Edit className="mr-2 h-4 w-4" />
-                              Editar
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => navigate(`/beneficiarias/${beneficiaria.id}/formularios/declaracoes-recibos`)}>
-                              <FileText className="mr-2 h-4 w-4" />
-                              Gerar Documento
-                            </DropdownMenuItem>
+                            {canViewBeneficiaria && (
+                              <DropdownMenuItem onClick={() => navigate(`/beneficiarias/${beneficiaria.id}`)}>
+                                <Eye className="mr-2 h-4 w-4" />
+                                Ver PAEDI
+                              </DropdownMenuItem>
+                            )}
+                            {canEditBeneficiaria && (
+                              <DropdownMenuItem onClick={() => navigate(`/beneficiarias/${beneficiaria.id}/editar`)}>
+                                <Edit className="mr-2 h-4 w-4" />
+                                Editar
+                              </DropdownMenuItem>
+                            )}
+                            {canViewFormularios && (
+                              <DropdownMenuItem onClick={() => navigate(`/beneficiarias/${beneficiaria.id}/formularios/declaracoes-recibos`)}>
+                                <FileText className="mr-2 h-4 w-4" />
+                                Gerar Documento
+                              </DropdownMenuItem>
+                            )}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>

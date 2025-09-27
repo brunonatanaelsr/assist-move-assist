@@ -5,13 +5,17 @@ import { useAuth } from '@/hooks/useAuth';
 interface ProtectedRouteProps {
   children: ReactNode;
   adminOnly?: boolean;
+  requiredPermissions?: string[];
+  permissionMode?: 'all' | 'any';
 }
 
 export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   children,
-  adminOnly = false
+  adminOnly = false,
+  requiredPermissions,
+  permissionMode = 'all'
 }) => {
-  const { user, loading, isAdmin } = useAuth();
+  const { user, loading, isAdmin, hasPermission } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -22,13 +26,24 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
         if (adminOnly && !isAdmin) {
           console.log('ProtectedRoute: Usuário sem privilégios de admin');
           navigate('/', { replace: true });
+          return;
+        }
+        if (requiredPermissions?.length) {
+          const allowed = hasPermission(requiredPermissions, permissionMode);
+          if (!allowed) {
+            console.log('ProtectedRoute: usuário sem permissões requeridas', {
+              requiredPermissions,
+              mode: permissionMode
+            });
+            navigate('/', { replace: true });
+          }
         }
       } else {
         // Não autenticado: não redireciona automaticamente. Exibimos CTA de login.
         // Isso evita flakiness nos testes E2E no carregamento inicial.
       }
     }
-  }, [loading, user, adminOnly, navigate, location, isAdmin]);
+  }, [loading, user, adminOnly, navigate, location, isAdmin, requiredPermissions, hasPermission, permissionMode]);
 
   // Show loading state while checking authentication
   if (loading) {
