@@ -11,10 +11,16 @@ const authenticateToken = jest.fn((req: any, _res: any, next: any) => {
 });
 
 const authorizeMiddleware = jest.fn((_req: any, _res: any, next: any) => next());
-const authorize = jest.fn(() => authorizeMiddleware);
+const authorize = jest.fn((_permission?: string) => authorizeMiddleware);
+const requireProfissional = jest.fn((_req: any, _res: any, next: any) => next());
+const requireGestor = jest.fn((_req: any, _res: any, next: any) => next());
+const requireAdmin = jest.fn((_req: any, _res: any, next: any) => next());
 
 jest.mock('../../middleware/auth', () => ({
   authenticateToken,
+  requireProfissional,
+  requireGestor,
+  requireAdmin,
   authorize: (permission: string) => authorize(permission),
 }));
 
@@ -33,7 +39,12 @@ app.use(apiRoutes);
 
 describe('Configurações globais - rotas /configuracoes', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    mockQuery.mockReset();
+    authenticateToken.mockClear();
+    authorizeMiddleware.mockClear();
+    requireProfissional.mockClear();
+    requireGestor.mockClear();
+    requireAdmin.mockClear();
   });
 
   it('deve retornar configurações padrão quando não houver registros', async () => {

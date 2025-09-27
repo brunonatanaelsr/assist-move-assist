@@ -1,23 +1,22 @@
-import { Router, Request, Response, NextFunction } from 'express';
+import { Router, Request, Response } from 'express';
 // Import com case correto para compatibilidade em Linux (FS case-sensitive)
-import { BeneficiariasRepository } from '../repositories/beneficiariasRepository';
+import { BeneficiariasService } from '../services/beneficiarias.service';
 import { authenticateToken, requireProfissional, authorize } from '../middleware/auth';
 import { successResponse, errorResponse } from '../utils/responseFormatter';
-import { catchAsync } from '../middleware/errorHandler';
 import { formatObjectDates } from '../utils/dateFormatter';
 import { AppError } from '../utils';
 import { loggerService } from '../services/logger';
 import { validateRequest } from '../middleware/validationMiddleware';
 import { beneficiariaSchema, validateBeneficiaria } from '../validators/beneficiaria.validator';
-import { db } from '../services/db';
 import { pool } from '../config/database';
 import { ZodError } from 'zod';
+import { redis } from '../lib/redis';
 
 // Interface para requisições autenticadas com parâmetros e corpo
 type ExtendedRequest = Request;
 
 const router = Router();
-const beneficiariasRepository = new BeneficiariasRepository(pool);
+const beneficiariasService = new BeneficiariasService(pool, redis);
 
 // GET / - Listar beneficiárias (paginado)
 router.get(
@@ -29,9 +28,26 @@ router.get(
       const page = parseInt((req.query.page as string) || '1', 10);
       const limit = parseInt((req.query.limit as string) || '50', 10);
 
-      const result = await beneficiariasRepository.listarAtivas(page, limit);
+      const result = await beneficiariasService.listarAtivas({ page, limit });
 
-      res.json(successResponse(result.data));
+      const items = result.data.map((beneficiaria) =>
+        formatObjectDates(
+          beneficiaria as unknown as Record<string, unknown>,
+          ['data_nascimento', 'created_at', 'updated_at'] as any
+        )
+      );
+
+      res.json(
+        successResponse({
+          items,
+          pagination: {
+            page,
+            limit,
+            total: result.total,
+            pages: result.pages
+          }
+        })
+      );
       return;
     } catch (error) {
       loggerService.error('List beneficiarias error:', error);
@@ -49,11 +65,7 @@ router.get(
   async (req: ExtendedRequest, res: Response): Promise<void> => {
     try {
       const { id } = req.params;
-      const beneficiaria = await beneficiariasRepository.findWithRelations(Number(id));
-
-      if (!beneficiaria) {
-        throw new AppError('Beneficiária não encontrada', 404);
-      }
+      const beneficiaria = await beneficiariasService.getDetalhes(Number(id));
 
       const beneficiariaFormatada = formatObjectDates(
         beneficiaria as unknown as Record<string, unknown>,
@@ -90,49 +102,25 @@ router.get(
     try {
       const { id } = req.params as any;
 
-      const info = await pool.query(
-        'SELECT id, nome_completo, status, created_at, updated_at FROM beneficiarias WHERE id = $1 AND deleted_at IS NULL',
-        [id]
+      const resumo = await beneficiariasService.getResumo(Number(id));
+
+      const beneficiariaFormatada = formatObjectDates(
+        resumo.beneficiaria as unknown as Record<string, unknown>,
+        ['created_at', 'updated_at'] as any
       );
-      if (info.rowCount === 0) {
-        throw new AppError('Beneficiária não encontrada', 404);
-      }
 
-      const [anamnese, ficha, termos, visao, genericos, atend, parts] = await Promise.all([
-        pool.query('SELECT COUNT(*)::int AS c FROM anamnese_social WHERE beneficiaria_id = $1', [id]),
-        pool.query('SELECT COUNT(*)::int AS c FROM ficha_evolucao WHERE beneficiaria_id = $1', [id]),
-        pool.query('SELECT COUNT(*)::int AS c FROM termos_consentimento WHERE beneficiaria_id = $1', [id]),
-        pool.query('SELECT COUNT(*)::int AS c FROM visao_holistica WHERE beneficiaria_id = $1', [id]),
-        pool.query('SELECT COUNT(*)::int AS c FROM formularios WHERE beneficiaria_id = $1', [id]),
-        pool.query('SELECT COUNT(*)::int AS c, MAX(data_atendimento) AS ultimo FROM historico_atendimentos WHERE beneficiaria_id = $1', [id]),
-        pool.query('SELECT COUNT(*)::int AS c FROM participacoes WHERE beneficiaria_id = $1 AND ativo = true', [id])
-      ]);
+      const atendimentosFormatados = formatObjectDates(
+        resumo.atendimentos as unknown as Record<string, unknown>,
+        ['ultimo_atendimento'] as any
+      );
 
-      const resumo = {
-        beneficiaria: info.rows[0],
-        formularios: {
-          total:
-            anamnese.rows[0].c +
-            ficha.rows[0].c +
-            termos.rows[0].c +
-            visao.rows[0].c +
-            genericos.rows[0].c,
-          anamnese: anamnese.rows[0].c,
-          ficha_evolucao: ficha.rows[0].c,
-          termos: termos.rows[0].c,
-          visao_holistica: visao.rows[0].c,
-          genericos: genericos.rows[0].c
-        },
-        atendimentos: {
-          total: atend.rows[0].c,
-          ultimo_atendimento: atend.rows[0].ultimo
-        },
-        participacoes: {
-          total_ativas: parts.rows[0].c
-        }
-      };
-
-      res.json(successResponse(resumo));
+      res.json(
+        successResponse({
+          ...resumo,
+          beneficiaria: beneficiariaFormatada,
+          atendimentos: atendimentosFormatados
+        })
+      );
       return;
     } catch (error) {
       if (error instanceof AppError) {
@@ -154,34 +142,26 @@ router.get(
     try {
       const { id } = req.params as any;
       const page = parseInt((req.query.page as string) || '1', 10);
-      const limit = Math.min(parseInt((req.query.limit as string) || '20', 10), 100);
-      const offset = (Math.max(1, page) - 1) * Math.max(1, limit);
+      const limit = parseInt((req.query.limit as string) || '20', 10);
 
-      const result = await pool.query(
-        `SELECT * FROM (
-           SELECT 'formulario' as type, id, created_at, usuario_id as created_by, null::text as created_by_name
-             FROM formularios WHERE beneficiaria_id = $1
-           UNION ALL
-           SELECT 'anamnese' as type, id, created_at, created_by, null::text as created_by_name
-             FROM anamnese_social WHERE beneficiaria_id = $1
-           UNION ALL
-           SELECT 'ficha_evolucao' as type, id, created_at, created_by, null::text as created_by_name
-             FROM ficha_evolucao WHERE beneficiaria_id = $1
-           UNION ALL
-           SELECT 'termos_consentimento' as type, id, created_at, created_by, null::text as created_by_name
-             FROM termos_consentimento WHERE beneficiaria_id = $1
-           UNION ALL
-           SELECT 'visao_holistica' as type, id, created_at, created_by, null::text as created_by_name
-             FROM visao_holistica WHERE beneficiaria_id = $1
-         ) acts
-         ORDER BY created_at DESC
-         LIMIT $2 OFFSET $3`,
-        [id, limit, offset]
+      const atividades = await beneficiariasService.getAtividades(Number(id), page, limit);
+
+      const data = atividades.data.map((item) =>
+        formatObjectDates(item as unknown as Record<string, unknown>, ['created_at'] as any)
       );
 
-      res.json(successResponse({ data: result.rows, pagination: { page, limit, total: null } }));
+      res.json(
+        successResponse({
+          data,
+          pagination: atividades.pagination
+        })
+      );
       return;
     } catch (error) {
+      if (error instanceof AppError) {
+        res.status(error.statusCode).json(errorResponse(error.message));
+        return;
+      }
       loggerService.error('Erro ao listar atividades da beneficiária:', error);
       res.status(500).json(errorResponse('Erro ao listar atividades'));
       return;
@@ -205,26 +185,10 @@ router.post(
   async (req: ExtendedRequest, res: Response): Promise<void> => {
     try {
       const parsed = await validateBeneficiaria(req.body);
-      const { familiares, vulnerabilidades, ...beneficiariaPayload } = parsed;
 
-      // Validar CPF único
-      if (beneficiariaPayload.cpf) {
-        const existingBeneficiaria = await beneficiariasRepository.findByCPF(beneficiariaPayload.cpf);
-
-        if (existingBeneficiaria) {
-          throw new AppError('CPF já cadastrado', 400);
-        }
-      }
-
-      const beneficiariaData = Object.fromEntries(
-        Object.entries(beneficiariaPayload).filter(([, value]) => value !== undefined && value !== null)
-      );
-
-      const beneficiaria = await beneficiariasRepository.createWithRelations(
-        beneficiariaData as any,
-        familiares,
-        vulnerabilidades
-      );
+      const beneficiaria = await beneficiariasService.createBeneficiaria(parsed as any, {
+        skipValidation: true
+      });
 
       const beneficiariaFormatada = formatObjectDates(
         beneficiaria as unknown as Record<string, unknown>,
@@ -282,33 +246,12 @@ router.put(
       const { id } = req.params;
       const updateData = req.body;
 
-      // Validar se beneficiária existe
-      const existingBeneficiaria = await beneficiariasRepository.findById(Number(id));
-
-      if (!existingBeneficiaria) {
-        throw new AppError('Beneficiária não encontrada', 404);
-      }
-
       const parsedUpdate = await validateBeneficiaria(updateData, true);
-      const { familiares, vulnerabilidades, ...payload } = parsedUpdate;
 
-      // Validar CPF único se estiver sendo atualizado
-      if (payload.cpf && payload.cpf !== existingBeneficiaria.cpf) {
-        const cpfExists = await beneficiariasRepository.findByCPF(payload.cpf);
-        if (cpfExists && cpfExists.id !== Number(id)) {
-          throw new AppError('CPF já cadastrado para outra beneficiária', 400);
-        }
-      }
-
-      const sanitized = Object.fromEntries(
-        Object.entries(payload).filter(([, value]) => value !== undefined && value !== null)
-      );
-
-      const beneficiaria = await beneficiariasRepository.updateWithRelations(
+      const beneficiaria = await beneficiariasService.updateBeneficiaria(
         Number(id),
-        sanitized as any,
-        familiares,
-        vulnerabilidades
+        parsedUpdate as any,
+        { skipValidation: true }
       );
 
       const beneficiariaFormatada = formatObjectDates(
@@ -322,7 +265,7 @@ router.put(
 
       loggerService.audit('BENEFICIARIA_UPDATED', (req as any).user?.id, {
         beneficiaria_id: id,
-        changes: sanitized
+        changes: updateData
       });
 
       res.json(successResponse({
@@ -360,15 +303,7 @@ router.delete(
     try {
       const { id } = req.params;
 
-      // Validar se beneficiária existe
-      const existingBeneficiaria = await beneficiariasRepository.findById(Number(id));
-
-      if (!existingBeneficiaria) {
-        throw new AppError('Beneficiária não encontrada', 404);
-      }
-
-      // Marcar como inativa
-      await beneficiariasRepository.softDelete(Number(id));
+      await beneficiariasService.deleteBeneficiaria(Number(id));
 
       loggerService.audit('BENEFICIARIA_DELETED', (req as any).user?.id, {
         beneficiaria_id: id
