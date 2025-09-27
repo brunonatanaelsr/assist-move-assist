@@ -44,7 +44,10 @@ PRIORITY_ORDER=(
 declare -a FILES_TO_RUN=()
 declare -A PRIORITY_SET=()
 
-mapfile -t ALL_MIGRATIONS < <(find "$MIGRATIONS_DIR" -maxdepth 1 -type f -name '*.sql' -printf '%f\n' | sort)
+ALL_MIGRATIONS=()
+while IFS= read -r migration_file; do
+  ALL_MIGRATIONS+=("$migration_file")
+done < <(find "$MIGRATIONS_DIR" -maxdepth 1 -type f -name '*.sql' -exec basename {} \; | sort)
 
 for priority_file in "${PRIORITY_ORDER[@]}"; do
   if [ -f "$MIGRATIONS_DIR/$priority_file" ]; then
