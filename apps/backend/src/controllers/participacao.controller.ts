@@ -82,6 +82,9 @@ export const atualizarParticipacao = async (req: CustomRequest & Request, res: C
     return res.json(participacao);
   } catch (error: any) {
     loggerService.error('Erro no controller ao atualizar participação', { error });
+    if (error instanceof AppError && error.statusCode === 400) {
+      return res.status(400).json({ error: error.message });
+    }
     return next(error);
   }
 };

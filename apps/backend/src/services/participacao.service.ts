@@ -256,14 +256,18 @@ export class ParticipacaoService {
       }
 
       const fieldsToUpdate = Object.entries(validatedData)
-        .filter(([_, value]) => value !== undefined)
+        .filter(([key, value]) => value !== undefined && data[key as keyof UpdateParticipacaoDTO] !== undefined)
         .map(([key, _]) => key);
+
+      if (fieldsToUpdate.length === 0) {
+        throw new AppError('Nenhum campo fornecido para atualização', 400);
+      }
 
       const setClauses = fieldsToUpdate.map((field, index) => `${field} = $${index + 1}`);
       const queryParams = fieldsToUpdate.map(field => validatedData[field as keyof UpdateParticipacaoDTO]);
 
       const query = `
-        UPDATE participacoes 
+        UPDATE participacoes
         SET ${setClauses.join(', ')}, data_atualizacao = NOW()
         WHERE id = $${fieldsToUpdate.length + 1} AND ativo = true
         RETURNING *
