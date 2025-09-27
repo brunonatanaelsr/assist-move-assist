@@ -38,8 +38,6 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
-      '@assist/types': path.resolve(__dirname, './packages/types/src'),
-      '@assist/types/*': path.resolve(__dirname, './packages/types/src/*'),
     },
   },
 });

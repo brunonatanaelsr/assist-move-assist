@@ -4,9 +4,7 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"],
-      "@assist/types": ["../../packages/types/src/index.ts"],
-      "@assist/types/*": ["../../packages/types/src/*"]
+      "@/*": ["./src/*"]
     },
     "noImplicitAny": true,
     "noUnusedParameters": true,

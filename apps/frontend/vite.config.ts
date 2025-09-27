@@ -74,7 +74,6 @@ export default defineConfig(({ mode }) => {
     resolve: {
       alias: {
         '@': resolve(__dirname, './src'),
-        '@assist/types': resolve(__dirname, '../../packages/types/src'),
       },
     },
     server: {

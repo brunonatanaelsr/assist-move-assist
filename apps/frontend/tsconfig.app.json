@@ -3,9 +3,7 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"],
-      "@assist/types": ["../../packages/types/src/index.ts"],
-      "@assist/types/*": ["../../packages/types/src/*"]
+      "@/*": ["./src/*"]
     }
   },
   "include": ["src"],
