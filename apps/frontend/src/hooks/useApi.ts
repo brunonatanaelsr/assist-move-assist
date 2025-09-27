@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiService } from '@/services/apiService';
+import type { Pagination } from '@/types/api';
 import { toast } from 'sonner';
 import { z } from 'zod';
 import { beneficiariaSchema } from '../validation/zodSchemas';
@@ -7,15 +8,33 @@ import { beneficiariaSchema } from '../validation/zodSchemas';
 type Beneficiaria = z.infer<typeof beneficiariaSchema>;
 
 // Hooks para beneficiárias
+type BeneficiariasQueryResult = { data: Beneficiaria[]; pagination?: Pagination };
+
 export const useBeneficiarias = (params?: { page?: number; limit?: number }) => {
-  return useQuery({
-    queryKey: ['beneficiarias', params],
+  const queryKey = ['beneficiarias', params] as const;
+
+  return useQuery<BeneficiariasQueryResult>({
+    queryKey,
     queryFn: async () => {
-      const response = await apiService.getBeneficiarias();
+      const response = await apiService.getBeneficiarias(params);
       if (!response.success) {
         throw new Error(response.message);
       }
-      return response.data;
+
+      const payload = response.data;
+      const data = Array.isArray(payload)
+        ? payload
+        : Array.isArray((payload as any)?.data)
+          ? (payload as any).data
+          : [];
+
+      const pagination = (!Array.isArray(payload) && (payload as any)?.pagination)
+        || response.pagination;
+
+      return {
+        data,
+        pagination,
+      };
     },
     staleTime: 60_000,
     refetchOnWindowFocus: false,
@@ -85,11 +104,17 @@ export const useAtividades = (beneficiariaId: string) => {
 export default useBeneficiarias;
 
 // Hooks para participações
+const participacoesQueryKey = (params: { beneficiaria_id: string }) =>
+  ['participacoes', params] as const;
+
 export const useParticipacoes = (beneficiariaId: string) => {
+  const params = { beneficiaria_id: beneficiariaId };
+  const queryKey = participacoesQueryKey(params);
+
   return useQuery({
-    queryKey: ['participacoes', beneficiariaId],
+    queryKey,
     queryFn: async () => {
-      const response = await apiService.getParticipacoes(beneficiariaId);
+      const response = await apiService.getParticipacoes(params);
       if (!response.success) {
         throw new Error(response.message);
       }
@@ -113,9 +138,10 @@ export const useCreateParticipacao = () => {
       return response.data;
     },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({
-        queryKey: ['participacoes', variables.beneficiaria_id],
-      });
+      if (variables?.beneficiaria_id) {
+        const queryKey = participacoesQueryKey({ beneficiaria_id: variables.beneficiaria_id });
+        queryClient.invalidateQueries({ queryKey });
+      }
       toast.success('Participação registrada com sucesso');
     },
     onError: (error: Error) => {
@@ -128,7 +154,7 @@ export const useUpdateParticipacao = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+    mutationFn: async ({ id, data, beneficiaria_id }: { id: string; data: any; beneficiaria_id?: string }) => {
       const response = await apiService.updateParticipacao(id, data);
       if (!response.success) {
         throw new Error(response.message);
@@ -136,9 +162,11 @@ export const useUpdateParticipacao = () => {
       return response.data;
     },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({
-        queryKey: ['participacoes'],
-      });
+      const beneficiariaId = variables.beneficiaria_id ?? variables.data?.beneficiaria_id;
+      if (beneficiariaId) {
+        const queryKey = participacoesQueryKey({ beneficiaria_id: beneficiariaId });
+        queryClient.invalidateQueries({ queryKey });
+      }
       toast.success('Participação atualizada com sucesso');
     },
     onError: (error: Error) => {
