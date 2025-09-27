@@ -34,9 +34,26 @@ app.use(helmet());
 app.use(compression());
 
 // CORS
-const corsOrigin = env.CORS_ORIGIN || (env.NODE_ENV === 'development' ? '*' : '');
+const isProduction = env.NODE_ENV === 'production';
+const parsedCorsOrigins = env.CORS_ORIGIN
+  ?.split(',')
+  .map((origin) => origin.trim())
+  .filter((origin) => origin.length > 0);
+
+if (isProduction && (!parsedCorsOrigins || parsedCorsOrigins.length === 0)) {
+  throw new Error('CORS_ORIGIN deve ser definido em produção e conter pelo menos uma origem.');
+}
+
+const corsOriginOption = (() => {
+  if (parsedCorsOrigins && parsedCorsOrigins.length > 0) {
+    return parsedCorsOrigins.length === 1 && parsedCorsOrigins[0] === '*' ? true : parsedCorsOrigins;
+  }
+
+  return true;
+})();
+
 const corsOptions = {
-  origin: corsOrigin === '*' || corsOrigin === '' ? true : corsOrigin.split(',').map((o) => o.trim()),
+  origin: corsOriginOption,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],

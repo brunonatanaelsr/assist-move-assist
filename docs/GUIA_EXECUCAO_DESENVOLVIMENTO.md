@@ -48,6 +48,8 @@ Os valores padrão suportam o ambiente local. Ajuste apenas se necessário. Prin
   - `REDIS_PORT=6379`
   - `CORS_ORIGIN=http://localhost:5173`
 
+  > Para permitir múltiplas origens informe uma lista separada por vírgulas (ex.: `CORS_ORIGIN=http://localhost:5173,http://localhost:4173`).
+
 ## 4. Subir Infraestrutura de Apoio
 
 Inicie Postgres e Redis via Docker Compose:
