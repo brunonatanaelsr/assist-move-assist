@@ -2,11 +2,12 @@ import { Users, FileText, Calendar, TrendingUp, Heart, ClipboardCheck } from "lu
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useEffect, useState, HTMLAttributes, ReactNode } from "react";
+import { useEffect, HTMLAttributes, ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
-import { apiService } from "@/services/apiService";
-import type { DashboardStatsResponse } from "@/types/dashboard";
 import { cn } from "@/lib/utils";
+import { useDashboardStats, useDashboardActivities, useDashboardTasks, defaultDashboardStats } from "@/hooks/useDashboard";
+import { useToast } from "@/components/ui/use-toast";
+import { translateErrorMessage } from "@/lib/apiError";
 
 // Componente StatCard local
 interface StatCardProps extends HTMLAttributes<HTMLDivElement> {
@@ -55,72 +56,50 @@ const StatCard = ({
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const [stats, setStats] = useState({
-    totalBeneficiarias: 0,
-    beneficiariasAtivas: 0,
-    beneficiariasInativas: 0,
-    formularios: 0,
-    atendimentosMes: 0,
-    engajamento: "0%"
-  });
-  const [recentActivities, setRecentActivities] = useState<any[]>([]);
-  const [upcomingTasks, setUpcomingTasks] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
+  const statsQuery = useDashboardStats();
+  const activitiesQuery = useDashboardActivities();
+  const tasksQuery = useDashboardTasks();
+
+  const stats = statsQuery.data ?? defaultDashboardStats;
+  const recentActivities = activitiesQuery.data ?? [];
+  const upcomingTasks = tasksQuery.data ?? [];
+
+  const loading = statsQuery.isLoading || activitiesQuery.isLoading || tasksQuery.isLoading;
 
   useEffect(() => {
-    loadDashboardData();
-  }, []);
-
-  const loadDashboardData = async () => {
-    try {
-      setLoading(true);
-      
-      // Carregar estatísticas reais do PostgreSQL
-      const statsResponse = await apiService.getDashboardStats();
-      if (statsResponse.success && statsResponse.data) {
-        const data = statsResponse.data as DashboardStatsResponse;
-        setStats({
-          totalBeneficiarias: data.totalBeneficiarias || 0,
-          beneficiariasAtivas: data.activeBeneficiarias || 0,
-          beneficiariasInativas: data.inactiveBeneficiarias || 0,
-          formularios: data.totalFormularios || 0,
-          atendimentosMes: data.totalAtendimentos || 0,
-          engajamento: `${data.engajamento || 0}%`
-        });
-      }
-
-      // Carregar atividades recentes reais
-      const activitiesResponse = await apiService.getDashboardActivities();
-      if (activitiesResponse.success) {
-        setRecentActivities(Array.isArray(activitiesResponse.data) ? activitiesResponse.data : []);
-      }
-
-      // Carregar tarefas pendentes reais
-      const tasksResponse = await apiService.getDashboardTasks();
-      if (tasksResponse.success) {
-        setUpcomingTasks(Array.isArray(tasksResponse.data) ? tasksResponse.data : []);
-      }
-      
-    } catch (error) {
-      console.error('Erro ao carregar dados do dashboard:', error);
-      
-      // Fallback para dados básicos em caso de erro
-      const fallbackResponse = await apiService.getBeneficiarias();
-      if (fallbackResponse.success) {
-        const beneficiarias = fallbackResponse.data || [];
-        setStats({
-          totalBeneficiarias: beneficiarias.length,
-          beneficiariasAtivas: 0,
-          beneficiariasInativas: 0,
-          formularios: 0,
-          atendimentosMes: 0,
-          engajamento: "0%"
-        });
-      }
-    } finally {
-      setLoading(false);
+    if (statsQuery.error) {
+      toast({
+        variant: "destructive",
+        title: "Erro ao carregar estatísticas",
+        description: translateErrorMessage(statsQuery.error.message)
+      });
     }
-  };
+  }, [statsQuery.error, toast]);
+
+  useEffect(() => {
+    if (activitiesQuery.error) {
+      toast({
+        variant: "destructive",
+        title: "Erro ao carregar atividades",
+        description: translateErrorMessage(activitiesQuery.error.message)
+      });
+    }
+  }, [activitiesQuery.error, toast]);
+
+  useEffect(() => {
+    if (tasksQuery.error) {
+      toast({
+        variant: "destructive",
+        title: "Erro ao carregar tarefas",
+        description: translateErrorMessage(tasksQuery.error.message)
+      });
+    }
+  }, [tasksQuery.error, toast]);
+
+  const statsErrorMessage = statsQuery.error ? translateErrorMessage(statsQuery.error.message) : undefined;
+  const activitiesErrorMessage = activitiesQuery.error ? translateErrorMessage(activitiesQuery.error.message) : undefined;
+  const tasksErrorMessage = tasksQuery.error ? translateErrorMessage(tasksQuery.error.message) : undefined;
 
   return (
     <div className="space-y-6 p-6">
@@ -136,8 +115,12 @@ export default function Dashboard() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Total de Beneficiárias"
-          value={loading ? "..." : stats.totalBeneficiarias.toString()}
-          description={loading ? "Carregando..." : `${stats.beneficiariasAtivas} ativas • ${stats.beneficiariasInativas} inativas`}
+          value={loading ? "..." : statsErrorMessage ? "—" : stats.totalBeneficiarias.toString()}
+          description={
+            loading
+              ? "Carregando..."
+              : statsErrorMessage || `${stats.beneficiariasAtivas} ativas • ${stats.beneficiariasInativas} inativas`
+          }
           icon={<Users className="h-4 w-4" />}
           variant="primary"
           // test ids
@@ -150,8 +133,8 @@ export default function Dashboard() {
         <div className="hidden" data-testid="stats-beneficiarias-count">{stats.totalBeneficiarias}</div>
         <StatCard
           title="Formulários"
-          value={loading ? "..." : stats.formularios.toString()}
-          description={loading ? "Carregando..." : "Total preenchidos"}
+          value={loading ? "..." : statsErrorMessage ? "—" : stats.formularios.toString()}
+          description={loading ? "Carregando..." : statsErrorMessage || "Total preenchidos"}
           icon={<FileText className="h-4 w-4" />}
           variant="success"
           // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -160,8 +143,8 @@ export default function Dashboard() {
         />
         <StatCard
           title="Atendimentos"
-          value={loading ? "..." : stats.atendimentosMes.toString()}
-          description={loading ? "Carregando..." : "Este mês"}
+          value={loading ? "..." : statsErrorMessage ? "—" : stats.atendimentosMes.toString()}
+          description={loading ? "Carregando..." : statsErrorMessage || "Este mês"}
           icon={<Calendar className="h-4 w-4" />}
           variant="warning"
           // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -170,8 +153,8 @@ export default function Dashboard() {
         />
         <StatCard
           title="Engajamento"
-          value={loading ? "..." : stats.engajamento}
-          description={loading ? "Carregando..." : "Taxa de participação"}
+          value={loading ? "..." : statsErrorMessage ? "—" : stats.engajamento}
+          description={loading ? "Carregando..." : statsErrorMessage || "Taxa de participação"}
           icon={<TrendingUp className="h-4 w-4" />}
           variant="success"
         />
@@ -194,6 +177,8 @@ export default function Dashboard() {
             <div className="space-y-3">
               {loading ? (
                 <div className="text-sm text-muted-foreground">Carregando atividades...</div>
+              ) : activitiesErrorMessage ? (
+                <div className="text-sm text-destructive">{activitiesErrorMessage}</div>
               ) : recentActivities.length > 0 ? (
                 recentActivities.map((activity) => (
                   <div key={activity.id} className="flex items-center gap-3 p-2 rounded border">
@@ -231,6 +216,8 @@ export default function Dashboard() {
             <div className="space-y-3">
               {loading ? (
                 <div className="text-sm text-muted-foreground">Carregando tarefas...</div>
+              ) : tasksErrorMessage ? (
+                <div className="text-sm text-destructive">{tasksErrorMessage}</div>
               ) : upcomingTasks.length > 0 ? (
                 upcomingTasks.map((task) => (
                   <div key={task.id} className="flex items-start justify-between p-2 rounded border">
