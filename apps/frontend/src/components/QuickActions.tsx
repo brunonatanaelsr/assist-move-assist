@@ -1,9 +1,11 @@
 import { Plus, CheckSquare, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/hooks/useAuth';
 
 export function QuickActions() {
   const navigate = useNavigate();
+  const { isAdmin } = useAuth();
 
   return (
     <div
@@ -24,13 +26,15 @@ export function QuickActions() {
       >
         <CheckSquare className="h-4 w-4 mr-2" /> Registrar presença
       </Button>
-      <Button
-        variant="outline"
-        className="bg-background shadow-lg"
-        onClick={() => navigate('/relatorios')}
-      >
-        <FileText className="h-4 w-4 mr-2" /> Gerar relatório
-      </Button>
+      {isAdmin && (
+        <Button
+          variant="outline"
+          className="bg-background shadow-lg"
+          onClick={() => navigate('/relatorios')}
+        >
+          <FileText className="h-4 w-4 mr-2" /> Gerar relatório
+        </Button>
+      )}
     </div>
   );
 }

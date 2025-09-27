@@ -7,6 +7,7 @@ import { useNavigate } from "react-router-dom";
 import { apiService } from "@/services/apiService";
 import type { DashboardStatsResponse } from "@/types/dashboard";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/useAuth";
 
 // Componente StatCard local
 interface StatCardProps extends HTMLAttributes<HTMLDivElement> {
@@ -55,6 +56,7 @@ const StatCard = ({
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const { isAdmin } = useAuth();
   const [stats, setStats] = useState({
     totalBeneficiarias: 0,
     beneficiariasAtivas: 0,
@@ -279,10 +281,12 @@ export default function Dashboard() {
               <Calendar className="h-6 w-6" />
               <span className="text-sm">Agendamentos</span>
             </Button>
-            <Button variant="outline" className="h-auto p-4 flex-col gap-2" onClick={() => navigate('/relatorios')}>
-              <TrendingUp className="h-6 w-6" />
-              <span className="text-sm">Relatórios</span>
-            </Button>
+            {isAdmin && (
+              <Button variant="outline" className="h-auto p-4 flex-col gap-2" onClick={() => navigate('/relatorios')}>
+                <TrendingUp className="h-6 w-6" />
+                <span className="text-sm">Relatórios</span>
+              </Button>
+            )}
           </div>
         </CardContent>
       </Card>

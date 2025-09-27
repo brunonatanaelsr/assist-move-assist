@@ -1,5 +1,6 @@
 import { lazy } from "react";
 import { Route } from "react-router-dom";
+import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 
 // Lazy loaded components
 const Analytics = lazy(() => import("@/pages/Analytics"));
@@ -15,7 +16,14 @@ const NotificationsPage = lazy(() => import("@/pages/Notifications"));
 
 export const FeaturesRoutes = () => (
   <>
-    <Route path="analytics" element={<Analytics />} />
+    <Route
+      path="analytics"
+      element={(
+        <ProtectedRoute adminOnly>
+          <Analytics />
+        </ProtectedRoute>
+      )}
+    />
     <Route path="oficinas" element={<OficinasNew />} />
     <Route path="participantes" element={<ParticipantesIndisponivel />} />
     <Route path="chat-interno" element={<ChatInterno />} />
@@ -23,7 +31,14 @@ export const FeaturesRoutes = () => (
     <Route path="calendar" element={<CalendarPage />} />
     <Route path="feed" element={<FeedNew />} />
     <Route path="projetos" element={<ProjetosNew />} />
-    <Route path="relatorios" element={<Relatorios />} />
+    <Route
+      path="relatorios"
+      element={(
+        <ProtectedRoute adminOnly>
+          <Relatorios />
+        </ProtectedRoute>
+      )}
+    />
     <Route path="notifications" element={<NotificationsPage />} />
   </>
 );

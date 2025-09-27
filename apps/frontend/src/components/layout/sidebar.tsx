@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
-import { 
-  Users, 
-  FileText, 
-  Heart, 
-  BarChart3, 
-  Settings, 
+import {
+  Users,
+  FileText,
+  Heart,
+  BarChart3,
+  Settings,
   Menu,
   X,
   Home,
@@ -17,14 +17,30 @@ import {
   GraduationCap,
   TrendingUp,
   FolderKanban,
-  MessageSquare
+  MessageSquare,
+  type LucideIcon
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/useAuth";
 
-const menuItems = [
+type MenuChild = {
+  title: string;
+  href: string;
+  adminOnly?: boolean;
+};
+
+type MenuItem = {
+  title: string;
+  icon: LucideIcon;
+  href?: string;
+  children?: MenuChild[];
+  adminOnly?: boolean;
+};
+
+const menuItems: MenuItem[] = [
   {
-    title: "Dashboard", 
+    title: "Dashboard",
     icon: Home,
     href: "/dashboard"
   },
@@ -75,12 +91,14 @@ const menuItems = [
   {
     title: "Relatórios",
     icon: BarChart3,
-    href: "/relatorios"
+    href: "/relatorios",
+    adminOnly: true
   },
   {
     title: "Analytics",
     icon: TrendingUp,
-    href: "/analytics"
+    href: "/analytics",
+    adminOnly: true
   }
 ];
 
@@ -88,10 +106,28 @@ export default function Sidebar() {
   const [isOpen, setIsOpen] = useState(false);
   const [expandedItems, setExpandedItems] = useState<string[]>(["Formulários"]);
   const location = useLocation();
+  const { isAdmin } = useAuth();
+
+  const filteredMenuItems = useMemo(() =>
+    menuItems
+      .map(item => ({
+        ...item,
+        children: item.children?.filter(child => !child.adminOnly || isAdmin)
+      }))
+      .filter(item => {
+        if (item.adminOnly && !isAdmin) {
+          return false;
+        }
+        if (item.children && item.children.length === 0) {
+          return false;
+        }
+        return true;
+      })
+  , [isAdmin]);
 
   const toggleExpanded = (title: string) => {
-    setExpandedItems(prev => 
-      prev.includes(title) 
+    setExpandedItems(prev =>
+      prev.includes(title)
         ? prev.filter(item => item !== title)
         : [...prev, title]
     );
@@ -143,7 +179,7 @@ export default function Sidebar() {
 
           {/* Navigation */}
           <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-            {menuItems.map((item) => (
+            {filteredMenuItems.map((item) => (
               <div key={item.title}>
                 {item.children ? (
                   <div>
@@ -211,19 +247,21 @@ export default function Sidebar() {
 
           {/* Footer */}
           <div className="p-4 border-t border-sidebar-border">
-            <NavLink
-              to="/configuracoes"
-              className={({ isActive }) => cn(
-                "flex items-center gap-2 w-full px-3 py-2 rounded-md text-sm font-medium transition-colors",
-                isActive 
-                  ? "bg-primary text-primary-foreground shadow-soft" 
-                  : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-              )}
-              onClick={() => setIsOpen(false)}
-            >
-              <Settings className="h-4 w-4" />
-              Configurações
-            </NavLink>
+            {isAdmin && (
+              <NavLink
+                to="/configuracoes"
+                className={({ isActive }) => cn(
+                  "flex items-center gap-2 w-full px-3 py-2 rounded-md text-sm font-medium transition-colors",
+                  isActive
+                    ? "bg-primary text-primary-foreground shadow-soft"
+                    : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                )}
+                onClick={() => setIsOpen(false)}
+              >
+                <Settings className="h-4 w-4" />
+                Configurações
+              </NavLink>
+            )}
           </div>
         </div>
       </aside>
