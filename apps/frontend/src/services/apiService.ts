@@ -114,6 +114,7 @@ class ApiService {
           localStorage.removeItem('user');
           // HashRouter-safe redirect
           if (typeof window !== 'undefined') {
+            window.dispatchEvent(new Event('auth:logout'));
             window.location.hash = '#/auth';
           }
         }

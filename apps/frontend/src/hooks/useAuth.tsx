@@ -49,6 +49,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(false);
   }, [authService]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const handleLogoutEvent = () => {
+      setUser(null);
+      setLoading(false);
+    };
+
+    const handleStorageEvent = (event: StorageEvent) => {
+      const relevantKeys = new Set(["token", "auth_token", "user"]);
+      if (event.key === null || relevantKeys.has(event.key)) {
+        handleLogoutEvent();
+      }
+    };
+
+    window.addEventListener("auth:logout", handleLogoutEvent);
+    window.addEventListener("storage", handleStorageEvent);
+
+    return () => {
+      window.removeEventListener("auth:logout", handleLogoutEvent);
+      window.removeEventListener("storage", handleStorageEvent);
+    };
+  }, []);
+
   const signIn = async (email: string, password: string): Promise<{ error?: Error }> => {
     try {
       setLoading(true);
