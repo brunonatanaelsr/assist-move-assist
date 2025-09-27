@@ -1,7 +1,9 @@
 import { Pool } from 'pg';
 import type { RedisClient } from '../lib/redis';
-import { logger } from '../services/logger';
+import { BeneficiariasRepository } from '../repositories/beneficiariasRepository';
+import { logger, loggerService } from '../services/logger';
 import { AppError } from '../utils';
+import { formatObjectDates } from '../utils/dateFormatter';
 import { validateBeneficiaria } from '../validators/beneficiaria.validator';
 import { withCache } from '../utils/redisCache';
 import { cacheService } from './cache.service';
@@ -37,8 +39,29 @@ interface BeneficiariaInput {
 export class BeneficiariasService {
   constructor(
     private readonly db: Pool,
-    private readonly redis: RedisClient
+    private readonly redis: RedisClient,
+    private readonly beneficiariasRepository: BeneficiariasRepository = new BeneficiariasRepository(db)
   ) {}
+
+  private formatBeneficiariaWithRelations(beneficiaria: any) {
+    if (!beneficiaria) {
+      return beneficiaria;
+    }
+
+    const beneficiariaFormatada = formatObjectDates(
+      beneficiaria as unknown as Record<string, unknown>,
+      ['data_nascimento', 'rg_data_emissao', 'created_at', 'updated_at'] as any
+    ) as typeof beneficiaria;
+
+    const familiaresFormatados = beneficiariaFormatada.familiares?.map((familiar: any) =>
+      formatObjectDates(familiar as unknown as Record<string, unknown>, ['data_nascimento'] as any)
+    ) ?? [];
+
+    return {
+      ...beneficiariaFormatada,
+      familiares: familiaresFormatados
+    };
+  }
 
   async searchBeneficiarias(searchTerm: string, limit = 10) {
     const term = searchTerm.trim();
@@ -263,5 +286,130 @@ export class BeneficiariasService {
       if (error instanceof AppError) throw error;
       throw new AppError('Erro ao excluir beneficiária', 500);
     }
+  }
+
+  async listarAtivas(page: number = 1, limit: number = 10) {
+    return this.beneficiariasRepository.listarAtivas(page, limit);
+  }
+
+  async obterDetalhes(id: number) {
+    const beneficiaria = await this.beneficiariasRepository.findWithRelations(id);
+
+    if (!beneficiaria) {
+      throw new AppError('Beneficiária não encontrada', 404);
+    }
+
+    return this.formatBeneficiariaWithRelations(beneficiaria);
+  }
+
+  async obterResumo(id: number) {
+    return this.beneficiariasRepository.getResumo(id);
+  }
+
+  async obterAtividades(id: number, page: number, limit: number) {
+    const offset = (Math.max(1, page) - 1) * Math.max(1, limit);
+    const data = await this.beneficiariasRepository.getAtividades(id, limit, offset);
+
+    return {
+      data,
+      pagination: {
+        page,
+        limit,
+        total: null
+      }
+    };
+  }
+
+  async criarCompleta(payload: any, userId?: number) {
+    const parsed = await validateBeneficiaria(payload);
+    const { familiares, vulnerabilidades, ...beneficiariaPayload } = parsed;
+
+    if (beneficiariaPayload.cpf) {
+      const existingBeneficiaria = await this.beneficiariasRepository.findByCPF(beneficiariaPayload.cpf);
+
+      if (existingBeneficiaria) {
+        throw new AppError('CPF já cadastrado', 400);
+      }
+    }
+
+    const beneficiariaData = Object.fromEntries(
+      Object.entries(beneficiariaPayload).filter(([, value]) => value !== undefined && value !== null)
+    );
+
+    const beneficiaria = await this.beneficiariasRepository.createWithRelations(
+      beneficiariaData as any,
+      familiares,
+      vulnerabilidades
+    );
+
+    await cacheService.deletePattern('beneficiarias:list:*');
+
+    if (userId) {
+      loggerService.audit('BENEFICIARIA_CREATED', userId, {
+        beneficiaria_id: beneficiaria.id
+      });
+    }
+
+    return this.formatBeneficiariaWithRelations(beneficiaria);
+  }
+
+  async atualizarCompleta(id: number, payload: any, userId?: number) {
+    const existingBeneficiaria = await this.beneficiariasRepository.findById(id);
+
+    if (!existingBeneficiaria) {
+      throw new AppError('Beneficiária não encontrada', 404);
+    }
+
+    const parsedUpdate = await validateBeneficiaria(payload, true);
+    const { familiares, vulnerabilidades, ...beneficiariaPayload } = parsedUpdate;
+
+    if (beneficiariaPayload.cpf && beneficiariaPayload.cpf !== existingBeneficiaria.cpf) {
+      const cpfExists = await this.beneficiariasRepository.findByCPF(beneficiariaPayload.cpf);
+      if (cpfExists && cpfExists.id !== id) {
+        throw new AppError('CPF já cadastrado para outra beneficiária', 400);
+      }
+    }
+
+    const sanitized = Object.fromEntries(
+      Object.entries(beneficiariaPayload).filter(([, value]) => value !== undefined && value !== null)
+    );
+
+    const beneficiaria = await this.beneficiariasRepository.updateWithRelations(
+      id,
+      sanitized as any,
+      familiares,
+      vulnerabilidades
+    );
+
+    await cacheService.deletePattern('beneficiarias:list:*');
+
+    if (userId) {
+      loggerService.audit('BENEFICIARIA_UPDATED', userId, {
+        beneficiaria_id: id,
+        changes: sanitized
+      });
+    }
+
+    return this.formatBeneficiariaWithRelations(beneficiaria);
+  }
+
+  async remover(id: number, userId?: number) {
+    const existingBeneficiaria = await this.beneficiariasRepository.findById(id);
+
+    if (!existingBeneficiaria) {
+      throw new AppError('Beneficiária não encontrada', 404);
+    }
+
+    await this.beneficiariasRepository.softDelete(id);
+
+    await cacheService.deletePattern('beneficiarias:list:*');
+
+    if (userId) {
+      loggerService.audit('BENEFICIARIA_DELETED', userId, {
+        beneficiaria_id: id
+      });
+    }
+
+    return { message: 'Beneficiária removida com sucesso' };
   }
 }

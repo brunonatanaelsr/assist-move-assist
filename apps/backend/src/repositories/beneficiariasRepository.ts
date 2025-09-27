@@ -347,6 +347,80 @@ export class BeneficiariasRepository extends PostgresBaseRepository<Beneficiaria
     }
   }
 
+  async getResumo(id: number) {
+    const info = await this.query(
+      'SELECT id, nome_completo, status, created_at, updated_at FROM beneficiarias WHERE id = $1 AND deleted_at IS NULL',
+      [id]
+    );
+
+    if (info.rowCount === 0) {
+      throw new AppError('Beneficiária não encontrada', 404);
+    }
+
+    const [anamnese, ficha, termos, visao, genericos, atend, parts] = await Promise.all([
+      this.query('SELECT COUNT(*)::int AS c FROM anamnese_social WHERE beneficiaria_id = $1', [id]),
+      this.query('SELECT COUNT(*)::int AS c FROM ficha_evolucao WHERE beneficiaria_id = $1', [id]),
+      this.query('SELECT COUNT(*)::int AS c FROM termos_consentimento WHERE beneficiaria_id = $1', [id]),
+      this.query('SELECT COUNT(*)::int AS c FROM visao_holistica WHERE beneficiaria_id = $1', [id]),
+      this.query('SELECT COUNT(*)::int AS c FROM formularios WHERE beneficiaria_id = $1', [id]),
+      this.query(
+        'SELECT COUNT(*)::int AS c, MAX(data_atendimento) AS ultimo FROM historico_atendimentos WHERE beneficiaria_id = $1',
+        [id]
+      ),
+      this.query('SELECT COUNT(*)::int AS c FROM participacoes WHERE beneficiaria_id = $1 AND ativo = true', [id])
+    ]);
+
+    return {
+      beneficiaria: info.rows[0],
+      formularios: {
+        total:
+          anamnese.rows[0].c +
+          ficha.rows[0].c +
+          termos.rows[0].c +
+          visao.rows[0].c +
+          genericos.rows[0].c,
+        anamnese: anamnese.rows[0].c,
+        ficha_evolucao: ficha.rows[0].c,
+        termos: termos.rows[0].c,
+        visao_holistica: visao.rows[0].c,
+        genericos: genericos.rows[0].c
+      },
+      atendimentos: {
+        total: atend.rows[0].c,
+        ultimo_atendimento: atend.rows[0].ultimo
+      },
+      participacoes: {
+        total_ativas: parts.rows[0].c
+      }
+    };
+  }
+
+  async getAtividades(beneficiariaId: number, limit: number, offset: number) {
+    const result = await this.query(
+      `SELECT * FROM (
+           SELECT 'formulario' as type, id, created_at, usuario_id as created_by, null::text as created_by_name
+             FROM formularios WHERE beneficiaria_id = $1
+           UNION ALL
+           SELECT 'anamnese' as type, id, created_at, created_by, null::text as created_by_name
+             FROM anamnese_social WHERE beneficiaria_id = $1
+           UNION ALL
+           SELECT 'ficha_evolucao' as type, id, created_at, created_by, null::text as created_by_name
+             FROM ficha_evolucao WHERE beneficiaria_id = $1
+           UNION ALL
+           SELECT 'termos_consentimento' as type, id, created_at, created_by, null::text as created_by_name
+             FROM termos_consentimento WHERE beneficiaria_id = $1
+           UNION ALL
+           SELECT 'visao_holistica' as type, id, created_at, created_by, null::text as created_by_name
+             FROM visao_holistica WHERE beneficiaria_id = $1
+         ) acts
+         ORDER BY created_at DESC
+         LIMIT $2 OFFSET $3`,
+      [beneficiariaId, limit, offset]
+    );
+
+    return result.rows;
+  }
+
   async restaurar(id: number): Promise<Beneficiaria> {
     const result = await this.query(
       `UPDATE beneficiarias

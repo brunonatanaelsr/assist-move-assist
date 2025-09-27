@@ -1,208 +1,206 @@
+import pool from '../config/database';
+import redisClient from '../config/redis';
 import { db } from '../services/db';
-import { redis } from '../lib/redis';
-import { loggerService } from '../services/logger';
+import { DashboardRepository } from '../repositories/DashboardRepository';
 
 const CACHE_TTL = 300; // 5 minutos
 
-interface DashboardStats {
-  totalBeneficiarias: number;
-  totalOficinas: number;
-  totalAtendimentos: number;
-  monthlyStats: MonthlyStats[];
-  statusDistribution: StatusCount[];
-}
-
-interface MonthlyStats {
-  month: Date;
-  count: number;
-}
-
-interface StatusCount {
-  status: string;
-  count: number;
-}
-
-interface Activity {
-  type: string;
-  id: number;
-  description: string;
-  created_at: Date;
-  created_by_name: string;
-}
-
 class DashboardService {
-  async getStats(userId: number, userRole: string): Promise<DashboardStats> {
+  constructor(private readonly repository: DashboardRepository = new DashboardRepository(pool, redisClient)) {}
+
+  async getStats(userRole: string) {
     const cacheKey = `dashboard:stats:${userRole}`;
-    
-    // Tentar buscar do cache
-    const cachedStats = await redis.get(cacheKey);
+
+    const cachedStats = await redisClient.get(cacheKey);
     if (cachedStats) {
       return JSON.parse(cachedStats);
     }
 
-    // Query principal usando SQL parametrizado
-    const stats = await db.query<DashboardStats>(`
-      SELECT
-        (SELECT COUNT(*) FROM beneficiarias WHERE ativo = true) as total_beneficiarias,
-        (SELECT COUNT(*) FROM oficinas WHERE ativo = true) as total_oficinas,
-        (SELECT COUNT(*) FROM atendimentos WHERE ativo = true) as total_atendimentos
-    `);
+    const baseStats = await db.getStats();
+    let additionalStats: Record<string, unknown> = {};
 
-    // Estatísticas mensais
-    const monthlyStats = await db.query<MonthlyStats>(`
-      SELECT 
-        date_trunc('month', created_at) as month,
-        COUNT(*) as count
-      FROM beneficiarias 
-      WHERE created_at >= date_trunc('year', CURRENT_DATE)
-      GROUP BY date_trunc('month', created_at)
-      ORDER BY month
-    `);
+    if (userRole === 'admin' || userRole === 'profissional') {
+      const [monthlyStats, statusStats] = await Promise.all([
+        db.query(`
+          SELECT
+            date_trunc('month', created_at) as month,
+            COUNT(*) as count
+          FROM beneficiarias
+          WHERE created_at >= date_trunc('year', CURRENT_DATE)
+          GROUP BY date_trunc('month', created_at)
+          ORDER BY month
+        `),
+        db.query(`
+          SELECT
+            status,
+            COUNT(*) as count
+          FROM beneficiarias
+          GROUP BY status
+        `)
+      ]);
 
-    // Distribuição por status
-    const statusDistribution = await db.query<StatusCount>(`
-      SELECT 
-        status,
-        COUNT(*) as count
-      FROM beneficiarias
-      GROUP BY status
-    `);
+      additionalStats = {
+        monthlyRegistrations: monthlyStats,
+        statusDistribution: statusStats
+      };
+    }
 
     const result = {
-      ...stats[0],
-      monthlyStats,
-      statusDistribution
+      ...baseStats,
+      ...additionalStats
     };
 
-    // Salvar no cache
-    await redis.setex(cacheKey, CACHE_TTL, JSON.stringify(result));
+    await redisClient.setex(cacheKey, CACHE_TTL, JSON.stringify(result));
 
     return result;
   }
 
-  async getRecentActivities(userId: number, userRole: string, page: number = 1, limit: number = 10): Promise<{
-    activities: Activity[];
-    total: number;
-    hasMore: boolean;
-  }> {
-    const offset = (page - 1) * limit;
+  async getRecentActivities(userRole: string, limit: number = 10) {
+    if (userRole !== 'admin' && userRole !== 'profissional') {
+      return { activities: [] };
+    }
 
-    // Buscar total de atividades
-    const [totalCount] = await db.query<{count: number}>(`
-      SELECT COUNT(*) as count
-      FROM (
-        SELECT id FROM beneficiarias
-        UNION ALL
-        SELECT id FROM formularios
-      ) as combined_activities
-    `);
-
-    // Buscar atividades paginadas
-    const activities = await db.query<Activity>(`
-      SELECT * FROM (
-        SELECT 
+    const [recentBeneficiarias, recentFormularios] = await Promise.all([
+      db.query(`
+        SELECT
           'beneficiaria_created' as type,
           b.id,
           b.nome_completo,
           b.created_at,
           NULL::text as created_by_name
         FROM beneficiarias b
-        
-        UNION ALL
-        
-        SELECT 
+        ORDER BY b.created_at DESC
+        LIMIT $1
+      `, [limit]),
+      db.query(`
+        SELECT
           'formulario_created' as type,
           f.id,
           b.nome_completo as beneficiaria_nome,
+          f.tipo as formulario_tipo,
           f.created_at,
           u.nome as created_by_name
         FROM formularios f
         LEFT JOIN beneficiarias b ON f.beneficiaria_id = b.id
         LEFT JOIN usuarios u ON f.usuario_id = u.id
-      ) as combined_activities
-      ORDER BY created_at DESC
-      LIMIT $1 OFFSET $2
-    `, [limit, offset]);
+        ORDER BY f.created_at DESC
+        LIMIT $1
+      `, [limit])
+    ]);
 
-    return {
-      activities: activities.map(activity => ({
-        ...activity,
-        description: this.getActivityDescription(activity)
+    const activities = [
+      ...recentBeneficiarias.map((item: any) => ({
+        ...item,
+        description: `Beneficiária ${item.nome_completo} foi cadastrada por ${item.created_by_name || 'Sistema'}`
       })),
-      total: parseInt(totalCount.count),
-      hasMore: totalCount.count > offset + activities.length
-    };
+      ...recentFormularios.map((item: any) => ({
+        ...item,
+        description: `Formulário de ${item.formulario_tipo} criado para ${item.beneficiaria_nome} por ${item.created_by_name || 'Sistema'}`
+      }))
+    ]
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      .slice(0, limit);
+
+    return { activities };
   }
 
-  private getActivityDescription(activity: Activity): string {
-    switch (activity.type) {
-      case 'beneficiaria_created':
-        return `Beneficiária ${(activity as any).nome_completo} foi cadastrada por ${(activity as any).created_by_name || 'Sistema'}`;
-      case 'formulario_created':
-        return `Formulário criado para ${(activity as any).beneficiaria_nome} por ${(activity as any).created_by_name || 'Sistema'}`;
-      default:
-        return 'Atividade não especificada';
-    }
+  async getTasks() {
+    const tarefasStats = await this.repository.getTarefasStats();
+
+    return tarefasStats.map((stat: any, index: number) => {
+      const totalPendentes = Number(stat.pendentes ?? 0);
+      const totalTarefas = Number(stat.total_tarefas ?? 0);
+      const totalConcluidas = Number(stat.concluidas ?? 0);
+      const mediaDiasConclusao =
+        stat.media_dias_conclusao !== null && stat.media_dias_conclusao !== undefined
+          ? Number(stat.media_dias_conclusao)
+          : null;
+      const taxaConclusao =
+        stat.taxa_conclusao !== null && stat.taxa_conclusao !== undefined
+          ? Number(stat.taxa_conclusao)
+          : null;
+
+      const priority = totalPendentes >= 10
+        ? 'Alta'
+        : totalPendentes >= 5
+          ? 'Média'
+          : 'Baixa';
+
+      const due = totalPendentes > 0
+        ? `Em aberto (${totalPendentes} pendente${totalPendentes === 1 ? '' : 's'})`
+        : 'Nenhuma pendência';
+
+      return {
+        id: stat.responsavel_id ? String(stat.responsavel_id) : `responsavel-${index}`,
+        title: stat.responsavel_nome
+          ? `Pendências de ${stat.responsavel_nome}`
+          : 'Pendências sem responsável',
+        due,
+        priority,
+        meta: {
+          total: totalTarefas,
+          pendentes: totalPendentes,
+          concluidas: totalConcluidas,
+          mediaDiasConclusao,
+          taxaConclusao
+        }
+      };
+    });
   }
 
-  async getNotifications(userId: number, unreadOnly: boolean = false, limit?: number): Promise<any[]> {
+  async getNotifications(userId: number, unreadOnly: boolean = false, limit?: number) {
     let query = `
-      SELECT * FROM notifications 
+      SELECT * FROM notifications
       WHERE user_id = $1
     `;
-    const params: any[] = [userId];
+    const params: Array<string | number> = [userId];
 
     if (unreadOnly) {
       query += ' AND read_at IS NULL';
     }
 
     query += ' ORDER BY created_at DESC';
-    
+
     if (limit) {
       params.push(limit);
-      query += ' LIMIT $2';
+      query += ` LIMIT $${params.length}`;
     }
 
     return db.query(query, params);
   }
 
-  async markNotificationAsRead(notificationId: number, userId: number): Promise<boolean> {
-    const result = await db.query(`
-      UPDATE notifications 
-      SET read_at = NOW() 
-      WHERE id = $1 AND user_id = $2
-      RETURNING id
-    `, [notificationId, userId]);
+  async markNotificationAsRead(notificationId: number, userId: number) {
+    const result = await db.query(
+      `UPDATE notifications SET read_at = NOW() WHERE id = $1 AND user_id = $2 RETURNING id`,
+      [notificationId, userId]
+    );
 
     return result.length > 0;
   }
 
-  async markAllNotificationsAsRead(userId: number): Promise<void> {
-    await db.query(`
-      UPDATE notifications 
-      SET read_at = NOW() 
-      WHERE user_id = $1 AND read_at IS NULL
-    `, [userId]);
+  async markAllNotificationsAsRead(userId: number) {
+    await db.query(
+      'UPDATE notifications SET read_at = NOW() WHERE user_id = $1 AND read_at IS NULL',
+      [userId]
+    );
   }
 
-  async getQuickAccessLinks(userRole: string): Promise<any[]> {
+  async getQuickAccessLinks(userRole: string) {
     const cacheKey = `quick-access:${userRole}`;
-    
-    // Tentar buscar do cache
-    const cachedLinks = await redis.get(cacheKey);
+
+    const cachedLinks = await redisClient.get(cacheKey);
     if (cachedLinks) {
       return JSON.parse(cachedLinks);
     }
 
     const links = this.generateQuickAccessLinks(userRole);
-    
-    // Salvar no cache
-    await redis.setex(cacheKey, CACHE_TTL, JSON.stringify(links));
+
+    await redisClient.setex(cacheKey, CACHE_TTL, JSON.stringify(links));
 
     return links;
   }
 
-  private generateQuickAccessLinks(userRole: string): any[] {
+  private generateQuickAccessLinks(userRole: string) {
     switch (userRole) {
       case 'admin':
         return [
