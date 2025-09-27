@@ -4,8 +4,66 @@ import { pool } from '../config/database';
 import { successResponse, errorResponse } from '../utils/responseFormatter';
 import { validateRequest } from '../middleware/validationMiddleware';
 import { z } from 'zod';
+import { loggerService } from '../services/logger';
 
 const router = Router();
+
+const pushSubscriptionSchema = z.object({
+  body: z.object({
+    endpoint: z.string().url('Endpoint inválido'),
+    expirationTime: z.union([z.number().nonnegative(), z.null()]).optional(),
+    keys: z.object({
+      p256dh: z.string().min(1, 'Chave p256dh é obrigatória'),
+      auth: z.string().min(1, 'Chave auth é obrigatória'),
+    }),
+  }).strict(),
+  params: z.any().optional(),
+  query: z.any().optional(),
+});
+
+router.post(
+  '/push-subscription',
+  authenticateToken,
+  validateRequest(pushSubscriptionSchema),
+  async (req: AuthenticatedRequest, res): Promise<void> => {
+    try {
+      const userId = Number(req.user!.id);
+      const { endpoint, expirationTime, keys } = req.body as {
+        endpoint: string;
+        expirationTime?: number | null;
+        keys: { p256dh: string; auth: string };
+      };
+
+      const expirationDate = typeof expirationTime === 'number' ? new Date(expirationTime) : null;
+
+      const result = await pool.query(
+        `INSERT INTO push_subscriptions (user_id, endpoint, expiration_time, p256dh, auth)
+         VALUES ($1, $2, $3, $4, $5)
+         ON CONFLICT (user_id) DO UPDATE SET
+           endpoint = EXCLUDED.endpoint,
+           expiration_time = EXCLUDED.expiration_time,
+           p256dh = EXCLUDED.p256dh,
+           auth = EXCLUDED.auth,
+           updated_at = NOW()
+         RETURNING *`,
+        [userId, endpoint, expirationDate, keys.p256dh, keys.auth]
+      );
+
+      if (result.rowCount === 0) {
+        throw new Error('Falha ao salvar inscrição de notificações push');
+      }
+
+      loggerService.info('Push subscription salva/atualizada', { userId, endpoint });
+
+      res.json(successResponse(result.rows[0]));
+      return;
+    } catch (error) {
+      loggerService.error('Erro ao salvar inscrição de push notification', error);
+      res.status(500).json(errorResponse('Erro ao salvar inscrição de notificações push'));
+      return;
+    }
+  }
+);
 
 // GET /notifications
 router.get('/', authenticateToken, async (req: AuthenticatedRequest, res): Promise<void> => {
