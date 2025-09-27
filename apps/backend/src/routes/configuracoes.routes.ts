@@ -25,7 +25,10 @@ interface ConfiguracoesResposta extends ConfiguracoesPersistidas {
   atualizadoEm: string | null;
 }
 
-type AtualizacaoConfiguracoes = Partial<ConfiguracoesPersistidas> & {
+type AtualizacaoConfiguracoes = {
+  tema?: ConfiguracoesPersistidas['tema'];
+  idioma?: ConfiguracoesPersistidas['idioma'];
+  fusoHorario?: ConfiguracoesPersistidas['fusoHorario'];
   notificacoes?: Partial<ConfiguracoesPersistidas['notificacoes']>;
   organizacao?: Partial<ConfiguracoesPersistidas['organizacao']>;
 };
