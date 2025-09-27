@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, Plus, Filter, MoreHorizontal, Edit, Eye, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -23,34 +23,9 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ListSkeleton } from "@/components/ui/list-skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import usePersistedFilters from "@/hooks/usePersistedFilters";
-import { apiService } from "@/services/apiService";
-
-// Tipo local simplificado baseado no banco real
-interface Beneficiaria {
-  id: number;
-  nome_completo: string;
-  cpf: string;
-  data_nascimento: string;
-  telefone?: string;
-  contato1?: string;
-  email?: string;
-  endereco?: string;
-  cidade?: string;
-  estado?: string;
-  cep?: string;
-  escolaridade?: string;
-  profissao?: string;
-  estado_civil?: string;
-  tem_filhos?: boolean;
-  quantidade_filhos?: number;
-  renda_familiar?: number;
-  situacao_vulnerabilidade?: string;
-  observacoes?: string;
-  status?: string;
-  data_criacao: string;
-  data_atualizacao: string;
-  ativo: boolean;
-}
+import useBeneficiarias from "@/hooks/useBeneficiarias";
+import { getBeneficiariaStatus, useBeneficiariasStats } from "@/hooks/useBeneficiariasStats";
+import type { Beneficiaria } from "@/types/shared";
 
 export default function Beneficiarias() {
   const navigate = useNavigate();
@@ -63,73 +38,13 @@ export default function Beneficiarias() {
   const selectedStatus = filterState.status as string;
   const programaFilter = filterState.programa as string;
   const currentPage = Number(filterState.page || 1);
-  const [itemsPerPage] = useState(10);
-  const [beneficiarias, setBeneficiarias] = useState<Beneficiaria[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({
-    total: 0,
-    ativas: 0,
-    aguardando: 0,
-    inativas: 0
-  });
-
-  // Função para obter status da beneficiária baseado nos dados reais
-  const getBeneficiariaStatus = (beneficiaria: Beneficiaria) => {
-    // Usar status do banco ou calcular baseado no campo ativo
-    if (beneficiaria.status) {
-      return beneficiaria.status === 'ativa' ? 'Ativa' : 
-             beneficiaria.status === 'inativa' ? 'Inativa' : 'Aguardando';
-    }
-    
-    // Fallback: usar campo ativo
-    return beneficiaria.ativo ? 'Ativa' : 'Inativa';
-  };
-
-  useEffect(() => {
-    loadBeneficiarias();
-  }, []);
-
-  const loadBeneficiarias = async () => {
-    try {
-      setLoading(true);
-      
-      // Usar apiService consistente
-      const response = await apiService.getBeneficiarias();
-      console.log('Resposta API beneficiárias:', response);
-      
-      if (response.success && response.data) {
-        const data = response.data;
-        setBeneficiarias(data);
-        // Prefetch: carregar detalhes do primeiro item
-        if (Array.isArray(data) && data.length > 0) {
-          void apiService.getBeneficiaria(data[0].id);
-        }
-        
-        // Calculate stats com status real do banco
-        const total = data.length;
-        const ativas = data.filter(b => getBeneficiariaStatus(b) === 'Ativa').length;
-        const inativas = data.filter(b => getBeneficiariaStatus(b) === 'Inativa').length;
-        const aguardando = data.filter(b => getBeneficiariaStatus(b) === 'Aguardando').length;
-        
-        setStats({
-          total,
-          ativas,
-          aguardando,
-          inativas
-        });
-      } else {
-        console.error('Erro na resposta:', response);
-        setBeneficiarias([]);
-        setStats({ total: 0, ativas: 0, aguardando: 0, inativas: 0 });
-      }
-    } catch (error) {
-      console.error('Erro ao carregar beneficiárias:', error);
-      setBeneficiarias([]);
-      setStats({ total: 0, ativas: 0, aguardando: 0, inativas: 0 });
-    } finally {
-      setLoading(false);
-    }
-  };
+  const itemsPerPage = 10;
+  const { data, isLoading, error, refetch } = useBeneficiarias();
+  const beneficiarias = useMemo<Beneficiaria[]>(() => {
+    return Array.isArray(data) ? (data as Beneficiaria[]) : [];
+  }, [data]);
+  const stats = useBeneficiariasStats(beneficiarias);
+  const errorMessage = error instanceof Error ? error.message : 'Tente novamente mais tarde.';
 
   const filteredBeneficiarias = beneficiarias.filter(beneficiaria => {
     const matchesSearch = beneficiaria.nome_completo.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -183,9 +98,10 @@ export default function Beneficiarias() {
 
   const generatePaedi = (beneficiaria: Beneficiaria) => {
     try {
-      const dataCadastro = (beneficiaria as any).data_cadastro
-        ? new Date((beneficiaria as any).data_cadastro)
-        : (beneficiaria.data_criacao ? new Date(beneficiaria.data_criacao) : new Date());
+      const rawDate = (beneficiaria as any).data_cadastro
+        ?? (beneficiaria as any).data_criacao
+        ?? beneficiaria.created_at;
+      const dataCadastro = rawDate ? new Date(rawDate) : new Date();
       const year = isNaN(dataCadastro.getTime()) ? new Date().getFullYear() : dataCadastro.getFullYear();
       const sequence = beneficiaria.id.toString().padStart(3, '0').slice(-3);
       return `MM-${year}-${sequence}`;
@@ -216,25 +132,25 @@ export default function Beneficiarias() {
       <div className="grid gap-4 md:grid-cols-4">
         <Card className="shadow-soft">
           <CardContent className="p-4">
-            <div className="text-2xl font-bold text-primary">{loading ? "..." : stats.total}</div>
+            <div className="text-2xl font-bold text-primary">{isLoading ? "..." : stats.total}</div>
             <p className="text-sm text-muted-foreground">Total de Beneficiárias</p>
           </CardContent>
         </Card>
         <Card className="shadow-soft">
           <CardContent className="p-4">
-            <div className="text-2xl font-bold text-success">{loading ? "..." : stats.ativas}</div>
+            <div className="text-2xl font-bold text-success">{isLoading ? "..." : stats.ativas}</div>
             <p className="text-sm text-muted-foreground">Ativas</p>
           </CardContent>
         </Card>
         <Card className="shadow-soft">
           <CardContent className="p-4">
-            <div className="text-2xl font-bold text-warning">{loading ? "..." : stats.aguardando}</div>
+            <div className="text-2xl font-bold text-warning">{isLoading ? "..." : stats.aguardando}</div>
             <p className="text-sm text-muted-foreground">Aguardando</p>
           </CardContent>
         </Card>
         <Card className="shadow-soft">
           <CardContent className="p-4">
-            <div className="text-2xl font-bold text-muted-foreground">{loading ? "..." : stats.inativas}</div>
+            <div className="text-2xl font-bold text-muted-foreground">{isLoading ? "..." : stats.inativas}</div>
             <p className="text-sm text-muted-foreground">Inativas</p>
           </CardContent>
         </Card>
@@ -344,10 +260,21 @@ export default function Beneficiarias() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {loading ? (
+                {isLoading ? (
                   <TableRow>
                     <TableCell colSpan={7} className="py-4">
                       <ListSkeleton rows={6} columns={6} />
+                    </TableCell>
+                  </TableRow>
+                ) : error ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="py-8">
+                      <EmptyState
+                        title="Erro ao carregar beneficiárias"
+                        description={errorMessage}
+                        actionLabel="Tentar novamente"
+                        onAction={() => void refetch()}
+                      />
                     </TableCell>
                   </TableRow>
                 ) : filteredBeneficiarias.length === 0 ? (
