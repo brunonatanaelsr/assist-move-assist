@@ -82,11 +82,11 @@ export interface AuthenticatedSessionUser {
 
 export interface AuthResponse {
   token: string;
-  refreshToken?: string;
+  refreshToken: string;
   user: AuthenticatedSessionUser;
 }
 
-export interface RefreshSessionResponse extends AuthResponse {
+export interface RefreshSessionResponse extends Omit<AuthResponse, 'refreshToken'> {
   token: string;
   refreshToken?: string;
 }

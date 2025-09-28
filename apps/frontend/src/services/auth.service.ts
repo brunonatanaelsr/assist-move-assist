@@ -3,8 +3,7 @@ import axios from 'axios';
 
 export interface AuthResponse {
   token: string;
-  accessToken?: string;
-  refreshToken?: string;
+  refreshToken: string;
   user: {
     id: number;
     email: string;
