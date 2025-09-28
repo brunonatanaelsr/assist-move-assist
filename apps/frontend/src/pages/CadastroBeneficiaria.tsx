@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,174 +8,38 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ArrowLeft, Save, UserPlus, Loader2 } from 'lucide-react';
-import { apiService } from '@/services/apiService';
-import { useAuth } from '@/hooks/useAuth';
-import type { Beneficiaria } from '@/types/shared';
 import { MaskedInput } from '@/components/form/MaskedInput';
-import { useBeneficiariaValidation } from '@/hooks/useFormValidation';
-import { translateErrorMessage } from '@/lib/apiError';
-import useCEP from '@/hooks/useCEP';
+import { useBeneficiariaForm } from '@/hooks/useBeneficiariaForm';
 
 export default function CadastroBeneficiaria() {
   const navigate = useNavigate();
-  const { profile } = useAuth();
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string | undefined>>({});
-  const [success, setSuccess] = useState(false);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
-
-  // Form state
-  const [formData, setFormData] = useState({
-    nome_completo: '',
-    cpf: '',
-    rg: '',
-    orgao_emissor_rg: '',
-    data_emissao_rg: '',
-    data_nascimento: '',
-    endereco: '',
-    bairro: '',
-    cep: '',
-    cidade: '',
-    estado: '',
-    nis: '',
-    contato1: '',
-    contato2: '',
-    referencia: '',
-    data_inicio_instituto: new Date().toISOString().split('T')[0],
-    programa_servico: ''
-  });
-
-  const { validateField, validateForm, clearFieldError } = useBeneficiariaValidation();
-  const { fetchCEP, loading: loadingCEP, error: cepError } = useCEP();
-
-  const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
-    // Limpa erro do campo ao alterar
-    setFieldErrors(prev => {
-      if (!prev[field]) return prev;
-      const { [field]: _removed, ...rest } = prev;
-      return rest;
-    });
-  };
-
-  const doValidateForm = () => {
-    const { isValid, errors: validationErrors } = validateForm(formData as any);
-    const combinedErrors: { [key: string]: string } = { ...validationErrors };
-
-    if (!formData.contato1?.replace(/\D/g, '')) {
-      combinedErrors.contato1 = 'Telefone é obrigatório';
-    }
-    if (!formData.data_nascimento) {
-      combinedErrors.data_nascimento = 'Data de nascimento é obrigatória';
-    }
-
-    setFieldErrors(combinedErrors);
-
-    if (!isValid || Object.keys(combinedErrors).length > 0) {
-      setError('Verifique os campos destacados');
-      return false;
-    }
-
-    setError(null);
-    return true;
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!doValidateForm()) {
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-    setSuccess(false);
-    setSuccessMessage(null);
-
-    try {
-      const cleanData: any = {
-        // Backend expects telefone/endereco fields
-        nome_completo: formData.nome_completo,
-        cpf: formData.cpf.replace(/\D/g, ''),
-        rg: formData.rg || undefined,
-        orgao_emissor_rg: formData.orgao_emissor_rg || undefined,
-        data_emissao_rg: formData.data_emissao_rg || null,
-        data_nascimento: formData.data_nascimento,
-        endereco: formData.endereco || undefined,
-        telefone: formData.contato1.replace(/\D/g, ''),
-        contato2: formData.contato2 ? formData.contato2.replace(/\D/g, '') : null,
-        bairro: formData.bairro || undefined,
-        nis: formData.nis || null,
-        referencia: formData.referencia || null,
-        programa_servico: formData.programa_servico || null,
-      };
-
-      const response = await apiService.createBeneficiaria(cleanData);
-
-      if (!response || typeof response.success !== 'boolean') {
-        throw new Error('Resposta inválida do servidor');
-      }
-
-      if (!response.success) {
-        const friendly = translateErrorMessage(response.message || (response as any)?.error);
-        setError(`Erro ao cadastrar beneficiária: ${friendly}`);
-        return;
-      }
-
-      const friendlySuccess = response.message && response.message !== 'Operação realizada com sucesso'
-        ? response.message
-        : 'Beneficiária cadastrada com sucesso! Redirecionando...';
-
-      setError(null);
-      setSuccess(true);
-      setSuccessMessage(friendlySuccess);
-      setTimeout(() => {
+  const redirectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const {
+    formData,
+    fieldErrors,
+    error,
+    success,
+    successMessage,
+    loading,
+    loadingCEP,
+    cepError,
+    handleInputChange,
+    onBlurValidate,
+    handleSubmit,
+    handleCepBlur,
+  } = useBeneficiariaForm({
+    onSuccess: () => {
+      redirectTimeoutRef.current = setTimeout(() => {
         navigate('/beneficiarias');
       }, 2000);
+    },
+  });
 
-    } catch (error: any) {
-      console.error('Erro ao cadastrar beneficiária:', error);
-      const apiMessage = error?.response?.data?.message || error?.response?.data?.error || error?.message;
-      const friendly = translateErrorMessage(apiMessage);
-      setSuccess(false);
-      setSuccessMessage(null);
-      setError(`Erro ao cadastrar beneficiária: ${friendly}`);
-    } finally {
-      setLoading(false);
+  useEffect(() => () => {
+    if (redirectTimeoutRef.current) {
+      clearTimeout(redirectTimeoutRef.current);
     }
-  };
-
-  const onBlurValidate = (field: string, value: string) => {
-    const msg = validateField(field, value);
-    setFieldErrors((prev) => {
-      const next = { ...prev };
-      if (msg) {
-        next[field] = msg;
-      } else {
-        delete next[field];
-      }
-      return next;
-    });
-    if (!msg) clearFieldError(field);
-  };
-
-  // CEP autocomplete
-  const handleCepBlur = async () => {
-    const data = await fetchCEP(formData.cep);
-    if (data) {
-      setFormData(prev => ({
-        ...prev,
-        endereco: data.logradouro || prev.endereco,
-        bairro: data.bairro || prev.bairro,
-        cidade: data.localidade || prev.cidade,
-        estado: data.uf || prev.estado,
-      }));
-    }
-  };
+  }, []);
 
   // Atalhos de teclado: salvar (Ctrl/Cmd+S), cancelar (Esc)
   const onKeyDown = (e: React.KeyboardEvent<HTMLFormElement>) => {
@@ -410,8 +274,8 @@ export default function CadastroBeneficiaria() {
                   required
                   aria-invalid={!!fieldErrors.contato1}
                 />
-              {fieldErrors.contato1 && (
-                <p className="text-sm text-destructive">{fieldErrors.contato1}</p>
+              {(fieldErrors.contato1 || fieldErrors.telefone) && (
+                <p className="text-sm text-destructive">{fieldErrors.contato1 ?? fieldErrors.telefone}</p>
               )}
               </div>
               <div className="space-y-2">
