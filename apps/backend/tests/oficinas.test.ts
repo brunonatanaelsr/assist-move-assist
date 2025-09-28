@@ -42,18 +42,21 @@ describe('Oficinas API Tests', () => {
           .set('Authorization', `Bearer ${authToken}`)
       )
     ).send(oficina);
-    
+
     expect(res.status).toBe(201);
-    expect(res.body).toHaveProperty('id');
+    expect(res.body.success).toBe(true);
+    expect(res.body.data).toHaveProperty('id');
   });
 
   it('should list oficinas', async () => {
     const res = await request(app)
       .get('/api/oficinas')
       .set('Authorization', `Bearer ${authToken}`);
-    
+
     expect(res.status).toBe(200);
-    expect(Array.isArray(res.body)).toBe(true);
+    expect(res.body.success).toBe(true);
+    const items = res.body.data?.items ?? res.body.data?.data ?? res.body.data;
+    expect(Array.isArray(items)).toBe(true);
   });
 
   it('should require auth for oficinas endpoints', async () => {

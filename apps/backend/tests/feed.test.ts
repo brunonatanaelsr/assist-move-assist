@@ -44,29 +44,33 @@ describe('Feed Posts API Tests', () => {
           .set('Authorization', `Bearer ${authToken}`)
       )
     ).send(post);
-    
+
     expect(res.status).toBe(201);
-    expect(res.body).toHaveProperty('id');
-    postId = res.body.id;
+    expect(res.body.success).toBe(true);
+    expect(res.body.data).toHaveProperty('id');
+    postId = res.body.data.id;
   });
 
   it('should list feed posts', async () => {
     const res = await request(app)
       .get('/api/feed')
       .set('Authorization', `Bearer ${authToken}`);
-    
+
     expect(res.status).toBe(200);
-    expect(Array.isArray(res.body)).toBe(true);
+    expect(res.body.success).toBe(true);
+    const items = res.body.data?.items ?? res.body.data?.data ?? res.body.data;
+    expect(Array.isArray(items)).toBe(true);
   });
 
   it('should get feed post by id', async () => {
     const res = await request(app)
       .get(`/api/feed/${postId}`)
       .set('Authorization', `Bearer ${authToken}`);
-    
+
     expect(res.status).toBe(200);
-    expect(res.body).toHaveProperty('id', postId);
-    expect(res.body.titulo).toBe('Post de Teste');
+    expect(res.body.success).toBe(true);
+    expect(res.body.data).toHaveProperty('id', postId);
+    expect(res.body.data.titulo).toBe('Post de Teste');
   });
 
   it('should update feed post', async () => {
@@ -78,13 +82,14 @@ describe('Feed Posts API Tests', () => {
       await withCsrf(
         app,
         request(app)
-          .patch(`/api/feed/${postId}`)
+          .put(`/api/feed/${postId}`)
           .set('Authorization', `Bearer ${authToken}`)
       )
     ).send(update);
-    
+
     expect(res.status).toBe(200);
-    expect(res.body.titulo).toBe(update.titulo);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.titulo).toBe(update.titulo);
   });
 
   it('should filter feed posts by type', async () => {
@@ -92,10 +97,12 @@ describe('Feed Posts API Tests', () => {
       .get('/api/feed')
       .query({ tipo: 'NOTICIA' })
       .set('Authorization', `Bearer ${authToken}`);
-    
+
     expect(res.status).toBe(200);
-    expect(Array.isArray(res.body)).toBe(true);
-    expect(res.body.every((post: any) => post.tipo === 'NOTICIA')).toBe(true);
+    expect(res.body.success).toBe(true);
+    const items = res.body.data?.items ?? res.body.data?.data ?? res.body.data;
+    expect(Array.isArray(items)).toBe(true);
+    expect(items.every((post: any) => post.tipo === 'NOTICIA')).toBe(true);
   });
 
   it('should require auth for feed posts endpoints', async () => {
