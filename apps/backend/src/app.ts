@@ -6,6 +6,7 @@ import compression from 'compression';
 import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
 import { createServer } from 'http';
+import cookieParser from 'cookie-parser';
 
 import apiRoutes from './routes/api';
 // WebSocket opcional em runtime
@@ -80,6 +81,7 @@ if (!rateLimitDisabled) {
 app.use(morgan('combined', { stream: { write: (message) => logger.info(message.trim()) } }));
 
 // Body parsing
+app.use(cookieParser());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
