@@ -6,6 +6,7 @@ import compression from 'compression';
 import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
 import { createServer } from 'http';
+import cookieParser from 'cookie-parser';
 
 import apiRoutes from './routes/api';
 // WebSocket opcional em runtime
@@ -15,6 +16,7 @@ import { errorHandler } from './middleware/errorHandler';
 import { logger } from './services/logger';
 import { pool } from './config/database';
 import { env } from './config/env';
+import { csrfMiddleware } from './middleware/csrf';
 
 const app: Express = express();
 const server = createServer(app);
@@ -56,7 +58,7 @@ const corsOptions = {
   origin: corsOriginOption,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token'],
 };
 app.use(cors(corsOptions));
 
@@ -79,8 +81,16 @@ if (!rateLimitDisabled) {
 app.use(morgan('combined', { stream: { write: (message) => logger.info(message.trim()) } }));
 
 // Body parsing
+app.use(cookieParser());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// CSRF protection (disabled only during automated tests)
+if (env.NODE_ENV !== 'test') {
+  app.use(csrfMiddleware);
+} else {
+  logger.info('CSRF middleware desativado no ambiente de teste');
+}
 
 // Removido: exposição direta de uploads
 // Os arquivos agora são servidos por rotas autenticadas (ex.: /api/feed/images/:filename)
