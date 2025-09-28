@@ -52,11 +52,19 @@ const corsOriginOption = (() => {
   return true;
 })();
 
+const defaultAllowedHeaders: string[] = ['Content-Type', 'Authorization', 'X-Requested-With', 'X-CSRF-Token'];
+const additionalAllowedHeaders = env.CORS_ALLOWED_HEADERS
+  ?.split(',')
+  .map((header) => header.trim())
+  .filter((header) => header.length > 0);
+
+const allowedHeaders = Array.from(new Set([...(defaultAllowedHeaders || []), ...(additionalAllowedHeaders || [])]));
+
 const corsOptions = {
   origin: corsOriginOption,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders,
 };
 app.use(cors(corsOptions));
 
