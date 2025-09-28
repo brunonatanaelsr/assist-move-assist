@@ -82,16 +82,7 @@ export class AuthService {
   }
 
   async logout(): Promise<void> {
-    const tokenKeys = new Set([
-      AUTH_TOKEN_KEY,
-      'auth_token',
-      'token'
-    ]);
-    const userKeys = new Set([
-      USER_KEY,
-      'user'
-    ]);
-
+    const tokenKeys = new Set([AUTH_TOKEN_KEY, 'auth_token', 'token']);
     try {
       const deviceId = this.getDeviceId();
       await api.post(
@@ -103,7 +94,7 @@ export class AuthService {
       console.error('Erro ao fazer logout:', error);
     } finally {
       tokenKeys.forEach((key) => localStorage.removeItem(key));
-      userKeys.forEach((key) => localStorage.removeItem(key));
+      localStorage.removeItem(USER_KEY);
     }
   }
 
