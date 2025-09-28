@@ -30,20 +30,16 @@ describe('Beneficiarias API Tests', () => {
 
   it('should create new beneficiaria', async () => {
     const beneficiaria = {
-      nome: 'Maria Teste',
+      nome_completo: 'Maria Teste',
       email: 'maria.teste@email.com',
-      cpf: '12345678901',
+      cpf: '12345678909',
       data_nascimento: '1990-01-01',
       telefone: '11999999999',
-      endereco: {
-        logradouro: 'Rua Teste',
-        numero: '123',
-        complemento: 'Apto 1',
-        bairro: 'Centro',
-        cidade: 'São Paulo',
-        estado: 'SP',
-        cep: '01234567'
-      }
+      endereco: 'Rua Teste, 123',
+      bairro: 'Centro',
+      cidade: 'São Paulo',
+      estado: 'SP',
+      cep: '01234567'
     };
 
     const res = await (
@@ -69,7 +65,7 @@ describe('Beneficiarias API Tests', () => {
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
     expect(res.body.data).toHaveProperty('id', beneficiariaId);
-    expect(res.body.data.nome).toBe('Maria Teste');
+    expect(res.body.data.nome_completo).toBe('Maria Teste');
   });
 
   it('should list beneficiarias', async () => {
