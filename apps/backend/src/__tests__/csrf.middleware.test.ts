@@ -6,9 +6,13 @@ import { csrfMiddleware } from '../middleware/csrf';
 
 function setupTestApp() {
   const app = express();
-  app.use(cookieParser());
+  app.use(cookieParser('test-secret'));
   app.use(express.json());
-  app.post('/protected', csrfMiddleware, (_req, res) => {
+  app.use(csrfMiddleware);
+  app.get('/api/csrf-token', (_req, res) => {
+    res.status(200).json({ csrfToken: res.locals.csrfToken });
+  });
+  app.post('/protected', (_req, res) => {
     res.status(200).json({ ok: true });
   });
   return app;
@@ -37,10 +41,10 @@ describe('csrfMiddleware integration', () => {
     expect(response.body).toEqual({ error: 'CSRF token inválido' });
   });
 
-  it('should allow requests with a valid CSRF token', async () => {
-    const token = 'valid-token';
-
+  it('should allow requests with an unsigned legacy CSRF token', async () => {
+    const token = 'legacy-token';
     const app = setupTestApp();
+
     const response = await request(app)
       .post('/protected')
       .set('Cookie', `csrf_token=${token}`)
@@ -49,5 +53,36 @@ describe('csrfMiddleware integration', () => {
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual({ ok: true });
+  });
+
+  it('should expose a signed CSRF token via GET /api/csrf-token', async () => {
+    const app = setupTestApp();
+
+    const response = await request(app).get('/api/csrf-token');
+
+    expect(response.status).toBe(200);
+    expect(typeof response.body.csrfToken).toBe('string');
+    expect(response.body.csrfToken).toHaveLength(32);
+
+    const cookies = response.headers['set-cookie'] as string[] | undefined;
+    expect((cookies?.some((cookie) => cookie.startsWith('csrf_token='))) ?? false).toBe(true);
+    expect((cookies?.some((cookie) => cookie.includes('csrf_token=s%3A'))) ?? false).toBe(true);
+  });
+
+  it('should accept POST requests when cookie and header tokens match', async () => {
+    const app = setupTestApp();
+
+    const tokenResponse = await request(app).get('/api/csrf-token');
+    const cookies = tokenResponse.headers['set-cookie'] as string[] | undefined;
+    const cookieHeader = cookies?.[0]?.split(';')[0] ?? '';
+
+    const postResponse = await request(app)
+      .post('/protected')
+      .set('Cookie', cookieHeader)
+      .set('X-CSRF-Token', tokenResponse.body.csrfToken)
+      .send({ value: 'test' });
+
+    expect(postResponse.status).toBe(200);
+    expect(postResponse.body).toEqual({ ok: true });
   });
 });
