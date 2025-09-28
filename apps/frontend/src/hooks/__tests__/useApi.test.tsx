@@ -52,10 +52,9 @@ describe('useApi hooks', () => {
     const pagination = { page: 2, limit: 20, total: 40, totalPages: 2 };
     (apiService.getBeneficiarias as any).mockResolvedValueOnce({
       success: true,
-      data: {
-        data: [{ id: 1 }],
-        pagination,
-      },
+      data: [{ id: 1 }],
+      pagination,
+      total: pagination.total,
     });
 
     const params = { page: 2, limit: 20 };
@@ -67,7 +66,9 @@ describe('useApi hooks', () => {
     });
 
     expect(apiService.getBeneficiarias).toHaveBeenCalledWith(params);
-    expect(result.current.data).toEqual({ data: [{ id: 1 }], pagination });
+    expect(result.current.data?.data).toEqual([{ id: 1 }]);
+    expect(result.current.data?.pagination).toEqual(pagination);
+    expect(result.current.data?.pagination?.total).toBe(pagination.total);
   });
 
   it('deve retornar array de dados e sem paginação quando a resposta for simples', async () => {
@@ -84,7 +85,9 @@ describe('useApi hooks', () => {
     });
 
     expect(apiService.getBeneficiarias).toHaveBeenCalledWith(undefined);
-    expect(result.current.data).toEqual({ data: [{ id: 1 }, { id: 2 }], pagination: undefined });
+    expect(result.current.data?.data).toEqual([{ id: 1 }, { id: 2 }]);
+    expect(result.current.data?.pagination).toBeUndefined();
+    expect(result.current.data?.total).toBeUndefined();
   });
 
   it('deve enviar o filtro correto ao buscar participações', async () => {

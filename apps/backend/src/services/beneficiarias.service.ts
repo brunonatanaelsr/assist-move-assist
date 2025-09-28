@@ -19,11 +19,12 @@ interface ListBeneficiariasParams {
   page?: number;
   limit?: number;
   filtros?: {
-    status?: 'ativa' | 'inativa' | 'em_acompanhamento';
+    status?: 'ativa' | 'inativa' | 'em_acompanhamento' | 'pendente' | 'desistente';
     medida_protetiva?: boolean;
     tipo_violencia?: string[];
     data_inicio?: Date;
     data_fim?: Date;
+    search?: string;
   };
 }
 

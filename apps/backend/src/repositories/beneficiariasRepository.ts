@@ -272,11 +272,12 @@ export class BeneficiariasRepository extends PostgresBaseRepository<Beneficiaria
     page: number = 1,
     limit: number = 10,
     filtros?: {
-      status?: 'ativa' | 'inativa' | 'em_acompanhamento';
+      status?: 'ativa' | 'inativa' | 'em_acompanhamento' | 'pendente' | 'desistente';
       medida_protetiva?: boolean;
       tipo_violencia?: string[];
       data_inicio?: Date;
       data_fim?: Date;
+      search?: string;
     }
   ) {
     const whereConditions = ['deleted_at IS NULL'];
@@ -313,6 +314,18 @@ export class BeneficiariasRepository extends PostgresBaseRepository<Beneficiaria
       paramCount++;
     }
 
+    const searchTerm = filtros?.search?.trim();
+    if (searchTerm) {
+      const likeParam = `%${searchTerm}%`;
+      whereConditions.push(`(
+        nome_completo ILIKE $${paramCount}
+        OR cpf::text ILIKE $${paramCount}
+        OR email ILIKE $${paramCount}
+      )`);
+      params.push(likeParam);
+      paramCount++;
+    }
+
     const whereClause = whereConditions.length
       ? `WHERE ${whereConditions.join(' AND ')}`
       : '';
@@ -331,10 +344,12 @@ export class BeneficiariasRepository extends PostgresBaseRepository<Beneficiaria
       )
     ]);
 
+    const totalCount = parseInt(total.rows[0].count, 10);
+
     return {
       data: beneficiarias.rows,
-      total: parseInt(total.rows[0].count),
-      pages: Math.ceil(parseInt(total.rows[0].count) / limit)
+      total: totalCount,
+      pages: Math.ceil(totalCount / limit)
     };
   }
 

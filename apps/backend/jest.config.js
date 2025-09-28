@@ -9,9 +9,7 @@ module.exports = {
   testPathIgnorePatterns: [
     '<rootDir>/src/__tests__/integration/',
     '<rootDir>/tests/',
-    '<rootDir>/src/controllers/__tests__/',
     '<rootDir>/src/repositories/__tests__/',
-    '<rootDir>/src/services/__tests__/',
     '<rootDir>/src/__tests__/helpers/',
     '<rootDir>/src/__tests__/repositories/',
     '<rootDir>/src/routes/__tests__/feed.routes.test.ts',
