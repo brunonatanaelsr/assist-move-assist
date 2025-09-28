@@ -85,8 +85,8 @@ export class AuthService {
   }
 
   async logout(): Promise<void> {
-    const tokenKeys = new Set([...LEGACY_TOKEN_KEYS, AUTH_TOKEN_KEY]);
-    const userKeys = new Set([...LEGACY_USER_KEYS, USER_KEY]);
+    const tokenKeys = new Set([AUTH_TOKEN_KEY, ...LEGACY_TOKEN_KEYS]);
+    const userKeys = new Set([USER_KEY, ...LEGACY_USER_KEYS]);
 
     try {
       const deviceId = this.getDeviceId();
