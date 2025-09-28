@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, Plus, Filter, MoreHorizontal, Edit, Eye, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -22,178 +22,132 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ListSkeleton } from "@/components/ui/list-skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import usePersistedFilters from "@/hooks/usePersistedFilters";
-import { apiService } from "@/services/apiService";
+import { useBeneficiarias } from "@/hooks/useBeneficiarias";
+import type { Beneficiaria } from "@/types/shared";
+import {
+  buildBeneficiariasStats,
+  deriveBeneficiariaStatus,
+  filterBeneficiarias,
+  formatBeneficiariaDate,
+  formatCpf,
+  generatePaedi,
+  getBeneficiariaBadgeVariant,
+  getBeneficiariaInitials,
+  normalizeBeneficiariaSearch,
+  toStatusFilterValue,
+} from "@/utils/beneficiarias";
 
-// Tipo local simplificado baseado no banco real
-interface Beneficiaria {
-  id: number;
-  nome_completo: string;
-  cpf: string;
-  data_nascimento: string;
-  telefone?: string;
-  contato1?: string;
-  email?: string;
-  endereco?: string;
-  cidade?: string;
-  estado?: string;
-  cep?: string;
-  escolaridade?: string;
-  profissao?: string;
-  estado_civil?: string;
-  tem_filhos?: boolean;
-  quantidade_filhos?: number;
-  renda_familiar?: number;
-  situacao_vulnerabilidade?: string;
-  observacoes?: string;
-  status?: string;
-  data_criacao: string;
-  data_atualizacao: string;
-  ativo: boolean;
-}
+const ITEMS_PER_PAGE = 10;
+const STATUS_OPTIONS = ["Todas", "Ativa", "Aguardando", "Inativa", "Desistente"] as const;
+
+type StatusOption = (typeof STATUS_OPTIONS)[number];
+
+type QueryFilters = {
+  search?: string;
+  status?: Beneficiaria['status'];
+  page: number;
+  limit: number;
+};
 
 export default function Beneficiarias() {
   const navigate = useNavigate();
   const [showFilters, setShowFilters] = useState(false);
   const { state: filterState, set: setFilters } = usePersistedFilters({
-    key: 'beneficiarias:filters',
-    initial: { search: '', status: 'Todas', programa: 'Todos', page: 1 },
+    key: "beneficiarias:filters",
+    initial: { search: "", status: "Todas", programa: "Todos", page: 1 },
   });
-  const searchTerm = filterState.search as string;
-  const selectedStatus = filterState.status as string;
-  const programaFilter = filterState.programa as string;
+
+  const searchTerm = (filterState.search as string) ?? "";
+  const selectedStatus = ((filterState.status as StatusOption) ?? "Todas") as StatusOption;
+  const programaFilter = (filterState.programa as string) ?? "Todos";
   const currentPage = Number(filterState.page || 1);
-  const [itemsPerPage] = useState(10);
-  const [beneficiarias, setBeneficiarias] = useState<Beneficiaria[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({
-    total: 0,
-    ativas: 0,
-    aguardando: 0,
-    inativas: 0
-  });
 
-  // Função para obter status da beneficiária baseado nos dados reais
-  const getBeneficiariaStatus = (beneficiaria: Beneficiaria) => {
-    // Usar status do banco ou calcular baseado no campo ativo
-    if (beneficiaria.status) {
-      return beneficiaria.status === 'ativa' ? 'Ativa' : 
-             beneficiaria.status === 'inativa' ? 'Inativa' : 'Aguardando';
-    }
-    
-    // Fallback: usar campo ativo
-    return beneficiaria.ativo ? 'Ativa' : 'Inativa';
-  };
+  const { hasSearch } = useMemo(() => normalizeBeneficiariaSearch(searchTerm), [searchTerm]);
 
-  useEffect(() => {
-    loadBeneficiarias();
-  }, []);
+  const queryFilters = useMemo<QueryFilters>(
+    () => ({
+      search: searchTerm.trim() ? searchTerm.trim() : undefined,
+      status: toStatusFilterValue(selectedStatus) ?? undefined,
+      page: Math.max(currentPage, 1),
+      limit: ITEMS_PER_PAGE,
+    }),
+    [currentPage, searchTerm, selectedStatus]
+  );
 
-  const loadBeneficiarias = async () => {
-    try {
-      setLoading(true);
-      
-      // Usar apiService consistente
-      const response = await apiService.getBeneficiarias();
-      console.log('Resposta API beneficiárias:', response);
-      
-      if (response.success && response.data) {
-        const data = response.data;
-        setBeneficiarias(data);
-        // Prefetch: carregar detalhes do primeiro item
-        if (Array.isArray(data) && data.length > 0) {
-          void apiService.getBeneficiaria(data[0].id);
-        }
-        
-        // Calculate stats com status real do banco
-        const total = data.length;
-        const ativas = data.filter(b => getBeneficiariaStatus(b) === 'Ativa').length;
-        const inativas = data.filter(b => getBeneficiariaStatus(b) === 'Inativa').length;
-        const aguardando = data.filter(b => getBeneficiariaStatus(b) === 'Aguardando').length;
-        
-        setStats({
-          total,
-          ativas,
-          aguardando,
-          inativas
-        });
-      } else {
-        console.error('Erro na resposta:', response);
-        setBeneficiarias([]);
-        setStats({ total: 0, ativas: 0, aguardando: 0, inativas: 0 });
-      }
-    } catch (error) {
-      console.error('Erro ao carregar beneficiárias:', error);
-      setBeneficiarias([]);
-      setStats({ total: 0, ativas: 0, aguardando: 0, inativas: 0 });
-    } finally {
-      setLoading(false);
-    }
-  };
+  const beneficiariasQuery = useBeneficiarias(queryFilters);
+  const beneficiariasResponse = beneficiariasQuery.data;
+  const beneficiariasPayload = beneficiariasResponse?.data;
+  const beneficiarias: Beneficiaria[] = useMemo(
+    () => (beneficiariasPayload?.items ?? []) as Beneficiaria[],
+    [beneficiariasPayload]
+  );
+  const pagination = beneficiariasPayload?.pagination;
 
-  const filteredBeneficiarias = beneficiarias.filter(beneficiaria => {
-    const matchesSearch = beneficiaria.nome_completo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (beneficiaria.cpf && beneficiaria.cpf.includes(searchTerm));
-    
-    const beneficiariaStatus = getBeneficiariaStatus(beneficiaria);
-    const matchesStatus = selectedStatus === "Todas" || selectedStatus === beneficiariaStatus;
-    
-    // Como não temos campo programa_servico, vamos usar sempre true para programaFilter
-    const matchesPrograma = programaFilter === "Todos";
-    
-    return matchesSearch && matchesStatus && matchesPrograma;
-  });
+  const filteredBeneficiarias = useMemo(
+    () =>
+      filterBeneficiarias(beneficiarias, {
+        search: searchTerm,
+        status: selectedStatus,
+        programa: programaFilter,
+      }),
+    [beneficiarias, programaFilter, searchTerm, selectedStatus]
+  );
 
-  // Pagination logic
-  const totalPages = Math.ceil(filteredBeneficiarias.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const paginatedBeneficiarias = filteredBeneficiarias.slice(startIndex, endIndex);
+  const manualTotalPages = Math.max(1, Math.ceil(filteredBeneficiarias.length / ITEMS_PER_PAGE));
+  const manualSafePage = Math.min(Math.max(currentPage, 1), manualTotalPages);
+  const manualStartIndex = (manualSafePage - 1) * ITEMS_PER_PAGE;
+  const manualEndIndex = manualStartIndex + ITEMS_PER_PAGE;
 
-  // Reset page when filters change, apenas se não for 1
+  const limit = pagination?.limit ?? ITEMS_PER_PAGE;
+  const serverPage = pagination?.page ?? queryFilters.page;
+  const totalItems = pagination?.total ?? filteredBeneficiarias.length;
+  const totalPages = pagination?.totalPages ?? Math.max(1, Math.ceil(totalItems / limit));
+  const effectiveServerPage = Math.min(Math.max(serverPage, 1), totalPages);
+  const displayPage = pagination ? effectiveServerPage : manualSafePage;
+  const startIndex = pagination ? (effectiveServerPage - 1) * limit : manualStartIndex;
+  const paginatedBeneficiarias = pagination
+    ? filteredBeneficiarias
+    : filteredBeneficiarias.slice(manualStartIndex, manualEndIndex);
+  const showingFrom = paginatedBeneficiarias.length === 0 ? 0 : startIndex + 1;
+  const showingTo = paginatedBeneficiarias.length === 0 ? 0 : startIndex + paginatedBeneficiarias.length;
+  const disablePrev = displayPage <= 1;
+  const disableNext = displayPage >= totalPages;
+  const shouldShowPagination = totalPages > 1;
+
+  const stats = useMemo(() => buildBeneficiariasStats(beneficiarias), [beneficiarias]);
+  const showLoading = beneficiariasQuery.isLoading || beneficiariasQuery.isFetching;
+  const backendErrorMessage =
+    beneficiariasResponse && beneficiariasResponse.success === false
+      ? beneficiariasResponse.message
+      : undefined;
+  const queryError = beneficiariasQuery.isError
+    ? (beneficiariasQuery.error as Error | undefined)
+    : backendErrorMessage
+    ? new Error(backendErrorMessage)
+    : undefined;
+
+  const activeFilterCount =
+    (selectedStatus !== "Todas" ? 1 : 0) +
+    (programaFilter !== "Todos" ? 1 : 0) +
+    (hasSearch ? 1 : 0);
+
   useEffect(() => {
     if (currentPage !== 1) {
       setFilters({ page: 1 });
     }
   }, [searchTerm, selectedStatus, programaFilter, currentPage, setFilters]);
 
-  const getStatusVariant = (status: string) => {
-    switch (status) {
-      case "Ativa": return "default";
-      case "Aguardando": return "secondary";
-      case "Inativa": return "outline";
-      default: return "default";
+  useEffect(() => {
+    if (!pagination && currentPage !== manualSafePage) {
+      setFilters({ page: manualSafePage });
     }
-  };
+  }, [currentPage, manualSafePage, pagination, setFilters]);
 
-  const getInitials = (nome?: string | null) => {
-    if (!nome) return 'UN';
-    
-    return nome.split(" ").map(n => n[0]).join("").substring(0, 2).toUpperCase();
-  };
-
-  const formatCpf = (cpf: string) => {
-    return cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
-  };
-
-  const formatDate = (dateString: string | null) => {
-    if (!dateString) return '-';
-    return new Date(dateString).toLocaleDateString('pt-BR');
-  };
-
-  const generatePaedi = (beneficiaria: Beneficiaria) => {
-    try {
-      const dataCadastro = (beneficiaria as any).data_cadastro
-        ? new Date((beneficiaria as any).data_cadastro)
-        : (beneficiaria.data_criacao ? new Date(beneficiaria.data_criacao) : new Date());
-      const year = isNaN(dataCadastro.getTime()) ? new Date().getFullYear() : dataCadastro.getFullYear();
-      const sequence = beneficiaria.id.toString().padStart(3, '0').slice(-3);
-      return `MM-${year}-${sequence}`;
-    } catch (error) {
-      console.warn('Erro ao gerar PAEDI:', error);
-      const sequence = beneficiaria.id.toString().padStart(3, '0').slice(-3);
-      return `MM-${new Date().getFullYear()}-${sequence}`;
-    }
+  const goToPage = (page: number) => {
+    const safePage = Math.min(Math.max(page, 1), totalPages);
+    setFilters({ page: safePage });
   };
 
   return (
@@ -216,25 +170,25 @@ export default function Beneficiarias() {
       <div className="grid gap-4 md:grid-cols-4">
         <Card className="shadow-soft">
           <CardContent className="p-4">
-            <div className="text-2xl font-bold text-primary">{loading ? "..." : stats.total}</div>
+            <div className="text-2xl font-bold text-primary">{showLoading ? "..." : stats.total}</div>
             <p className="text-sm text-muted-foreground">Total de Beneficiárias</p>
           </CardContent>
         </Card>
         <Card className="shadow-soft">
           <CardContent className="p-4">
-            <div className="text-2xl font-bold text-success">{loading ? "..." : stats.ativas}</div>
+            <div className="text-2xl font-bold text-success">{showLoading ? "..." : stats.ativas}</div>
             <p className="text-sm text-muted-foreground">Ativas</p>
           </CardContent>
         </Card>
         <Card className="shadow-soft">
           <CardContent className="p-4">
-            <div className="text-2xl font-bold text-warning">{loading ? "..." : stats.aguardando}</div>
+            <div className="text-2xl font-bold text-warning">{showLoading ? "..." : stats.aguardando}</div>
             <p className="text-sm text-muted-foreground">Aguardando</p>
           </CardContent>
         </Card>
         <Card className="shadow-soft">
           <CardContent className="p-4">
-            <div className="text-2xl font-bold text-muted-foreground">{loading ? "..." : stats.inativas}</div>
+            <div className="text-2xl font-bold text-muted-foreground">{showLoading ? "..." : stats.inativas}</div>
             <p className="text-sm text-muted-foreground">Inativas</p>
           </CardContent>
         </Card>
@@ -246,6 +200,14 @@ export default function Beneficiarias() {
           <CardTitle>Lista de Beneficiárias</CardTitle>
         </CardHeader>
         <CardContent>
+          {queryError && (
+            <Alert variant="destructive" className="mb-4" data-testid="beneficiarias-error">
+              <AlertTitle>Não foi possível carregar as beneficiárias</AlertTitle>
+              <AlertDescription>
+                {queryError.message || "Ocorreu um erro ao carregar os dados. Tente novamente."}
+              </AlertDescription>
+            </Alert>
+          )}
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-6">
             <div className="flex flex-1 items-center gap-2">
               <div className="relative flex-1 max-w-sm">
@@ -253,26 +215,31 @@ export default function Beneficiarias() {
                 <Input
                   placeholder="Buscar por nome, CPF ou PAEDI..."
                   value={searchTerm}
-                  onChange={(e) => setFilters({ search: e.target.value })}
+                  onChange={(e) => setFilters({ search: e.target.value, page: 1 })}
                   className="pl-10"
                   data-testid="search-input"
                 />
               </div>
               <div className="relative">
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   size="icon"
                   onClick={() => setShowFilters(!showFilters)}
                 >
                   <Filter className="h-4 w-4" />
                 </Button>
-                {(() => { const c = (selectedStatus !== 'Todas' ? 1 : 0) + (programaFilter !== 'Todos' ? 1 : 0) + (searchTerm ? 1 : 0); return c ? (
-                  <span aria-label="Quantidade de filtros ativos" className="absolute -top-1 -right-1 h-5 min-w-[20px] px-1 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center">{c}</span>
-                ) : null; })()}
+                {activeFilterCount > 0 ? (
+                  <span
+                    aria-label="Quantidade de filtros ativos"
+                    className="absolute -top-1 -right-1 h-5 min-w-[20px] px-1 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center"
+                  >
+                    {activeFilterCount}
+                  </span>
+                ) : null}
               </div>
               <Button
                 variant="default"
-                onClick={() => setFilters({ search: searchTerm })}
+                onClick={() => setFilters({ search: searchTerm, page: 1 })}
                 data-testid="search-button"
               >
                 Buscar
@@ -292,20 +259,21 @@ export default function Beneficiarias() {
                     <label className="text-sm font-medium mb-2 block">Status</label>
                     <select
                       value={selectedStatus}
-                      onChange={(e) => setFilters({ status: e.target.value })}
+                      onChange={(e) => setFilters({ status: e.target.value, page: 1 })}
                       className="w-full p-2 border rounded-md"
                     >
-                      <option value="Todas">Todas</option>
-                      <option value="Ativa">Ativa</option>
-                      <option value="Aguardando">Aguardando</option>
-                      <option value="Inativa">Inativa</option>
+                      {STATUS_OPTIONS.map((option) => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
                     </select>
                   </div>
                   <div>
                     <label className="text-sm font-medium mb-2 block">Programa/Serviço</label>
                     <select
                       value={programaFilter}
-                      onChange={(e) => setFilters({ programa: e.target.value })}
+                      onChange={(e) => setFilters({ programa: e.target.value, page: 1 })}
                       className="w-full p-2 border rounded-md"
                     >
                       <option value="Todos">Todos</option>
@@ -315,10 +283,10 @@ export default function Beneficiarias() {
                     </select>
                   </div>
                   <div className="flex items-end">
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       onClick={() => {
-                        setFilters({ status: 'Todas', programa: 'Todos', search: '', page: 1 });
+                        setFilters({ status: "Todas", programa: "Todos", search: "", page: 1 });
                       }}
                     >
                       Limpar Filtros
@@ -344,110 +312,118 @@ export default function Beneficiarias() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {loading ? (
+                {showLoading ? (
                   <TableRow>
                     <TableCell colSpan={7} className="py-4">
                       <ListSkeleton rows={6} columns={6} />
                     </TableCell>
                   </TableRow>
-                ) : filteredBeneficiarias.length === 0 ? (
+                ) : paginatedBeneficiarias.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={7} className="py-8">
                       <EmptyState
-                        title={searchTerm ? 'Nenhuma beneficiária encontrada' : 'Nenhuma beneficiária cadastrada'}
-                        description={searchTerm ? 'Ajuste sua busca ou filtros e tente novamente.' : 'Comece cadastrando a primeira beneficiária.'}
-                        actionLabel={!searchTerm ? 'Cadastrar beneficiária' : undefined}
+                        title={searchTerm ? "Nenhuma beneficiária encontrada" : "Nenhuma beneficiária cadastrada"}
+                        description={
+                          searchTerm
+                            ? "Ajuste sua busca ou filtros e tente novamente."
+                            : "Comece cadastrando a primeira beneficiária."
+                        }
+                        actionLabel={!searchTerm ? "Cadastrar beneficiária" : undefined}
                         onAction={!searchTerm ? () => navigate('/beneficiarias/nova') : undefined}
                       />
                     </TableCell>
                   </TableRow>
                 ) : (
-                  paginatedBeneficiarias.map((beneficiaria) => (
-                    <TableRow key={beneficiaria.id} className="hover:bg-muted/30" data-testid="beneficiaria-item">
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          <Avatar className="h-8 w-8">
-                            <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-                              {getInitials(beneficiaria.nome_completo)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <div className="font-medium text-foreground">{beneficiaria.nome_completo}</div>
-                            <div className="text-sm text-muted-foreground">{beneficiaria.telefone}</div>
+                  paginatedBeneficiarias.map((beneficiaria) => {
+                    const statusDisplay = deriveBeneficiariaStatus(beneficiaria);
+                    return (
+                      <TableRow key={beneficiaria.id} className="hover:bg-muted/30" data-testid="beneficiaria-item">
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <Avatar className="h-8 w-8">
+                              <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+                                {getBeneficiariaInitials(beneficiaria.nome_completo)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <div className="font-medium text-foreground">{beneficiaria.nome_completo}</div>
+                              <div className="text-sm text-muted-foreground">{beneficiaria.telefone}</div>
+                            </div>
                           </div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="font-mono text-sm">{formatCpf(beneficiaria.cpf || '')}</TableCell>
-                      <TableCell className="font-mono text-sm font-medium text-primary">
-                        {generatePaedi(beneficiaria)}
-                      </TableCell>
-                      <TableCell>{beneficiaria.status || 'Não definido'}</TableCell>
-                      <TableCell>
-                        <Badge variant={getStatusVariant(getBeneficiariaStatus(beneficiaria))}>
-                          {getBeneficiariaStatus(beneficiaria)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{formatDate(beneficiaria.data_nascimento.toString())}</TableCell>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => navigate(`/beneficiarias/${beneficiaria.id}`)}>
-                              <Eye className="mr-2 h-4 w-4" />
-                              Ver PAEDI
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => navigate(`/beneficiarias/${beneficiaria.id}/editar`)}>
-                              <Edit className="mr-2 h-4 w-4" />
-                              Editar
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => navigate(`/beneficiarias/${beneficiaria.id}/declaracoes-recibos`)}>
-                              <FileText className="mr-2 h-4 w-4" />
-                              Gerar Documento
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))
+                        </TableCell>
+                        <TableCell className="font-mono text-sm">{formatCpf(beneficiaria.cpf)}</TableCell>
+                        <TableCell className="font-mono text-sm font-medium text-primary">
+                          {generatePaedi(beneficiaria)}
+                        </TableCell>
+                        <TableCell>{beneficiaria.status || "Não definido"}</TableCell>
+                        <TableCell>
+                          <Badge variant={getBeneficiariaBadgeVariant(statusDisplay)}>
+                            {statusDisplay}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{formatBeneficiariaDate(beneficiaria.data_nascimento)}</TableCell>
+                        <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => navigate(`/beneficiarias/${beneficiaria.id}`)}>
+                                <Eye className="mr-2 h-4 w-4" />
+                                Ver PAEDI
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => navigate(`/beneficiarias/${beneficiaria.id}/editar`)}>
+                                <Edit className="mr-2 h-4 w-4" />
+                                Editar
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => navigate(`/beneficiarias/${beneficiaria.id}/declaracoes-recibos`)}
+                              >
+                                <FileText className="mr-2 h-4 w-4" />
+                                Gerar Documento
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
                 )}
               </TableBody>
             </Table>
           </div>
 
           {/* Pagination */}
-          {filteredBeneficiarias.length > itemsPerPage && (
+          {shouldShowPagination && (
             <div className="flex items-center justify-between pt-4">
               <div className="text-sm text-muted-foreground">
-                Mostrando {startIndex + 1} a {Math.min(endIndex, filteredBeneficiarias.length)} de {filteredBeneficiarias.length} beneficiárias
+                Mostrando {showingFrom} a {showingTo} de {totalItems} beneficiárias
               </div>
               <div className="flex items-center gap-2">
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setFilters({ page: currentPage - 1 })}
-                  disabled={currentPage === 1}
+                  onClick={() => goToPage(displayPage - 1)}
+                  disabled={disablePrev}
                 >
                   Anterior
                 </Button>
                 <span className="text-sm">
-                  Página {currentPage} de {totalPages}
+                  Página {displayPage} de {totalPages}
                 </span>
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setFilters({ page: currentPage + 1 })}
-                  disabled={currentPage === totalPages}
+                  onClick={() => goToPage(displayPage + 1)}
+                  disabled={disableNext}
                 >
                   Próxima
                 </Button>
               </div>
             </div>
           )}
-
         </CardContent>
       </Card>
     </div>

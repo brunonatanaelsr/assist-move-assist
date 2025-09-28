@@ -71,8 +71,7 @@ export default function BeneficiariasFixed() {
   const beneficiariasResponse = beneficiariasQuery.data;
   const beneficiarias: Beneficiaria[] = useMemo(() => {
     if (beneficiariasResponse?.success === false) return [];
-    const data = beneficiariasResponse?.data;
-    return Array.isArray(data) ? data : [];
+    return (beneficiariasResponse?.data?.items ?? []) as Beneficiaria[];
   }, [beneficiariasResponse]);
 
   const firstBeneficiariaId = beneficiarias.length > 0 ? String(beneficiarias[0].id) : '';

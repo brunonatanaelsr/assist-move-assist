@@ -67,7 +67,7 @@ describe('useApi hooks', () => {
     });
 
     expect(apiService.getBeneficiarias).toHaveBeenCalledWith(params);
-    expect(result.current.data).toEqual({ data: [{ id: 1 }], pagination });
+    expect(result.current.data).toEqual({ items: [{ id: 1 }], pagination });
   });
 
   it('deve retornar array de dados e sem paginação quando a resposta for simples', async () => {
@@ -84,7 +84,7 @@ describe('useApi hooks', () => {
     });
 
     expect(apiService.getBeneficiarias).toHaveBeenCalledWith(undefined);
-    expect(result.current.data).toEqual({ data: [{ id: 1 }, { id: 2 }], pagination: undefined });
+    expect(result.current.data).toEqual({ items: [{ id: 1 }, { id: 2 }], pagination: undefined });
   });
 
   it('deve enviar o filtro correto ao buscar participações', async () => {

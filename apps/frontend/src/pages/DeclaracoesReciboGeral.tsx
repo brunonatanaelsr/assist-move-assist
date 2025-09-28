@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,14 +9,15 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FileText, Download, Search, Users } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
-import apiService from "@/services/apiService";
 import { downloadDeclaracao, downloadRecibo } from "@/utils/pdfDownload";
+import { useBeneficiarias } from "@/hooks/useBeneficiarias";
+import apiService from "@/services/apiService";
 
-interface Beneficiaria {
+interface BeneficiariaOption {
   id: number;
   nome: string;
   cpf: string;
-  telefone?: string;
+  telefone?: string | null;
 }
 
 interface DeclaracaoData {
@@ -48,7 +49,18 @@ export default function DeclaracoesReciboGeral() {
   const navigate = useNavigate();
   const { toast } = useToast();
   
-  const [beneficiarias, setBeneficiarias] = useState<Beneficiaria[]>([]);
+  const beneficiariasQuery = useBeneficiarias({ limit: 1000 });
+  const beneficiariasResponse = beneficiariasQuery.data;
+  const beneficiarias: BeneficiariaOption[] = useMemo(
+    () =>
+      (beneficiariasResponse?.data?.items ?? []).map((beneficiaria) => ({
+        id: beneficiaria.id,
+        nome: beneficiaria.nome_completo,
+        cpf: beneficiaria.cpf,
+        telefone: beneficiaria.telefone,
+      })),
+    [beneficiariasResponse]
+  );
   const [selectedBeneficiaria, setSelectedBeneficiaria] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<'declaracao' | 'recibo'>('declaracao');
   const [loading, setLoading] = useState(false);
@@ -73,25 +85,21 @@ export default function DeclaracoesReciboGeral() {
     observacoes: ''
   });
 
-  useEffect(() => {
-    carregarBeneficiarias();
-  }, []);
+  const beneficiariasErrorMessage = beneficiariasQuery.isError
+    ? (beneficiariasQuery.error as Error | undefined)?.message
+    : beneficiariasResponse && beneficiariasResponse.success === false
+    ? beneficiariasResponse.message
+    : undefined;
 
-  const carregarBeneficiarias = async () => {
-    try {
-      const response = await apiService.getBeneficiarias();
-      if (response.success && response.data) {
-        setBeneficiarias(response.data);
-      }
-    } catch (error) {
-      console.error('Erro ao carregar beneficiárias:', error);
+  useEffect(() => {
+    if (beneficiariasErrorMessage) {
       toast({
         title: 'Erro',
-        description: 'Não foi possível carregar a lista de beneficiárias',
-        variant: 'destructive'
+        description: beneficiariasErrorMessage || 'Não foi possível carregar a lista de beneficiárias',
+        variant: 'destructive',
       });
     }
-  };
+  }, [beneficiariasErrorMessage, toast]);
 
   const gerarDeclaracao = async () => {
     if (!selectedBeneficiaria) {

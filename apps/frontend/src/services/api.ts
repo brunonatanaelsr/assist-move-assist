@@ -57,18 +57,21 @@ export const beneficiariasService = {
   listar: async (params: ListBeneficiariasParams = {}): Promise<BeneficiariaListResponse> => {
     const response = await apiService.getBeneficiarias(params);
 
-    if (!response.success) {
-      return {
-        ...response,
-        data: [],
-      } satisfies BeneficiariaListResponse;
-    }
-
-    const data = Array.isArray(response.data) ? response.data : [];
+    const payload = response.data;
+    const items = Array.isArray(payload)
+      ? payload
+      : Array.isArray((payload as any)?.data)
+        ? (payload as any).data
+        : [];
+    const pagination = (!Array.isArray(payload) && (payload as any)?.pagination) ?? response.pagination;
 
     return {
       ...response,
-      data,
+      data: {
+        items,
+        pagination,
+      },
+      pagination,
     } satisfies BeneficiariaListResponse;
   },
   buscarPorId: async (id: string): Promise<BeneficiariaResponse> => {

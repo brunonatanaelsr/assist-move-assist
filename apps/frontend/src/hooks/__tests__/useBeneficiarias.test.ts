@@ -7,7 +7,7 @@ import { createQueryClientWrapper } from './testUtils';
 beforeEach(() => {
   vi.spyOn(beneficiariasService, 'listar').mockResolvedValue({
     success: true,
-    data: [],
+    data: { items: [], pagination: undefined },
   });
 });
 

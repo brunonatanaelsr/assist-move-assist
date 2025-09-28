@@ -9,6 +9,20 @@ import type {
 } from '@/types/beneficiarias';
 import { toast } from 'sonner';
 
+const normalizeListResponse = (response: BeneficiariaListResponse): BeneficiariaListResponse => {
+  const items = response.data?.items ?? [];
+  const pagination = response.data?.pagination ?? response.pagination;
+
+  return {
+    ...response,
+    data: {
+      items,
+      pagination,
+    },
+    pagination,
+  } satisfies BeneficiariaListResponse;
+};
+
 // Keys para React Query
 export const beneficiariasKeys = {
   all: ['beneficiarias'] as const,
@@ -19,11 +33,11 @@ export const beneficiariasKeys = {
 };
 
 // Hook para listar beneficiárias
-// ...existing code...
 export const useBeneficiarias = (params: ListBeneficiariasParams = {}): UseQueryResult<BeneficiariaListResponse> => {
-  return useQuery<BeneficiariaListResponse>({
+  return useQuery<BeneficiariaListResponse, Error, BeneficiariaListResponse>({
     queryKey: beneficiariasKeys.list(params),
     queryFn: () => beneficiariasService.listar(params),
+    select: normalizeListResponse,
   });
 };
 

@@ -8,7 +8,7 @@ import { beneficiariaSchema } from '../validation/zodSchemas';
 type Beneficiaria = z.infer<typeof beneficiariaSchema>;
 
 // Hooks para beneficiárias
-type BeneficiariasQueryResult = { data: Beneficiaria[]; pagination?: Pagination };
+type BeneficiariasQueryResult = { items: Beneficiaria[]; pagination?: Pagination };
 
 export const useBeneficiarias = (params?: { page?: number; limit?: number }) => {
   const queryKey = ['beneficiarias', params] as const;
@@ -22,7 +22,7 @@ export const useBeneficiarias = (params?: { page?: number; limit?: number }) => 
       }
 
       const payload = response.data;
-      const data = Array.isArray(payload)
+      const items = Array.isArray(payload)
         ? payload
         : Array.isArray((payload as any)?.data)
           ? (payload as any).data
@@ -32,7 +32,7 @@ export const useBeneficiarias = (params?: { page?: number; limit?: number }) => 
         || response.pagination;
 
       return {
-        data,
+        items,
         pagination,
       };
     },
