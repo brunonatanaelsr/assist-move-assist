@@ -1,6 +1,5 @@
-import { createHash, randomUUID } from 'node:crypto';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { Pool } from 'pg';
-import { createHash, randomBytes } from 'node:crypto';
 import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcryptjs';
 import jwt, { SignOptions } from 'jsonwebtoken';
@@ -57,6 +56,7 @@ export class AuthService {
   private readonly CACHE_TTL = 300; // 5 minutos
   private readonly refreshTokenTTL: number;
   private readonly refreshHashRounds = 12;
+  private refreshTableEnsured = false;
 
   constructor(
     private pool: Pool,
@@ -231,27 +231,6 @@ export class AuthService {
     }
   }
 
-  async revokeRefreshToken(token: string): Promise<void> {
-    const tokenHash = this.hashToken(token);
-    await this.removeRefreshTokenFromRedis(tokenHash);
-
-    await this.ensureRefreshTokenTable();
-    if (!this.refreshTableEnsured) {
-      return;
-    }
-
-    try {
-      await this.pool.query(
-        'UPDATE refresh_tokens SET revoked = true, revoked_at = NOW() WHERE token_hash = $1',
-        [tokenHash]
-      );
-    } catch (error) {
-      loggerService.warn('Falha ao revogar refresh token no banco de dados', {
-        error: error instanceof Error ? error.message : String(error)
-      });
-    }
-  }
-
   async generateRefreshToken(payload: JWTPayload): Promise<string> {
     const jwtId = randomUUID();
     const token = jwt.sign(
@@ -339,9 +318,6 @@ export class AuthService {
       });
       throw error instanceof Error ? error : new Error('Falha ao renovar sessão');
     }
-=======
-    // 7 dias por padrão para tokens de refresh
-    this.refreshTokenTTL = 7 * 24 * 60 * 60 * 1000;
   }
 
   private buildSessionUser(user: DatabaseUser): AuthenticatedSessionUser {
@@ -389,39 +365,19 @@ export class AuthService {
       return null;
     }
 
-    const [tokenId, secret] = refreshToken.split('.');
+    const parts = refreshToken.split('.');
+
+    if (parts.length !== 2) {
+      return null;
+    }
+
+    const [tokenId, secret] = parts;
 
     if (!tokenId || !secret) {
       return null;
     }
 
     return { tokenId, secret };
-  }
-
-  private async persistRefreshToken(
-    userId: number,
-    metadata: RefreshTokenMetadata
-  ): Promise<{ token: string; deviceId: string; expiresAt: Date }> {
-    const { tokenId, secret, token } = this.createRefreshTokenPair();
-    const tokenHash = await bcrypt.hash(secret, this.refreshHashRounds);
-    const expiresAt = this.getRefreshTokenExpiryDate();
-    const normalizedDeviceId = this.normalizeDeviceId(metadata.deviceId, metadata.userAgent);
-
-    await this.pool.query(
-      `INSERT INTO user_refresh_tokens (user_id, token_id, token_hash, device_id, user_agent, ip_address, expires_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
-       ON CONFLICT (user_id, device_id)
-       DO UPDATE SET token_id = EXCLUDED.token_id,
-                     token_hash = EXCLUDED.token_hash,
-                     expires_at = EXCLUDED.expires_at,
-                     user_agent = EXCLUDED.user_agent,
-                     ip_address = EXCLUDED.ip_address,
-                     updated_at = NOW(),
-                     revoked_at = NULL`,
-      [userId, tokenId, tokenHash, normalizedDeviceId, metadata.userAgent ?? null, metadata.ipAddress ?? null, expiresAt]
-    );
-
-    return { token, deviceId: normalizedDeviceId, expiresAt };
   }
 
   private async rotateRefreshToken(
@@ -466,7 +422,6 @@ export class AuthService {
        WHERE id = $1`,
       [recordId]
     );
->>>>>>> main
   }
 
   /**
@@ -528,11 +483,6 @@ export class AuthService {
       const refreshToken = await this.generateRefreshToken(tokenPayload);
 
       const sessionUser = this.buildSessionUser(user);
-      const refreshToken = await this.persistRefreshToken(user.id, {
-        deviceId,
-        userAgent,
-        ipAddress
-      });
 
       loggerService.info(`Successful login: ${email} from ${ipAddress}`);
 
@@ -544,11 +494,7 @@ export class AuthService {
 
       // Retorna imediatamente em ambientes sem Redis disponível
       if (!env.REDIS_HOST) {
-<<<<<<< HEAD
         return response;
-=======
-        return { token, refreshToken: refreshToken.token, user: sessionUser };
->>>>>>> main
       }
 
       // Cache (ignorar falhas de Redis em dev)
@@ -563,15 +509,7 @@ export class AuthService {
         loggerService.warn('Redis indisponível (cache de auth ignorado)');
       }
 
-<<<<<<< HEAD
       return response;
-=======
-      return {
-        token,
-        refreshToken: refreshToken.token,
-        user: sessionUser
-      };
->>>>>>> main
     } catch (error) {
       loggerService.error("Login error:", error);
       throw error;
@@ -685,7 +623,25 @@ export class AuthService {
     const parsed = this.parseRefreshToken(refreshToken);
 
     if (!parsed) {
-      throw new Error('Refresh token inválido');
+      const tokenHash = this.hashToken(refreshToken);
+      await this.removeRefreshTokenFromRedis(tokenHash);
+
+      await this.ensureRefreshTokenTable();
+      if (!this.refreshTableEnsured) {
+        return;
+      }
+
+      try {
+        await this.pool.query(
+          'UPDATE refresh_tokens SET revoked = true, revoked_at = NOW() WHERE token_hash = $1',
+          [tokenHash]
+        );
+      } catch (error) {
+        loggerService.warn('Falha ao revogar refresh token no banco de dados', {
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
+      return;
     }
 
     const tokenResult = await this.pool.query(
