@@ -1,4 +1,10 @@
-import { useQuery, useMutation, useQueryClient, type UseQueryResult } from '@tanstack/react-query';
+import {
+  useQuery,
+  useMutation,
+  useQueryClient,
+  type UseQueryOptions,
+  type UseQueryResult,
+} from '@tanstack/react-query';
 import { beneficiariasService } from '../services/api';
 import type { Beneficiaria } from '@/types/shared';
 import type {
@@ -20,10 +26,14 @@ export const beneficiariasKeys = {
 
 // Hook para listar beneficiárias
 // ...existing code...
-export const useBeneficiarias = (params: ListBeneficiariasParams = {}): UseQueryResult<BeneficiariaListResponse> => {
-  return useQuery<BeneficiariaListResponse>({
+export const useBeneficiarias = <TData = BeneficiariaListResponse>(
+  params: ListBeneficiariasParams = {},
+  options?: Omit<UseQueryOptions<BeneficiariaListResponse, Error, TData>, 'queryKey' | 'queryFn'>
+): UseQueryResult<TData, Error> => {
+  return useQuery<BeneficiariaListResponse, Error, TData>({
     queryKey: beneficiariasKeys.list(params),
     queryFn: () => beneficiariasService.listar(params),
+    ...options,
   });
 };
 
