@@ -11,4 +11,6 @@ const API_URL =
   import.meta.env.VITE_API_URL ||
   (ENV === 'development' ? '/api' : 'http://localhost:3000/api');
 
-export { API_URL, AUTH_TOKEN_KEY, USER_KEY };
+const REQUIRE_CSRF_HEADER = String(import.meta.env.VITE_REQUIRE_CSRF_HEADER ?? 'true').toLowerCase() !== 'false';
+
+export { API_URL, AUTH_TOKEN_KEY, USER_KEY, REQUIRE_CSRF_HEADER };
