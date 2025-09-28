@@ -30,6 +30,9 @@ export interface RefreshSessionResponse {
   };
 }
 
+const LEGACY_TOKEN_KEYS = ['auth_token', 'token'];
+const LEGACY_USER_KEYS = ['user'];
+
 export class AuthService {
   private static instance: AuthService;
 
@@ -82,15 +85,8 @@ export class AuthService {
   }
 
   async logout(): Promise<void> {
-    const tokenKeys = new Set([
-      AUTH_TOKEN_KEY,
-      'auth_token',
-      'token'
-    ]);
-    const userKeys = new Set([
-      USER_KEY,
-      'user'
-    ]);
+    const tokenKeys = new Set([...LEGACY_TOKEN_KEYS, AUTH_TOKEN_KEY]);
+    const userKeys = new Set([...LEGACY_USER_KEYS, USER_KEY]);
 
     try {
       const deviceId = this.getDeviceId();
@@ -122,16 +118,26 @@ export class AuthService {
   }
 
   isAuthenticated(): boolean {
-    const token = localStorage.getItem(AUTH_TOKEN_KEY) || localStorage.getItem('auth_token') || localStorage.getItem('token');
+    const token =
+      localStorage.getItem(AUTH_TOKEN_KEY) ||
+      LEGACY_TOKEN_KEYS.map((key) => localStorage.getItem(key)).find((value) => !!value) ||
+      null;
     return !!token;
   }
 
   getToken(): string | null {
-    return localStorage.getItem(AUTH_TOKEN_KEY) || localStorage.getItem('auth_token') || localStorage.getItem('token');
+    return (
+      localStorage.getItem(AUTH_TOKEN_KEY) ||
+      LEGACY_TOKEN_KEYS.map((key) => localStorage.getItem(key)).find((value) => !!value) ||
+      null
+    );
   }
 
   getUser(): AuthResponse['user'] | null {
-    const userStr = localStorage.getItem(USER_KEY) || localStorage.getItem('user');
+    const userStr =
+      localStorage.getItem(USER_KEY) ||
+      LEGACY_USER_KEYS.map((key) => localStorage.getItem(key)).find((value) => !!value) ||
+      null;
     return userStr ? JSON.parse(userStr) : null;
   }
 }
