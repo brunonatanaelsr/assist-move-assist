@@ -30,7 +30,7 @@ router.get(
       const search = typeof req.query.search === 'string' ? req.query.search.trim() : undefined;
       const status = typeof req.query.status === 'string' ? req.query.status.trim() : undefined;
       const allowedStatus = new Set(['ativa', 'inativa', 'pendente', 'desistente', 'em_acompanhamento']);
-      const statusFilter = status && allowedStatus.has(status) ? (status as typeof status) : undefined;
+      const statusFilter = status && allowedStatus.has(status) ? status as "ativa" | "inativa" | "pendente" | "desistente" | "em_acompanhamento" : undefined;
 
       const filtros = {
         ...(statusFilter ? { status: statusFilter } : {}),

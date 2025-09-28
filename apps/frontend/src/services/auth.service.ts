@@ -18,7 +18,6 @@ export interface LoginCredentials {
   email: string;
   password: string;
 }
-
 export interface RefreshSessionResponse {
   message: string;
   token: string;
@@ -33,12 +32,32 @@ export interface RefreshSessionResponse {
 const LEGACY_TOKEN_KEYS = ['auth_token', 'token'];
 const LEGACY_USER_KEYS = ['user'];
 
+type StoredUser = AuthResponse['user'] & Record<string, unknown>;
+
 export class AuthService {
   private static instance: AuthService;
-
+  private currentUser: StoredUser | null = null;
   private readonly deviceStorageKey = 'auth_device_id';
 
-  private constructor() {}
+  private constructor() {
+    if (typeof window !== 'undefined') {
+      const storedUser = window.localStorage.getItem(USER_KEY);
+      if (storedUser) {
+        try {
+          this.currentUser = JSON.parse(storedUser) as StoredUser;
+          // Limpar tokens antigos
+          LEGACY_TOKEN_KEYS.forEach(key => window.localStorage.removeItem(key));
+          LEGACY_USER_KEYS.forEach(key => window.localStorage.removeItem(key));
+        } catch (error) {
+          console.warn('Failed to parse stored user profile', error);
+          window.localStorage.removeItem(USER_KEY);
+          // Garantir limpeza em caso de erro
+          LEGACY_TOKEN_KEYS.forEach(key => window.localStorage.removeItem(key));
+          LEGACY_USER_KEYS.forEach(key => window.localStorage.removeItem(key));
+        }
+      }
+    }
+  }
 
   public static getInstance(): AuthService {
     if (!AuthService.instance) {
@@ -51,7 +70,6 @@ export class AuthService {
     if (typeof window === 'undefined') {
       return 'server';
     }
-
     const storageKey = this.deviceStorageKey;
     const existing = window.localStorage.getItem(storageKey);
     if (existing) {
@@ -75,6 +93,9 @@ export class AuthService {
         { ...credentials, deviceId },
         { withCredentials: true }
       );
+      if (response.data?.user) {
+        this.setUser(response.data.user as unknown as StoredUser);
+      }
       return response.data;
     } catch (error) {
       if (axios.isAxiosError(error)) {
@@ -85,21 +106,18 @@ export class AuthService {
   }
 
   async logout(): Promise<void> {
-  const tokenKeys = new Set([AUTH_TOKEN_KEY, ...LEGACY_TOKEN_KEYS]);
-  const userKeys = new Set([USER_KEY, ...LEGACY_USER_KEYS]);
+    const tokenKeys = new Set([AUTH_TOKEN_KEY, ...LEGACY_TOKEN_KEYS]);
+    const userKeys = new Set([USER_KEY, ...LEGACY_USER_KEYS]);
 
     try {
       const deviceId = this.getDeviceId();
-      await api.post(
-        '/auth/logout',
-        { deviceId },
-        { withCredentials: true }
-      );
+      await api.post('/auth/logout', { deviceId }, { withCredentials: true });
     } catch (error) {
       console.error('Erro ao fazer logout:', error);
     } finally {
-      tokenKeys.forEach((key) => localStorage.removeItem(key));
-      userKeys.forEach((key) => localStorage.removeItem(key));
+      this.setUser(null);
+      tokenKeys.forEach((key) => window.localStorage.removeItem(key));
+      userKeys.forEach((key) => window.localStorage.removeItem(key));
     }
   }
 
@@ -111,6 +129,9 @@ export class AuthService {
         { deviceId },
         { withCredentials: true }
       );
+      if (response.data?.user) {
+        this.setUser(response.data.user as unknown as StoredUser);
+      }
       return response.data;
     } catch (error) {
       throw new Error('Erro ao renovar token');
@@ -118,26 +139,29 @@ export class AuthService {
   }
 
   isAuthenticated(): boolean {
-    const token =
-      localStorage.getItem(AUTH_TOKEN_KEY) ||
-      LEGACY_TOKEN_KEYS.map((key) => localStorage.getItem(key)).find((value) => !!value) ||
-      null;
-    return !!token;
+    return this.currentUser !== null;
   }
 
   getToken(): string | null {
-    return (
-      localStorage.getItem(AUTH_TOKEN_KEY) ||
-      LEGACY_TOKEN_KEYS.map((key) => localStorage.getItem(key)).find((value) => !!value) ||
-      null
-    );
+    // Tokens são armazenados em cookies httpOnly; não acessíveis via JS
+    return null;
   }
 
-  getUser(): AuthResponse['user'] | null {
-    const userStr =
-      localStorage.getItem(USER_KEY) ||
-      LEGACY_USER_KEYS.map((key) => localStorage.getItem(key)).find((value) => !!value) ||
-      null;
-    return userStr ? JSON.parse(userStr) : null;
+  getUser(): StoredUser | null {
+    return this.currentUser;
   }
-}
+
+  setUser(user: StoredUser | null): void {
+    this.currentUser = user;
+    if (typeof window === 'undefined') return;
+
+    if (user) {
+      window.localStorage.setItem(USER_KEY, JSON.stringify(user));
+    } else {
+      window.localStorage.removeItem(USER_KEY);
+    }
+
+    const event = new CustomEvent<StoredUser | null>('auth:user-changed', { detail: user });
+    window.dispatchEvent(event);
+    }
+  }

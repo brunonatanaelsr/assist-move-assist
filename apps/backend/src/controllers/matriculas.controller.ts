@@ -71,7 +71,9 @@ export const criarMatricula = async (req: Request, res: Response) => {
 
 export const obterMatricula = async (req: Request, res: Response) => {
   try {
-    const matricula = await matriculasService.obterMatricula(req.params.id);
+    const matriculaId = req.params.id;
+    if (!matriculaId) throw new Error('ID da matrícula não fornecido');
+    const matricula = await matriculasService.obterMatricula(matriculaId);
 
     return res.json({
       success: true,
@@ -84,7 +86,9 @@ export const obterMatricula = async (req: Request, res: Response) => {
 
 export const atualizarMatricula = async (req: Request, res: Response) => {
   try {
-    const matricula = await matriculasService.atualizarMatricula(req.params.id, req.body);
+    const matriculaId = req.params.id;
+    if (!matriculaId) throw new Error('ID da matrícula não fornecido');
+    const matricula = await matriculasService.atualizarMatricula(matriculaId, req.body);
 
     return res.json({
       success: true,

@@ -115,21 +115,6 @@ export class AuthService {
   }
 
   private async persistRefreshToken(tokenHash: string, userId: number, expiresAt: Date): Promise<void> {
-    if (env.REDIS_HOST) {
-      try {
-        await this.redis.set(
-          this.getRefreshRedisKey(tokenHash),
-          JSON.stringify({ userId, expiresAt: expiresAt.toISOString() }),
-          'EX',
-          this.refreshTtlSeconds
-        );
-      } catch (error) {
-        loggerService.warn('Falha ao registrar refresh token no Redis', {
-          error: error instanceof Error ? error.message : String(error)
-        });
-      }
-    }
-
     await this.ensureRefreshTokenTable();
     if (!this.refreshTableEnsured) {
       return;
@@ -143,10 +128,26 @@ export class AuthService {
          DO UPDATE SET user_id = EXCLUDED.user_id, expires_at = EXCLUDED.expires_at, revoked = false, revoked_at = NULL`,
         [tokenHash, userId, expiresAt]
       );
+
+      if (env.REDIS_HOST) {
+        try {
+          await this.redis.set(
+            this.getRefreshRedisKey(tokenHash),
+            JSON.stringify({ userId, expiresAt: expiresAt.toISOString() }),
+            'EX',
+            this.refreshTtlSeconds
+          );
+        } catch (error) {
+          loggerService.warn('Falha ao registrar refresh token no Redis (não crítico)', {
+            error: error instanceof Error ? error.message : String(error)
+          });
+        }
+      }
     } catch (error) {
-      loggerService.warn('Falha ao registrar refresh token no banco de dados', {
+      loggerService.error('Falha ao registrar refresh token no banco de dados', {
         error: error instanceof Error ? error.message : String(error)
       });
+      throw error;
     }
   }
 
@@ -429,7 +430,7 @@ export class AuthService {
         role: user.papel
       };
       const token = this.generateToken(tokenPayload);
-      const refreshToken = await this.generateRefreshToken(tokenPayload);
+      const newRefreshToken = await this.generateRefreshToken(tokenPayload);
 
       const sessionUser = this.buildSessionUser(user);
 
@@ -437,7 +438,7 @@ export class AuthService {
 
       const response: AuthResponse = {
         token,
-        refreshToken,
+        refreshToken: newRefreshToken,
         user: sessionUser
       };
 

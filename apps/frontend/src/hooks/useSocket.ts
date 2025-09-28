@@ -40,14 +40,6 @@ const useSocket = (socketUrl?: string) => {
     if (!isAuthenticated || !profile) {
       return;
     }
-
-    // Obter token do localStorage (compatibilidade com chaves antigas)
-    const token = localStorage.getItem(AUTH_TOKEN_KEY) || localStorage.getItem('token');
-    if (!token) {
-      console.warn('Token não encontrado');
-      return;
-    }
-
     // Conectar ao socket apenas se estiver autenticado
     const WS_URL = socketUrl
       ?? (import.meta as any)?.env?.VITE_WS_URL
@@ -55,7 +47,7 @@ const useSocket = (socketUrl?: string) => {
     const socket = io(
       WS_URL,
       {
-        auth: { token },
+        withCredentials: true,
         transports: ['websocket', 'polling']
       }
     );

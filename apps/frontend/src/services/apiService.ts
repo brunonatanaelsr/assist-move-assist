@@ -26,6 +26,7 @@ import type {
   UsuarioPermissions,
 } from '@/types/configuracoes';
 import type { Oficina } from '@/types/oficinas';
+import { AuthService } from '@/services/auth.service';
 const IS_DEV = (import.meta as any)?.env?.DEV === true || (import.meta as any)?.env?.MODE === 'development';
 
 type SessionUser = AuthenticatedSessionUser & { ativo?: boolean };
@@ -55,21 +56,21 @@ class ApiService {
       headers: {
         'Content-Type': 'application/json',
       },
+      // Adiciona token CSRF quando necessário
+      transformRequest: [(data, headers) => {
+        if (REQUIRE_CSRF_HEADER) {
+          const csrfToken = getCookie('XSRF-TOKEN');
+          if (csrfToken) {
+            headers['X-CSRF-Token'] = csrfToken;
+          }
+        }
+        return data;
+      }],
     });
 
-    // Interceptor para adicionar token em todas as requisições
+    // Interceptor para adicionar cabeçalhos dinâmicos em todas as requisições
     this.api.interceptors.request.use(
       (config) => {
-        const token =
-          localStorage.getItem(AUTH_TOKEN_KEY) ||
-          localStorage.getItem('auth_token') ||
-          localStorage.getItem('token');
-        if (token && token !== 'undefined') {
-          config.headers.Authorization = `Bearer ${token}`;
-        } else if (config.headers && 'Authorization' in config.headers) {
-          delete (config.headers as any).Authorization;
-        }
-
         // CSRF header opcional (se o backend validar)
         if (REQUIRE_CSRF_HEADER) {
           const csrf = getCookie('csrf_token');
@@ -117,14 +118,8 @@ class ApiService {
         
         // Tratar erro de autenticação
         if (error.response && error.response.status === 401) {
-          const tokenKeys = new Set([
-            'token',
-            'auth_token',
-            AUTH_TOKEN_KEY
-          ]);
-          tokenKeys.forEach((key) => localStorage.removeItem(key));
-          localStorage.removeItem('user');
-          localStorage.removeItem(USER_KEY);
+          const authService = AuthService.getInstance();
+          authService.setUser(null);
           // HashRouter-safe redirect
           if (typeof window !== 'undefined') {
             window.dispatchEvent(new Event('auth:logout'));

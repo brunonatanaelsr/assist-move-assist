@@ -45,44 +45,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const savedUser = authService.getUser?.();
+    const savedUser = authService.getUser();
     if (savedUser) setUser(savedUser);
     setLoading(false);
   }, [authService]);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (typeof window === 'undefined') return;
 
-    const handleLogoutEvent = () => {
-      setUser(null);
-      setLoading(false);
+    const handleUserChange = (event: Event) => {
+      const detail = (event as CustomEvent<User | null>).detail ?? null;
+      setUser(detail);
     };
 
-    const handleStorageEvent = (event: StorageEvent) => {
-      const relevantKeys = new Set([
-        "token",
-        "auth_token",
-        AUTH_TOKEN_KEY,
-        "user",
-        USER_KEY
-      ]);
-      if (event.key === null || relevantKeys.has(event.key)) {
-        handleLogoutEvent();
-      }
-    };
-
-    window.addEventListener("auth:logout", handleLogoutEvent);
-    window.addEventListener("storage", handleStorageEvent);
-
+    window.addEventListener('auth:user-changed', handleUserChange);
     return () => {
-      window.removeEventListener("auth:logout", handleLogoutEvent);
-      window.removeEventListener("storage", handleStorageEvent);
+      window.removeEventListener('auth:user-changed', handleUserChange);
     };
   }, []);
-
-  const legacyTokenKeys = useMemo(() => ['auth_token', 'token'], []);
-  const legacyUserKeys = useMemo(() => ['user'], []);
-
   const signIn = async (email: string, password: string): Promise<{ error?: Error }> => {
     try {
       setLoading(true);
@@ -92,18 +72,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       type LoginResponse = { token: string; refreshToken: string; user?: User };
       const resp = response as LoginResponse;
 
-      // Armazenar token de acesso
-      if (resp.token) {
-        localStorage.setItem(AUTH_TOKEN_KEY, resp.token);
-        legacyTokenKeys
-          .filter((key) => key !== AUTH_TOKEN_KEY)
-          .forEach((key) => localStorage.removeItem(key));
-      }
+      // O backend define cookies httpOnly; armazenamos apenas o perfil no client via AuthService
       if (resp.user) {
-        localStorage.setItem(USER_KEY, JSON.stringify(resp.user));
-        legacyUserKeys
-          .filter((key) => key !== USER_KEY)
-          .forEach((key) => localStorage.removeItem(key));
         setUser(resp.user);
       }
       return {};
@@ -119,10 +89,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(true);
       await authService.logout();
     } finally {
-      const tokenKeys = new Set([...legacyTokenKeys, AUTH_TOKEN_KEY]);
-      tokenKeys.forEach((key) => localStorage.removeItem(key));
-      const userKeys = new Set([...legacyUserKeys, USER_KEY]);
-      userKeys.forEach((key) => localStorage.removeItem(key));
+      // limpeza local: remover possíveis chaves legadas
+      const tokenKeys = new Set([...(['auth_token','token'] as string[]), AUTH_TOKEN_KEY]);
+      tokenKeys.forEach((key) => window.localStorage.removeItem(key));
+      const userKeys = new Set([...(['user'] as string[]), USER_KEY]);
+      userKeys.forEach((key) => window.localStorage.removeItem(key));
       setUser(null);
       setLoading(false);
     }

@@ -1,7 +1,8 @@
 import type { Express, RequestHandler } from 'express';
 import express from 'express';
 import helmet from 'helmet';
-import cors, { type CorsOptions } from 'cors';
+import cors from 'cors';
+import type { CorsOptions } from 'cors';
 import compression from 'compression';
 import rateLimit from 'express-rate-limit';
 import mongoSanitize from 'express-mongo-sanitize';
@@ -16,7 +17,7 @@ export type SecurityEnvConfig = Pick<Env, 'NODE_ENV' | 'CORS_ORIGIN' | 'CORS_ALL
 
 export interface SecurityMiddlewareOptions {
   env?: Partial<SecurityEnvConfig>;
-  corsOptions?: CorsOptions;
+  corsOptions?: Parameters<typeof cors>[0];
   jsonLimit?: string;
   urlencodedLimit?: string;
   rateLimitWindowMs?: number;
@@ -28,7 +29,7 @@ export interface SecurityMiddlewareOptions {
 
 export interface SecurityMiddlewareBundle {
   env: SecurityEnvConfig;
-  corsOptions: CorsOptions;
+  corsOptions: Parameters<typeof cors>[0];
   globalMiddlewares: RequestHandler[];
   rateLimitMiddleware: RequestHandler;
   shouldApplyRateLimit: boolean;
@@ -47,7 +48,7 @@ const baseEnvConfig: SecurityEnvConfig = {
   RATE_LIMIT_DISABLE: defaultEnv.RATE_LIMIT_DISABLE
 };
 
-const parseCorsOrigin = (env: SecurityEnvConfig): CorsOptions['origin'] => {
+const parseCorsOrigin = (env: SecurityEnvConfig): boolean | string | RegExp | (string | RegExp)[] => {
   const rawOrigins = env.CORS_ORIGIN
     ?.split(',')
     .map((origin) => origin.trim())
@@ -93,7 +94,7 @@ export const createSecurityMiddleware = (
     ...(additionalAllowedHeaders || [])
   ]));
 
-  const corsOptions: CorsOptions = options.corsOptions ?? {
+  const corsOptions = options.corsOptions ?? {
     origin: parseCorsOrigin(effectiveEnv),
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],

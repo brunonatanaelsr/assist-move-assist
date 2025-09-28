@@ -299,12 +299,6 @@ const refreshHandler: RequestHandler<
     }
 
     handleUnexpectedError(res, error, 'Erro ao renovar token');
-      user: result.user
-    });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Erro ao renovar token';
-    res.status(401).json({ error: message });
->>>>>>> origin/codex/resolve-merge-conflicts-in-auth-service
   }
 };
 
@@ -316,29 +310,9 @@ router.post(
   loginHandler
 );
 router.post('/register', validateRequest(registerSchema), registerHandler);
-<<<<<<< HEAD
 router.post('/logout', logoutHandler);
 router.post('/refresh', validateRequest(refreshTokenSchema), refreshHandler);
 router.post('/refresh-token', validateRequest(refreshTokenSchema), refreshHandler);
-=======
-router.post('/logout', async (req, res) => {
-  const refreshToken = getCookieValue(req, 'refresh_token');
-  if (refreshToken) {
-    try {
-      await authService.revokeRefreshToken(refreshToken);
-    } catch (error) {
-      loggerService.warn('Não foi possível revogar refresh token no logout', {
-        error: error instanceof Error ? error.message : String(error)
-      });
-    }
-  }
-
-  clearSessionCookies(res);
-  res.json({ message: 'Logout realizado com sucesso' });
-});
-router.post('/refresh', refreshHandler);
-router.post('/refresh-token', refreshHandler);
->>>>>>> origin/codex/resolve-merge-conflicts-in-auth-service
 router.get('/profile', authenticateToken, profileHandler);
 router.get('/me', authenticateToken, profileHandler);
 router.put('/profile', authenticateToken, validateRequest(updateProfileSchema), updateProfileHandler);
