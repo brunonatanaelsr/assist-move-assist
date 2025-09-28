@@ -11,7 +11,7 @@ import type {
   BeneficiariaFiltros,
 } from '@assist/types';
 import { translateErrorMessage } from '@/lib/apiError';
-import { API_URL } from '@/config';
+import { API_URL, REQUIRE_CSRF_HEADER } from '@/config';
 import type { DashboardStatsResponse } from '@/types/dashboard';
 import type { ApiResponse, Pagination } from '@/types/api';
 import type {
@@ -68,9 +68,13 @@ class ApiService {
         }
 
         // CSRF header opcional (se o backend validar)
-        const csrf = getCookie('csrf_token');
-        if (csrf && config.method && ['post','put','patch','delete'].includes(config.method)) {
-          (config.headers as any)['X-CSRF-Token'] = csrf;
+        if (REQUIRE_CSRF_HEADER) {
+          const csrf = getCookie('csrf_token');
+          if (csrf && config.method && ['post', 'put', 'patch', 'delete'].includes(config.method)) {
+            (config.headers as any)['X-CSRF-Token'] = csrf;
+          }
+        } else if (config.headers && 'X-CSRF-Token' in config.headers) {
+          delete (config.headers as any)['X-CSRF-Token'];
         }
 
         if (IS_DEV) {

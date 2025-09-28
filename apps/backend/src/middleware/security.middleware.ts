@@ -12,7 +12,7 @@ import type { Env } from '../config/env';
 import { env as defaultEnv } from '../config/env';
 import { logger } from '../services/logger';
 
-export type SecurityEnvConfig = Pick<Env, 'NODE_ENV' | 'CORS_ORIGIN' | 'RATE_LIMIT_DISABLE'>;
+export type SecurityEnvConfig = Pick<Env, 'NODE_ENV' | 'CORS_ORIGIN' | 'CORS_ALLOWED_HEADERS' | 'RATE_LIMIT_DISABLE'>;
 
 export interface SecurityMiddlewareOptions {
   env?: Partial<SecurityEnvConfig>;
@@ -77,11 +77,27 @@ export const createSecurityMiddleware = (
     CORS_ORIGIN: options.env?.CORS_ORIGIN ?? baseEnvConfig.CORS_ORIGIN
   };
 
+  const defaultAllowedHeaders: string[] = [
+    'Content-Type',
+    'Authorization',
+    'X-Requested-With',
+    'X-CSRF-Token'
+  ];
+  const additionalAllowedHeaders = defaultEnv.CORS_ALLOWED_HEADERS
+    ?.split(',')
+    .map((header) => header.trim())
+    .filter((header) => header.length > 0);
+
+  const allowedHeaders = Array.from(new Set([
+    ...defaultAllowedHeaders,
+    ...(additionalAllowedHeaders || [])
+  ]));
+
   const corsOptions: CorsOptions = options.corsOptions ?? {
     origin: parseCorsOrigin(effectiveEnv),
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
+    allowedHeaders
   };
 
   const jsonLimit = options.jsonLimit ?? DEFAULT_JSON_LIMIT;
