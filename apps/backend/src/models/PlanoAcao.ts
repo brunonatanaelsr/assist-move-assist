@@ -1,26 +1,36 @@
+export type PlanoAcaoItemStatus = 'pendente' | 'em_andamento' | 'concluida' | 'cancelada';
+
+export interface PlanoAcaoItem {
+  id: number;
+  titulo: string;
+  responsavel: string | null;
+  prazo: string | null;
+  status: PlanoAcaoItemStatus;
+  suporte_oferecido: string | null;
+  criado_em: string | null;
+  atualizado_em: string | null;
+}
+
 export interface PlanoAcao {
   id: number;
   beneficiaria_id: number;
-  data_plano: Date;
+  criado_por: number | null;
+  criado_em: string | null;
+  atualizado_em: string | null;
   objetivo_principal: string;
   areas_prioritarias: string[];
-  outras_areas?: string[];
-  acoes_realizadas: string[];
-  suporte_instituto?: string;
-  primeira_avaliacao_data?: Date;
-  primeira_avaliacao_progresso?: string;
-  segunda_avaliacao_data?: Date;
-  segunda_avaliacao_progresso?: string;
-  assinatura_beneficiaria: boolean;
-  assinatura_responsavel_tecnico: boolean;
-  data_criacao: Date;
-  data_atualizacao?: Date;
+  observacoes: string | null;
+  primeira_avaliacao_em: string | null;
+  primeira_avaliacao_nota: string | null;
+  segunda_avaliacao_em: string | null;
+  segunda_avaliacao_nota: string | null;
+  assinatura_beneficiaria: string | null;
+  assinatura_responsavel: string | null;
+  itens: PlanoAcaoItem[];
 }
-
-export type PlanoAcaoInput = Omit<PlanoAcao, 'id' | 'data_criacao' | 'data_atualizacao'>;
 
 export interface PlanoAcaoResponse {
   data?: PlanoAcao | PlanoAcao[];
   error?: string;
-  message?: string;
+  detalhes?: unknown;
 }
