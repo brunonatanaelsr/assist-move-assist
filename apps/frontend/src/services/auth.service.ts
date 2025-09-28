@@ -37,6 +37,7 @@ export class AuthService {
   private static instance: AuthService;
 
   private readonly deviceStorageKey = 'auth_device_id';
+  private readonly csrfEndpoints = ['/csrf-token', '/auth/csrf'];
 
   private constructor() {}
 
@@ -45,6 +46,19 @@ export class AuthService {
       AuthService.instance = new AuthService();
     }
     return AuthService.instance;
+  }
+
+  private async ensureCsrfToken(): Promise<void> {
+    for (const endpoint of this.csrfEndpoints) {
+      try {
+        await api.get(endpoint, { withCredentials: true });
+        return;
+      } catch {
+        // tenta próximo endpoint
+      }
+    }
+
+    throw new Error('Não foi possível obter o token CSRF');
   }
 
   private getDeviceId(): string {
@@ -69,6 +83,7 @@ export class AuthService {
 
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
     try {
+      await this.ensureCsrfToken();
       const deviceId = this.getDeviceId();
       const response = await api.post<AuthResponse>(
         '/auth/login',
@@ -89,6 +104,7 @@ export class AuthService {
     const userKeys = new Set([...LEGACY_USER_KEYS, USER_KEY]);
 
     try {
+      await this.ensureCsrfToken();
       const deviceId = this.getDeviceId();
       await api.post(
         '/auth/logout',
@@ -105,6 +121,7 @@ export class AuthService {
 
   async refreshToken(): Promise<RefreshSessionResponse> {
     try {
+      await this.ensureCsrfToken();
       const deviceId = this.getDeviceId();
       const response = await api.post<RefreshSessionResponse>(
         '/auth/refresh',
