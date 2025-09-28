@@ -1,25 +1,25 @@
-[{
-        "resource": "/workspaces/assist-move-assist/apps/backend/src/middleware/security.middleware.ts",
-	"owner": "typescript",
-	"code": "2339",
-	"severity": 8,
-	"message": "A propriedade 'json' não existe no tipo 'typeof import(\"express\")'.",
-	"source": "ts",
-	"startLineNumber": 71,
-	"startColumn": 17,
-	"endLineNumber": 71,
-	"endColumn": 21,
-	"origin": "extHost2"
-},{
-        "resource": "/workspaces/assist-move-assist/apps/backend/src/middleware/security.middleware.ts",
-	"owner": "typescript",
-	"code": "2339",
-	"severity": 8,
-	"message": "A propriedade 'urlencoded' não existe no tipo 'typeof import(\"express\")'.",
-	"source": "ts",
-	"startLineNumber": 78,
-	"startColumn": 17,
-	"endLineNumber": 78,
-	"endColumn": 27,
-	"origin": "extHost2"
-}]
+import type { Express, RequestHandler } from 'express';
+import mongoSanitize from 'express-mongo-sanitize';
+import hpp from 'hpp';
+
+const xssClean: () => RequestHandler = require('xss-clean');
+
+export const mongoSanitizeMiddleware: RequestHandler = mongoSanitize();
+export const xssCleanMiddleware: RequestHandler = xssClean();
+export const hppMiddleware: RequestHandler = hpp();
+
+export const securityMiddlewares: RequestHandler[] = [
+  mongoSanitizeMiddleware,
+  xssCleanMiddleware,
+  hppMiddleware,
+];
+
+export const applySecurityMiddlewares = (app: Express): Express => {
+  securityMiddlewares.forEach((middleware) => {
+    app.use(middleware);
+  });
+
+  return app;
+};
+
+export default securityMiddlewares;

@@ -15,6 +15,7 @@ import { errorHandler } from './middleware/errorHandler';
 import { logger } from './services/logger';
 import { pool } from './config/database';
 import { env } from './config/env';
+import { applySecurityMiddlewares } from './middleware/security.middleware';
 
 const app: Express = express();
 const server = createServer(app);
@@ -81,6 +82,8 @@ app.use(morgan('combined', { stream: { write: (message) => logger.info(message.t
 // Body parsing
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+applySecurityMiddlewares(app);
 
 // Removido: exposição direta de uploads
 // Os arquivos agora são servidos por rotas autenticadas (ex.: /api/feed/images/:filename)
