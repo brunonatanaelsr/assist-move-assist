@@ -37,7 +37,7 @@ jest.mock('../../config/database', () => {
     }
   };
 
-  const proxy = new Proxy({}, handler);
+  const proxy = new Proxy({} as Pool, handler);
 
   const execute = async (text: string, params?: any[]) => {
     if (!testPool) {
