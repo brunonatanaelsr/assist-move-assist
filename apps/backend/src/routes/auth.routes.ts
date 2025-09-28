@@ -15,8 +15,8 @@ import {
 import {
   changePasswordSchema,
   loginSchema,
-  refreshTokenSchema,
   registerSchema,
+  refreshTokenSchema,
   updateProfileSchema
 } from '../validation/schemas/auth.schema';
 import type {
@@ -53,12 +53,6 @@ interface RefreshResponse {
 
 interface RefreshRequestBody {
   refreshToken?: string;
-  deviceId?: string;
-}
-
-interface LogoutRequestBody {
-  refreshToken?: string;
-  deviceId?: string;
 }
 
 const allowedSameSite = ['lax', 'strict', 'none'] as const;
@@ -78,10 +72,13 @@ const REFRESH_COOKIE_MAX_AGE = (() => {
   if (typeof env.JWT_REFRESH_EXPIRY === 'number') {
     return env.JWT_REFRESH_EXPIRY * 1000;
   }
-  const parsed = ms(String(env.JWT_REFRESH_EXPIRY));
-  return typeof parsed === 'number' && !Number.isNaN(parsed)
-    ? parsed
-    : 7 * 24 * 60 * 60 * 1000;
+  if (typeof env.JWT_REFRESH_EXPIRY === 'string') {
+    const parsed = ms(env.JWT_REFRESH_EXPIRY);
+    if (typeof parsed === 'number' && !Number.isNaN(parsed)) {
+      return parsed;
+    }
+  }
+  return 7 * 24 * 60 * 60 * 1000;
 })();
 
 const REFRESH_COOKIE_OPTIONS: CookieOptions = {
@@ -108,14 +105,10 @@ const loginHandler: RequestHandler<
 ) => {
   try {
     const ipAddress = req.ip || req.socket.remoteAddress || 'unknown';
-    const userAgent = req.get('user-agent') || null;
-    const deviceId = req.body.deviceId ?? null;
     const result = await authService.login(
       req.body.email,
       req.body.password,
-      ipAddress,
-      deviceId,
-      userAgent
+      ipAddress
     );
 
     if (!result) {
@@ -224,18 +217,12 @@ const changePasswordHandler: RequestHandler<
   }
 };
 
-const logoutHandler: RequestHandler<
-  EmptyParams,
-  { message: string } | { error: string },
-  LogoutRequestBody
-> = async (req, res) => {
+// Handler de logout que revoga refresh token e limpa cookies de sessão
+const logoutHandler: RequestHandler<EmptyParams, { message: string } | { error: string }, Record<string, unknown>> = async (req, res) => {
   const refreshToken = extractRefreshToken(req);
-  const deviceId = req.body?.deviceId ?? null;
-  const userAgent = req.get('user-agent') || null;
-
   if (refreshToken) {
     try {
-      await authService.revokeRefreshToken(refreshToken, { deviceId, userAgent });
+      await authService.revokeRefreshToken(refreshToken);
     } catch (error) {
       loggerService.warn('Falha ao revogar refresh token no logout', {
         error: error instanceof Error ? error.message : String(error)
@@ -243,11 +230,10 @@ const logoutHandler: RequestHandler<
     }
   }
 
-  clearAuthCookie(res);
-  clearRefreshCookie(res);
+  // Limpa cookies de sessão
+  clearSessionCookies(res);
   res.json({ message: 'Logout realizado com sucesso' });
 };
-
 /**
  * Retorna os dados de perfil do usuário autenticado.
  */
@@ -284,37 +270,24 @@ const refreshHandler: RequestHandler<
 > = async (req, res) => {
   try {
     const refreshToken = extractRefreshToken(req);
+
     if (!refreshToken) {
-      res.status(400).json({ error: 'Refresh token é obrigatório' });
+      res.status(401).json({ error: 'Refresh token não fornecido' });
       return;
     }
 
-    const userAgent = req.get('user-agent') || null;
-    const ipAddress = req.ip || req.socket.remoteAddress || 'unknown';
-    const deviceId = req.body?.deviceId ?? null;
-
-    const result = await authService.renewAccessToken(refreshToken, {
-      deviceId,
-      userAgent,
-      ipAddress
-    });
+    const result = await authService.refreshWithToken(refreshToken);
 
     setAuthCookie(res, result.token);
     if (result.refreshToken) {
       setRefreshCookie(res, result.refreshToken);
     }
 
-    const role = result.user.papel ?? (result.user as { role?: string }).role ?? '';
-
     res.json({
       message: 'Token renovado',
       token: result.token,
       refreshToken: result.refreshToken,
-      user: {
-        id: result.user.id,
-        email: result.user.email,
-        role
-      }
+      user: result.user
     });
   } catch (error) {
     if (error instanceof Error) {
@@ -326,6 +299,12 @@ const refreshHandler: RequestHandler<
     }
 
     handleUnexpectedError(res, error, 'Erro ao renovar token');
+      user: result.user
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Erro ao renovar token';
+    res.status(401).json({ error: message });
+>>>>>>> origin/codex/resolve-merge-conflicts-in-auth-service
   }
 };
 
@@ -337,9 +316,29 @@ router.post(
   loginHandler
 );
 router.post('/register', validateRequest(registerSchema), registerHandler);
+<<<<<<< HEAD
 router.post('/logout', logoutHandler);
 router.post('/refresh', validateRequest(refreshTokenSchema), refreshHandler);
 router.post('/refresh-token', validateRequest(refreshTokenSchema), refreshHandler);
+=======
+router.post('/logout', async (req, res) => {
+  const refreshToken = getCookieValue(req, 'refresh_token');
+  if (refreshToken) {
+    try {
+      await authService.revokeRefreshToken(refreshToken);
+    } catch (error) {
+      loggerService.warn('Não foi possível revogar refresh token no logout', {
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  }
+
+  clearSessionCookies(res);
+  res.json({ message: 'Logout realizado com sucesso' });
+});
+router.post('/refresh', refreshHandler);
+router.post('/refresh-token', refreshHandler);
+>>>>>>> origin/codex/resolve-merge-conflicts-in-auth-service
 router.get('/profile', authenticateToken, profileHandler);
 router.get('/me', authenticateToken, profileHandler);
 router.put('/profile', authenticateToken, validateRequest(updateProfileSchema), updateProfileHandler);
@@ -365,11 +364,8 @@ function setRefreshCookie(res: Response, token: string): void {
   }
 }
 
-function clearAuthCookie(res: Response): void {
+function clearSessionCookies(res: Response): void {
   res.clearCookie('auth_token', COOKIE_OPTIONS);
-}
-
-function clearRefreshCookie(res: Response): void {
   res.clearCookie('refresh_token', REFRESH_COOKIE_OPTIONS);
 }
 
@@ -414,5 +410,4 @@ function extractRefreshToken(req: Request): string | undefined {
   const providedToken = req.body?.refreshToken;
   return providedToken ?? getCookieValue(req.headers.cookie, 'refresh_token');
 }
-
 export default router;
