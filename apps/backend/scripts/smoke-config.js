@@ -5,18 +5,54 @@
    - Cria um usuário admin e valida acesso às rotas protegidas
 */
 const axios = require('axios');
+const { createCookieJar, storeCookies, cookieHeader } = require('./utils/cookies');
+const { fetchCsrfToken, extractSetCookiesFromAxiosHeaders } = require('./utils/csrf');
 
 const API = process.env.API_BASE || 'http://localhost:3000/api';
 const SUPER_EMAIL = process.env.SUPER_EMAIL || 'bruno@move.com';
 const SUPER_PASS = process.env.SUPER_PASS || '15002031';
 
+const cookieJar = createCookieJar();
+
+async function csrfHeaders(base = {}) {
+  const token = await fetchCsrfToken(API, cookieJar);
+  const header = cookieHeader(cookieJar);
+  return {
+    ...base,
+    'X-CSRF-Token': token,
+    ...(header ? { Cookie: header } : {}),
+  };
+}
+
+function captureAxiosCookies(response) {
+  storeCookies(cookieJar, extractSetCookiesFromAxiosHeaders(response.headers));
+  return response;
+}
+
 async function login(email, password) {
-  const r = await axios.post(`${API}/auth/login`, { email, password });
+  const r = await axios.post(
+    `${API}/auth/login`,
+    { email, password },
+    { headers: await csrfHeaders({ 'Content-Type': 'application/json' }) }
+  );
+  captureAxiosCookies(r);
   return { token: r.data.token, user: r.data.user };
 }
 
 function client(token) {
-  return axios.create({ baseURL: API, headers: { Authorization: `Bearer ${token}` } });
+  const instance = axios.create({ baseURL: API, headers: { Authorization: `Bearer ${token}` } });
+
+  instance.interceptors.request.use(async (config) => {
+    const method = (config.method || 'get').toLowerCase();
+    if (['post', 'put', 'patch', 'delete'].includes(method)) {
+      config.headers = await csrfHeaders(config.headers || {});
+    }
+    return config;
+  });
+
+  instance.interceptors.response.use((response) => captureAxiosCookies(response));
+
+  return instance;
 }
 
 async function run() {
