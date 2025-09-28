@@ -15,6 +15,7 @@ import { errorHandler } from './middleware/errorHandler';
 import { logger } from './services/logger';
 import { pool } from './config/database';
 import { env } from './config/env';
+import { csrfMiddleware } from './middleware/csrf';
 
 const app: Express = express();
 const server = createServer(app);
@@ -56,7 +57,7 @@ const corsOptions = {
   origin: corsOriginOption,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token'],
 };
 app.use(cors(corsOptions));
 
@@ -82,16 +83,23 @@ app.use(morgan('combined', { stream: { write: (message) => logger.info(message.t
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// CSRF protection
+app.use(csrfMiddleware);
+
 // Removido: exposição direta de uploads
 // Os arquivos agora são servidos por rotas autenticadas (ex.: /api/feed/images/:filename)
 
 // Health check
 app.get('/health', (req, res) => {
-  res.status(200).json({ 
+  res.status(200).json({
     status: 'OK',
     timestamp: new Date().toISOString(),
     environment: env.NODE_ENV
   });
+});
+
+app.get('/api/csrf-token', (req, res) => {
+  res.status(200).json({ csrfToken: res.locals.csrfToken });
 });
 
 // Rotas
