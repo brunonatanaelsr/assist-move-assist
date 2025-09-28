@@ -39,7 +39,13 @@ describe('MatriculasController', () => {
     };
 
     it('retorna 201 quando o serviço cria a matrícula', async () => {
-      mockedService.criarMatricula.mockResolvedValue({ id: 1 });
+      const serviceResponse = {
+        id: 1,
+        beneficiaria_id: requestBody.beneficiaria_id,
+        projeto_id: requestBody.projeto_id,
+        status_matricula: 'pendente'
+      };
+      mockedService.criarMatricula.mockResolvedValue(serviceResponse);
 
       const req: any = { body: requestBody };
       const res = createMockResponse();
@@ -50,7 +56,7 @@ describe('MatriculasController', () => {
       expect(res.status).toHaveBeenCalledWith(201);
       expect(res.json).toHaveBeenCalledWith({
         success: true,
-        data: { id: 1 },
+        data: serviceResponse,
         message: 'Matrícula criada com sucesso'
       });
     });
@@ -92,7 +98,13 @@ describe('MatriculasController', () => {
     };
 
     it('retorna 200 com o resultado do serviço', async () => {
-      mockedService.verificarElegibilidade.mockResolvedValue({ elegivel: true });
+      const serviceResponse = {
+        elegivel: true,
+        motivos: [],
+        warnings: ['Cadastro incompleto'],
+        matricula_existente: null
+      };
+      mockedService.verificarElegibilidade.mockResolvedValue(serviceResponse);
 
       const req: any = { body: requestBody };
       const res = createMockResponse();
@@ -100,7 +112,7 @@ describe('MatriculasController', () => {
       await verificarElegibilidade(req, res);
 
       expect(mockedService.verificarElegibilidade).toHaveBeenCalledWith(1, 2);
-      expect(res.json).toHaveBeenCalledWith({ success: true, data: { elegivel: true } });
+      expect(res.json).toHaveBeenCalledWith({ success: true, data: serviceResponse });
     });
 
     it('propaga erros conhecidos do serviço', async () => {

@@ -71,7 +71,7 @@ export const criarMatricula = async (req: Request, res: Response) => {
 
 export const obterMatricula = async (req: Request, res: Response) => {
   try {
-    const matricula = await matriculasService.obterMatricula(req.params.id);
+    const matricula = await matriculasService.obterMatricula(req.params.id as string);
 
     return res.json({
       success: true,
@@ -84,7 +84,10 @@ export const obterMatricula = async (req: Request, res: Response) => {
 
 export const atualizarMatricula = async (req: Request, res: Response) => {
   try {
-    const matricula = await matriculasService.atualizarMatricula(req.params.id, req.body);
+    const matricula = await matriculasService.atualizarMatricula(
+      req.params.id as string,
+      req.body
+    );
 
     return res.json({
       success: true,
