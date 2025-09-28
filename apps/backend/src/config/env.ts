@@ -73,6 +73,7 @@ const envSchema = z.object({
   RATE_LIMIT_DISABLE: booleanFromEnv.default(false),
   ENABLE_WS: booleanFromEnv.default(false),
   CORS_ORIGIN: z.string().optional(),
+  CORS_ALLOWED_HEADERS: z.string().optional(),
   POSTGRES_HOST: z.string().min(1, 'POSTGRES_HOST é obrigatório'),
   POSTGRES_PORT: z.coerce.number().default(5432),
   POSTGRES_DB: z.string().min(1, 'POSTGRES_DB é obrigatório'),

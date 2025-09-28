@@ -1,5 +1,4 @@
 import { db } from '../database';
-import { redis } from '../lib/redis';
 import { logger } from '../services/logger';
 import { NotificationJob } from '../jobs/NotificationJob';
 import { ReminderJob } from '../jobs/ReminderJob';
