@@ -33,6 +33,8 @@ export function csrfMiddleware(req: Request, res: Response, next: NextFunction) 
       } as any);
     }
 
+    res.locals.csrfToken = token;
+
     // Apenas métodos mutantes exigem validação
     if (isIdempotent(req.method)) return next();
 

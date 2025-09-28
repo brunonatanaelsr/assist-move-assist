@@ -11,7 +11,7 @@ const loginSchema = registry.register('Login', z.object({
 
 const tokenSchema = registry.register('Token', z.object({
   accessToken: z.string(),
-  refreshToken: z.string().optional()
+  refreshToken: z.string()
 }));
 
 // Beneficiária Schemas

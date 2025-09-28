@@ -2,18 +2,19 @@ import request from 'supertest';
 import { app } from '../src/app';
 import { pool } from '../src/config/database';
 import { describe, expect, it, beforeAll, afterAll } from '@jest/globals';
+import { withCsrf } from './utils/csrf';
 
 describe('Oficinas API Tests', () => {
   let authToken: string;
 
   beforeAll(async () => {
     // Login para obter token
-    const res = await request(app)
-      .post('/api/auth/login')
-      .send({
-        email: 'bruno@move.com',
-        password: '15002031'
-      });
+    const res = await (
+      await withCsrf(app, request(app).post('/api/auth/login'))
+    ).send({
+      email: 'bruno@move.com',
+      password: '15002031'
+    });
     
     authToken = res.body.token;
   });
@@ -33,10 +34,14 @@ describe('Oficinas API Tests', () => {
       status: 'AGENDADA'
     };
 
-    const res = await request(app)
-      .post('/api/oficinas')
-      .set('Authorization', `Bearer ${authToken}`)
-      .send(oficina);
+    const res = await (
+      await withCsrf(
+        app,
+        request(app)
+          .post('/api/oficinas')
+          .set('Authorization', `Bearer ${authToken}`)
+      )
+    ).send(oficina);
     
     expect(res.status).toBe(201);
     expect(res.body).toHaveProperty('id');

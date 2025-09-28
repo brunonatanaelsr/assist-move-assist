@@ -3,26 +3,23 @@ import { NavLink, useLocation } from "react-router-dom";
 import {
   Users,
   FileText,
-  Heart, 
-  BarChart3, 
-  Settings, 
+  Heart,
+  BarChart3,
+  Settings,
   Menu,
   X,
   Home,
   UserPlus,
   ClipboardList,
-  FileCheck,
-  Eye,
-  Target,
   GraduationCap,
   TrendingUp,
   FolderKanban,
-  MessageSquare
+  MessageSquare,
+  type LucideIcon
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
-import type { LucideIcon } from "lucide-react";
 
 type Role = "guest" | "user" | "admin" | "super_admin" | "superadmin";
 
@@ -306,7 +303,7 @@ export default function Sidebar() {
                     {item.title}
                   </NavLink>
                 )}
-              </div>
+                </div>
             ))}
           </nav>
 

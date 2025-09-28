@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { io, Socket } from "socket.io-client";
+import { AUTH_TOKEN_KEY } from "@/config";
 import { useAuth } from "./useAuth";
 
 interface Message {
@@ -40,9 +41,8 @@ const useSocket = (socketUrl?: string) => {
       return;
     }
 
-    // Obter token do localStorage
-    // O app salva o JWT com a chave 'token' (ver usePostgreSQLAuth.tsx)
-    const token = localStorage.getItem('token');
+    // Obter token do localStorage (compatibilidade com chaves antigas)
+    const token = localStorage.getItem(AUTH_TOKEN_KEY) || localStorage.getItem('token');
     if (!token) {
       console.warn('Token não encontrado');
       return;

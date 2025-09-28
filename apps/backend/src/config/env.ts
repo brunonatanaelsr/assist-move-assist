@@ -29,7 +29,8 @@ const defaultsForTests = {
   POSTGRES_PORT: '5432',
   POSTGRES_DB: 'postgres',
   POSTGRES_USER: 'postgres',
-  POSTGRES_PASSWORD: 'postgres'
+  POSTGRES_PASSWORD: 'postgres',
+  FRONTEND_URL: 'http://localhost:5173'
 } as const;
 
 const jwtExpirySchema = z
@@ -47,16 +48,34 @@ const jwtExpirySchema = z
   .default('24h')
   .transform((value): SignOptions['expiresIn'] => value);
 
+const jwtRefreshExpirySchema = z
+  .union([
+    z.coerce.number(),
+    z
+      .string()
+      .trim()
+      .regex(
+        /^\d+(\.\d+)?\s*(ms|s|m|h|d|w|y)$/i,
+        'JWT_REFRESH_EXPIRY deve seguir o formato 15m, 2h, 1d, etc.'
+      )
+      .transform((value) => value.replace(/\s+/g, '').toLowerCase() as StringValue)
+  ])
+  .default('7d')
+  .transform((value): SignOptions['expiresIn'] => value);
+
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().default(3000),
   JWT_SECRET: z.string().min(1, 'JWT_SECRET é obrigatório'),
   JWT_EXPIRY: jwtExpirySchema,
   JWT_REFRESH_SECRET: z.string().optional(),
+  JWT_REFRESH_EXPIRY: jwtRefreshExpirySchema,
   AUTH_COOKIE_SAMESITE: z.enum(['lax', 'strict', 'none']).optional(),
   RATE_LIMIT_DISABLE: booleanFromEnv.default(false),
   ENABLE_WS: booleanFromEnv.default(false),
   CORS_ORIGIN: z.string().optional(),
+  CORS_ALLOWED_HEADERS: z.string().optional(),
+  FRONTEND_URL: z.string().min(1, 'FRONTEND_URL é obrigatório'),
   POSTGRES_HOST: z.string().min(1, 'POSTGRES_HOST é obrigatório'),
   POSTGRES_PORT: z.coerce.number().default(5432),
   POSTGRES_DB: z.string().min(1, 'POSTGRES_DB é obrigatório'),

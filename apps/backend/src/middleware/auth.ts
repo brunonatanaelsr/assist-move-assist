@@ -21,6 +21,10 @@ export type AuthenticatedRequest<
 
 const JWT_SECRET = env.JWT_SECRET;
 const JWT_EXPIRY = env.JWT_EXPIRY;
+const JWT_REFRESH_SECRET = env.JWT_REFRESH_SECRET && env.JWT_REFRESH_SECRET.length > 0
+  ? env.JWT_REFRESH_SECRET
+  : `${JWT_SECRET}-refresh`;
+const JWT_REFRESH_EXPIRY = env.JWT_REFRESH_EXPIRY;
 
 const isMockFunction = (fn: unknown): fn is { mock: unknown } =>
   typeof fn === 'function' && typeof (fn as { mock?: unknown }).mock !== 'undefined';
@@ -45,6 +49,12 @@ const fallbackGenerateToken = (payload: JWTPayload): string =>
 
 const fallbackValidateToken = async (token: string): Promise<JWTPayload> =>
   jwt.verify(token, JWT_SECRET) as JWTPayload;
+
+const fallbackGenerateRefreshToken = (payload: JWTPayload): string =>
+  jwt.sign(buildTokenPayload(payload), JWT_REFRESH_SECRET, { expiresIn: JWT_REFRESH_EXPIRY });
+
+const fallbackValidateRefreshToken = async (token: string): Promise<JWTPayload> =>
+  jwt.verify(token, JWT_REFRESH_SECRET) as JWTPayload;
 
 export const AuthService = {
   login: (...args: Parameters<typeof authService.login>) => authService.login(...args),
@@ -75,6 +85,48 @@ export const AuthService = {
     }
 
     return fallbackValidateToken(token);
+  },
+  async generateRefreshToken(payload: JWTPayload): Promise<string> {
+    if (!shouldUseFallback(authService.generateRefreshToken)) {
+      return authService.generateRefreshToken({
+        id: payload.id,
+        email: payload.email ?? '',
+        role: payload.role
+      });
+    }
+
+    return fallbackGenerateRefreshToken(payload);
+  },
+  async validateRefreshToken(token: string): Promise<JWTPayload> {
+    if (!shouldUseFallback(authService.validateRefreshToken)) {
+      return authService.validateRefreshToken(token);
+    }
+
+    return fallbackValidateRefreshToken(token);
+  },
+  async refreshWithToken(refreshToken: string) {
+    if (!shouldUseFallback(authService.refreshWithToken)) {
+      return authService.refreshWithToken(refreshToken);
+    }
+
+    const payload = await fallbackValidateRefreshToken(refreshToken);
+    const token = fallbackGenerateToken(payload);
+    const newRefreshToken = fallbackGenerateRefreshToken(payload);
+
+    return {
+      token,
+      refreshToken: newRefreshToken,
+      user: {
+        id: payload.id,
+        email: payload.email ?? '',
+        role: String(payload.role)
+      }
+    };
+  },
+  async revokeRefreshToken(token: string): Promise<void> {
+    if (!shouldUseFallback(authService.revokeRefreshToken)) {
+      await authService.revokeRefreshToken(token);
+    }
   },
   async verifyToken(token: string): Promise<JWTPayload> {
     return this.validateToken(token);

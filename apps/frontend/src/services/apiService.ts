@@ -11,7 +11,7 @@ import type {
   BeneficiariaFiltros,
 } from '@assist/types';
 import { translateErrorMessage } from '@/lib/apiError';
-import { API_URL } from '@/config';
+import { API_URL, AUTH_TOKEN_KEY, USER_KEY, REQUIRE_CSRF_HEADER } from '@/config';
 import type { DashboardStatsResponse } from '@/types/dashboard';
 import type { ApiResponse, Pagination } from '@/types/api';
 import type {
@@ -60,7 +60,10 @@ class ApiService {
     // Interceptor para adicionar token em todas as requisições
     this.api.interceptors.request.use(
       (config) => {
-        const token = localStorage.getItem('token') || localStorage.getItem('auth_token');
+        const token =
+          localStorage.getItem(AUTH_TOKEN_KEY) ||
+          localStorage.getItem('auth_token') ||
+          localStorage.getItem('token');
         if (token && token !== 'undefined') {
           config.headers.Authorization = `Bearer ${token}`;
         } else if (config.headers && 'Authorization' in config.headers) {
@@ -68,9 +71,13 @@ class ApiService {
         }
 
         // CSRF header opcional (se o backend validar)
-        const csrf = getCookie('csrf_token');
-        if (csrf && config.method && ['post','put','patch','delete'].includes(config.method)) {
-          (config.headers as any)['X-CSRF-Token'] = csrf;
+        if (REQUIRE_CSRF_HEADER) {
+          const csrf = getCookie('csrf_token');
+          if (csrf && config.method && ['post', 'put', 'patch', 'delete'].includes(config.method)) {
+            (config.headers as any)['X-CSRF-Token'] = csrf;
+          }
+        } else if (config.headers && 'X-CSRF-Token' in config.headers) {
+          delete (config.headers as any)['X-CSRF-Token'];
         }
 
         if (IS_DEV) {
@@ -110,8 +117,14 @@ class ApiService {
         
         // Tratar erro de autenticação
         if (error.response && error.response.status === 401) {
-          localStorage.removeItem('token');
+          const tokenKeys = new Set([
+            'token',
+            'auth_token',
+            AUTH_TOKEN_KEY
+          ]);
+          tokenKeys.forEach((key) => localStorage.removeItem(key));
           localStorage.removeItem('user');
+          localStorage.removeItem(USER_KEY);
           // HashRouter-safe redirect
           if (typeof window !== 'undefined') {
             window.dispatchEvent(new Event('auth:logout'));
@@ -262,7 +275,38 @@ class ApiService {
 
   // Métodos específicos para beneficiárias
   async getBeneficiarias(params?: any): Promise<ApiResponse<Beneficiaria[]>> {
-    return this.get<Beneficiaria[]>('/beneficiarias', { params });
+    const response = await this.get<{ items?: Beneficiaria[]; pagination?: Pagination }>(
+      '/beneficiarias',
+      { params }
+    );
+
+    if (!response.success) {
+      return {
+        success: false,
+        message: response.message,
+        data: [],
+        pagination: response.pagination,
+      };
+    }
+
+    const payload = response.data ?? { items: [] };
+    const items = Array.isArray(payload)
+      ? payload
+      : Array.isArray(payload.items)
+        ? payload.items
+        : [];
+
+    const pagination = !Array.isArray(payload)
+      ? payload.pagination ?? response.pagination
+      : response.pagination;
+
+    return {
+      success: true,
+      message: response.message,
+      data: items,
+      pagination,
+      total: pagination?.total,
+    };
   }
 
   async getBeneficiaria(id: string | number): Promise<ApiResponse<Beneficiaria>> {

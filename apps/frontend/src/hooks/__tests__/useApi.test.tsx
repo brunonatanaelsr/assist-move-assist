@@ -1,6 +1,6 @@
 import { beforeEach, afterEach, vi, describe, it, expect } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
-import type { ReactNode } from 'react';
+import { createElement, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { apiService } from '@/services/apiService';
 import useApi, { useBeneficiarias, useCreateParticipacao, useParticipacoes, useUpdateParticipacao } from '../useApi';
@@ -17,9 +17,8 @@ const createWrapper = () => {
     },
   });
 
-  const wrapper = ({ children }: { children: ReactNode }) => (
-    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-  );
+  const wrapper = ({ children }: { children: ReactNode }) =>
+    createElement(QueryClientProvider, { client: queryClient, children });
 
   return { wrapper, queryClient };
 };
@@ -52,10 +51,9 @@ describe('useApi hooks', () => {
     const pagination = { page: 2, limit: 20, total: 40, totalPages: 2 };
     (apiService.getBeneficiarias as any).mockResolvedValueOnce({
       success: true,
-      data: {
-        data: [{ id: 1 }],
-        pagination,
-      },
+      data: [{ id: 1 }],
+      pagination,
+      total: pagination.total,
     });
 
     const params = { page: 2, limit: 20 };
@@ -67,7 +65,9 @@ describe('useApi hooks', () => {
     });
 
     expect(apiService.getBeneficiarias).toHaveBeenCalledWith(params);
-    expect(result.current.data).toEqual({ data: [{ id: 1 }], pagination });
+    expect(result.current.data?.data).toEqual([{ id: 1 }]);
+    expect(result.current.data?.pagination).toEqual(pagination);
+    expect(result.current.data?.pagination?.total).toBe(pagination.total);
   });
 
   it('deve retornar array de dados e sem paginação quando a resposta for simples', async () => {
@@ -84,7 +84,9 @@ describe('useApi hooks', () => {
     });
 
     expect(apiService.getBeneficiarias).toHaveBeenCalledWith(undefined);
-    expect(result.current.data).toEqual({ data: [{ id: 1 }, { id: 2 }], pagination: undefined });
+    expect(result.current.data?.data).toEqual([{ id: 1 }, { id: 2 }]);
+    expect(result.current.data?.pagination).toBeUndefined();
+    expect(result.current.data?.total).toBeUndefined();
   });
 
   it('deve enviar o filtro correto ao buscar participações', async () => {

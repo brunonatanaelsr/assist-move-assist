@@ -13,6 +13,8 @@
 
 const axios = require('axios');
 const { io } = require('socket.io-client');
+const { createCookieJar, storeCookies, cookieHeader } = require('./utils/cookies');
+const { fetchCsrfToken, extractSetCookiesFromAxiosHeaders } = require('./utils/csrf');
 
 const API_BASE = process.env.API_BASE || 'http://localhost:3000/api';
 const WS_URL = process.env.WS_URL || 'http://localhost:3000';
@@ -21,12 +23,47 @@ const A_PASS = process.env.A_PASS || '15002031';
 const B_EMAIL = process.env.B_EMAIL || 'admin@movemarias.com';
 const B_PASS = process.env.B_PASS || 'movemarias123';
 
+const cookieJar = createCookieJar();
+
+async function csrfHeaders(base = {}) {
+  const token = await fetchCsrfToken(API_BASE, cookieJar);
+  const cookie = cookieHeader(cookieJar);
+  return {
+    ...base,
+    'X-CSRF-Token': token,
+    ...(cookie ? { Cookie: cookie } : {}),
+  };
+}
+
+function captureAxiosCookies(response) {
+  storeCookies(cookieJar, extractSetCookiesFromAxiosHeaders(response.headers));
+  return response;
+}
+
 async function login(email, password) {
-  const resp = await axios.post(`${API_BASE}/auth/login`, { email, password });
+  const resp = await axios.post(
+    `${API_BASE}/auth/login`,
+    { email, password },
+    { headers: await csrfHeaders({ 'Content-Type': 'application/json' }) }
+  );
+  captureAxiosCookies(resp);
   if (!resp.data || !resp.data.token || !resp.data.user) {
     throw new Error(`Login inválido para ${email}`);
   }
   return { token: resp.data.token, user: resp.data.user };
+}
+
+function createApiClient(token) {
+  const instance = axios.create({ baseURL: API_BASE, headers: { Authorization: `Bearer ${token}` } });
+  instance.interceptors.request.use(async (config) => {
+    const method = (config.method || 'get').toLowerCase();
+    if (['post', 'put', 'patch', 'delete'].includes(method)) {
+      config.headers = await csrfHeaders(config.headers || {});
+    }
+    return config;
+  });
+  instance.interceptors.response.use((response) => captureAxiosCookies(response));
+  return instance;
 }
 
 function connectSocket(token, label) {
@@ -76,23 +113,23 @@ function waitNoEvent(socket, event, predicate = () => true, label = '', timeoutM
   });
 }
 
-async function createGroup(token, nome = 'Grupo Offline', descricao = 'Smoke offline') {
-  const resp = await axios.post(`${API_BASE}/grupos`, { nome, descricao }, { headers: { Authorization: `Bearer ${token}` } });
+async function createGroup(client, nome = 'Grupo Offline', descricao = 'Smoke offline') {
+  const resp = await client.post('/grupos', { nome, descricao });
   if (!resp.data || !resp.data.data || !resp.data.data.id) throw new Error('Falha ao criar grupo');
   return resp.data.data.id;
 }
 
-async function addMember(token, groupId, usuarioId, papel = 'membro') {
-  await axios.post(`${API_BASE}/grupos/${groupId}/membros`, { usuario_id: usuarioId, papel }, { headers: { Authorization: `Bearer ${token}` } });
+async function addMember(client, groupId, usuarioId, papel = 'membro') {
+  await client.post(`/grupos/${groupId}/membros`, { usuario_id: usuarioId, papel });
 }
 
-async function listarUsuarios(token) {
-  const resp = await axios.get(`${API_BASE}/mensagens/usuarios`, { headers: { Authorization: `Bearer ${token}` } });
+async function listarUsuarios(client) {
+  const resp = await client.get('/mensagens/usuarios');
   return resp.data;
 }
 
-async function getConversa(token, otherUserId) {
-  const resp = await axios.get(`${API_BASE}/mensagens/conversa/${otherUserId}`, { headers: { Authorization: `Bearer ${token}` } });
+async function getConversa(client, otherUserId) {
+  const resp = await client.get(`/mensagens/conversa/${otherUserId}`);
   return resp.data?.data || [];
 }
 
@@ -100,14 +137,17 @@ async function main() {
   const A = await login(A_EMAIL, A_PASS);
   const B = await login(B_EMAIL, B_PASS);
 
+  const clientA = createApiClient(A.token);
+  const clientB = createApiClient(B.token);
+
   const sockA = await connectSocket(A.token, 'A');
   const sockB = await connectSocket(B.token, 'B');
 
   sockA.emit('join_groups');
   sockB.emit('join_groups');
 
-  const groupId = await createGroup(A.token, `Grupo Offline ${Date.now()}`);
-  await addMember(A.token, groupId, B.user.id, 'membro');
+  const groupId = await createGroup(clientA, `Grupo Offline ${Date.now()}`);
+  await addMember(clientA, groupId, B.user.id, 'membro');
   sockA.emit('join_groups');
   sockB.emit('join_groups');
 
@@ -115,7 +155,7 @@ async function main() {
   sockB.disconnect();
 
   // Enviar mensagens enquanto B está offline
-  const usuarios = await listarUsuarios(A.token);
+  const usuarios = await listarUsuarios(clientA);
   const destinatarioId = (Array.isArray(usuarios) ? usuarios : []).find((u) => u.email === B_EMAIL)?.id || B.user.id;
   const privateText = `PRIV-OFFLINE-${Date.now()}`;
   const groupText = `GRP-OFFLINE-${Date.now()}`;
@@ -140,7 +180,7 @@ async function main() {
   await waitNoEvent(sockB3, 'new_message', (m) => m && (m.conteudo === privateText || m.conteudo === groupText), 'no-duplicate');
 
   // Validar que a privada está lida
-  const conversa = await getConversa(B.token, A.user.id);
+  const conversa = await getConversa(clientB, A.user.id);
   const msg = (conversa || []).find((m) => m.conteudo === privateText);
   if (!msg || !msg.lida) {
     throw new Error('Mensagem privada offline não marcada como lida');

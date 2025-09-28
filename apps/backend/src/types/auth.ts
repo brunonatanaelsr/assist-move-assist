@@ -18,10 +18,12 @@ export interface User {
 export interface LoginRequest {
   email: string;
   password: string;
+  deviceId?: string;
 }
 
 export interface LoginResponse {
   token: string;
+  refreshToken?: string;
   user: {
     id: number;
     name: string;
@@ -80,5 +82,11 @@ export interface AuthenticatedSessionUser {
 
 export interface AuthResponse {
   token: string;
+  refreshToken: string;
   user: AuthenticatedSessionUser;
+}
+
+export interface RefreshSessionResponse extends Omit<AuthResponse, 'refreshToken'> {
+  token: string;
+  refreshToken?: string;
 }

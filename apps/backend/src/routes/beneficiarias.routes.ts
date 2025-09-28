@@ -27,8 +27,21 @@ router.get(
     try {
       const page = parseInt((req.query.page as string) || '1', 10);
       const limit = parseInt((req.query.limit as string) || '50', 10);
+      const search = typeof req.query.search === 'string' ? req.query.search.trim() : undefined;
+      const status = typeof req.query.status === 'string' ? req.query.status.trim() : undefined;
+      const allowedStatus = new Set(['ativa', 'inativa', 'pendente', 'desistente', 'em_acompanhamento']);
+      const statusFilter = status && allowedStatus.has(status) ? (status as typeof status) : undefined;
 
-      const result = await beneficiariasService.listarAtivas({ page, limit });
+      const filtros = {
+        ...(statusFilter ? { status: statusFilter } : {}),
+        ...(search ? { search } : {}),
+      };
+
+      const result = await beneficiariasService.listarAtivas({
+        page,
+        limit,
+        filtros: Object.keys(filtros).length > 0 ? filtros : undefined,
+      });
 
       const items = result.data.map((beneficiaria) =>
         formatObjectDates(
@@ -44,7 +57,7 @@ router.get(
             page,
             limit,
             total: result.total,
-            pages: result.pages
+            totalPages: result.pages,
           }
         })
       );
