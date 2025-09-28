@@ -39,6 +39,7 @@ import feedRoutes from './feed.routes';
 import declaracoesRoutes from './declaracoes.routes';
 import recibosRoutes from './recibos.routes';
 import formulariosRoutes from './formularios.routes';
+import planoAcaoRoutes from './planoAcao.routes';
 
 // Rotas de health check
 import healthRoutes from './health.routes';
@@ -113,6 +114,7 @@ router.use('/validation', validationRoutes);
 router.use('/projetos', projetosRoutes);
 router.use('/oficinas', oficinasRoutes);
 router.use('/participacoes', participacoesRoutes);
+router.use('/planos-acao', planoAcaoRoutes);
 router.use('/matriculas-projetos', matriculasRoutes);
 
 // 4. Rotas de conteúdo e comunicação
@@ -158,6 +160,7 @@ router.get('/', (req: ExpressRequest, res: ExpressResponse) => {
       projetos: '/api/projetos',
       oficinas: '/api/oficinas',
       participacoes: '/api/participacoes',
+      planosAcao: '/api/planos-acao',
       
       // Conteúdo
       feed: '/api/feed',
