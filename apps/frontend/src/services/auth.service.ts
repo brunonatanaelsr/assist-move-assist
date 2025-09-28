@@ -1,3 +1,4 @@
+import { AUTH_TOKEN_KEY, USER_KEY } from '@/config';
 import api from '@/config/api';
 import axios from 'axios';
 
@@ -45,8 +46,14 @@ export class AuthService {
     try {
       await api.post('/auth/logout', undefined, { withCredentials: true });
       // Limpar token e dados do usuário localmente
-      localStorage.removeItem('auth_token');
+      const tokenKeys = new Set([
+        'token',
+        'auth_token',
+        AUTH_TOKEN_KEY
+      ]);
+      tokenKeys.forEach((key) => localStorage.removeItem(key));
       localStorage.removeItem('user');
+      localStorage.removeItem(USER_KEY);
     } catch (error) {
       console.error('Erro ao fazer logout:', error);
     }
@@ -62,16 +69,16 @@ export class AuthService {
   }
 
   isAuthenticated(): boolean {
-    const token = localStorage.getItem('auth_token');
+    const token = localStorage.getItem(AUTH_TOKEN_KEY) || localStorage.getItem('auth_token') || localStorage.getItem('token');
     return !!token;
   }
 
   getToken(): string | null {
-    return localStorage.getItem('auth_token');
+    return localStorage.getItem(AUTH_TOKEN_KEY) || localStorage.getItem('auth_token') || localStorage.getItem('token');
   }
 
   getUser(): AuthResponse['user'] | null {
-    const userStr = localStorage.getItem('user');
+    const userStr = localStorage.getItem(USER_KEY) || localStorage.getItem('user');
     return userStr ? JSON.parse(userStr) : null;
   }
 }
