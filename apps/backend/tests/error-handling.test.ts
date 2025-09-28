@@ -1,29 +1,30 @@
 import request from 'supertest';
 import app from '../src/app';
 import { describe, expect, it, beforeAll } from '@jest/globals';
+import { withCsrf } from './utils/csrf';
 
 describe('Error Handling Tests', () => {
   let authToken: string;
 
   beforeAll(async () => {
-    const res = await request(app)
-      .post('/api/auth/login')
-      .send({
-        email: 'bruno@move.com',
-        password: '15002031'
-      });
+    const res = await (
+      await withCsrf(app, request(app).post('/api/auth/login'))
+    ).send({
+      email: 'bruno@move.com',
+      password: '15002031'
+    });
     
     authToken = res.body.token;
   });
 
   describe('Authentication Errors', () => {
     it('should reject invalid login credentials', async () => {
-      const res = await request(app)
-        .post('/api/auth/login')
-        .send({
-          email: 'invalid@email.com',
-          password: 'wrongpass'
-        });
+      const res = await (
+        await withCsrf(app, request(app).post('/api/auth/login'))
+      ).send({
+        email: 'invalid@email.com',
+        password: 'wrongpass'
+      });
       
       expect(res.status).toBe(401);
       expect(res.body).toHaveProperty('error');
@@ -49,43 +50,55 @@ describe('Error Handling Tests', () => {
 
   describe('Validation Errors', () => {
     it('should reject invalid email format', async () => {
-      const res = await request(app)
-        .post('/api/beneficiarias')
-        .set('Authorization', `Bearer ${authToken}`)
-        .send({
-          nome: 'Maria Teste',
-          email: 'invalidemail',
-          cpf: '12345678901',
-          data_nascimento: '1990-01-01'
-        });
+      const res = await (
+        await withCsrf(
+          app,
+          request(app)
+            .post('/api/beneficiarias')
+            .set('Authorization', `Bearer ${authToken}`)
+        )
+      ).send({
+        nome: 'Maria Teste',
+        email: 'invalidemail',
+        cpf: '12345678901',
+        data_nascimento: '1990-01-01'
+      });
       
       expect(res.status).toBe(400);
       expect(res.body).toHaveProperty('error');
     });
 
     it('should reject invalid CPF format', async () => {
-      const res = await request(app)
-        .post('/api/beneficiarias')
-        .set('Authorization', `Bearer ${authToken}`)
-        .send({
-          nome: 'Maria Teste',
-          email: 'maria@email.com',
-          cpf: '123456',
-          data_nascimento: '1990-01-01'
-        });
+      const res = await (
+        await withCsrf(
+          app,
+          request(app)
+            .post('/api/beneficiarias')
+            .set('Authorization', `Bearer ${authToken}`)
+        )
+      ).send({
+        nome: 'Maria Teste',
+        email: 'maria@email.com',
+        cpf: '123456',
+        data_nascimento: '1990-01-01'
+      });
       
       expect(res.status).toBe(400);
       expect(res.body).toHaveProperty('error');
     });
 
     it('should reject missing required fields', async () => {
-      const res = await request(app)
-        .post('/api/oficinas')
-        .set('Authorization', `Bearer ${authToken}`)
-        .send({
-          titulo: 'Oficina Teste'
-          // faltando campos obrigatórios
-        });
+      const res = await (
+        await withCsrf(
+          app,
+          request(app)
+            .post('/api/oficinas')
+            .set('Authorization', `Bearer ${authToken}`)
+        )
+      ).send({
+        titulo: 'Oficina Teste'
+        // faltando campos obrigatórios
+      });
       
       expect(res.status).toBe(400);
       expect(res.body).toHaveProperty('error');
