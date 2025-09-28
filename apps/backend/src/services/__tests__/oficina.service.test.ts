@@ -3,7 +3,8 @@ import Redis from 'ioredis';
 import { OficinaService } from '../oficina.service';
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { createMockPool, createMockRedis, MockPool, MockRedis } from '../../utils/testUtils';
-import { Oficina, QueryResult, Participante } from '../../types/oficina';
+import { Oficina, Participante } from '../../types/oficina';
+import { cacheService } from '../cache.service';
 
 jest.mock('pg');
 jest.mock('ioredis');
@@ -12,6 +13,7 @@ describe('OficinaService', () => {
   let oficinaService: OficinaService;
   let mockPool: MockPool;
   let mockRedis: MockRedis;
+  let cacheGetSpy: jest.SpyInstance;
 
   const mockOficina: Oficina = {
     id: 1,
@@ -36,10 +38,14 @@ describe('OficinaService', () => {
     mockPool = createMockPool();
     mockRedis = createMockRedis();
     oficinaService = new OficinaService(mockPool as unknown as Pool, mockRedis as unknown as Redis);
+
+    cacheGetSpy = jest.spyOn(cacheService, 'get').mockResolvedValue(null);
+    jest.spyOn(cacheService, 'set').mockResolvedValue();
+    jest.spyOn(cacheService, 'deletePattern').mockResolvedValue();
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
+    jest.restoreAllMocks();
   });
 
   describe('listarOficinas', () => {
@@ -54,26 +60,71 @@ describe('OficinaService', () => {
         pagination: { total: 1, page: 1, limit: 10, totalPages: 1 }
       };
 
-      mockRedis.get.mockResolvedValue(JSON.stringify(mockCachedData));
+      cacheGetSpy.mockResolvedValueOnce(mockCachedData);
 
       const result = await oficinaService.listarOficinas(mockFilters);
 
       expect(result).toEqual(mockCachedData);
-      expect(mockRedis.get).toHaveBeenCalled();
+      expect(cacheService.get).toHaveBeenCalledWith('oficinas:list:all:all:10');
       expect(mockPool.query).not.toHaveBeenCalled();
     });
 
     it('deve buscar oficinas do banco quando não há cache', async () => {
-      mockRedis.get.mockResolvedValue(null);
+      const dbRow = {
+        ...mockOficina,
+        data_inicio: new Date('2025-08-20T00:00:00Z'),
+        data_fim: new Date('2025-08-21T00:00:00Z'),
+        data_criacao: new Date('2025-08-26T00:00:00Z'),
+        data_atualizacao: new Date('2025-08-26T00:00:00Z'),
+        total_count: '1'
+      };
+
       mockPool.query.mockResolvedValue({
-        rows: [{ ...mockOficina, total_count: '1' }]
+        rows: [dbRow]
       });
 
       const result = await oficinaService.listarOficinas(mockFilters);
 
       expect(result.data).toHaveLength(1);
+      expect(result).toEqual({
+        data: [
+          {
+            ...dbRow,
+            data_inicio: '2025-08-20',
+            data_fim: '2025-08-21',
+            data_criacao: '2025-08-26',
+            data_atualizacao: '2025-08-26'
+          }
+        ],
+        pagination: {
+          page: 1,
+          limit: 10,
+          total: 1,
+          totalPages: 1
+        }
+      });
       expect(mockPool.query).toHaveBeenCalled();
-      expect(mockRedis.setex).toHaveBeenCalled();
+      expect(cacheService.set).toHaveBeenCalledWith(
+        'oficinas:list:all:all:10',
+        {
+          data: [
+            {
+              ...dbRow,
+              data_inicio: '2025-08-20',
+              data_fim: '2025-08-21',
+              data_criacao: '2025-08-26',
+              data_atualizacao: '2025-08-26'
+            }
+          ],
+          pagination: {
+            page: 1,
+            limit: 10,
+            total: 1,
+            totalPages: 1
+          }
+        },
+        300
+      );
     });
 
     it('deve aplicar filtros corretamente', async () => {
@@ -83,7 +134,6 @@ describe('OficinaService', () => {
         status: 'ativa' as const
       };
 
-      mockRedis.get.mockResolvedValue(null);
       mockPool.query.mockResolvedValue({
         rows: [{ ...mockOficina, total_count: '1' }]
       });
@@ -100,28 +150,50 @@ describe('OficinaService', () => {
 
   describe('buscarOficina', () => {
     it('deve retornar oficina do cache quando disponível', async () => {
-      mockRedis.get.mockResolvedValue(JSON.stringify(mockOficina));
+      cacheGetSpy.mockResolvedValueOnce(mockOficina);
 
       const result = await oficinaService.buscarOficina(1);
 
       expect(result).toEqual(mockOficina);
-      expect(mockRedis.get).toHaveBeenCalledWith('oficinas:detail:1');
+      expect(cacheService.get).toHaveBeenCalledWith('oficinas:detail:1');
       expect(mockPool.query).not.toHaveBeenCalled();
     });
 
     it('deve buscar oficina do banco quando não há cache', async () => {
-      mockRedis.get.mockResolvedValue(null);
-      mockPool.query.mockResolvedValue({ rows: [mockOficina] });
+      const dbRow = {
+        ...mockOficina,
+        data_inicio: new Date('2025-08-20T00:00:00Z'),
+        data_fim: new Date('2025-08-21T00:00:00Z'),
+        data_criacao: new Date('2025-08-26T00:00:00Z'),
+        data_atualizacao: new Date('2025-08-26T00:00:00Z')
+      };
+
+      mockPool.query.mockResolvedValue({ rows: [dbRow] });
 
       const result = await oficinaService.buscarOficina(1);
 
-      expect(result).toEqual(mockOficina);
+      expect(result).toEqual({
+        ...dbRow,
+        data_inicio: '2025-08-20',
+        data_fim: '2025-08-21',
+        data_criacao: '2025-08-26',
+        data_atualizacao: '2025-08-26'
+      });
       expect(mockPool.query).toHaveBeenCalled();
-      expect(mockRedis.setex).toHaveBeenCalled();
+      expect(cacheService.set).toHaveBeenCalledWith(
+        'oficinas:detail:1',
+        {
+          ...dbRow,
+          data_inicio: '2025-08-20',
+          data_fim: '2025-08-21',
+          data_criacao: '2025-08-26',
+          data_atualizacao: '2025-08-26'
+        },
+        300
+      );
     });
 
     it('deve lançar erro quando oficina não é encontrada', async () => {
-      mockRedis.get.mockResolvedValue(null);
       mockPool.query.mockResolvedValue({ rows: [] });
 
       await expect(oficinaService.buscarOficina(999))
@@ -146,7 +218,7 @@ describe('OficinaService', () => {
       const result = await oficinaService.criarOficina(mockCreateData, '123');
 
       expect(result).toEqual(mockOficina);
-      expect(mockRedis.del).toHaveBeenCalled();
+      expect(cacheService.deletePattern).toHaveBeenCalledWith('oficinas:list:*');
     });
 
     it('deve validar dados antes de criar', async () => {
@@ -178,7 +250,8 @@ describe('OficinaService', () => {
       const result = await oficinaService.atualizarOficina(1, mockUpdateData, '123', 'gestor');
 
       expect(result).toEqual(mockOficina);
-      expect(mockRedis.del).toHaveBeenCalled();
+      expect(cacheService.deletePattern).toHaveBeenCalledWith('oficinas:list:*');
+      expect(cacheService.deletePattern).toHaveBeenCalledWith('oficinas:detail:1');
     });
 
     it('deve atualizar oficina quando usuário é admin', async () => {
@@ -210,7 +283,8 @@ describe('OficinaService', () => {
         oficinaService.excluirOficina(1, '123', 'gestor')
       ).resolves.not.toThrow();
 
-      expect(mockRedis.del).toHaveBeenCalled();
+      expect(cacheService.deletePattern).toHaveBeenCalledWith('oficinas:list:*');
+      expect(cacheService.deletePattern).toHaveBeenCalledWith('oficinas:detail:1');
     });
 
     it('deve excluir oficina quando usuário é admin', async () => {
@@ -238,17 +312,16 @@ describe('OficinaService', () => {
     ];
 
     it('deve retornar participantes do cache quando disponível', async () => {
-      mockRedis.get.mockResolvedValue(JSON.stringify(mockParticipantes));
+      cacheGetSpy.mockResolvedValueOnce(mockParticipantes);
 
       const result = await oficinaService.listarParticipantes(1);
 
       expect(result).toEqual(mockParticipantes);
-      expect(mockRedis.get).toHaveBeenCalledWith('oficinas:participantes:1');
+      expect(cacheService.get).toHaveBeenCalledWith('oficinas:participantes:1');
       expect(mockPool.query).not.toHaveBeenCalled();
     });
 
     it('deve buscar participantes do banco quando não há cache', async () => {
-      mockRedis.get.mockResolvedValue(null);
       mockPool.query
         .mockResolvedValueOnce({ rows: [{ projeto_id: 1 }] })
         .mockResolvedValueOnce({ rows: mockParticipantes });
@@ -257,11 +330,10 @@ describe('OficinaService', () => {
 
       expect(result).toEqual(mockParticipantes);
       expect(mockPool.query).toHaveBeenCalledTimes(2);
-      expect(mockRedis.setex).toHaveBeenCalled();
+      expect(cacheService.set).toHaveBeenCalledWith('oficinas:participantes:1', mockParticipantes, 300);
     });
 
     it('deve lançar erro quando oficina não é encontrada', async () => {
-      mockRedis.get.mockResolvedValue(null);
       mockPool.query.mockResolvedValueOnce({ rows: [] });
 
       await expect(oficinaService.listarParticipantes(999))
