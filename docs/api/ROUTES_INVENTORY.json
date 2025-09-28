@@ -1,0 +1,932 @@
+[
+  {
+    "file": "apps/backend/src/routes/api.ts",
+    "basePath": "/api",
+    "routes": [
+      {
+        "method": "GET",
+        "path": "/"
+      }
+    ]
+  },
+  {
+    "file": "apps/backend/src/routes/auditoria.routes.ts",
+    "basePath": "/auditoria",
+    "routes": [
+      {
+        "method": "GET",
+        "path": "/"
+      },
+      {
+        "method": "GET",
+        "path": "/export"
+      }
+    ]
+  },
+  {
+    "file": "apps/backend/src/routes/auth.routes.ts",
+    "basePath": "/auth",
+    "routes": [
+      {
+        "method": "POST",
+        "path": "/login"
+      },
+      {
+        "method": "POST",
+        "path": "/register"
+      },
+      {
+        "method": "POST",
+        "path": "/logout"
+      },
+      {
+        "method": "POST",
+        "path": "/refresh"
+      },
+      {
+        "method": "POST",
+        "path": "/refresh-token"
+      },
+      {
+        "method": "GET",
+        "path": "/profile"
+      },
+      {
+        "method": "GET",
+        "path": "/me"
+      },
+      {
+        "method": "PUT",
+        "path": "/profile"
+      },
+      {
+        "method": "POST",
+        "path": "/change-password"
+      }
+    ]
+  },
+  {
+    "file": "apps/backend/src/routes/beneficiarias.routes.ts",
+    "basePath": "/beneficiarias",
+    "routes": [
+      {
+        "method": "GET",
+        "path": "/"
+      },
+      {
+        "method": "GET",
+        "path": "/:id"
+      },
+      {
+        "method": "GET",
+        "path": "/:id/resumo"
+      },
+      {
+        "method": "GET",
+        "path": "/:id/atividades"
+      },
+      {
+        "method": "POST",
+        "path": "/"
+      },
+      {
+        "method": "PUT",
+        "path": "/:id"
+      },
+      {
+        "method": "DELETE",
+        "path": "/:id"
+      }
+    ]
+  },
+  {
+    "file": "apps/backend/src/routes/calendar.routes.ts",
+    "basePath": "/calendar",
+    "routes": [
+      {
+        "method": "GET",
+        "path": "/events"
+      },
+      {
+        "method": "GET",
+        "path": "/events/:id"
+      },
+      {
+        "method": "POST",
+        "path": "/events"
+      },
+      {
+        "method": "PUT",
+        "path": "/events/:id"
+      },
+      {
+        "method": "DELETE",
+        "path": "/events/:id"
+      },
+      {
+        "method": "POST",
+        "path": "/events/recurring"
+      },
+      {
+        "method": "PUT",
+        "path": "/events/:eventId/participants/:participantId"
+      },
+      {
+        "method": "PUT",
+        "path": "/events/:eventId/attendance/:participantId"
+      },
+      {
+        "method": "GET",
+        "path": "/stats"
+      }
+    ]
+  },
+  {
+    "file": "apps/backend/src/routes/configuracoes.routes.ts",
+    "basePath": "/configuracoes",
+    "routes": [
+      {
+        "method": "GET",
+        "path": "/"
+      },
+      {
+        "method": "PUT",
+        "path": "/"
+      },
+      {
+        "method": "GET",
+        "path": "/usuarios"
+      },
+      {
+        "method": "POST",
+        "path": "/usuarios"
+      },
+      {
+        "method": "PUT",
+        "path": "/usuarios/:id"
+      },
+      {
+        "method": "POST",
+        "path": "/usuarios/:id/reset-password"
+      },
+      {
+        "method": "GET",
+        "path": "/permissions"
+      },
+      {
+        "method": "POST",
+        "path": "/permissions"
+      },
+      {
+        "method": "GET",
+        "path": "/roles"
+      },
+      {
+        "method": "GET",
+        "path": "/roles/:role/permissions"
+      },
+      {
+        "method": "PUT",
+        "path": "/roles/:role/permissions"
+      },
+      {
+        "method": "GET",
+        "path": "/usuarios/:id/permissions"
+      },
+      {
+        "method": "PUT",
+        "path": "/usuarios/:id/permissions"
+      }
+    ]
+  },
+  {
+    "file": "apps/backend/src/routes/dashboard.routes.ts",
+    "basePath": "/dashboard",
+    "routes": [
+      {
+        "method": "GET",
+        "path": "/stats"
+      },
+      {
+        "method": "GET",
+        "path": "/recent-activities"
+      },
+      {
+        "method": "GET",
+        "path": "/activities"
+      },
+      {
+        "method": "GET",
+        "path": "/tasks"
+      },
+      {
+        "method": "GET",
+        "path": "/notifications"
+      },
+      {
+        "method": "PUT",
+        "path": "/notifications/:id/read"
+      },
+      {
+        "method": "POST",
+        "path": "/notifications/mark-all-read"
+      },
+      {
+        "method": "GET",
+        "path": "/quick-access"
+      }
+    ]
+  },
+  {
+    "file": "apps/backend/src/routes/declaracoes.routes.ts",
+    "basePath": "/declaracoes",
+    "routes": [
+      {
+        "method": "POST",
+        "path": "/gerar"
+      },
+      {
+        "method": "GET",
+        "path": "/beneficiaria/:id"
+      },
+      {
+        "method": "GET",
+        "path": "/:id"
+      },
+      {
+        "method": "GET",
+        "path": "/:id/pdf"
+      }
+    ]
+  },
+  {
+    "file": "apps/backend/src/routes/documentos.routes.ts",
+    "basePath": "/documentos",
+    "routes": [
+      {
+        "method": "GET",
+        "path": "/:beneficiariaId"
+      },
+      {
+        "method": "POST",
+        "path": "/:beneficiariaId/upload"
+      },
+      {
+        "method": "PUT",
+        "path": "/:documentoId"
+      },
+      {
+        "method": "GET",
+        "path": "/:documentoId/download"
+      },
+      {
+        "method": "DELETE",
+        "path": "/:documentoId"
+      },
+      {
+        "method": "GET",
+        "path": "/:beneficiariaId/versoes"
+      }
+    ]
+  },
+  {
+    "file": "apps/backend/src/routes/feed.routes.ts",
+    "basePath": "/feed",
+    "routes": [
+      {
+        "method": "POST",
+        "path": "/upload-image"
+      },
+      {
+        "method": "GET",
+        "path": "/images/:filename"
+      },
+      {
+        "method": "GET",
+        "path": "/"
+      },
+      {
+        "method": "GET",
+        "path": "/:id"
+      },
+      {
+        "method": "POST",
+        "path": "/"
+      },
+      {
+        "method": "POST",
+        "path": "/:id/curtir"
+      },
+      {
+        "method": "POST",
+        "path": "/:id/compartilhar"
+      },
+      {
+        "method": "GET",
+        "path": "/stats/summary"
+      },
+      {
+        "method": "GET",
+        "path": "/:postId/comentarios"
+      },
+      {
+        "method": "POST",
+        "path": "/:postId/comentarios"
+      },
+      {
+        "method": "PUT",
+        "path": "/comentarios/:id"
+      },
+      {
+        "method": "DELETE",
+        "path": "/comentarios/:id"
+      },
+      {
+        "method": "DELETE",
+        "path": "/:id"
+      },
+      {
+        "method": "PUT",
+        "path": "/:id"
+      }
+    ]
+  },
+  {
+    "file": "apps/backend/src/routes/formularios.routes.ts",
+    "basePath": "/formularios",
+    "routes": [
+      {
+        "method": "POST",
+        "path": "/anamnese"
+      },
+      {
+        "method": "GET",
+        "path": "/anamnese/:id"
+      },
+      {
+        "method": "GET",
+        "path": "/anamnese/:id/pdf"
+      },
+      {
+        "method": "PUT",
+        "path": "/anamnese/:id"
+      },
+      {
+        "method": "POST",
+        "path": "/ficha-evolucao"
+      },
+      {
+        "method": "GET",
+        "path": "/ficha-evolucao/:id"
+      },
+      {
+        "method": "GET",
+        "path": "/ficha-evolucao/:id/pdf"
+      },
+      {
+        "method": "GET",
+        "path": "/ficha-evolucao/beneficiaria/:beneficiariaId"
+      },
+      {
+        "method": "PUT",
+        "path": "/ficha-evolucao/:id"
+      },
+      {
+        "method": "POST",
+        "path": "/termos-consentimento"
+      },
+      {
+        "method": "GET",
+        "path": "/termos-consentimento/beneficiaria/:beneficiariaId"
+      },
+      {
+        "method": "GET",
+        "path": "/termos-consentimento/:id"
+      },
+      {
+        "method": "GET",
+        "path": "/termos-consentimento/:id/pdf"
+      },
+      {
+        "method": "PATCH",
+        "path": "/termos-consentimento/:id/revogacao"
+      },
+      {
+        "method": "PUT",
+        "path": "/termos-consentimento/:id"
+      },
+      {
+        "method": "POST",
+        "path": "/visao-holistica"
+      },
+      {
+        "method": "POST",
+        "path": "/roda-vida"
+      },
+      {
+        "method": "GET",
+        "path": "/roda-vida/:id"
+      },
+      {
+        "method": "PUT",
+        "path": "/roda-vida/:id"
+      },
+      {
+        "method": "GET",
+        "path": "/visao-holistica/:id"
+      },
+      {
+        "method": "GET",
+        "path": "/visao-holistica/:id/pdf"
+      },
+      {
+        "method": "GET",
+        "path": "/ficha-evolucao/beneficiaria/:beneficiariaId/series"
+      },
+      {
+        "method": "GET",
+        "path": "/visao-holistica/beneficiaria/:beneficiariaId"
+      },
+      {
+        "method": "PUT",
+        "path": "/visao-holistica/:id"
+      },
+      {
+        "method": "GET",
+        "path": "/"
+      },
+      {
+        "method": "GET",
+        "path": "/beneficiaria/:beneficiariaId"
+      },
+      {
+        "method": "POST",
+        "path": "/:tipo"
+      },
+      {
+        "method": "GET",
+        "path": "/:tipo/:id"
+      },
+      {
+        "method": "PUT",
+        "path": "/:tipo/:id"
+      },
+      {
+        "method": "GET",
+        "path": "/:tipo/:id/pdf"
+      },
+      {
+        "method": "DELETE",
+        "path": "/:id"
+      }
+    ]
+  },
+  {
+    "file": "apps/backend/src/routes/grupos.routes.ts",
+    "basePath": "/grupos",
+    "routes": [
+      {
+        "method": "GET",
+        "path": "/"
+      },
+      {
+        "method": "GET",
+        "path": "/:id"
+      },
+      {
+        "method": "GET",
+        "path": "/:id/mensagens"
+      },
+      {
+        "method": "GET",
+        "path": "/:id/membros"
+      },
+      {
+        "method": "POST",
+        "path": "/"
+      },
+      {
+        "method": "PUT",
+        "path": "/:id"
+      },
+      {
+        "method": "DELETE",
+        "path": "/:id"
+      },
+      {
+        "method": "POST",
+        "path": "/:id/membros"
+      },
+      {
+        "method": "DELETE",
+        "path": "/:id/membros/:usuarioId"
+      }
+    ]
+  },
+  {
+    "file": "apps/backend/src/routes/health.routes.ts",
+    "basePath": "/health",
+    "routes": [
+      {
+        "method": "GET",
+        "path": "/"
+      },
+      {
+        "method": "GET",
+        "path": "/db"
+      },
+      {
+        "method": "GET",
+        "path": "/resources"
+      }
+    ]
+  },
+  {
+    "file": "apps/backend/src/routes/matriculas.routes.ts",
+    "basePath": "/matriculas-projetos",
+    "routes": [
+      {
+        "method": "POST",
+        "path": "/verificar-elegibilidade"
+      },
+      {
+        "method": "GET",
+        "path": "/"
+      },
+      {
+        "method": "POST",
+        "path": "/"
+      },
+      {
+        "method": "GET",
+        "path": "/:id"
+      },
+      {
+        "method": "PATCH",
+        "path": "/:id"
+      }
+    ]
+  },
+  {
+    "file": "apps/backend/src/routes/mensagens.routes.ts",
+    "basePath": "/mensagens",
+    "routes": [
+      {
+        "method": "GET",
+        "path": "/usuarios"
+      },
+      {
+        "method": "GET",
+        "path": "/conversas"
+      },
+      {
+        "method": "GET",
+        "path": "/conversa/:usuarioId"
+      },
+      {
+        "method": "GET",
+        "path": "/threads"
+      },
+      {
+        "method": "POST",
+        "path": "/threads"
+      },
+      {
+        "method": "GET",
+        "path": "/threads/:threadId"
+      },
+      {
+        "method": "GET",
+        "path": "/threads/:threadId/mensagens"
+      },
+      {
+        "method": "POST",
+        "path": "/threads/:threadId/mensagens"
+      },
+      {
+        "method": "POST",
+        "path": "/enviar"
+      },
+      {
+        "method": "PATCH",
+        "path": "/:id/lida"
+      },
+      {
+        "method": "DELETE",
+        "path": "/:id"
+      },
+      {
+        "method": "GET",
+        "path": "/stream"
+      }
+    ]
+  },
+  {
+    "file": "apps/backend/src/routes/messages.alias.routes.ts",
+    "basePath": "/messages",
+    "routes": [
+      {
+        "method": "GET",
+        "path": "/"
+      }
+    ]
+  },
+  {
+    "file": "apps/backend/src/routes/notifications.routes.ts",
+    "basePath": "/notifications",
+    "routes": [
+      {
+        "method": "POST",
+        "path": "/push-subscription"
+      },
+      {
+        "method": "GET",
+        "path": "/"
+      },
+      {
+        "method": "GET",
+        "path": "/unread/count"
+      },
+      {
+        "method": "PATCH",
+        "path": "/:id"
+      },
+      {
+        "method": "DELETE",
+        "path": "/:id"
+      },
+      {
+        "method": "POST",
+        "path": "/mark-all-read"
+      },
+      {
+        "method": "GET",
+        "path": "/preferences"
+      },
+      {
+        "method": "PUT",
+        "path": "/preferences"
+      },
+      {
+        "method": "POST",
+        "path": "/"
+      }
+    ]
+  },
+  {
+    "file": "apps/backend/src/routes/oficina.routes.ts",
+    "basePath": "/oficinas",
+    "routes": [
+      {
+        "method": "GET",
+        "path": "/"
+      },
+      {
+        "method": "GET",
+        "path": "/horarios-disponiveis"
+      },
+      {
+        "method": "POST",
+        "path": "/verificar-conflito"
+      },
+      {
+        "method": "GET",
+        "path": "/:id"
+      },
+      {
+        "method": "POST",
+        "path": "/"
+      },
+      {
+        "method": "PUT",
+        "path": "/:id"
+      },
+      {
+        "method": "DELETE",
+        "path": "/:id"
+      },
+      {
+        "method": "GET",
+        "path": "/:id/participantes"
+      },
+      {
+        "method": "POST",
+        "path": "/:id/participantes"
+      },
+      {
+        "method": "DELETE",
+        "path": "/:id/participantes/:beneficiariaId"
+      },
+      {
+        "method": "POST",
+        "path": "/:id/presencas"
+      },
+      {
+        "method": "GET",
+        "path": "/:id/presencas"
+      },
+      {
+        "method": "GET",
+        "path": "/:id/resumo"
+      },
+      {
+        "method": "GET",
+        "path": "/:id/relatorio-presencas"
+      }
+    ]
+  },
+  {
+    "file": "apps/backend/src/routes/organizacoes.routes.ts",
+    "basePath": "/organizacoes",
+    "routes": [
+      {
+        "method": "GET",
+        "path": "/"
+      },
+      {
+        "method": "GET",
+        "path": "/:id"
+      },
+      {
+        "method": "POST",
+        "path": "/"
+      },
+      {
+        "method": "PUT",
+        "path": "/:id"
+      },
+      {
+        "method": "DELETE",
+        "path": "/:id"
+      }
+    ]
+  },
+  {
+    "file": "apps/backend/src/routes/participacao.routes.ts",
+    "basePath": "/participacoes",
+    "routes": [
+      {
+        "method": "GET",
+        "path": "/"
+      },
+      {
+        "method": "POST",
+        "path": "/"
+      },
+      {
+        "method": "PATCH",
+        "path": "/:id"
+      },
+      {
+        "method": "DELETE",
+        "path": "/:id"
+      },
+      {
+        "method": "POST",
+        "path": "/:id/presenca"
+      },
+      {
+        "method": "POST",
+        "path": "/:id/certificado"
+      }
+    ]
+  },
+  {
+    "file": "apps/backend/src/routes/projeto.routes.ts",
+    "basePath": "/projetos",
+    "routes": [
+      {
+        "method": "GET",
+        "path": "/"
+      },
+      {
+        "method": "GET",
+        "path": "/:id"
+      },
+      {
+        "method": "POST",
+        "path": "/"
+      },
+      {
+        "method": "PUT",
+        "path": "/:id"
+      },
+      {
+        "method": "DELETE",
+        "path": "/:id"
+      }
+    ]
+  },
+  {
+    "file": "apps/backend/src/routes/recibos.routes.ts",
+    "basePath": "/recibos",
+    "routes": [
+      {
+        "method": "POST",
+        "path": "/gerar"
+      },
+      {
+        "method": "GET",
+        "path": "/beneficiaria/:id"
+      },
+      {
+        "method": "GET",
+        "path": "/:id"
+      },
+      {
+        "method": "GET",
+        "path": "/:id/pdf"
+      }
+    ]
+  },
+  {
+    "file": "apps/backend/src/routes/relatorios.routes.ts",
+    "basePath": "/relatorios",
+    "routes": [
+      {
+        "method": "GET",
+        "path": "/"
+      },
+      {
+        "method": "GET",
+        "path": "/beneficiarias"
+      },
+      {
+        "method": "GET",
+        "path": "/oficinas"
+      },
+      {
+        "method": "GET",
+        "path": "/projetos"
+      },
+      {
+        "method": "GET",
+        "path": "/participacao"
+      },
+      {
+        "method": "GET",
+        "path": "/consolidado"
+      },
+      {
+        "method": "GET",
+        "path": "/templates"
+      },
+      {
+        "method": "POST",
+        "path": "/templates"
+      },
+      {
+        "method": "PUT",
+        "path": "/templates/:id"
+      },
+      {
+        "method": "DELETE",
+        "path": "/templates/:id"
+      },
+      {
+        "method": "POST",
+        "path": "/export/:id"
+      }
+    ]
+  },
+  {
+    "file": "apps/backend/src/routes/upload.routes.ts",
+    "basePath": "/upload",
+    "routes": [
+      {
+        "method": "GET",
+        "path": "/test"
+      },
+      {
+        "method": "POST",
+        "path": "/"
+      },
+      {
+        "method": "GET",
+        "path": "/files/:filename"
+      }
+    ]
+  },
+  {
+    "file": "apps/backend/src/routes/validation.routes.ts",
+    "basePath": "/validation",
+    "routes": [
+      {
+        "method": "POST",
+        "path": "/cpf"
+      },
+      {
+        "method": "POST",
+        "path": "/email"
+      },
+      {
+        "method": "POST",
+        "path": "/telefone"
+      },
+      {
+        "method": "GET",
+        "path": "/beneficiarias"
+      }
+    ]
+  }
+]
