@@ -13,6 +13,7 @@ import { logger } from './services/logger';
 import { pool } from './config/database';
 import { env } from './config/env';
 import { applySecurityMiddleware } from './middleware/security.middleware';
+import { csrfMiddleware } from './middleware/csrf';
 
 const app: Express = express();
 const server = createServer(app);
@@ -29,6 +30,10 @@ if (env.ENABLE_WS) {
 
 // Middleware de segurança e sanitização
 applySecurityMiddleware(app);
+
+// Parsing e assinatura de cookies antes dos handlers
+app.use(cookieParser(env.JWT_SECRET));
+app.use(csrfMiddleware);
 
 // Logging
 app.use(morgan('combined', { stream: { write: (message) => logger.info(message.trim()) } }));

@@ -1,36 +1,39 @@
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response, NextFunction, CookieOptions } from 'express';
 import crypto from 'crypto';
 
 const isIdempotent = (method?: string) => !method || ['GET', 'HEAD', 'OPTIONS'].includes(method.toUpperCase());
 
-function parseCookies(cookieHeader?: string | string[]) {
-  const cookies: Record<string, string> = {};
-  if (!cookieHeader) return cookies;
-  const list = Array.isArray(cookieHeader) ? cookieHeader : [cookieHeader];
-  for (const raw of list) {
-    raw.split(';').forEach((part) => {
-      const [k, ...v] = part.split('=');
-      if (!k) return;
-      cookies[k.trim()] = decodeURIComponent(v.join('=').trim());
-    });
+const CSRF_COOKIE_NAME = 'csrf_token';
+const CSRF_COOKIE_OPTIONS: CookieOptions = {
+  httpOnly: false, // precisa ser legível no cliente
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
+  maxAge: 24 * 60 * 60 * 1000,
+  signed: true
+};
+
+const getCookieToken = (req: Request): string | undefined => {
+  const signedToken = req.signedCookies?.[CSRF_COOKIE_NAME];
+  if (typeof signedToken === 'string' && signedToken.length > 0) {
+    return signedToken;
   }
-  return cookies;
-}
+
+  const unsignedToken = req.cookies?.[CSRF_COOKIE_NAME];
+  if (typeof unsignedToken === 'string' && unsignedToken.length > 0) {
+    return unsignedToken;
+  }
+
+  return undefined;
+};
 
 export function csrfMiddleware(req: Request, res: Response, next: NextFunction) {
   try {
-    const cookies = parseCookies(req.headers.cookie);
-    let token = cookies['csrf_token'];
+    let token = getCookieToken(req);
 
     // Gera token se ausente
     if (!token) {
       token = crypto.randomBytes(16).toString('hex');
-      res.cookie('csrf_token', token, {
-        httpOnly: false, // precisa ser legível no cliente
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
-        maxAge: 24 * 60 * 60 * 1000,
-      } as any);
+      res.cookie(CSRF_COOKIE_NAME, token, CSRF_COOKIE_OPTIONS);
     }
 
     res.locals.csrfToken = token;

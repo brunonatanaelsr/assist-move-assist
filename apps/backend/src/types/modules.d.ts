@@ -6,3 +6,4 @@ declare module 'xss-clean';
 declare module 'xss-clean/lib/xss';
 declare module 'hpp';
 declare module 'factory-girl';
+declare module 'cookie-parser';
