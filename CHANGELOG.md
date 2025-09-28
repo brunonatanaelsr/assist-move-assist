@@ -28,6 +28,22 @@ The format is based on Keep a Changelog, and this project aims to follow semanti
 - Sidebar “Dashboard” now points to `/dashboard` and exposes reliable data-testids.
 - Frontend API base is unified via `API_URL` (build-time through Vite env).
 - README updated with: correct ports, env variables, E2E flow (including the local E2E script) and compose production.
+- DB migrations renumbered to avoid duplicate prefixes and reapplications:
+  - `032_normalizar_status_beneficiarias.sql` → `033_normalizar_status_beneficiarias.sql`.
+  - `033_criar_organizacoes.sql` → `034_criar_organizacoes.sql`.
+  - `034_permissions_organizacoes.sql` → `035_permissions_organizacoes.sql`.
+  - `040_criar_oficina_presencas.sql` → `036_criar_oficina_presencas.sql`.
+  - `041_alter_beneficiarias_dominios.sql` → `037_alter_beneficiarias_dominios.sql`.
+  - `042_criar_planos_acao.sql` → `038_criar_planos_acao.sql`.
+  - `043_alter_oficina_presencas.sql` → `039_alter_oficina_presencas.sql`.
+  - `044_update_role_matrix.sql` → `040_update_role_matrix.sql`.
+  - `045_alter_termos_consentimento_add_revogacao.sql` → `041_alter_termos_consentimento_add_revogacao.sql`.
+  - `045_create_audit_logs.sql` → `042_create_audit_logs.sql`.
+  - `046_add_mensagens_threads.sql` → `043_add_mensagens_threads.sql`.
+  - `046_alter_termos_consentimento_add_metadata.sql` → `044_alter_termos_consentimento_add_metadata.sql`.
+  - `047_criar_push_subscriptions.sql` → `045_criar_push_subscriptions.sql`.
+  - `048_criar_job_queue.sql` → `046_criar_job_queue.sql`.
+  - `048_criar_login_attempts_user_blocks.sql` → `047_criar_login_attempts_user_blocks.sql`.
 
 ### Fixed
 
