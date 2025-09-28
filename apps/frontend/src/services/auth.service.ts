@@ -82,6 +82,16 @@ export class AuthService {
   }
 
   async logout(): Promise<void> {
+    const tokenKeys = new Set([
+      AUTH_TOKEN_KEY,
+      'auth_token',
+      'token'
+    ]);
+    const userKeys = new Set([
+      USER_KEY,
+      'user'
+    ]);
+
     try {
       const deviceId = this.getDeviceId();
       await api.post(
@@ -89,26 +99,11 @@ export class AuthService {
         { deviceId },
         { withCredentials: true }
       );
-      // Limpar token e dados do usuário localmente
-      const tokenKeys = new Set([
-        'token',
-        'auth_token',
-        AUTH_TOKEN_KEY
-      ]);
-      tokenKeys.forEach((key) => localStorage.removeItem(key));
-=======
-      localStorage.removeItem('auth_token');
-      localStorage.removeItem('token');
->>>>>>> main
-      localStorage.removeItem('user');
-      localStorage.removeItem(USER_KEY);
     } catch (error) {
       console.error('Erro ao fazer logout:', error);
     } finally {
-      // Limpar token e dados do usuário localmente
-      localStorage.removeItem('auth_token');
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
+      tokenKeys.forEach((key) => localStorage.removeItem(key));
+      userKeys.forEach((key) => localStorage.removeItem(key));
     }
   }
 
