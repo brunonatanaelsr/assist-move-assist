@@ -1,10 +1,6 @@
 import type { Express } from 'express';
 import express from 'express';
-import cors from 'cors';
-import helmet from 'helmet';
-import compression from 'compression';
 import morgan from 'morgan';
-import rateLimit from 'express-rate-limit';
 import { createServer } from 'http';
 
 import apiRoutes from './routes/api';
@@ -15,6 +11,7 @@ import { errorHandler } from './middleware/errorHandler';
 import { logger } from './services/logger';
 import { pool } from './config/database';
 import { env } from './config/env';
+import { applySecurityMiddleware } from './middleware/security.middleware';
 
 const app: Express = express();
 const server = createServer(app);
@@ -29,58 +26,11 @@ if (env.ENABLE_WS) {
   }
 }
 
-// Middleware de segurança
-app.use(helmet());
-app.use(compression());
-
-// CORS
-const isProduction = env.NODE_ENV === 'production';
-const parsedCorsOrigins = env.CORS_ORIGIN
-  ?.split(',')
-  .map((origin) => origin.trim())
-  .filter((origin) => origin.length > 0);
-
-if (isProduction && (!parsedCorsOrigins || parsedCorsOrigins.length === 0)) {
-  throw new Error('CORS_ORIGIN deve ser definido em produção e conter pelo menos uma origem.');
-}
-
-const corsOriginOption = (() => {
-  if (parsedCorsOrigins && parsedCorsOrigins.length > 0) {
-    return parsedCorsOrigins.length === 1 && parsedCorsOrigins[0] === '*' ? true : parsedCorsOrigins;
-  }
-
-  return true;
-})();
-
-const corsOptions = {
-  origin: corsOriginOption,
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-};
-app.use(cors(corsOptions));
-
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutos
-  max: 100, // máximo 100 requests por IP
-  message: 'Muitas tentativas, tente novamente em 15 minutos.',
-});
-
-const rateLimitDisabled = env.RATE_LIMIT_DISABLE;
-
-if (!rateLimitDisabled) {
-  app.use('/api/', limiter);
-} else {
-  logger.info('Rate limiting desativado via RATE_LIMIT_DISABLE');
-}
+// Middleware de segurança e sanitização
+applySecurityMiddleware(app);
 
 // Logging
 app.use(morgan('combined', { stream: { write: (message) => logger.info(message.trim()) } }));
-
-// Body parsing
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Removido: exposição direta de uploads
 // Os arquivos agora são servidos por rotas autenticadas (ex.: /api/feed/images/:filename)
