@@ -7,10 +7,61 @@ describe('AuthService', () => {
 
   beforeEach(() => {
     localStorage.clear();
+    document.cookie = 'csrf_token=; Max-Age=0; path=/';
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
+  });
+
+  it('should fetch csrf token before login and return response data', async () => {
+    const getDeviceIdSpy = vi
+      .spyOn(authService as unknown as { getDeviceId: () => string }, 'getDeviceId')
+      .mockReturnValue('test-device-id');
+    const getSpy = vi.spyOn(api, 'get').mockResolvedValue({} as any);
+    const expectedResponse = {
+      token: 'token123',
+      refreshToken: 'refresh123',
+      user: {
+        id: 1,
+        email: 'user@example.com',
+        nome: 'User',
+        papel: 'admin',
+      },
+    };
+    const postSpy = vi
+      .spyOn(api, 'post')
+      .mockResolvedValue({ data: expectedResponse } as any);
+
+    const result = await authService.login({ email: 'user@example.com', password: 'secret' });
+
+    expect(getSpy).toHaveBeenCalledTimes(1);
+    expect(getSpy).toHaveBeenCalledWith('/csrf-token', { withCredentials: true });
+    expect(postSpy).toHaveBeenCalledWith(
+      '/auth/login',
+      { email: 'user@example.com', password: 'secret', deviceId: 'test-device-id' },
+      { withCredentials: true }
+    );
+    expect(result).toEqual(expectedResponse);
+    expect(getDeviceIdSpy).toHaveBeenCalled();
+  });
+
+  it('should fallback to legacy CSRF endpoint when primary request fails', async () => {
+    vi
+      .spyOn(authService as unknown as { getDeviceId: () => string }, 'getDeviceId')
+      .mockReturnValue('device');
+    const getSpy = vi
+      .spyOn(api, 'get')
+      .mockRejectedValueOnce(new Error('not found'))
+      .mockResolvedValueOnce({} as any);
+    const postSpy = vi.spyOn(api, 'post').mockResolvedValue({ data: { token: 'a', refreshToken: 'b', user: { id: 1, email: '', nome: '', papel: '' } } } as any);
+
+    await authService.login({ email: 'a', password: 'b' });
+
+    expect(getSpy).toHaveBeenCalledTimes(2);
+    expect(getSpy.mock.calls[0]).toEqual(['/csrf-token', { withCredentials: true }]);
+    expect(getSpy.mock.calls[1]).toEqual(['/auth/csrf', { withCredentials: true }]);
+    expect(postSpy).toHaveBeenCalled();
   });
 
   it('should remove stored tokens after logout', async () => {
@@ -23,10 +74,12 @@ describe('AuthService', () => {
     const getDeviceIdSpy = vi
       .spyOn(authService as unknown as { getDeviceId: () => string }, 'getDeviceId')
       .mockReturnValue('test-device-id');
+    const getSpy = vi.spyOn(api, 'get').mockResolvedValue({} as any);
     const postSpy = vi.spyOn(api, 'post').mockResolvedValue({} as any);
 
     await authService.logout();
 
+    expect(getSpy).toHaveBeenCalledWith('/csrf-token', { withCredentials: true });
     expect(getDeviceIdSpy).toHaveBeenCalled();
     expect(postSpy).toHaveBeenCalledWith(
       '/auth/logout',
@@ -38,5 +91,29 @@ describe('AuthService', () => {
     expect(localStorage.getItem('token')).toBeNull();
     expect(localStorage.getItem('test_user')).toBeNull();
     expect(localStorage.getItem('user')).toBeNull();
+  });
+
+  it('should fetch csrf token before refreshing token', async () => {
+    vi
+      .spyOn(authService as unknown as { getDeviceId: () => string }, 'getDeviceId')
+      .mockReturnValue('device-refresh');
+    const getSpy = vi.spyOn(api, 'get').mockResolvedValue({} as any);
+    const responsePayload = {
+      message: 'ok',
+      token: 'token',
+      refreshToken: 'refresh',
+      user: { id: 1, role: 'admin' },
+    };
+    const postSpy = vi.spyOn(api, 'post').mockResolvedValue({ data: responsePayload } as any);
+
+    const result = await authService.refreshToken();
+
+    expect(getSpy).toHaveBeenCalledWith('/csrf-token', { withCredentials: true });
+    expect(postSpy).toHaveBeenCalledWith(
+      '/auth/refresh',
+      { deviceId: 'device-refresh' },
+      { withCredentials: true }
+    );
+    expect(result).toEqual(responsePayload);
   });
 });
