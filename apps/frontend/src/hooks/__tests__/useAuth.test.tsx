@@ -26,22 +26,31 @@ describe('useAuth - logout events', () => {
   });
 
   it('should reset user and loading state when auth:logout event is dispatched', async () => {
-    localStorage.setItem('user', JSON.stringify(mockUser));
+    const getUserMock = vi.fn(() => mockUser);
+    vi.spyOn(AuthService, 'getInstance').mockReturnValue({
+      login: vi.fn(),
+      logout: vi.fn(),
+      getUser: getUserMock
+    } as unknown as AuthService);
 
     const { result, unmount } = renderHook(() => useAuth(), { wrapper });
 
+    // Espera o hook inicializar e carregar o usuário
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
+      expect(result.current.user).toEqual(mockUser);
     });
 
-    expect(result.current.user).toEqual(mockUser);
-
+    // Dispara o evento de logout
     act(() => {
       window.dispatchEvent(new Event('auth:logout'));
     });
 
-    expect(result.current.user).toBeNull();
-    expect(result.current.loading).toBe(false);
+    // Verifica se o usuário foi removido
+    await waitFor(() => {
+      expect(result.current.user).toBeNull();
+      expect(result.current.loading).toBe(false);
+    });
 
     unmount();
   });

@@ -26,7 +26,7 @@ jest.mock('../../middleware/auth.security', () => {
   };
 });
 
-import { apiRoutes } from '../api';
+import authRoutes from '../auth.routes';
 import { authService } from '../../services';
 import {
   loginRateLimiter,
@@ -36,7 +36,7 @@ import { db } from '../../services/db';
 
 const app = express();
 app.use(express.json());
-app.use(apiRoutes);
+app.use('/auth', authRoutes);
 
 const resetRateLimiter = () => {
   loginRateLimiter.resetKey?.('::ffff:127.0.0.1');
@@ -54,7 +54,13 @@ describe('POST /auth/login security middlewares', () => {
     const recordMock = recordFailedAttempt as jest.MockedFunction<typeof recordFailedAttempt>;
     loginMock.mockResolvedValue(null);
 
-    const dbQuerySpy = jest.spyOn(db, 'query').mockResolvedValue([]);
+    // Mock db.query to simulate block state
+    const dbQuerySpy = jest.spyOn(db, 'query')
+      .mockResolvedValueOnce([{ blocked_until: null }]) // First attempt
+      .mockResolvedValueOnce([{ blocked_until: null }]) // Second attempt
+      .mockResolvedValueOnce([{ blocked_until: null }]) // Third attempt
+      .mockResolvedValueOnce([{ blocked_until: null }]) // Fourth attempt
+      .mockResolvedValueOnce([{ blocked_until: new Date(Date.now() + 5 * 60 * 1000).toISOString() }]); // Fifth attempt
 
     for (let attempt = 0; attempt < 5; attempt += 1) {
       const response = await request(app)
@@ -83,7 +89,7 @@ describe('POST /auth/login security middlewares', () => {
     const futureBlock = new Date(Date.now() + 5 * 60 * 1000).toISOString();
     const dbQuerySpy = jest
       .spyOn(db, 'query')
-      .mockResolvedValue([{ blocked_until: futureBlock } as any]);
+      .mockResolvedValue([{ blocked_until: futureBlock }]);
 
     const response = await request(app)
       .post('/auth/login')

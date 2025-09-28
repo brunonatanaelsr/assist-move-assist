@@ -58,9 +58,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(detail);
     };
 
+    const handleLogout = () => {
+      setUser(null);
+    };
+
     window.addEventListener('auth:user-changed', handleUserChange);
+    window.addEventListener('auth:logout', handleLogout);
     return () => {
       window.removeEventListener('auth:user-changed', handleUserChange);
+      window.removeEventListener('auth:logout', handleLogout);
     };
   }, []);
   const signIn = async (email: string, password: string): Promise<{ error?: Error }> => {

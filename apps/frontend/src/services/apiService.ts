@@ -71,6 +71,12 @@ class ApiService {
     // Interceptor para adicionar cabeçalhos dinâmicos em todas as requisições
     this.api.interceptors.request.use(
       (config) => {
+        // Adiciona o token de autenticação
+        const token = typeof localStorage !== 'undefined' ? localStorage.getItem(AUTH_TOKEN_KEY) : null;
+        if (token) {
+          config.headers.Authorization = `Bearer ${token}`;
+        }
+
         // CSRF header opcional (se o backend validar)
         if (REQUIRE_CSRF_HEADER) {
           const csrf = getCookie('csrf_token');

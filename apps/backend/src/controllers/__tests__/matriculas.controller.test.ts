@@ -92,7 +92,12 @@ describe('MatriculasController', () => {
     };
 
     it('retorna 200 com o resultado do serviço', async () => {
-      mockedService.verificarElegibilidade.mockResolvedValue({ elegivel: true });
+      mockedService.verificarElegibilidade.mockResolvedValue({
+        elegivel: true,
+        motivos: [],
+        warnings: [],
+        matricula_existente: null
+      });
 
       const req: any = { body: requestBody };
       const res = createMockResponse();

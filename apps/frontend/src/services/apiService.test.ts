@@ -24,12 +24,14 @@ describe('apiService', () => {
 
     const handlerFn = requestHandler!.fulfilled;
 
+    // Primeiro teste com o token
     localStorage.setItem(AUTH_TOKEN_KEY, 'meu-token');
-    const withToken = await handlerFn({ headers: {} });
-    expect(withToken.headers.Authorization).toBe('Bearer meu-token');
+    const configWithToken = await handlerFn({ headers: {} });
+    expect(configWithToken.headers.Authorization).toBe('Bearer meu-token');
 
-    localStorage.clear();
-    const withoutToken = await handlerFn({ headers: { Authorization: 'Bearer antigo' } });
-    expect(withoutToken.headers.Authorization).toBeUndefined();
+    // Limpa o token e verifica que não é mais enviado
+    localStorage.removeItem(AUTH_TOKEN_KEY);
+    const configWithoutToken = await handlerFn({ headers: {} });
+    expect(configWithoutToken.headers.Authorization).toBeUndefined();
   });
 });

@@ -59,6 +59,16 @@ export interface Oficina extends QueryResultRow {
   total_count?: string;
 }
 
+export interface ListaOficinasResponse {
+  data: Oficina[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
 export interface Participante extends QueryResultRow {
   id: number;
   nome_completo: string;

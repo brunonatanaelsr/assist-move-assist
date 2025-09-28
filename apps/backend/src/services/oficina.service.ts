@@ -11,6 +11,7 @@ import {
   createOficinaSchema,
   updateOficinaSchema
 } from '../validators/oficina.validator';
+import { ListaOficinasResponse } from '../types/oficina';
 import { formatArrayDates, formatObjectDates } from '../utils/dateFormatter';
 
 export class OficinaService {
@@ -23,11 +24,29 @@ export class OficinaService {
     this.redis = redis;
   }
 
-  private async getCacheKey<T>(key: string): Promise<T | null> {
+  private async getListCache(key: string): Promise<ListaOficinasResponse | null> {
     try {
-      return await cacheService.get<T>(`oficinas:${key}`);
+      return await cacheService.get<ListaOficinasResponse>(`oficinas:list:${key}`);
     } catch (error) {
-      loggerService.warn('Erro ao buscar cache:', { error });
+      loggerService.warn('Erro ao buscar cache da lista:', { error });
+      return null;
+    }
+  }
+
+  private async getDetailCache(key: string): Promise<Oficina | null> {
+    try {
+      return await cacheService.get<Oficina>(`oficinas:detail:${key}`);
+    } catch (error) {
+      loggerService.warn('Erro ao buscar cache de detalhes:', { error });
+      return null;
+    }
+  }
+
+  private async getParticipantesCache(key: string): Promise<any[] | null> {
+    try {
+      return await cacheService.get<any[]>(`oficinas:participantes:${key}`);
+    } catch (error) {
+      loggerService.warn('Erro ao buscar cache de participantes:', { error });
       return null;
     }
   }
@@ -50,7 +69,7 @@ export class OficinaService {
     }
   }
 
-  async listarOficinas(filters: OficinaFilters) {
+  async listarOficinas(filters: OficinaFilters): Promise<ListaOficinasResponse> {
     try {
       const { page, limit, projeto_id, status, data_inicio, data_fim, instrutor, local, search } = filters;
       const offset = (page - 1) * limit;
@@ -58,7 +77,7 @@ export class OficinaService {
       // Tentar buscar do cache se não houver filtros complexos
       if (!search && !data_inicio && !data_fim && page === 1) {
         const cacheKey = `list:${projeto_id || 'all'}:${status || 'all'}:${limit}`;
-        const cachedData = await this.getCacheKey(cacheKey);
+        const cachedData = await this.getListCache(cacheKey);
         if (cachedData) {
           return cachedData;
         }
@@ -162,7 +181,7 @@ export class OficinaService {
   async buscarOficina(id: number): Promise<Oficina> {
     try {
       // Tentar buscar do cache
-      const cachedOficina = await this.getCacheKey<Oficina>(`detail:${id}`);
+      const cachedOficina = await this.getDetailCache(`${id}`);
       if (cachedOficina) {
         return cachedOficina;
       }
@@ -350,7 +369,7 @@ export class OficinaService {
   async listarParticipantes(id: number): Promise<any[]> {
     try {
       // Tentar buscar do cache
-      const cachedParticipantes = await this.getCacheKey<any[]>(`participantes:${id}`);
+      const cachedParticipantes = await this.getParticipantesCache(`${id}`);
       if (cachedParticipantes) {
         return cachedParticipantes;
       }

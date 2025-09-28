@@ -185,12 +185,17 @@ describe('AuthService refresh tokens', () => {
     if (!entry) {
       throw new Error('Refresh token não foi persistido no mock');
     }
-    entry.expiresAt = new Date(Date.now() - 1000);
+    
+    // Define uma data de expiração no passado
+    const expiredDate = new Date();
+    expiredDate.setDate(expiredDate.getDate() - 1); // Token expirado há 1 dia
+    entry.expiresAt = expiredDate;
+    
     pool.refreshTokens.set(tokenHash, entry);
 
-    await expect(service.refreshWithToken(refreshToken)).rejects.toThrow('Refresh token expirado');
-
-    const revokedEntry = pool.refreshTokens.get(tokenHash);
+    // Verifica se o erro é lançado corretamente
+      await expect(service.refreshWithToken(refreshToken))
+        .rejects.toThrow('Refresh token expirado');    const revokedEntry = pool.refreshTokens.get(tokenHash);
     expect(revokedEntry?.revoked).toBe(true);
   });
 });
