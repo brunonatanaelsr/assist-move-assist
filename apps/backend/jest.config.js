@@ -24,6 +24,9 @@ module.exports = {
   },
   moduleNameMapper: {
     '^cpf-cnpj-validator$': '<rootDir>/src/__mocks__/cpf-cnpj-validator.js',
+    '^ansi-regex$': '<rootDir>/tests/mocks/ansi-regex.js',
+    '^strip-ansi$': '<rootDir>/tests/mocks/strip-ansi.js',
+    '^string-length$': '<rootDir>/tests/mocks/string-length.js',
     '^@/(.*)$': '<rootDir>/src/$1'
   },
   moduleDirectories: ['node_modules', 'src'],

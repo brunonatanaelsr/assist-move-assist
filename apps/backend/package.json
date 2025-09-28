@@ -12,7 +12,7 @@
     "migrate:node": "node scripts/migrate-node.js",
     "smoke": "node scripts/smoke-tests.js",
     "seed": "node scripts/create-initial-data.js",
-    "test": "jest",
+    "test": "node --require ./tests/mocks/registerAnsi.js ../../node_modules/jest/bin/jest.js",
     "test:watch": "jest --watch",
     "test:integration": "RUN_INTEGRATION=1 jest -c jest.integration.config.js",
     "test:all": "npm test && npm run test:integration",

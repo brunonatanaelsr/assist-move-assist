@@ -29,7 +29,8 @@ const defaultsForTests = {
   POSTGRES_PORT: '5432',
   POSTGRES_DB: 'postgres',
   POSTGRES_USER: 'postgres',
-  POSTGRES_PASSWORD: 'postgres'
+  POSTGRES_PASSWORD: 'postgres',
+  FRONTEND_URL: 'http://localhost:5173'
 } as const;
 
 const jwtExpirySchema = z
@@ -57,6 +58,7 @@ const envSchema = z.object({
   RATE_LIMIT_DISABLE: booleanFromEnv.default(false),
   ENABLE_WS: booleanFromEnv.default(false),
   CORS_ORIGIN: z.string().optional(),
+  FRONTEND_URL: z.string().min(1, 'FRONTEND_URL é obrigatório'),
   POSTGRES_HOST: z.string().min(1, 'POSTGRES_HOST é obrigatório'),
   POSTGRES_PORT: z.coerce.number().default(5432),
   POSTGRES_DB: z.string().min(1, 'POSTGRES_DB é obrigatório'),
