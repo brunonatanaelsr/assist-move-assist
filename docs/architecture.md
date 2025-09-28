@@ -138,15 +138,22 @@ assist-move-assist/
    - Rotação de arquivos
    - Logs de auditoria
 
-2. **Métricas**
-   - Prometheus metrics
-   - Grafana dashboards
-   - Alertas configuráveis
+2. **Métricas** *(planejado)*
+   - Coleta de métricas via Prometheus *(a implementar)*
+   - Dashboards no Grafana *(a implementar)*
+   - Configuração de alertas automatizados *(a implementar)*
 
 3. **Erros**
    - Error tracking com Sentry
    - Stacktraces detalhados
    - Ambiente de debug
+
+## Limitações atuais
+
+- A coleta e exposição de métricas de aplicação ainda não foi implementada.
+- Não há dashboards ativos no Grafana nem integrações de visualização configuradas.
+- O pipeline de alertas (Prometheus Alertmanager, integrações com canais de aviso, etc.) não está operacional.
+- A instrumentação atual depende majoritariamente de logs estruturados; observabilidade baseada em métricas está em fase de planejamento.
 
 ## Deployment
 
