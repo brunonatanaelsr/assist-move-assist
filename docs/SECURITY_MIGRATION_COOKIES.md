@@ -16,18 +16,13 @@ Este guia descreve como operar a autenticação com cookies HttpOnly e proteçã
 
 2. Provisionar CSRF Token (cookie + header)
 
-- Adicionar middleware CSRF e registrar o cookie não HttpOnly `csrf_token` (apenas token aleatório). O cliente devolverá esse valor em `X-CSRF-Token` para métodos mutantes.
-- Exemplo de middleware em `apps/backend/src/middleware/csrf.ts` (já incluído neste repo) — não habilitado por padrão.
+- Middleware CSRF já está habilitado em `apps/backend/src/app.ts` e registra o cookie não HttpOnly `csrf_token` (token aleatório). O cliente deve devolver esse valor em `X-CSRF-Token` para métodos mutantes.
+- Em ambientes sem navegação (ex.: scripts ou testes), utilize `GET /api/csrf-token` para obter um token válido e popular o cookie antes de enviar `POST/PUT/PATCH/DELETE`.
+- A lista de headers permitidos no CORS inclui `X-CSRF-Token`.
 
-3. Ligar CSRF no app (opcional, por etapas)
+3. Ligar CSRF no app (status atual)
 
-```ts
-// apps/backend/src/app.ts
-// import { csrfMiddleware } from './middleware/csrf';
-// app.use(csrfMiddleware);
-```
-
-- Ative inicialmente apenas em ambientes internos e/ou whitelist de rotas para diminuir impacto.
+- O middleware está ativo em todos os ambientes. Clientes headless precisam capturar o cookie `csrf_token` e enviar `X-CSRF-Token` explicitamente.
 
 4. Cookies HttpOnly
 
@@ -43,6 +38,7 @@ Este guia descreve como operar a autenticação com cookies HttpOnly e proteçã
 
 - Gera/renova `csrf_token` no cookie do navegador.
 - Exige que requisições `POST/PUT/PATCH/DELETE` incluam `X-CSRF-Token` igual ao cookie `csrf_token`.
+- Disponibiliza `res.locals.csrfToken` e rota auxiliar `GET /api/csrf-token` (útil para integrações headless).
 - GET/HEAD/OPTIONS são isentos.
 
 ## CORS e Proxies

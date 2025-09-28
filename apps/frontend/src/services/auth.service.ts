@@ -3,6 +3,8 @@ import axios from 'axios';
 
 export interface AuthResponse {
   token: string;
+  accessToken?: string;
+  refreshToken?: string;
   user: {
     id: number;
     email: string;
@@ -17,8 +19,21 @@ export interface LoginCredentials {
   password: string;
 }
 
+export interface RefreshSessionResponse {
+  message: string;
+  token: string;
+  refreshToken?: string;
+  user: {
+    id: number;
+    email?: string;
+    role: string;
+  };
+}
+
 export class AuthService {
   private static instance: AuthService;
+
+  private readonly deviceStorageKey = 'auth_device_id';
 
   private constructor() {}
 
@@ -29,9 +44,34 @@ export class AuthService {
     return AuthService.instance;
   }
 
+  private getDeviceId(): string {
+    if (typeof window === 'undefined') {
+      return 'server';
+    }
+
+    const storageKey = this.deviceStorageKey;
+    const existing = window.localStorage.getItem(storageKey);
+    if (existing) {
+      return existing;
+    }
+
+    const generated =
+      typeof window.crypto !== 'undefined' && typeof window.crypto.randomUUID === 'function'
+        ? window.crypto.randomUUID()
+        : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+
+    window.localStorage.setItem(storageKey, generated);
+    return generated;
+  }
+
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
     try {
-      const response = await api.post<AuthResponse>('/auth/login', credentials, { withCredentials: true });
+      const deviceId = this.getDeviceId();
+      const response = await api.post<AuthResponse>(
+        '/auth/login',
+        { ...credentials, deviceId },
+        { withCredentials: true }
+      );
       return response.data;
     } catch (error) {
       if (axios.isAxiosError(error)) {
@@ -43,19 +83,35 @@ export class AuthService {
 
   async logout(): Promise<void> {
     try {
-      await api.post('/auth/logout', undefined, { withCredentials: true });
+      const deviceId = this.getDeviceId();
+      await api.post(
+        '/auth/logout',
+        { deviceId },
+        { withCredentials: true }
+      );
       // Limpar token e dados do usuário localmente
       localStorage.removeItem('auth_token');
+      localStorage.removeItem('token');
       localStorage.removeItem('user');
     } catch (error) {
       console.error('Erro ao fazer logout:', error);
+    } finally {
+      // Limpar token e dados do usuário localmente
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
     }
   }
 
-  async refreshToken(): Promise<string> {
+  async refreshToken(): Promise<RefreshSessionResponse> {
     try {
-      const response = await api.post<{ message: string; token: string }>('/auth/refresh', undefined, { withCredentials: true });
-      return response.data.token;
+      const deviceId = this.getDeviceId();
+      const response = await api.post<RefreshSessionResponse>(
+        '/auth/refresh',
+        { deviceId },
+        { withCredentials: true }
+      );
+      return response.data;
     } catch (error) {
       throw new Error('Erro ao renovar token');
     }

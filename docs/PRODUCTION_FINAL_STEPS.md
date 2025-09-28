@@ -30,6 +30,7 @@ Este documento consolida os itens restantes para que o Assist Move Marias opere 
 - Documentar o fluxo de deploy (CI/CD) incluindo rollback rápido.
 - Definir responsáveis pelos turnos de monitoramento e suporte de primeiro nível.
 - Agendar revisões trimestrais de segurança e testes de recuperação de desastre.
+- Incluir na rotina de release a execução de `npx tsx scripts/validate-api-docs.ts` para garantir que a documentação reflete as rotas ativas.
 
 > **Checklist:** Garantir que o runbook de produção esteja acessível e atualizado para toda a equipe de operação.
 

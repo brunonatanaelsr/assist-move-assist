@@ -2,6 +2,7 @@ import type { Express } from 'express';
 import express from 'express';
 import morgan from 'morgan';
 import { createServer } from 'http';
+import cookieParser from 'cookie-parser';
 
 import apiRoutes from './routes/api';
 // WebSocket opcional em runtime
@@ -32,16 +33,21 @@ applySecurityMiddleware(app);
 // Logging
 app.use(morgan('combined', { stream: { write: (message) => logger.info(message.trim()) } }));
 
+
 // Removido: exposição direta de uploads
 // Os arquivos agora são servidos por rotas autenticadas (ex.: /api/feed/images/:filename)
 
 // Health check
 app.get('/health', (req, res) => {
-  res.status(200).json({ 
+  res.status(200).json({
     status: 'OK',
     timestamp: new Date().toISOString(),
     environment: env.NODE_ENV
   });
+});
+
+app.get('/api/csrf-token', (req, res) => {
+  res.status(200).json({ csrfToken: res.locals.csrfToken });
 });
 
 // Rotas
