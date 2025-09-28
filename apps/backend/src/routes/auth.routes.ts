@@ -6,6 +6,12 @@ import { loggerService } from '../services/logger';
 import { authService } from '../services';
 import { env } from '../config/env';
 import {
+  checkLoginBlock,
+  clearLoginAttempts,
+  loginRateLimiter,
+  recordFailedAttempt
+} from '../middleware/auth.security';
+import {
   changePasswordSchema,
   loginSchema,
   refreshTokenSchema,
@@ -102,10 +108,12 @@ const loginHandler: RequestHandler<
     );
 
     if (!result) {
+      await recordFailedAttempt(req.body.email, ipAddress);
       res.status(401).json({ error: 'Credenciais inválidas' });
       return;
     }
 
+    await clearLoginAttempts(req.body.email);
     setAuthCookie(res, result.token);
     if (result.refreshToken) {
       setRefreshCookie(res, result.refreshToken);
@@ -311,7 +319,13 @@ const refreshHandler: RequestHandler<
   }
 };
 
-router.post('/login', validateRequest(loginSchema), loginHandler);
+router.post(
+  '/login',
+  loginRateLimiter,
+  checkLoginBlock,
+  validateRequest(loginSchema),
+  loginHandler
+);
 router.post('/register', validateRequest(registerSchema), registerHandler);
 router.post('/logout', logoutHandler);
 router.post('/refresh', validateRequest(refreshTokenSchema), refreshHandler);
