@@ -2,17 +2,41 @@ import type { Express } from 'express';
 import type { Request, Response, NextFunction } from 'express-serve-static-core';
 import helmet from 'helmet';
 import cors from 'cors';
-import { rateLimit } from 'express-rate-limit';
+import rateLimit from 'express-rate-limit';
 import { sanitize } from 'express-mongo-sanitize';
-import xss from 'xss-clean';
+import { clean as xssClean } from 'xss-clean/lib/xss';
+import xssMiddleware from 'xss-clean';
 import hpp from 'hpp';
+import { env } from './env';
 import { loggerService } from '../services/logger';
 
 // Configuração base do CORS
+const parseOrigins = (origins?: string | null) =>
+  origins
+    ?.split(',')
+    .map((origin) => origin.trim())
+    .filter((origin) => origin.length > 0);
+
+const resolvedCorsOrigins = (() => {
+  const parsedOrigins = parseOrigins(env.CORS_ORIGIN ?? null);
+
+  if (parsedOrigins && parsedOrigins.length > 0) {
+    if (parsedOrigins.length === 1 && parsedOrigins[0] === '*') {
+      return true;
+    }
+
+    return parsedOrigins;
+  }
+
+  if (env.NODE_ENV === 'production') {
+    return [env.FRONTEND_URL];
+  }
+
+  return env.FRONTEND_URL ? [env.FRONTEND_URL] : true;
+})();
+
 const corsOptions = {
-  origin: process.env.NODE_ENV === 'production'
-    ? [process.env.FRONTEND_URL!].filter(Boolean)
-    : true,
+  origin: resolvedCorsOrigins,
   credentials: true,
   maxAge: 24 * 60 * 60, // 24 horas
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -52,24 +76,24 @@ const helmetConfig = {
 };
 
 // Middleware para validar e sanitizar entrada
-const sanitizeInput = (req: Request, _res: Response, next: NextFunction) => {
+const sanitizeInput = (req: Request, _res: Response, next: NextFunction): void => {
   try {
     if (req.body) {
       // Sanitizar contra NoSQL injection
       req.body = sanitize(req.body);
 
       // Sanitizar contra XSS
-      Object.keys(req.body).forEach(key => {
+      Object.keys(req.body).forEach((key) => {
         if (typeof req.body[key] === 'string') {
-          req.body[key] = xss(req.body[key]);
+          req.body[key] = xssClean(req.body[key]);
         }
       });
     }
 
     if (req.query) {
-      Object.keys(req.query).forEach(key => {
+      Object.keys(req.query).forEach((key) => {
         if (typeof req.query[key] === 'string') {
-          req.query[key] = xss(req.query[key] as string);
+          req.query[key] = xssClean(req.query[key] as string);
         }
       });
     }
@@ -82,31 +106,33 @@ const sanitizeInput = (req: Request, _res: Response, next: NextFunction) => {
 };
 
 // Middleware para validar origem das requisições
-const validateOrigin = (req: Request, res: Response, next: NextFunction) => {
+const allowedOrigins = Array.isArray(resolvedCorsOrigins) ? resolvedCorsOrigins : null;
+
+const validateOrigin = (req: Request, res: Response, next: NextFunction): void => {
   const origin = req.get('origin');
-  
-  if (process.env.NODE_ENV === 'production' && origin) {
-    const allowedOrigins = [process.env.FRONTEND_URL!].filter(Boolean);
-    
+
+  if (allowedOrigins && allowedOrigins.length > 0 && origin) {
     if (!allowedOrigins.includes(origin)) {
-      return res.status(403).json({
+      res.status(403).json({
         error: 'Origem não permitida'
       });
+      return;
     }
   }
-  
+
   next();
 };
 
 // Middleware para validar content-type
-const validateContentType = (req: Request, res: Response, next: NextFunction) => {
+const validateContentType = (req: Request, res: Response, next: NextFunction): void => {
   if (req.method === 'POST' || req.method === 'PUT') {
     const contentType = req.get('content-type');
     
     if (!contentType || !contentType.includes('application/json')) {
-      return res.status(415).json({
+      res.status(415).json({
         error: 'Content-Type deve ser application/json'
       });
+      return;
     }
   }
   
@@ -131,18 +157,23 @@ const fileUploadConfig = {
 };
 
 // Função para aplicar todas as configurações de segurança
-export const setupSecurity = (app: any) => {
+export const setupSecurity = (app: Express) => {
   // Headers de segurança
   app.use(helmet(helmetConfig));
-  
+
   // CORS
   app.use(cors(corsOptions));
-  
+
   // Rate Limiting
-  app.use('/api/', generalLimiter);
-  app.use('/api/v1/', apiLimiter);
-  
+  if (!env.RATE_LIMIT_DISABLE) {
+    app.use('/api/', generalLimiter);
+    app.use('/api/v1/', apiLimiter);
+  } else {
+    loggerService.info('Rate limiting desativado via RATE_LIMIT_DISABLE');
+  }
+
   // Sanitização e validação
+  app.use(xssMiddleware());
   app.use(sanitizeInput);
   app.use(validateOrigin);
   app.use(validateContentType);

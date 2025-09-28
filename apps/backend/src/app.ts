@@ -33,7 +33,6 @@ applySecurityMiddleware(app);
 // Logging
 app.use(morgan('combined', { stream: { write: (message) => logger.info(message.trim()) } }));
 
-
 // Removido: exposição direta de uploads
 // Os arquivos agora são servidos por rotas autenticadas (ex.: /api/feed/images/:filename)
 
