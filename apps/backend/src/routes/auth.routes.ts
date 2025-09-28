@@ -126,13 +126,9 @@ const loginHandler: RequestHandler<
 
     await clearLoginAttempts(req.body.email);
     setAuthCookie(res, result.token);
-<<<<<<< HEAD
-    setRefreshCookie(res, result.refreshToken);
-=======
     if (result.refreshToken) {
       setRefreshCookie(res, result.refreshToken);
     }
->>>>>>> main
     res.json({
       message: 'Login realizado com sucesso',
       token: result.token,
@@ -233,8 +229,7 @@ const logoutHandler: RequestHandler<
   { message: string } | { error: string },
   LogoutRequestBody
 > = async (req, res) => {
-  const providedToken = req.body?.refreshToken;
-  const refreshToken = providedToken ?? getCookieValue(req.headers.cookie, 'refresh_token');
+  const refreshToken = extractRefreshToken(req);
   const deviceId = req.body?.deviceId ?? null;
   const userAgent = req.get('user-agent') || null;
 
@@ -288,31 +283,7 @@ const refreshHandler: RequestHandler<
   RefreshRequestBody
 > = async (req, res) => {
   try {
-<<<<<<< HEAD
-    const refreshToken = getCookieValue(req, 'refresh_token');
-
-    if (!refreshToken) {
-      res.status(401).json({ error: 'Refresh token não fornecido' });
-      return;
-    }
-
-    const result = await authService.refreshWithToken(refreshToken);
-
-    setAuthCookie(res, result.token);
-    setRefreshCookie(res, result.refreshToken);
-
-    res.json({
-      message: 'Token renovado',
-      token: result.token,
-      user: result.user
-    });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Erro ao renovar token';
-    res.status(401).json({ error: message });
-=======
-    const providedToken = req.body?.refreshToken;
-    const refreshToken = providedToken ?? getCookieValue(req.headers.cookie, 'refresh_token');
-
+    const refreshToken = extractRefreshToken(req);
     if (!refreshToken) {
       res.status(400).json({ error: 'Refresh token é obrigatório' });
       return;
@@ -355,7 +326,6 @@ const refreshHandler: RequestHandler<
     }
 
     handleUnexpectedError(res, error, 'Erro ao renovar token');
->>>>>>> main
   }
 };
 
@@ -367,29 +337,9 @@ router.post(
   loginHandler
 );
 router.post('/register', validateRequest(registerSchema), registerHandler);
-<<<<<<< HEAD
-router.post('/logout', async (req, res) => {
-  const refreshToken = getCookieValue(req, 'refresh_token');
-  if (refreshToken) {
-    try {
-      await authService.revokeRefreshToken(refreshToken);
-    } catch (error) {
-      loggerService.warn('Não foi possível revogar refresh token no logout', {
-        error: error instanceof Error ? error.message : String(error)
-      });
-    }
-  }
-
-  clearSessionCookies(res);
-  res.json({ message: 'Logout realizado com sucesso' });
-});
-router.post('/refresh', refreshHandler);
-router.post('/refresh-token', refreshHandler);
-=======
 router.post('/logout', logoutHandler);
 router.post('/refresh', validateRequest(refreshTokenSchema), refreshHandler);
 router.post('/refresh-token', validateRequest(refreshTokenSchema), refreshHandler);
->>>>>>> main
 router.get('/profile', authenticateToken, profileHandler);
 router.get('/me', authenticateToken, profileHandler);
 router.put('/profile', authenticateToken, validateRequest(updateProfileSchema), updateProfileHandler);
@@ -409,44 +359,14 @@ function setRefreshCookie(res: Response, token: string): void {
   try {
     res.cookie('refresh_token', token, REFRESH_COOKIE_OPTIONS);
   } catch (error) {
-<<<<<<< HEAD
     loggerService.warn('Não foi possível definir cookie de refresh token', {
-=======
-    loggerService.warn('Não foi possível definir cookie de refresh', {
->>>>>>> main
       error: error instanceof Error ? error.message : String(error)
     });
   }
 }
 
-<<<<<<< HEAD
-function clearSessionCookies(res: Response): void {
-=======
 function clearAuthCookie(res: Response): void {
->>>>>>> main
   res.clearCookie('auth_token', COOKIE_OPTIONS);
-  res.clearCookie('refresh_token', REFRESH_COOKIE_OPTIONS);
-}
-
-function getCookieValue(req: Request, name: string): string | undefined {
-  const cookieHeader = req.headers.cookie;
-  if (!cookieHeader) {
-    return undefined;
-  }
-
-  const cookies = cookieHeader.split(';').map((c) => c.trim());
-  const raw = cookies.find((cookie) => cookie.startsWith(`${name}=`));
-
-  if (!raw) {
-    return undefined;
-  }
-
-  const [, value] = raw.split('=');
-  if (!value) {
-    return undefined;
-  }
-
-  return decodeURIComponent(value);
 }
 
 function clearRefreshCookie(res: Response): void {
@@ -488,6 +408,11 @@ function getCookieValue(cookieHeader: string | undefined, name: string): string 
 
   const [, value] = target.split('=');
   return value ? decodeURIComponent(value) : undefined;
+}
+
+function extractRefreshToken(req: Request): string | undefined {
+  const providedToken = req.body?.refreshToken;
+  return providedToken ?? getCookieValue(req.headers.cookie, 'refresh_token');
 }
 
 export default router;
