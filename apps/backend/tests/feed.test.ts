@@ -32,7 +32,7 @@ describe('Feed Posts API Tests', () => {
     const post = {
       titulo: 'Post de Teste',
       conteudo: 'Conteúdo do post de teste',
-      tipo: 'NOTICIA',
+      tipo: 'noticia',
       tags: ['teste', 'integracao']
     };
 
@@ -95,14 +95,14 @@ describe('Feed Posts API Tests', () => {
   it('should filter feed posts by type', async () => {
     const res = await request(app)
       .get('/api/feed')
-      .query({ tipo: 'NOTICIA' })
+      .query({ tipo: 'noticia' })
       .set('Authorization', `Bearer ${authToken}`);
 
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
     const items = res.body.data?.items ?? res.body.data?.data ?? res.body.data;
     expect(Array.isArray(items)).toBe(true);
-    expect(items.every((post: any) => post.tipo === 'NOTICIA')).toBe(true);
+    expect(items.every((post: any) => post.tipo === 'noticia')).toBe(true);
   });
 
   it('should require auth for feed posts endpoints', async () => {
