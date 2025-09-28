@@ -54,29 +54,33 @@ describe('Beneficiarias API Tests', () => {
           .set('Authorization', `Bearer ${authToken}`)
       )
     ).send(beneficiaria);
-    
+
     expect(res.status).toBe(201);
-    expect(res.body).toHaveProperty('id');
-    beneficiariaId = res.body.id;
+    expect(res.body.success).toBe(true);
+    expect(res.body.data).toHaveProperty('id');
+    beneficiariaId = res.body.data.id;
   });
 
   it('should get beneficiaria by id', async () => {
     const res = await request(app)
       .get(`/api/beneficiarias/${beneficiariaId}`)
       .set('Authorization', `Bearer ${authToken}`);
-    
+
     expect(res.status).toBe(200);
-    expect(res.body).toHaveProperty('id', beneficiariaId);
-    expect(res.body.nome).toBe('Maria Teste');
+    expect(res.body.success).toBe(true);
+    expect(res.body.data).toHaveProperty('id', beneficiariaId);
+    expect(res.body.data.nome).toBe('Maria Teste');
   });
 
   it('should list beneficiarias', async () => {
     const res = await request(app)
       .get('/api/beneficiarias')
       .set('Authorization', `Bearer ${authToken}`);
-    
+
     expect(res.status).toBe(200);
-    expect(Array.isArray(res.body)).toBe(true);
+    expect(res.body.success).toBe(true);
+    const items = res.body.data?.items ?? res.body.data?.data ?? res.body.data;
+    expect(Array.isArray(items)).toBe(true);
   });
 
   it('should update beneficiaria', async () => {
@@ -88,13 +92,14 @@ describe('Beneficiarias API Tests', () => {
       await withCsrf(
         app,
         request(app)
-          .patch(`/api/beneficiarias/${beneficiariaId}`)
+          .put(`/api/beneficiarias/${beneficiariaId}`)
           .set('Authorization', `Bearer ${authToken}`)
       )
     ).send(update);
-    
+
     expect(res.status).toBe(200);
-    expect(res.body.telefone).toBe(update.telefone);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.telefone).toBe(update.telefone);
   });
 
   it('should require auth for beneficiarias endpoints', async () => {
