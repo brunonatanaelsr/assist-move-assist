@@ -84,9 +84,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       setLoading(true);
       const response = await authService.login({ email, password });
+      
       // Tipagem explícita do retorno esperado
-      type LoginResponse = { token?: string; user?: User };
+      type LoginResponse = { token: string; refreshToken: string; user?: User };
       const resp = response as LoginResponse;
+      
+      // Armazenar token de acesso
       if (resp.token) {
         localStorage.setItem(AUTH_TOKEN_KEY, resp.token);
         // Limpar chaves legadas
@@ -103,6 +106,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           localStorage.removeItem('user');
         }
         setUser(resp.user);
+=======
+      const accessToken = response.token ?? response.accessToken ?? null;
+      if (accessToken) {
+        localStorage.setItem('auth_token', accessToken);
+        localStorage.setItem('token', accessToken);
+      }
+      if (response.user) {
+        localStorage.setItem('user', JSON.stringify(response.user));
+        setUser(response.user);
+>>>>>>> main
       }
       return {};
     } catch (error) {
@@ -117,6 +130,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(true);
       await authService.logout();
     } finally {
+<<<<<<< HEAD
       const tokenKeys = new Set([
         'token',
         'auth_token',
@@ -125,6 +139,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       tokenKeys.forEach((key) => localStorage.removeItem(key));
       localStorage.removeItem('user');
       localStorage.removeItem(USER_KEY);
+=======
+      localStorage.removeItem("auth_token");
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+>>>>>>> main
       setUser(null);
       setLoading(false);
     }

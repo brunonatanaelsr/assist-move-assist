@@ -2,6 +2,7 @@ import request from 'supertest';
 import app from '../src/app';
 import pool from '../src/config/database';
 import { describe, expect, it, beforeAll, afterAll } from '@jest/globals';
+import { withCsrf } from './utils/csrf';
 
 describe('Beneficiarias API Tests', () => {
   let authToken: string;
@@ -9,12 +10,12 @@ describe('Beneficiarias API Tests', () => {
 
   beforeAll(async () => {
     // Login para obter token
-    const res = await request(app)
-      .post('/api/auth/login')
-      .send({
-        email: 'bruno@move.com',
-        password: '15002031'
-      });
+    const res = await (
+      await withCsrf(app, request(app).post('/api/auth/login'))
+    ).send({
+      email: 'bruno@move.com',
+      password: '15002031'
+    });
     
     authToken = res.body.token;
   });
@@ -45,10 +46,14 @@ describe('Beneficiarias API Tests', () => {
       }
     };
 
-    const res = await request(app)
-      .post('/api/beneficiarias')
-      .set('Authorization', `Bearer ${authToken}`)
-      .send(beneficiaria);
+    const res = await (
+      await withCsrf(
+        app,
+        request(app)
+          .post('/api/beneficiarias')
+          .set('Authorization', `Bearer ${authToken}`)
+      )
+    ).send(beneficiaria);
     
     expect(res.status).toBe(201);
     expect(res.body).toHaveProperty('id');
@@ -79,10 +84,14 @@ describe('Beneficiarias API Tests', () => {
       telefone: '11988888888'
     };
 
-    const res = await request(app)
-      .patch(`/api/beneficiarias/${beneficiariaId}`)
-      .set('Authorization', `Bearer ${authToken}`)
-      .send(update);
+    const res = await (
+      await withCsrf(
+        app,
+        request(app)
+          .patch(`/api/beneficiarias/${beneficiariaId}`)
+          .set('Authorization', `Bearer ${authToken}`)
+      )
+    ).send(update);
     
     expect(res.status).toBe(200);
     expect(res.body.telefone).toBe(update.telefone);

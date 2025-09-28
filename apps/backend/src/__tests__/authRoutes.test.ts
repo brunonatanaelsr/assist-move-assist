@@ -8,7 +8,9 @@ jest.mock('../services', () => ({
   authService: {
     login: jest.fn(),
     getProfile: jest.fn(),
-    generateToken: jest.fn().mockReturnValue('test-token')
+    generateToken: jest.fn().mockReturnValue('test-token'),
+    refreshWithToken: jest.fn(),
+    revokeRefreshToken: jest.fn()
   }
 }));
 import { authService } from '../services';
@@ -31,6 +33,10 @@ app.use('/auth', authRoutes);
 app.use('/beneficiarias', beneficiariasRoutes);
 
 describe('Auth and protected routes', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
   describe('POST /auth/login', () => {
     it('should authenticate with valid credentials', async () => {
       const user = {
@@ -42,7 +48,7 @@ describe('Auth and protected routes', () => {
         avatar_url: null,
         active: true
       };
-      (authService.login as jest.Mock).mockResolvedValue({ user, token: 'jwt-token' });
+      (authService.login as jest.Mock).mockResolvedValue({ user, token: 'jwt-token', refreshToken: 'refresh-token' });
 
       const res = await request(app)
         .post('/auth/login')
@@ -52,6 +58,7 @@ describe('Auth and protected routes', () => {
       expect(res.body.user.email).toBe(user.email);
       // Login retorna token no corpo em ambiente de testes/CI
       expect(res.body.token).toBeTruthy();
+      expect(res.body.refreshToken).toBe('refresh-token');
     });
 
     it('should reject invalid credentials', async () => {
@@ -80,6 +87,55 @@ describe('Auth and protected routes', () => {
         .send({});
 
       expect(res.status).toBe(400);
+    });
+  });
+
+  describe('POST /auth/refresh', () => {
+    it('should renew the access token when refresh token cookie is valid', async () => {
+      (authService.refreshWithToken as jest.Mock).mockResolvedValue({
+        token: 'new-access',
+        refreshToken: 'rotated-refresh',
+        user: { id: 1, email: 'user@example.com', role: 'user' }
+      });
+
+      const res = await request(app)
+        .post('/auth/refresh')
+        .set('Cookie', ['refresh_token=old-refresh']);
+
+      expect(res.status).toBe(200);
+      expect(authService.refreshWithToken).toHaveBeenCalledWith('old-refresh');
+      expect(res.body.token).toBe('new-access');
+      expect(res.body.user).toEqual({ id: 1, email: 'user@example.com', role: 'user' });
+    });
+
+    it('should reject when refresh token is missing', async () => {
+      const res = await request(app).post('/auth/refresh');
+
+      expect(res.status).toBe(401);
+      expect(res.body.error).toBe('Refresh token não fornecido');
+      expect(authService.refreshWithToken).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('POST /auth/logout', () => {
+    it('should revoke refresh token when cookie is provided', async () => {
+      (authService.revokeRefreshToken as jest.Mock).mockResolvedValue(undefined);
+
+      const res = await request(app)
+        .post('/auth/logout')
+        .set('Cookie', ['refresh_token=encoded-token']);
+
+      expect(res.status).toBe(200);
+      expect(authService.revokeRefreshToken).toHaveBeenCalledWith('encoded-token');
+    });
+
+    it('should handle logout without refresh token cookie', async () => {
+      (authService.revokeRefreshToken as jest.Mock).mockClear();
+
+      const res = await request(app).post('/auth/logout');
+
+      expect(res.status).toBe(200);
+      expect(authService.revokeRefreshToken).not.toHaveBeenCalled();
     });
   });
 
