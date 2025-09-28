@@ -1,6 +1,6 @@
 import { beforeEach, afterEach, vi, describe, it, expect } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
-import type { ReactNode } from 'react';
+import { createElement, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { apiService } from '@/services/apiService';
 import useApi, { useBeneficiarias, useCreateParticipacao, useParticipacoes, useUpdateParticipacao } from '../useApi';
@@ -17,9 +17,8 @@ const createWrapper = () => {
     },
   });
 
-  const wrapper = ({ children }: { children: ReactNode }) => (
-    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-  );
+  const wrapper = ({ children }: { children: ReactNode }) =>
+    createElement(QueryClientProvider, { client: queryClient, children });
 
   return { wrapper, queryClient };
 };
@@ -52,10 +51,9 @@ describe('useApi hooks', () => {
     const pagination = { page: 2, limit: 20, total: 40, totalPages: 2 };
     (apiService.getBeneficiarias as any).mockResolvedValueOnce({
       success: true,
-      data: {
-        data: [{ id: 1 }],
-        pagination,
-      },
+      data: [{ id: 1 }],
+      pagination,
+      total: pagination.total,
     });
 
     const params = { page: 2, limit: 20 };

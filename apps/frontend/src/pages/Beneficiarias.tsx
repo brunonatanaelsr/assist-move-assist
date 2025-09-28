@@ -24,7 +24,7 @@ import { ListSkeleton } from "@/components/ui/list-skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import usePersistedFilters from "@/hooks/usePersistedFilters";
-import { useBeneficiarias } from "@/hooks/useBeneficiarias";
+import { useBeneficiarias, useBeneficiaria } from "@/hooks/useBeneficiarias";
 import type { Beneficiaria } from "@/types/shared";
 import {
   buildBeneficiariasStats,
@@ -46,7 +46,7 @@ type StatusOption = (typeof STATUS_OPTIONS)[number];
 
 type QueryFilters = {
   search?: string;
-  status?: Beneficiaria['status'];
+  status?: Beneficiaria["status"];
   page: number;
   limit: number;
 };
@@ -65,25 +65,26 @@ export default function Beneficiarias() {
   const currentPage = Number(filterState.page || 1);
 
   const { hasSearch } = useMemo(() => normalizeBeneficiariaSearch(searchTerm), [searchTerm]);
+  const statusFilter = useMemo(() => toStatusFilterValue(selectedStatus), [selectedStatus]);
 
   const queryFilters = useMemo<QueryFilters>(
     () => ({
-      search: searchTerm.trim() ? searchTerm.trim() : undefined,
-      status: toStatusFilterValue(selectedStatus) ?? undefined,
+      search: searchTerm.trim() || undefined,
+      status: statusFilter,
       page: Math.max(currentPage, 1),
       limit: ITEMS_PER_PAGE,
     }),
-    [currentPage, searchTerm, selectedStatus]
+    [currentPage, searchTerm, statusFilter]
   );
 
-  const beneficiariasQuery = useBeneficiarias(queryFilters);
-  const beneficiariasResponse = beneficiariasQuery.data;
-  const beneficiariasPayload = beneficiariasResponse?.data;
-  const beneficiarias: Beneficiaria[] = useMemo(
-    () => (beneficiariasPayload?.items ?? []) as Beneficiaria[],
-    [beneficiariasPayload]
+  const { data: beneficiariasResponse, error, isError, isLoading, isFetching } = useBeneficiarias(queryFilters);
+  const beneficiarias = useMemo(
+    () => beneficiariasResponse?.data?.items ?? [],
+    [beneficiariasResponse]
   );
-  const pagination = beneficiariasPayload?.pagination;
+  const pagination = beneficiariasResponse?.data?.pagination;
+
+  const stats = useMemo(() => buildBeneficiariasStats(beneficiarias), [beneficiarias]);
 
   const filteredBeneficiarias = useMemo(
     () =>
@@ -112,21 +113,25 @@ export default function Beneficiarias() {
     : filteredBeneficiarias.slice(manualStartIndex, manualEndIndex);
   const showingFrom = paginatedBeneficiarias.length === 0 ? 0 : startIndex + 1;
   const showingTo = paginatedBeneficiarias.length === 0 ? 0 : startIndex + paginatedBeneficiarias.length;
+  
+  const displayStats = useMemo(
+    () => ({
+      ...stats,
+      total: totalItems,
+    }),
+    [stats, totalItems]
+  );
+
   const disablePrev = displayPage <= 1;
   const disableNext = displayPage >= totalPages;
   const shouldShowPagination = totalPages > 1;
 
-  const stats = useMemo(() => buildBeneficiariasStats(beneficiarias), [beneficiarias]);
-  const showLoading = beneficiariasQuery.isLoading || beneficiariasQuery.isFetching;
-  const backendErrorMessage =
-    beneficiariasResponse && beneficiariasResponse.success === false
-      ? beneficiariasResponse.message
+  const showLoading = isLoading || isFetching;
+  const errorMessage = isError 
+    ? (error as Error)?.message 
+    : beneficiariasResponse?.success === false 
+      ? beneficiariasResponse.message 
       : undefined;
-  const queryError = beneficiariasQuery.isError
-    ? (beneficiariasQuery.error as Error | undefined)
-    : backendErrorMessage
-    ? new Error(backendErrorMessage)
-    : undefined;
 
   const activeFilterCount =
     (selectedStatus !== "Todas" ? 1 : 0) +
@@ -150,6 +155,7 @@ export default function Beneficiarias() {
     setFilters({ page: safePage });
   };
 
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -170,25 +176,25 @@ export default function Beneficiarias() {
       <div className="grid gap-4 md:grid-cols-4">
         <Card className="shadow-soft">
           <CardContent className="p-4">
-            <div className="text-2xl font-bold text-primary">{showLoading ? "..." : stats.total}</div>
+            <div className="text-2xl font-bold text-primary">{showLoading ? "..." : displayStats.total}</div>
             <p className="text-sm text-muted-foreground">Total de Beneficiárias</p>
           </CardContent>
         </Card>
         <Card className="shadow-soft">
           <CardContent className="p-4">
-            <div className="text-2xl font-bold text-success">{showLoading ? "..." : stats.ativas}</div>
+            <div className="text-2xl font-bold text-success">{showLoading ? "..." : displayStats.ativas}</div>
             <p className="text-sm text-muted-foreground">Ativas</p>
           </CardContent>
         </Card>
         <Card className="shadow-soft">
           <CardContent className="p-4">
-            <div className="text-2xl font-bold text-warning">{showLoading ? "..." : stats.aguardando}</div>
+            <div className="text-2xl font-bold text-warning">{showLoading ? "..." : displayStats.aguardando}</div>
             <p className="text-sm text-muted-foreground">Aguardando</p>
           </CardContent>
         </Card>
         <Card className="shadow-soft">
           <CardContent className="p-4">
-            <div className="text-2xl font-bold text-muted-foreground">{showLoading ? "..." : stats.inativas}</div>
+            <div className="text-2xl font-bold text-muted-foreground">{showLoading ? "..." : displayStats.inativas}</div>
             <p className="text-sm text-muted-foreground">Inativas</p>
           </CardContent>
         </Card>
@@ -200,11 +206,11 @@ export default function Beneficiarias() {
           <CardTitle>Lista de Beneficiárias</CardTitle>
         </CardHeader>
         <CardContent>
-          {queryError && (
+          {errorMessage && (
             <Alert variant="destructive" className="mb-4" data-testid="beneficiarias-error">
               <AlertTitle>Não foi possível carregar as beneficiárias</AlertTitle>
               <AlertDescription>
-                {queryError.message || "Ocorreu um erro ao carregar os dados. Tente novamente."}
+                {errorMessage || "Ocorreu um erro ao carregar os dados. Tente novamente."}
               </AlertDescription>
             </Alert>
           )}
@@ -315,27 +321,29 @@ export default function Beneficiarias() {
                 {showLoading ? (
                   <TableRow>
                     <TableCell colSpan={7} className="py-4">
-                      <ListSkeleton rows={6} columns={6} />
+                      <ListSkeleton rows={limit} columns={6} />
                     </TableCell>
                   </TableRow>
                 ) : paginatedBeneficiarias.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={7} className="py-8">
                       <EmptyState
-                        title={searchTerm ? "Nenhuma beneficiária encontrada" : "Nenhuma beneficiária cadastrada"}
+                        title={hasSearch ? 'Nenhuma beneficiária encontrada' : 'Nenhuma beneficiária cadastrada'}
                         description={
-                          searchTerm
-                            ? "Ajuste sua busca ou filtros e tente novamente."
-                            : "Comece cadastrando a primeira beneficiária."
+                          hasSearch
+                            ? 'Ajuste sua busca ou filtros e tente novamente.'
+                            : 'Comece cadastrando a primeira beneficiária.'
                         }
-                        actionLabel={!searchTerm ? "Cadastrar beneficiária" : undefined}
-                        onAction={!searchTerm ? () => navigate('/beneficiarias/nova') : undefined}
+                        actionLabel={!hasSearch ? 'Cadastrar beneficiária' : undefined}
+                        onAction={!hasSearch ? () => navigate('/beneficiarias/nova') : undefined}
                       />
                     </TableCell>
                   </TableRow>
                 ) : (
                   paginatedBeneficiarias.map((beneficiaria) => {
                     const statusDisplay = deriveBeneficiariaStatus(beneficiaria);
+                    const badgeVariant = getBeneficiariaBadgeVariant(statusDisplay);
+                    const telefone = beneficiaria.telefone || beneficiaria.telefone_secundario || '';
                     return (
                       <TableRow key={beneficiaria.id} className="hover:bg-muted/30" data-testid="beneficiaria-item">
                         <TableCell>
@@ -347,7 +355,7 @@ export default function Beneficiarias() {
                             </Avatar>
                             <div>
                               <div className="font-medium text-foreground">{beneficiaria.nome_completo}</div>
-                              <div className="text-sm text-muted-foreground">{beneficiaria.telefone}</div>
+                              <div className="text-sm text-muted-foreground">{telefone}</div>
                             </div>
                           </div>
                         </TableCell>
@@ -355,11 +363,9 @@ export default function Beneficiarias() {
                         <TableCell className="font-mono text-sm font-medium text-primary">
                           {generatePaedi(beneficiaria)}
                         </TableCell>
-                        <TableCell>{beneficiaria.status || "Não definido"}</TableCell>
+                        <TableCell>{beneficiaria.status || 'Não informado'}</TableCell>
                         <TableCell>
-                          <Badge variant={getBeneficiariaBadgeVariant(statusDisplay)}>
-                            {statusDisplay}
-                          </Badge>
+                          <Badge variant={badgeVariant}>{statusDisplay}</Badge>
                         </TableCell>
                         <TableCell>{formatBeneficiariaDate(beneficiaria.data_nascimento)}</TableCell>
                         <TableCell>

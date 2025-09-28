@@ -49,7 +49,7 @@ export const api = {
   post: wrapPost,
   put: wrapPut,
   patch: wrapPatch,
-  delete: wrapDelete,
+  delete: wrapDelete
 };
 
 // Serviços para beneficiárias delegando ao apiService

@@ -1,7 +1,7 @@
 import type { ApiResponse, Pagination } from '@/types/api';
 import type { Beneficiaria } from '@/types/shared';
 
-export interface ListBeneficiariasParams {
+export interface ListBeneficiariasParams extends Record<string, string | number | undefined> {
   page?: number;
   limit?: number;
   search?: string;

@@ -11,7 +11,7 @@ import type {
   BeneficiariaFiltros,
 } from '@assist/types';
 import { translateErrorMessage } from '@/lib/apiError';
-import { API_URL } from '@/config';
+import { API_URL, AUTH_TOKEN_KEY, USER_KEY, REQUIRE_CSRF_HEADER } from '@/config';
 import type { DashboardStatsResponse } from '@/types/dashboard';
 import type { ApiResponse, Pagination } from '@/types/api';
 import type {
@@ -60,7 +60,10 @@ class ApiService {
     // Interceptor para adicionar token em todas as requisições
     this.api.interceptors.request.use(
       (config) => {
-        const token = localStorage.getItem('token') || localStorage.getItem('auth_token');
+        const token =
+          localStorage.getItem(AUTH_TOKEN_KEY) ||
+          localStorage.getItem('auth_token') ||
+          localStorage.getItem('token');
         if (token && token !== 'undefined') {
           config.headers.Authorization = `Bearer ${token}`;
         } else if (config.headers && 'Authorization' in config.headers) {
@@ -68,9 +71,13 @@ class ApiService {
         }
 
         // CSRF header opcional (se o backend validar)
-        const csrf = getCookie('csrf_token');
-        if (csrf && config.method && ['post','put','patch','delete'].includes(config.method)) {
-          (config.headers as any)['X-CSRF-Token'] = csrf;
+        if (REQUIRE_CSRF_HEADER) {
+          const csrf = getCookie('csrf_token');
+          if (csrf && config.method && ['post', 'put', 'patch', 'delete'].includes(config.method)) {
+            (config.headers as any)['X-CSRF-Token'] = csrf;
+          }
+        } else if (config.headers && 'X-CSRF-Token' in config.headers) {
+          delete (config.headers as any)['X-CSRF-Token'];
         }
 
         if (IS_DEV) {
@@ -86,18 +93,52 @@ class ApiService {
 
     // Interceptor para tratar respostas e erros
     this.api.interceptors.response.use(
-      (response: AxiosResponse<ApiResponse>) => {
+      (response: AxiosResponse<ApiResponse<unknown>>) => {
         if (IS_DEV) console.log(`API Response: ${response.status} - ${response.config.url}`);
         
-        // Se a resposta já tem o formato esperado, retorna como está
-        if (response.data && typeof response.data.success === 'boolean') {
-          return response;
+        // Normalizar a resposta para o formato padronizado
+        let normalizedData = response.data;
+        
+        // Se a resposta já está no formato ApiResponse
+        if (normalizedData && typeof normalizedData.success === 'boolean') {
+          // Verificar se precisa normalizar o payload interno
+          if (normalizedData.data) {
+            const payload = normalizedData.data as any;
+            if (Array.isArray(payload)) {
+              normalizedData = {
+                ...normalizedData,
+                data: {
+                  items: payload,
+                  pagination: normalizedData.pagination
+                },
+                pagination: normalizedData.pagination
+              };
+            } else if ('items' in payload || 'data' in payload) {
+              normalizedData = {
+                ...normalizedData,
+                data: {
+                  items: payload.items || payload.data || [],
+                  pagination: payload.pagination || normalizedData.pagination
+                },
+                pagination: payload.pagination || normalizedData.pagination
+              };
+            }
+          }
+          return { ...response, data: normalizedData };
         }
         
-        // Para compatibilidade com respostas antigas, wrappa em ApiResponse
+        // Para dados não estruturados, criar resposta padrão
         const wrappedResponse: ApiResponse = {
           success: true,
-          data: response.data
+          data: {
+            items: Array.isArray(normalizedData) ? normalizedData : [normalizedData],
+            pagination: response.headers['x-pagination'] 
+              ? JSON.parse(response.headers['x-pagination'])
+              : undefined
+          },
+          pagination: response.headers['x-pagination']
+            ? JSON.parse(response.headers['x-pagination'])
+            : undefined
         };
         
         return {
@@ -110,8 +151,14 @@ class ApiService {
         
         // Tratar erro de autenticação
         if (error.response && error.response.status === 401) {
-          localStorage.removeItem('token');
+          const tokenKeys = new Set([
+            'token',
+            'auth_token',
+            AUTH_TOKEN_KEY
+          ]);
+          tokenKeys.forEach((key) => localStorage.removeItem(key));
           localStorage.removeItem('user');
+          localStorage.removeItem(USER_KEY);
           // HashRouter-safe redirect
           if (typeof window !== 'undefined') {
             window.dispatchEvent(new Event('auth:logout'));
@@ -120,10 +167,18 @@ class ApiService {
         }
         
         // Criar resposta de erro padronizada
-        const rawMessage = error.response?.data?.message || error.message;
+        const rawError = error.response?.data?.error || error.response?.data || error;
+        const translatedMessage = translateErrorMessage(rawError);
+        
         const errorResponse: ApiResponse = {
           success: false,
-          message: translateErrorMessage(rawMessage)
+          message: translatedMessage,
+          error: typeof rawError === 'object' ? rawError : { message: translatedMessage },
+          data: {
+            items: [],
+            pagination: undefined
+          },
+          pagination: undefined
         };
         
         // Atualizar a resposta de erro
@@ -243,7 +298,10 @@ class ApiService {
     return {
       success: true,
       message: response.message,
-      data: payload.data ?? [],
+      data: {
+        items: payload.data ?? [],
+        pagination: payload.pagination
+      },
       pagination: payload.pagination ?? response.pagination,
     };
   }
@@ -262,7 +320,41 @@ class ApiService {
 
   // Métodos específicos para beneficiárias
   async getBeneficiarias(params?: any): Promise<ApiResponse<Beneficiaria[]>> {
-    return this.get<Beneficiaria[]>('/beneficiarias', { params });
+    const response = await this.get<{ items?: Beneficiaria[]; pagination?: Pagination }>(
+      '/beneficiarias',
+      { params }
+    );
+
+    if (!response.success) {
+      return {
+        success: false,
+        message: response.message,
+        data: [],
+        pagination: response.pagination,
+      };
+    }
+
+    const payload = response.data ?? { items: [] };
+    const items = Array.isArray(payload)
+      ? payload
+      : Array.isArray(payload.items)
+        ? payload.items
+        : [];
+
+    const pagination = !Array.isArray(payload)
+      ? payload.pagination ?? response.pagination
+      : response.pagination;
+
+    return {
+      success: true,
+      message: response.message,
+      data: {
+        items: Array.isArray(items) ? items : items.items ?? [],
+        pagination: Array.isArray(items) ? undefined : items.pagination
+      },
+      pagination,
+      total: pagination?.total,
+    };
   }
 
   async getBeneficiaria(id: string | number): Promise<ApiResponse<Beneficiaria>> {

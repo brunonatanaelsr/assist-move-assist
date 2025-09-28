@@ -1,3 +1,5 @@
+import { ApiErrorDetails } from '@/lib/apiError';
+
 export interface Pagination {
   page: number;
   limit: number;
@@ -5,10 +7,16 @@ export interface Pagination {
   totalPages?: number;
 }
 
+export interface NormalizedData<T = unknown> {
+  items: T[];
+  pagination?: Pagination;
+}
+
 export interface ApiResponse<T = unknown> {
   success: boolean;
-  data?: T;
+  data?: T extends Array<infer U> ? NormalizedData<U> : T extends NormalizedData<any> ? T : T;
   message?: string;
+  error?: ApiErrorDetails;
   total?: number;
   pagination?: Pagination;
 }

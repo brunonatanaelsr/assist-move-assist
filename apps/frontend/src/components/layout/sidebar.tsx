@@ -1,93 +1,191 @@
-import { useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
-import { 
-  Users, 
-  FileText, 
-  Heart, 
-  BarChart3, 
-  Settings, 
+import {
+  Users,
+  FileText,
+  Heart,
+  BarChart3,
+  Settings,
   Menu,
   X,
   Home,
   UserPlus,
   ClipboardList,
-  FileCheck,
-  Eye,
-  Target,
   GraduationCap,
   TrendingUp,
   FolderKanban,
-  MessageSquare
+  MessageSquare,
+  type LucideIcon
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/useAuth";
 
-const menuItems = [
+type Role = "guest" | "user" | "admin" | "super_admin" | "superadmin";
+
+interface MenuChildItem {
+  title: string;
+  href: string;
+  allowedRoles: Role[];
+}
+
+interface MenuItem {
+  title: string;
+  icon: LucideIcon;
+  href?: string;
+  children?: MenuChildItem[];
+  allowedRoles: Role[];
+}
+
+const ADMIN_ROLES: Role[] = ["admin", "super_admin", "superadmin"];
+const STAFF_ROLES: Role[] = ["user", ...ADMIN_ROLES];
+
+const roleAliases: Record<string, Role> = {
+  admin: "admin",
+  super_admin: "super_admin",
+  superadmin: "superadmin",
+  user: "user",
+  colaborador: "user",
+  colaboradora: "user",
+  collaborator: "user",
+  colaborator: "user"
+};
+
+const normalizeRole = (role?: string | null): Role => {
+  if (!role) return "guest";
+  const normalized = role.toLowerCase();
+  if (roleAliases[normalized]) {
+    return roleAliases[normalized];
+  }
+
+  const knownRoles: Role[] = ["guest", "user", "admin", "super_admin", "superadmin"];
+  return knownRoles.includes(normalized as Role) ? (normalized as Role) : "guest";
+};
+
+const menuItems: MenuItem[] = [
   {
-    title: "Dashboard", 
+    title: "Dashboard",
     icon: Home,
-    href: "/dashboard"
+    href: "/dashboard",
+    allowedRoles: STAFF_ROLES
   },
   {
     title: "Beneficiárias",
     icon: Users,
-    href: "/beneficiarias"
+    href: "/beneficiarias",
+    allowedRoles: STAFF_ROLES
   },
   {
     title: "Novo Cadastro",
     icon: UserPlus,
-    href: "/beneficiarias/nova"
+    href: "/beneficiarias/nova",
+    allowedRoles: ADMIN_ROLES
   },
   {
     title: "Oficinas",
     icon: GraduationCap,
-    href: "/oficinas"
+    href: "/oficinas",
+    allowedRoles: STAFF_ROLES
   },
   {
     title: "Projetos",
     icon: FolderKanban,
-    href: "/projetos"
+    href: "/projetos",
+    allowedRoles: STAFF_ROLES
   },
   {
     title: "Feed",
     icon: Heart,
-    href: "/feed"
+    href: "/feed",
+    allowedRoles: STAFF_ROLES
   },
   {
     title: "Chat Interno",
     icon: MessageSquare,
-    href: "/chat-interno"
+    href: "/chat-interno",
+    allowedRoles: STAFF_ROLES
   },
   {
     title: "Formulários",
     icon: FileText,
+    allowedRoles: STAFF_ROLES,
     children: [
-      { title: "Declarações e Recibos", href: "/declaracoes-recibos" },
-      { title: "Anamnese Social", href: "/formularios/anamnese" },
-      { title: "Ficha de Evolução", href: "/formularios/evolucao" },
-      { title: "Termo de Consentimento", href: "/formularios/termo" },
-      { title: "Visão Holística", href: "/formularios/visao" },
-      { title: "Roda da Vida", href: "/formularios/roda-vida" },
-      { title: "Plano de Ação", href: "/formularios/plano" },
-      { title: "Matrícula de Projetos", href: "/formularios/matricula" }
+      { title: "Declarações e Recibos", href: "/declaracoes-recibos", allowedRoles: STAFF_ROLES },
+      { title: "Anamnese Social", href: "/formularios/anamnese", allowedRoles: STAFF_ROLES },
+      { title: "Ficha de Evolução", href: "/formularios/evolucao", allowedRoles: STAFF_ROLES },
+      { title: "Termo de Consentimento", href: "/formularios/termo", allowedRoles: STAFF_ROLES },
+      { title: "Visão Holística", href: "/formularios/visao", allowedRoles: STAFF_ROLES },
+      { title: "Roda da Vida", href: "/formularios/roda-vida", allowedRoles: STAFF_ROLES },
+      { title: "Plano de Ação", href: "/formularios/plano", allowedRoles: STAFF_ROLES },
+      { title: "Matrícula de Projetos", href: "/formularios/matricula", allowedRoles: STAFF_ROLES }
     ]
   },
   {
     title: "Relatórios",
     icon: BarChart3,
-    href: "/relatorios"
+    href: "/relatorios",
+    allowedRoles: ADMIN_ROLES
   },
   {
     title: "Analytics",
     icon: TrendingUp,
-    href: "/analytics"
+    href: "/analytics",
+    allowedRoles: ADMIN_ROLES
   }
 ];
+
+const settingsItem: MenuItem = {
+  title: "Configurações",
+  icon: Settings,
+  href: "/configuracoes",
+  allowedRoles: ADMIN_ROLES
+};
+
+const filterMenuItems = (
+  items: MenuItem[],
+  hasAccess: (roles: Role[]) => boolean
+): MenuItem[] =>
+  items.reduce<MenuItem[]>((acc, item) => {
+    if (!hasAccess(item.allowedRoles)) {
+      return acc;
+    }
+
+    if (item.children) {
+      const allowedChildren = item.children.filter(child => hasAccess(child.allowedRoles));
+      if (allowedChildren.length === 0) {
+        return acc;
+      }
+      acc.push({ ...item, children: allowedChildren });
+      return acc;
+    }
+
+    acc.push(item);
+    return acc;
+  }, []);
 
 export default function Sidebar() {
   const [isOpen, setIsOpen] = useState(false);
   const [expandedItems, setExpandedItems] = useState<string[]>(["Formulários"]);
   const location = useLocation();
+  const { user, isAdmin } = useAuth();
+
+  const userRole = useMemo(() => normalizeRole(user?.papel), [user?.papel]);
+
+  const hasAccess = useCallback(
+    (roles: Role[]) => {
+      if (roles.includes("guest")) return true;
+      if (isAdmin) return true;
+      return roles.includes(userRole);
+    },
+    [isAdmin, userRole]
+  );
+
+  const availableMenuItems = useMemo(
+    () => filterMenuItems(menuItems, hasAccess),
+    [hasAccess]
+  );
+
+  const canViewSettings = hasAccess(settingsItem.allowedRoles);
 
   const toggleExpanded = (title: string) => {
     setExpandedItems(prev => 
@@ -95,10 +193,6 @@ export default function Sidebar() {
         ? prev.filter(item => item !== title)
         : [...prev, title]
     );
-  };
-
-  const isActive = (href: string) => {
-    return location.pathname === href || location.pathname.startsWith(href + "/");
   };
 
   return (
@@ -143,7 +237,7 @@ export default function Sidebar() {
 
           {/* Navigation */}
           <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-            {menuItems.map((item) => (
+            {availableMenuItems.map((item) => (
               <div key={item.title}>
                 {item.children ? (
                   <div>
@@ -210,21 +304,23 @@ export default function Sidebar() {
           </nav>
 
           {/* Footer */}
-          <div className="p-4 border-t border-sidebar-border">
-            <NavLink
-              to="/configuracoes"
-              className={({ isActive }) => cn(
-                "flex items-center gap-2 w-full px-3 py-2 rounded-md text-sm font-medium transition-colors",
-                isActive 
-                  ? "bg-primary text-primary-foreground shadow-soft" 
-                  : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-              )}
-              onClick={() => setIsOpen(false)}
-            >
-              <Settings className="h-4 w-4" />
-              Configurações
-            </NavLink>
-          </div>
+          {canViewSettings && (
+            <div className="p-4 border-t border-sidebar-border">
+              <NavLink
+                to={settingsItem.href!}
+                className={({ isActive }) => cn(
+                  "flex items-center gap-2 w-full px-3 py-2 rounded-md text-sm font-medium transition-colors",
+                  isActive
+                    ? "bg-primary text-primary-foreground shadow-soft"
+                    : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                )}
+                onClick={() => setIsOpen(false)}
+              >
+                <settingsItem.icon className="h-4 w-4" />
+                {settingsItem.title}
+              </NavLink>
+            </div>
+          )}
         </div>
       </aside>
     </>

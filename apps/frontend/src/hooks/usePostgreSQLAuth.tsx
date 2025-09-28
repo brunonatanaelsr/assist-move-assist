@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { AUTH_TOKEN_KEY, USER_KEY } from '@/config';
 import { apiService } from '@/services/apiService';
 
 const IS_DEV = (import.meta as any)?.env?.DEV === true || (import.meta as any)?.env?.MODE === 'development';
@@ -55,7 +56,7 @@ export const PostgreSQLAuthProvider: React.FC<AuthProviderProps> = ({ children }
     const load = async () => {
       try {
         // Verificar se há token antes de fazer a requisição
-        const token = localStorage.getItem('token');
+        const token = localStorage.getItem(AUTH_TOKEN_KEY) || localStorage.getItem('token');
         if (!token) {
           if (IS_DEV) console.log('Nenhum token encontrado, usuário não autenticado');
           setUser(null);
@@ -82,13 +83,23 @@ export const PostgreSQLAuthProvider: React.FC<AuthProviderProps> = ({ children }
           setProfile(userProfile);
         } else {
           if (IS_DEV) console.log('Response inválido ou usuário não encontrado');
-          localStorage.removeItem('token');
+          const tokenKeys = new Set([
+            'token',
+            'auth_token',
+            AUTH_TOKEN_KEY
+          ]);
+          tokenKeys.forEach((key) => localStorage.removeItem(key));
           setUser(null);
           setProfile(null);
         }
       } catch (error) {
         if (IS_DEV) console.error('Error loading user:', error);
-        localStorage.removeItem('token');
+        const tokenKeys = new Set([
+          'token',
+          'auth_token',
+          AUTH_TOKEN_KEY
+        ]);
+        tokenKeys.forEach((key) => localStorage.removeItem(key));
         setUser(null);
         setProfile(null);
       } finally {
@@ -111,7 +122,13 @@ export const PostgreSQLAuthProvider: React.FC<AuthProviderProps> = ({ children }
         const userData = response.data.user;
 
         if (response.data.token) {
-          localStorage.setItem('token', response.data.token);
+          localStorage.setItem(AUTH_TOKEN_KEY, response.data.token);
+          if (AUTH_TOKEN_KEY !== 'token') {
+            localStorage.removeItem('token');
+          }
+          if (AUTH_TOKEN_KEY !== 'auth_token') {
+            localStorage.removeItem('auth_token');
+          }
         }
 
         const userProfile: Profile = {
@@ -138,7 +155,14 @@ export const PostgreSQLAuthProvider: React.FC<AuthProviderProps> = ({ children }
 
   const signOut = async () => {
     try {
-      localStorage.removeItem('token');
+      const tokenKeys = new Set([
+        'token',
+        'auth_token',
+        AUTH_TOKEN_KEY
+      ]);
+      tokenKeys.forEach((key) => localStorage.removeItem(key));
+      localStorage.removeItem('user');
+      localStorage.removeItem(USER_KEY);
       setUser(null);
       setProfile(null);
       return { error: null };

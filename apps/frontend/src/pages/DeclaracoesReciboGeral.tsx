@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FileText, Download, Search, Users } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
+import { AUTH_TOKEN_KEY } from "@/config";
 import { downloadDeclaracao, downloadRecibo } from "@/utils/pdfDownload";
 import { useBeneficiarias } from "@/hooks/useBeneficiarias";
 import apiService from "@/services/apiService";
@@ -140,7 +141,10 @@ export default function DeclaracoesReciboGeral() {
         // Fazer download do PDF usando utilitário
         const declaracaoId = (response.data as any)?.declaracao?.id;
         if (declaracaoId) {
-          const token = localStorage.getItem('token') || '';
+          const token =
+            localStorage.getItem(AUTH_TOKEN_KEY) ||
+            localStorage.getItem('token') ||
+            '';
           const downloadOk = await downloadDeclaracao(declaracaoId, token);
           
           if (!downloadOk) {
@@ -209,7 +213,10 @@ export default function DeclaracoesReciboGeral() {
         // Fazer download do PDF usando utilitário
         const reciboId = (response.data as any)?.recibo?.id;
         if (reciboId) {
-          const token = localStorage.getItem('token') || '';
+          const token =
+            localStorage.getItem(AUTH_TOKEN_KEY) ||
+            localStorage.getItem('token') ||
+            '';
           const downloadOk = await downloadRecibo(reciboId, token);
           
           if (!downloadOk) {

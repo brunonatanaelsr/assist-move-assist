@@ -9,9 +9,7 @@ module.exports = {
   testPathIgnorePatterns: [
     '<rootDir>/src/__tests__/integration/',
     '<rootDir>/tests/',
-    '<rootDir>/src/controllers/__tests__/',
     '<rootDir>/src/repositories/__tests__/',
-    '<rootDir>/src/services/__tests__/',
     '<rootDir>/src/__tests__/helpers/',
     '<rootDir>/src/__tests__/repositories/',
     '<rootDir>/src/routes/__tests__/feed.routes.test.ts',
@@ -24,6 +22,9 @@ module.exports = {
   },
   moduleNameMapper: {
     '^cpf-cnpj-validator$': '<rootDir>/src/__mocks__/cpf-cnpj-validator.js',
+    '^ansi-regex$': '<rootDir>/tests/mocks/ansi-regex.js',
+    '^strip-ansi$': '<rootDir>/tests/mocks/strip-ansi.js',
+    '^string-length$': '<rootDir>/tests/mocks/string-length.js',
     '^@/(.*)$': '<rootDir>/src/$1'
   },
   moduleDirectories: ['node_modules', 'src'],

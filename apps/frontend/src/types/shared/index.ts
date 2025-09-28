@@ -37,9 +37,9 @@ export interface Beneficiaria {
     cpf: string;
     rg?: string | null;
     rg_orgao_emissor?: string | null;
-    rg_data_emissao?: string | null;
+    rg_data_emissao?: Date | string | null;
     nis?: string | null;
-    data_nascimento: string;
+    data_nascimento: Date | string;
     telefone: string;
     telefone_secundario?: string | null;
     email?: string | null;
@@ -68,13 +68,13 @@ export interface Beneficiaria {
     observacoes_socioeconomicas?: string | null;
     status: 'ativa' | 'inativa' | 'pendente' | 'desistente';
     observacoes?: string | null;
-    created_at?: string;
-    updated_at?: string;
+    created_at?: Date | string;
+    updated_at?: Date | string;
     familiares?: Array<{
         id?: number;
         nome: string;
         parentesco?: string | null;
-        data_nascimento?: string | null;
+        data_nascimento?: Date | string | null;
         trabalha?: boolean | null;
         renda_mensal?: number | null;
         observacoes?: string | null;

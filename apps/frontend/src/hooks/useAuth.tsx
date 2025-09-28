@@ -7,6 +7,7 @@ import {
   useContext,
   type ReactNode,
 } from "react";
+import { AUTH_TOKEN_KEY, USER_KEY } from "@/config";
 import { AuthService } from "@/services/auth.service";
 
 interface User {
@@ -58,7 +59,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     const handleStorageEvent = (event: StorageEvent) => {
-      const relevantKeys = new Set(["token", "auth_token", "user"]);
+      const relevantKeys = new Set([
+        "token",
+        "auth_token",
+        AUTH_TOKEN_KEY,
+        "user",
+        USER_KEY
+      ]);
       if (event.key === null || relevantKeys.has(event.key)) {
         handleLogoutEvent();
       }
@@ -77,15 +84,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       setLoading(true);
       const response = await authService.login({ email, password });
+      
       // Tipagem explícita do retorno esperado
-      type LoginResponse = { token?: string; user?: User };
+      type LoginResponse = { token: string; refreshToken: string; user?: User };
       const resp = response as LoginResponse;
+      
+      // Armazenar token de acesso
       if (resp.token) {
-        localStorage.setItem('auth_token', resp.token);
-        localStorage.setItem('token', resp.token);
+        localStorage.setItem(AUTH_TOKEN_KEY, resp.token);
+        // Limpar chaves legadas
+        if (AUTH_TOKEN_KEY !== 'auth_token') {
+          localStorage.removeItem('auth_token');
+        }
+        if (AUTH_TOKEN_KEY !== 'token') {
+          localStorage.removeItem('token');
+        }
       }
       if (resp.user) {
-        localStorage.setItem('user', JSON.stringify(resp.user));
+        localStorage.setItem(USER_KEY, JSON.stringify(resp.user));
+        if (USER_KEY !== 'user') {
+          localStorage.removeItem('user');
+        }
         setUser(resp.user);
       }
       return {};
@@ -101,8 +120,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(true);
       await authService.logout();
     } finally {
+<<<<<<< HEAD
+      const tokenKeys = new Set([
+        'token',
+        'auth_token',
+        AUTH_TOKEN_KEY
+      ]);
+      tokenKeys.forEach((key) => localStorage.removeItem(key));
+      localStorage.removeItem('user');
+      localStorage.removeItem(USER_KEY);
+=======
       localStorage.removeItem("auth_token");
+      localStorage.removeItem("token");
       localStorage.removeItem("user");
+>>>>>>> main
       setUser(null);
       setLoading(false);
     }

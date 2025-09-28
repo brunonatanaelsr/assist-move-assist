@@ -8,9 +8,31 @@
       SMOKE_PASSWORD (default 15002031)
 */
 
+const { createCookieJar, storeCookies, cookieHeader } = require('./utils/cookies');
+const { fetchCsrfToken, extractSetCookiesFromFetchHeaders } = require('./utils/csrf');
+
 const BASE_URL = process.env.SMOKE_BASE_URL || 'http://localhost:3000';
 const EMAIL = process.env.SMOKE_EMAIL || 'bruno@move.com';
 const PASSWORD = process.env.SMOKE_PASSWORD || '15002031';
+
+const cookieJar = createCookieJar();
+
+function applyCookieHeader(headers = {}) {
+  const header = cookieHeader(cookieJar);
+  if (header) {
+    headers.Cookie = header;
+  }
+  return headers;
+}
+
+async function csrfHeaders(base = {}) {
+  const token = await fetchCsrfToken(`${BASE_URL}/api`, cookieJar);
+  return applyCookieHeader({ ...base, 'X-CSRF-Token': token });
+}
+
+function captureCookies(response) {
+  storeCookies(cookieJar, extractSetCookiesFromFetchHeaders(response.headers));
+}
 
 function log(title, ok, extra = '') {
   const status = ok ? '✅' : '❌';
@@ -18,7 +40,6 @@ function log(title, ok, extra = '') {
 }
 
 async function main() {
-  let cookieHeader = '';
   let beneficiariaId = null;
 
   // 1) Health check
@@ -34,16 +55,11 @@ async function main() {
   try {
     const res = await fetch(`${BASE_URL}/api/auth/login`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: await csrfHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ email: EMAIL, password: PASSWORD })
     });
-    const setCookie = res.headers.get('set-cookie') || '';
-    const cookieMatch = setCookie.split(',').find((c) => c.includes('auth_token='));
-    if (cookieMatch) {
-      const token = cookieMatch.split(';')[0];
-      cookieHeader = token; // e.g., auth_token=...
-    }
-    const ok = res.ok && !!cookieHeader;
+    captureCookies(res);
+    const ok = res.ok && cookieHeader(cookieJar).includes('auth_token=');
     log('POST /api/auth/login', ok, `status=${res.status}`);
     if (!ok) return process.exit(1);
   } catch (e) {
@@ -54,8 +70,9 @@ async function main() {
   // 3) List beneficiarias
   try {
     const res = await fetch(`${BASE_URL}/api/beneficiarias`, {
-      headers: { Cookie: cookieHeader }
+      headers: applyCookieHeader()
     });
+    captureCookies(res);
     const json = await res.json().catch(() => ({}));
     const ok = res.ok;
     log('GET /api/beneficiarias', ok, `status=${res.status}`);
@@ -86,9 +103,10 @@ async function main() {
       };
       const res = await fetch(`${BASE_URL}/api/beneficiarias`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Cookie: cookieHeader },
+        headers: await csrfHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(payload)
       });
+      captureCookies(res);
       const json = await res.json().catch(() => ({}));
       const ok = res.ok && json && json.data && json.data.id;
       beneficiariaId = ok ? json.data.id : null;
@@ -104,9 +122,10 @@ async function main() {
   try {
     const res = await fetch(`${BASE_URL}/api/formularios/anamnese`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Cookie: cookieHeader },
+      headers: await csrfHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ beneficiaria_id: beneficiariaId, dados: { origem: 'smoke', obs: 'ok' } })
     });
+    captureCookies(res);
     const ok = res.ok;
     log('POST /api/formularios/anamnese', ok, `status=${res.status}`);
   } catch (e) {
@@ -117,9 +136,10 @@ async function main() {
   try {
     const res = await fetch(`${BASE_URL}/api/formularios/ficha-evolucao`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Cookie: cookieHeader },
+      headers: await csrfHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ beneficiaria_id: beneficiariaId, dados: { origem: 'smoke', etapa: 1 } })
     });
+    captureCookies(res);
     log('POST /api/formularios/ficha-evolucao', res.ok, `status=${res.status}`);
   } catch (e) {
     log('POST /api/formularios/ficha-evolucao', false, e.message);
@@ -129,9 +149,10 @@ async function main() {
   try {
     const res = await fetch(`${BASE_URL}/api/formularios/visao-holistica`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Cookie: cookieHeader },
+      headers: await csrfHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ beneficiaria_id: beneficiariaId, data_avaliacao: new Date().toISOString().slice(0,10) })
     });
+    captureCookies(res);
     log('POST /api/formularios/visao-holistica', res.ok, `status=${res.status}`);
   } catch (e) {
     log('POST /api/formularios/visao-holistica', false, e.message);

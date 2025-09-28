@@ -7,6 +7,8 @@
 
 const axios = require('axios');
 const { io } = require('socket.io-client');
+const { createCookieJar, storeCookies, cookieHeader } = require('./utils/cookies');
+const { fetchCsrfToken, extractSetCookiesFromAxiosHeaders } = require('./utils/csrf');
 
 const API_BASE = process.env.API_BASE || 'http://localhost:3000/api';
 const WS_URL = process.env.WS_URL || 'http://localhost:3000';
@@ -15,12 +17,47 @@ const A_PASS = process.env.A_PASS || '15002031';
 const B_EMAIL = process.env.B_EMAIL || 'admin@movemarias.com';
 const B_PASS = process.env.B_PASS || 'movemarias123';
 
+const cookieJar = createCookieJar();
+
+async function csrfHeaders(base = {}) {
+  const token = await fetchCsrfToken(API_BASE, cookieJar);
+  const cookie = cookieHeader(cookieJar);
+  return {
+    ...base,
+    'X-CSRF-Token': token,
+    ...(cookie ? { Cookie: cookie } : {}),
+  };
+}
+
+function captureAxiosCookies(response) {
+  storeCookies(cookieJar, extractSetCookiesFromAxiosHeaders(response.headers));
+  return response;
+}
+
 async function login(email, password) {
-  const resp = await axios.post(`${API_BASE}/auth/login`, { email, password });
+  const resp = await axios.post(
+    `${API_BASE}/auth/login`,
+    { email, password },
+    { headers: await csrfHeaders({ 'Content-Type': 'application/json' }) }
+  );
+  captureAxiosCookies(resp);
   if (!resp.data || !resp.data.token || !resp.data.user) {
     throw new Error(`Login inválido para ${email}`);
   }
   return { token: resp.data.token, user: resp.data.user };
+}
+
+function createApiClient(token) {
+  const instance = axios.create({ baseURL: API_BASE, headers: { Authorization: `Bearer ${token}` } });
+  instance.interceptors.request.use(async (config) => {
+    const method = (config.method || 'get').toLowerCase();
+    if (['post', 'put', 'patch', 'delete'].includes(method)) {
+      config.headers = await csrfHeaders(config.headers || {});
+    }
+    return config;
+  });
+  instance.interceptors.response.use((response) => captureAxiosCookies(response));
+  return instance;
 }
 
 function connectSocket(token, label) {
@@ -61,18 +98,18 @@ function waitEvent(socket, event, predicate = () => true, label = '', timeoutMs 
   });
 }
 
-async function createGroup(token, nome = 'Grupo Smoke', descricao = 'Criado pelo smoke-chat') {
-  const resp = await axios.post(`${API_BASE}/grupos`, { nome, descricao }, { headers: { Authorization: `Bearer ${token}` } });
+async function createGroup(client, nome = 'Grupo Smoke', descricao = 'Criado pelo smoke-chat') {
+  const resp = await client.post('/grupos', { nome, descricao });
   if (!resp.data || !resp.data.data || !resp.data.data.id) throw new Error('Falha ao criar grupo');
   return resp.data.data.id;
 }
 
-async function addMember(token, groupId, usuarioId, papel = 'membro') {
-  await axios.post(`${API_BASE}/grupos/${groupId}/membros`, { usuario_id: usuarioId, papel }, { headers: { Authorization: `Bearer ${token}` } });
+async function addMember(client, groupId, usuarioId, papel = 'membro') {
+  await client.post(`/grupos/${groupId}/membros`, { usuario_id: usuarioId, papel });
 }
 
-async function listarUsuarios(token) {
-  const resp = await axios.get(`${API_BASE}/mensagens/usuarios`, { headers: { Authorization: `Bearer ${token}` } });
+async function listarUsuarios(client) {
+  const resp = await client.get('/mensagens/usuarios');
   return resp.data;
 }
 
@@ -81,6 +118,9 @@ async function main() {
   const A = await login(A_EMAIL, A_PASS);
   console.log('🔐 Login B (destinatário)...');
   const B = await login(B_EMAIL, B_PASS);
+
+  const clientA = createApiClient(A.token);
+  const clientB = createApiClient(B.token);
 
   console.log('🔌 Conectando sockets...');
   const sockA = await connectSocket(A.token, 'A');
@@ -101,7 +141,7 @@ async function main() {
 
   // Private message A -> B
   console.log('💬 Teste mensagem privada A -> B');
-  const usuarios = await listarUsuarios(A.token);
+  const usuarios = await listarUsuarios(clientA);
   const destinatarioId = (Array.isArray(usuarios) ? usuarios : []).find((u) => u.email === B_EMAIL)?.id || B.user.id;
   const msgText = `Olá de A para B @ ${Date.now()}`;
   const p1 = waitEvent(sockA, 'message_sent', (m) => m && m.conteudo === msgText, 'A.message_sent');
@@ -119,8 +159,8 @@ async function main() {
 
   // Group message
   console.log('👥 Criando grupo e adicionando B');
-  const groupId = await createGroup(A.token, `Grupo Smoke ${Date.now()}`);
-  await addMember(A.token, groupId, B.user.id, 'membro');
+  const groupId = await createGroup(clientA, `Grupo Smoke ${Date.now()}`);
+  await addMember(clientA, groupId, B.user.id, 'membro');
   // Entrar nas salas dos grupos novamente
   sockA.emit('join_groups');
   sockB.emit('join_groups');

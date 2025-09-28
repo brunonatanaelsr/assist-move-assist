@@ -4,7 +4,6 @@ import { loggerService } from '../services/logger';
 import zxcvbn from 'zxcvbn';
 
 const LOGIN_ATTEMPTS_LIMIT = 5;
-const BLOCK_DURATION = 15 * 60 * 1000; // 15 minutos
 
 // Rate limiter específico para login
 export const loginRateLimiter = rateLimit({
@@ -14,7 +13,8 @@ export const loginRateLimiter = rateLimit({
     error: 'Muitas tentativas de login. Tente novamente em 15 minutos.'
   },
   standardHeaders: true,
-  legacyHeaders: false
+  legacyHeaders: false,
+  skip: () => process.env.NODE_ENV === 'test' && process.env.ENABLE_LOGIN_RATE_LIMIT !== '1'
 });
 
 // Middleware para verificar bloqueio de login
@@ -39,6 +39,13 @@ export const checkLoginBlock = async (req: any, res: any, next: any) => {
       });
     }
 
+    if (blocked.length > 0) {
+      await db.query(
+        `DELETE FROM user_blocks WHERE email = $1 AND blocked_until <= NOW()`,
+        [email]
+      );
+    }
+
     next();
   } catch (error) {
     loggerService.error('Erro ao verificar bloqueio:', error);
@@ -47,12 +54,16 @@ export const checkLoginBlock = async (req: any, res: any, next: any) => {
 };
 
 // Função para registrar tentativa de login falha
-export const recordFailedAttempt = async (email: string) => {
+export const recordFailedAttempt = async (email: string, ipAddress?: string) => {
   try {
     await db.query(`
-      INSERT INTO login_attempts (email, attempt_time)
-      VALUES ($1, NOW())
-    `, [email]);
+      INSERT INTO login_attempts (email, ip_address, attempt_time)
+      VALUES ($1, $2, NOW())
+    `, [email, ipAddress ?? null]);
+
+    await db.query(
+      `DELETE FROM login_attempts WHERE attempt_time < NOW() - INTERVAL '1 day'`
+    );
 
     // Verificar número de tentativas recentes
     const recentAttempts = await db.query(`
@@ -62,7 +73,9 @@ export const recordFailedAttempt = async (email: string) => {
       AND attempt_time > NOW() - INTERVAL '15 minutes'
     `, [email]);
 
-    if (recentAttempts[0].count >= LOGIN_ATTEMPTS_LIMIT) {
+    const attemptsCount = Number(recentAttempts[0].count ?? 0);
+
+    if (attemptsCount >= LOGIN_ATTEMPTS_LIMIT) {
       // Bloquear usuário
       await db.query(`
         INSERT INTO user_blocks (email, blocked_until)
@@ -75,6 +88,15 @@ export const recordFailedAttempt = async (email: string) => {
     }
   } catch (error) {
     loggerService.error('Erro ao registrar tentativa de login:', error);
+  }
+};
+
+export const clearLoginAttempts = async (email: string) => {
+  try {
+    await db.query(`DELETE FROM login_attempts WHERE email = $1`, [email]);
+    await db.query(`DELETE FROM user_blocks WHERE email = $1`, [email]);
+  } catch (error) {
+    loggerService.error('Erro ao limpar tentativas de login:', error);
   }
 };
 

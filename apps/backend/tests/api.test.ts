@@ -1,6 +1,7 @@
 import request from 'supertest';
 import { app } from '../src/app';
 import { pool } from '../src/config/database';
+import { withCsrf } from './utils/csrf';
 
 describe('API Tests', () => {
   beforeAll(async () => {
@@ -15,12 +16,12 @@ describe('API Tests', () => {
 
   describe('Auth Endpoints', () => {
     it('should login successfully with correct credentials', async () => {
-      const res = await request(app)
-        .post('/api/auth/login')
-        .send({
-          email: 'bruno@move.com',
-          password: '15002031'
-        });
+      const res = await (
+        await withCsrf(app, request(app).post('/api/auth/login'))
+      ).send({
+        email: 'bruno@move.com',
+        password: '15002031'
+      });
       
       expect(res.status).toBe(200);
       expect(res.body).toHaveProperty('token');
@@ -32,12 +33,12 @@ describe('API Tests', () => {
 
     beforeAll(async () => {
       // Login para obter token
-      const res = await request(app)
-        .post('/api/auth/login')
-        .send({
-          email: 'bruno@move.com',
-          password: '15002031'
-        });
+      const res = await (
+        await withCsrf(app, request(app).post('/api/auth/login'))
+      ).send({
+        email: 'bruno@move.com',
+        password: '15002031'
+      });
       
       authToken = res.body.token;
     });
@@ -52,10 +53,14 @@ describe('API Tests', () => {
         suporte_instituto: 'Suporte técnico'
       };
 
-      const res = await request(app)
-        .post('/api/planos-acao')
-        .set('Authorization', `Bearer ${authToken}`)
-        .send(plano);
+      const res = await (
+        await withCsrf(
+          app,
+          request(app)
+            .post('/api/planos-acao')
+            .set('Authorization', `Bearer ${authToken}`)
+        )
+      ).send(plano);
       
       expect(res.status).toBe(201);
       expect(res.body).toHaveProperty('id');
