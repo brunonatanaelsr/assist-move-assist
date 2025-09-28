@@ -46,6 +46,7 @@ export class AuthService {
       await api.post('/auth/logout', undefined, { withCredentials: true });
       // Limpar token e dados do usuário localmente
       localStorage.removeItem('auth_token');
+      localStorage.removeItem('token');
       localStorage.removeItem('user');
     } catch (error) {
       console.error('Erro ao fazer logout:', error);
