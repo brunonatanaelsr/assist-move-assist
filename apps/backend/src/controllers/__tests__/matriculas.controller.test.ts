@@ -1,26 +1,26 @@
-jest.mock('../../services/cache.service', () => ({
-  cacheService: {
-    delete: jest.fn().mockResolvedValue(undefined),
-    deletePattern: jest.fn().mockResolvedValue(undefined)
-  }
-}));
+import { criarMatricula, verificarElegibilidade } from '../matriculas.controller';
+import {
+  MatriculasServiceError,
+  matriculasService
+} from '../../services/matriculas.service';
 
-import { criarMatricula, verificarElegibilidade } from '../matriculas-fixed.controller';
-import { mockPool } from '../../setupTests';
-
-describe('MatriculasController - status do projeto', () => {
-  const mockClient = {
-    query: jest.fn(),
-    release: jest.fn()
+jest.mock('../../services/matriculas.service', () => {
+  const actual = jest.requireActual('../../services/matriculas.service');
+  return {
+    ...actual,
+    matriculasService: {
+      listarMatriculas: jest.fn(),
+      criarMatricula: jest.fn(),
+      obterMatricula: jest.fn(),
+      atualizarMatricula: jest.fn(),
+      verificarElegibilidade: jest.fn()
+    }
   };
+});
 
-  const baseRequestBody = {
-    beneficiaria_id: 1,
-    projeto_id: 2,
-    motivacao_participacao: 'Motivação',
-    expectativas: 'Expectativas'
-  };
+const mockedService = matriculasService as jest.Mocked<typeof matriculasService>;
 
+describe('MatriculasController', () => {
   const createMockResponse = () => {
     const res: any = {};
     res.status = jest.fn().mockReturnValue(res);
@@ -29,117 +29,110 @@ describe('MatriculasController - status do projeto', () => {
   };
 
   beforeEach(() => {
-    mockClient.query.mockReset();
-    mockClient.release.mockReset();
-    (mockPool.connect as jest.Mock).mockReset();
-    (mockPool.query as jest.Mock).mockReset();
-    (mockPool.connect as jest.Mock).mockResolvedValue(mockClient);
-    mockClient.query.mockResolvedValue({ rows: [] });
+    jest.clearAllMocks();
   });
 
   describe('criarMatricula', () => {
-    it.each([
-      'planejamento',
-      'em_andamento',
-      'pausado'
-    ])('permite matrícula quando o projeto está em %s', async status => {
-      mockClient.query
-        .mockResolvedValueOnce({}) // BEGIN
-        .mockResolvedValueOnce({ rows: [{ id: baseRequestBody.beneficiaria_id }] })
-        .mockResolvedValueOnce({ rows: [{ id: baseRequestBody.projeto_id, status }] })
-        .mockResolvedValueOnce({ rows: [] })
-        .mockResolvedValueOnce({ rows: [{ id: 99, beneficiaria_id: 1, projeto_id: 2 }] })
-        .mockResolvedValue({});
+    const requestBody = {
+      beneficiaria_id: 1,
+      projeto_id: 2
+    };
 
-      const req: any = { body: baseRequestBody };
+    it('retorna 201 quando o serviço cria a matrícula', async () => {
+      mockedService.criarMatricula.mockResolvedValue({ id: 1 });
+
+      const req: any = { body: requestBody };
       const res = createMockResponse();
 
       await criarMatricula(req, res);
 
+      expect(mockedService.criarMatricula).toHaveBeenCalledWith(requestBody);
       expect(res.status).toHaveBeenCalledWith(201);
-      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      expect(res.json).toHaveBeenCalledWith({
         success: true,
+        data: { id: 1 },
         message: 'Matrícula criada com sucesso'
-      }));
+      });
     });
 
-    it.each([
-      'cancelado',
-      'concluido'
-    ])('bloqueia matrícula quando o projeto está %s', async status => {
-      mockClient.query
-        .mockResolvedValueOnce({})
-        .mockResolvedValueOnce({ rows: [{ id: baseRequestBody.beneficiaria_id }] })
-        .mockResolvedValueOnce({ rows: [{ id: baseRequestBody.projeto_id, status }] });
+    it('propaga o status e mensagem de erros conhecidos', async () => {
+      mockedService.criarMatricula.mockRejectedValue(
+        new MatriculasServiceError(400, 'Erro de validação')
+      );
 
-      const req: any = { body: baseRequestBody };
+      const req: any = { body: requestBody };
       const res = createMockResponse();
 
       await criarMatricula(req, res);
 
       expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({ success: false, error: 'Erro de validação' });
+    });
+
+    it('retorna 500 para erros inesperados', async () => {
+      mockedService.criarMatricula.mockRejectedValue(new Error('Falha'));
+
+      const req: any = { body: requestBody };
+      const res = createMockResponse();
+
+      await criarMatricula(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(500);
       expect(res.json).toHaveBeenCalledWith({
         success: false,
-        error: 'Projetos cancelados ou concluídos não aceitam novas matrículas'
+        error: 'Erro interno ao criar matrícula'
       });
     });
   });
 
   describe('verificarElegibilidade', () => {
-    const createReq = () => ({
-      body: {
-        beneficiaria_id: 1,
-        projeto_id: 2
-      }
-    });
+    const requestBody = {
+      beneficiaria_id: 1,
+      projeto_id: 2
+    };
 
-    it.each([
-      'planejamento',
-      'em_andamento',
-      'pausado'
-    ])('considera elegível quando o status do projeto é %s', async status => {
-      (mockPool.query as jest.Mock)
-        .mockResolvedValueOnce({ rows: [{ id: 1 }] })
-        .mockResolvedValueOnce({ rows: [{ id: 2, status }] })
-        .mockResolvedValueOnce({ rows: [] });
+    it('retorna 200 com o resultado do serviço', async () => {
+      mockedService.verificarElegibilidade.mockResolvedValue({ elegivel: true });
 
-      const req = createReq();
-      const res = { json: jest.fn() } as any;
+      const req: any = { body: requestBody };
+      const res = createMockResponse();
 
       await verificarElegibilidade(req, res);
 
-      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
-        success: true,
-        data: expect.objectContaining({
-          elegivel: true,
-          motivos: []
-        })
-      }));
+      expect(mockedService.verificarElegibilidade).toHaveBeenCalledWith(1, 2);
+      expect(res.json).toHaveBeenCalledWith({ success: true, data: { elegivel: true } });
     });
 
-    it.each([
-      'cancelado',
-      'concluido'
-    ])('marca como não elegível quando o status do projeto é %s', async status => {
-      (mockPool.query as jest.Mock)
-        .mockResolvedValueOnce({ rows: [{ id: 1 }] })
-        .mockResolvedValueOnce({ rows: [{ id: 2, status }] })
-        .mockResolvedValueOnce({ rows: [] });
+    it('propaga erros conhecidos do serviço', async () => {
+      mockedService.verificarElegibilidade.mockRejectedValue(
+        new MatriculasServiceError(404, 'Projeto não encontrado')
+      );
 
-      const req = createReq();
-      const res = { json: jest.fn() } as any;
+      const req: any = { body: requestBody };
+      const res = createMockResponse();
 
       await verificarElegibilidade(req, res);
 
-      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
-        success: true,
-        data: expect.objectContaining({
-          elegivel: false,
-          motivos: expect.arrayContaining([
-            'Projetos cancelados ou concluídos não aceitam novas matrículas'
-          ])
-        })
-      }));
+      expect(res.status).toHaveBeenCalledWith(404);
+      expect(res.json).toHaveBeenCalledWith({
+        success: false,
+        error: 'Projeto não encontrado'
+      });
+    });
+
+    it('retorna 500 em erros inesperados', async () => {
+      mockedService.verificarElegibilidade.mockRejectedValue(new Error('Falha'));
+
+      const req: any = { body: requestBody };
+      const res = createMockResponse();
+
+      await verificarElegibilidade(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith({
+        success: false,
+        error: 'Erro interno ao verificar elegibilidade'
+      });
     });
   });
 });

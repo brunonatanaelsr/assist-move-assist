@@ -1,8 +1,8 @@
 import type { Express } from 'express';
 import express from 'express';
-import compression from 'compression';
 import morgan from 'morgan';
 import { createServer } from 'http';
+import cookieParser from 'cookie-parser';
 
 import apiRoutes from './routes/api';
 // WebSocket opcional em runtime
@@ -12,7 +12,7 @@ import { errorHandler } from './middleware/errorHandler';
 import { logger } from './services/logger';
 import { pool } from './config/database';
 import { env } from './config/env';
-import { setupSecurity } from './config/security';
+import { applySecurityMiddleware } from './middleware/security.middleware';
 
 const app: Express = express();
 const server = createServer(app);
@@ -27,15 +27,8 @@ if (env.ENABLE_WS) {
   }
 }
 
-// Body parsing
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-
-// Middleware de segurança base (helmet, cors, rate-limit, sanitização, etc.)
-setupSecurity(app);
-
-// Compressão de respostas
-app.use(compression());
+// Middleware de segurança e sanitização
+applySecurityMiddleware(app);
 
 // Logging
 app.use(morgan('combined', { stream: { write: (message) => logger.info(message.trim()) } }));
@@ -45,11 +38,15 @@ app.use(morgan('combined', { stream: { write: (message) => logger.info(message.t
 
 // Health check
 app.get('/health', (req, res) => {
-  res.status(200).json({ 
+  res.status(200).json({
     status: 'OK',
     timestamp: new Date().toISOString(),
     environment: env.NODE_ENV
   });
+});
+
+app.get('/api/csrf-token', (req, res) => {
+  res.status(200).json({ csrfToken: res.locals.csrfToken });
 });
 
 // Rotas
