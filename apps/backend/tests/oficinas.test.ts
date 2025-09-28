@@ -25,13 +25,15 @@ describe('Oficinas API Tests', () => {
 
   it('should create new oficina', async () => {
     const oficina = {
-      titulo: 'Oficina de Teste',
+      nome: 'Oficina de Teste',
       descricao: 'Descrição da oficina de teste',
-      data_inicio: new Date(),
-      data_fim: new Date(Date.now() + 86400000),
+      data_inicio: '2025-01-01',
+      data_fim: '2025-01-02',
+      horario_inicio: '09:00',
+      horario_fim: '11:00',
       local: 'Local de Teste',
-      max_participantes: 20,
-      status: 'AGENDADA'
+      vagas_total: 20,
+      status: 'planejada'
     };
 
     const res = await (
@@ -45,7 +47,23 @@ describe('Oficinas API Tests', () => {
 
     expect(res.status).toBe(201);
     expect(res.body.success).toBe(true);
-    expect(res.body.data).toHaveProperty('id');
+    expect(res.body.message).toBe('Oficina criada com sucesso');
+    expect(res.body.data).toEqual(
+      expect.objectContaining({
+        id: expect.any(Number),
+        nome: oficina.nome,
+        descricao: oficina.descricao,
+        data_inicio: oficina.data_inicio,
+        data_fim: oficina.data_fim,
+        horario_inicio: oficina.horario_inicio,
+        horario_fim: oficina.horario_fim,
+        local: oficina.local,
+        vagas_total: oficina.vagas_total,
+        status: oficina.status
+      })
+    );
+    expect(res.body.data).toHaveProperty('data_criacao');
+    expect(res.body.data).toHaveProperty('data_atualizacao');
   });
 
   it('should list oficinas', async () => {
