@@ -80,5 +80,6 @@ export interface AuthenticatedSessionUser {
 
 export interface AuthResponse {
   token: string;
+  refreshToken: string;
   user: AuthenticatedSessionUser;
 }

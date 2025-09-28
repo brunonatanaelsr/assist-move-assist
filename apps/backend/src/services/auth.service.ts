@@ -1,9 +1,11 @@
+import { createHash, randomUUID } from 'node:crypto';
 import { Pool } from 'pg';
 import type { RedisClient } from '../lib/redis';
 import { loggerService } from '../services/logger';
 import bcrypt from 'bcryptjs';
 import jwt, { SignOptions } from 'jsonwebtoken';
 import { env } from '../config/env';
+import ms from 'ms';
 import type {
   AuthenticatedSessionUser,
   AuthResponse,
@@ -24,10 +26,20 @@ interface DatabaseUser {
   data_atualizacao: Date;
 }
 
+interface RefreshTokenRecord {
+  userId: number;
+  expiresAt: Date;
+  revoked: boolean;
+}
+
 export class AuthService {
   private readonly jwtSecret: string;
   private readonly jwtExpiry: SignOptions['expiresIn'];
+  private readonly refreshSecret: string;
+  private readonly refreshExpiry: SignOptions['expiresIn'];
+  private readonly refreshTtlSeconds: number;
   private readonly CACHE_TTL = 300; // 5 minutos
+  private refreshTableEnsured = false;
 
   constructor(
     private pool: Pool,
@@ -35,6 +47,280 @@ export class AuthService {
   ) {
     this.jwtSecret = env.JWT_SECRET;
     this.jwtExpiry = env.JWT_EXPIRY;
+    this.refreshSecret = env.JWT_REFRESH_SECRET && env.JWT_REFRESH_SECRET.length > 0
+      ? env.JWT_REFRESH_SECRET
+      : `${this.jwtSecret}-refresh`;
+    this.refreshExpiry = env.JWT_REFRESH_EXPIRY;
+    this.refreshTtlSeconds = this.resolveExpiryToSeconds(this.refreshExpiry) || 60 * 60 * 24 * 7;
+  }
+
+  private resolveExpiryToSeconds(expiry: SignOptions['expiresIn']): number {
+    if (typeof expiry === 'number' && Number.isFinite(expiry)) {
+      return Math.max(0, Math.floor(expiry));
+    }
+
+    if (typeof expiry === 'string') {
+      try {
+        const parsed = ms(expiry);
+        if (typeof parsed === 'number' && Number.isFinite(parsed)) {
+          return Math.max(0, Math.floor(parsed / 1000));
+        }
+      } catch (error) {
+        loggerService.warn('Formato inválido de expiração para refresh token', {
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
+    }
+
+    return 0;
+  }
+
+  private getRefreshRedisKey(tokenHash: string): string {
+    return `auth:refresh:${tokenHash}`;
+  }
+
+  private hashToken(token: string): string {
+    return createHash('sha256').update(token).digest('hex');
+  }
+
+  private async ensureRefreshTokenTable(): Promise<void> {
+    if (this.refreshTableEnsured) {
+      return;
+    }
+
+    try {
+      await this.pool.query(
+        `CREATE TABLE IF NOT EXISTS refresh_tokens (
+          token_hash TEXT PRIMARY KEY,
+          user_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+          expires_at TIMESTAMPTZ NOT NULL,
+          revoked BOOLEAN NOT NULL DEFAULT FALSE,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          revoked_at TIMESTAMPTZ
+        )`
+      );
+      await this.pool.query(
+        'CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user_id ON refresh_tokens(user_id)'
+      );
+      await this.pool.query(
+        'CREATE INDEX IF NOT EXISTS idx_refresh_tokens_expires_at ON refresh_tokens(expires_at)'
+      );
+      this.refreshTableEnsured = true;
+    } catch (error) {
+      loggerService.warn('Não foi possível garantir a tabela de refresh tokens', {
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  }
+
+  private async persistRefreshToken(tokenHash: string, userId: number, expiresAt: Date): Promise<void> {
+    if (env.REDIS_HOST) {
+      try {
+        await this.redis.set(
+          this.getRefreshRedisKey(tokenHash),
+          JSON.stringify({ userId, expiresAt: expiresAt.toISOString() }),
+          'EX',
+          this.refreshTtlSeconds
+        );
+      } catch (error) {
+        loggerService.warn('Falha ao registrar refresh token no Redis', {
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
+    }
+
+    await this.ensureRefreshTokenTable();
+    if (!this.refreshTableEnsured) {
+      return;
+    }
+
+    try {
+      await this.pool.query(
+        `INSERT INTO refresh_tokens (token_hash, user_id, expires_at, revoked, revoked_at)
+         VALUES ($1, $2, $3, false, NULL)
+         ON CONFLICT (token_hash)
+         DO UPDATE SET user_id = EXCLUDED.user_id, expires_at = EXCLUDED.expires_at, revoked = false, revoked_at = NULL`,
+        [tokenHash, userId, expiresAt]
+      );
+    } catch (error) {
+      loggerService.warn('Falha ao registrar refresh token no banco de dados', {
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  }
+
+  private async fetchRefreshToken(tokenHash: string): Promise<RefreshTokenRecord | null> {
+    if (env.REDIS_HOST) {
+      try {
+        const cached = await this.redis.get(
+          this.getRefreshRedisKey(tokenHash)
+        );
+        if (cached) {
+          const parsed = JSON.parse(cached) as { userId: number; expiresAt: string };
+          return {
+            userId: parsed.userId,
+            expiresAt: new Date(parsed.expiresAt),
+            revoked: false
+          };
+        }
+      } catch (error) {
+        loggerService.warn('Falha ao buscar refresh token no Redis', {
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
+    }
+
+    await this.ensureRefreshTokenTable();
+    if (!this.refreshTableEnsured) {
+      return null;
+    }
+
+    try {
+      const result = await this.pool.query(
+        'SELECT user_id, expires_at, revoked FROM refresh_tokens WHERE token_hash = $1',
+        [tokenHash]
+      );
+
+      if (result.rowCount === 0) {
+        return null;
+      }
+
+      const row = result.rows[0];
+      return {
+        userId: Number(row.user_id),
+        expiresAt: new Date(row.expires_at),
+        revoked: Boolean(row.revoked)
+      };
+    } catch (error) {
+      loggerService.warn('Falha ao buscar refresh token no banco de dados', {
+        error: error instanceof Error ? error.message : String(error)
+      });
+      return null;
+    }
+  }
+
+  private async removeRefreshTokenFromRedis(tokenHash: string): Promise<void> {
+    if (env.REDIS_HOST) {
+      try {
+        await this.redis.del(
+          this.getRefreshRedisKey(tokenHash)
+        );
+      } catch (error) {
+        loggerService.warn('Falha ao remover refresh token do Redis', {
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
+    }
+  }
+
+  async revokeRefreshToken(token: string): Promise<void> {
+    const tokenHash = this.hashToken(token);
+    await this.removeRefreshTokenFromRedis(tokenHash);
+
+    await this.ensureRefreshTokenTable();
+    if (!this.refreshTableEnsured) {
+      return;
+    }
+
+    try {
+      await this.pool.query(
+        'UPDATE refresh_tokens SET revoked = true, revoked_at = NOW() WHERE token_hash = $1',
+        [tokenHash]
+      );
+    } catch (error) {
+      loggerService.warn('Falha ao revogar refresh token no banco de dados', {
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  }
+
+  async generateRefreshToken(payload: JWTPayload): Promise<string> {
+    const jwtId = randomUUID();
+    const token = jwt.sign(
+      {
+        id: payload.id,
+        email: payload.email,
+        role: payload.role,
+        permissions: payload.permissions
+      },
+      this.refreshSecret,
+      {
+        expiresIn: this.refreshExpiry,
+        jwtid: jwtId
+      }
+    );
+
+    const expiresAt = new Date(Date.now() + this.refreshTtlSeconds * 1000);
+    const tokenHash = this.hashToken(token);
+    await this.persistRefreshToken(tokenHash, payload.id, expiresAt);
+
+    return token;
+  }
+
+  async validateRefreshToken(token: string): Promise<JWTPayload> {
+    try {
+      const decoded = jwt.verify(token, this.refreshSecret) as JWTPayload;
+      const tokenHash = this.hashToken(token);
+      const stored = await this.fetchRefreshToken(tokenHash);
+
+      if (!stored || stored.revoked) {
+        throw new Error('Refresh token inválido');
+      }
+
+      if (stored.expiresAt.getTime() <= Date.now()) {
+        await this.revokeRefreshToken(token);
+        throw new Error('Refresh token expirado');
+      }
+
+      const userQuery =
+        'SELECT id, email, papel as role, ativo FROM usuarios WHERE id = $1';
+      const userResult = await this.pool.query(userQuery, [decoded.id]);
+
+      if (userResult.rows.length === 0 || !userResult.rows[0].ativo) {
+        await this.revokeRefreshToken(token);
+        throw new Error('Usuário inválido ou inativo');
+      }
+
+      const { id, email, role } = userResult.rows[0];
+
+      return {
+        id,
+        email,
+        role
+      };
+    } catch (error) {
+      loggerService.error('Erro ao validar refresh token:', error);
+      throw error instanceof Error ? error : new Error('Refresh token inválido');
+    }
+  }
+
+  async refreshWithToken(refreshToken: string): Promise<{
+    token: string;
+    refreshToken: string;
+    user: { id: number; email: string; role: string };
+  }> {
+    try {
+      const payload = await this.validateRefreshToken(refreshToken);
+      await this.revokeRefreshToken(refreshToken);
+
+      const token = this.generateToken(payload);
+      const newRefreshToken = await this.generateRefreshToken(payload);
+
+      return {
+        token,
+        refreshToken: newRefreshToken,
+        user: {
+          id: payload.id,
+          email: payload.email ?? '',
+          role: String(payload.role)
+        }
+      };
+    } catch (error) {
+      loggerService.warn('Falha ao renovar sessão via refresh token', {
+        error: error instanceof Error ? error.message : String(error)
+      });
+      throw error instanceof Error ? error : new Error('Falha ao renovar sessão');
+    }
   }
 
   /**
@@ -80,12 +366,14 @@ export class AuthService {
         [user.id]
       );
 
-      // Gerar token
-      const token = this.generateToken({
+      // Gerar tokens
+      const tokenPayload: JWTPayload = {
         id: user.id,
         email: user.email,
         role: user.papel
-      });
+      };
+      const token = this.generateToken(tokenPayload);
+      const refreshToken = await this.generateRefreshToken(tokenPayload);
 
       loggerService.info(`Successful login: ${email} from ${ipAddress}`);
 
@@ -102,9 +390,15 @@ export class AuthService {
         data_atualizacao: userWithoutPassword.data_atualizacao
       };
 
+      const response: AuthResponse = {
+        token,
+        refreshToken,
+        user: sessionUser
+      };
+
       // Retorna imediatamente em ambientes sem Redis disponível
       if (!env.REDIS_HOST) {
-        return { token, user: sessionUser };
+        return response;
       }
 
       // Cache (ignorar falhas de Redis em dev)
@@ -119,10 +413,7 @@ export class AuthService {
         loggerService.warn('Redis indisponível (cache de auth ignorado)');
       }
 
-      return {
-        token,
-        user: sessionUser
-      };
+      return response;
     } catch (error) {
       loggerService.error("Login error:", error);
       throw error;
@@ -175,7 +466,9 @@ export class AuthService {
     );
 
     const user = result.rows[0] as DatabaseUser;
-    const token = this.generateToken({ id: user.id, email: user.email, role: user.papel });
+    const payload: JWTPayload = { id: user.id, email: user.email, role: user.papel };
+    const token = this.generateToken(payload);
+    const refreshToken = await this.generateRefreshToken(payload);
 
     const sessionUser: AuthenticatedSessionUser = {
       id: user.id,
@@ -188,7 +481,7 @@ export class AuthService {
       data_atualizacao: user.data_atualizacao
     };
 
-    return { token, user: sessionUser };
+    return { token, refreshToken, user: sessionUser };
   }
 
   /**

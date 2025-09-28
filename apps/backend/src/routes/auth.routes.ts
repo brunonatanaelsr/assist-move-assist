@@ -1,10 +1,11 @@
-import type { CookieOptions, RequestHandler, Response } from 'express';
+import type { CookieOptions, Request, RequestHandler, Response } from 'express';
 import { Router } from 'express';
 import { authenticateToken } from '../middleware/auth';
 import { validateRequest } from '../middleware/validationMiddleware';
 import { loggerService } from '../services/logger';
 import { authService } from '../services';
 import { env } from '../config/env';
+import ms from 'ms';
 import {
   changePasswordSchema,
   loginSchema,
@@ -55,6 +56,21 @@ const COOKIE_OPTIONS: CookieOptions = {
   maxAge: 24 * 60 * 60 * 1000
 };
 
+const REFRESH_COOKIE_MAX_AGE = (() => {
+  if (typeof env.JWT_REFRESH_EXPIRY === 'number') {
+    return env.JWT_REFRESH_EXPIRY * 1000;
+  }
+  const parsed = ms(String(env.JWT_REFRESH_EXPIRY));
+  return typeof parsed === 'number' && !Number.isNaN(parsed)
+    ? parsed
+    : 7 * 24 * 60 * 60 * 1000;
+})();
+
+const REFRESH_COOKIE_OPTIONS: CookieOptions = {
+  ...COOKIE_OPTIONS,
+  maxAge: REFRESH_COOKIE_MAX_AGE
+};
+
 router.use((req, _res, next) => {
   loggerService.info(`[AUTH] ${req.method} ${req.originalUrl}`);
   next();
@@ -82,9 +98,11 @@ const loginHandler: RequestHandler<
     }
 
     setAuthCookie(res, result.token);
+    setRefreshCookie(res, result.refreshToken);
     res.json({
       message: 'Login realizado com sucesso',
       token: result.token,
+      refreshToken: result.refreshToken,
       user: result.user
     });
   } catch (error) {
@@ -107,9 +125,11 @@ const registerHandler: RequestHandler<
   try {
     const result = await authService.register(req.body);
     setAuthCookie(res, result.token);
+    setRefreshCookie(res, result.refreshToken);
     res.status(201).json({
       message: 'Usuário registrado com sucesso',
       token: result.token,
+      refreshToken: result.refreshToken,
       user: result.user
     });
   } catch (error) {
@@ -208,39 +228,48 @@ const refreshHandler: RequestHandler<EmptyParams, RefreshResponse | { error: str
   res
 ) => {
   try {
-    if (!req.user) {
-      res.status(401).json({ error: 'Usuário não autenticado' });
+    const refreshToken = getCookieValue(req, 'refresh_token');
+
+    if (!refreshToken) {
+      res.status(401).json({ error: 'Refresh token não fornecido' });
       return;
     }
 
-    const { id, email, role, permissions } = req.user;
+    const result = await authService.refreshWithToken(refreshToken);
 
-    if (!email) {
-      loggerService.warn('Usuário autenticado sem e-mail ao renovar token', { userId: id });
-      res.status(400).json({ error: 'Sessão inválida' });
-      return;
-    }
+    setAuthCookie(res, result.token);
+    setRefreshCookie(res, result.refreshToken);
 
-    const token = authService.generateToken({ id, email, role, permissions });
-    setAuthCookie(res, token);
     res.json({
       message: 'Token renovado',
-      token,
-      user: { id, email, role }
+      token: result.token,
+      user: result.user
     });
   } catch (error) {
-    handleUnexpectedError(res, error, 'Erro ao renovar token');
+    const message = error instanceof Error ? error.message : 'Erro ao renovar token';
+    res.status(401).json({ error: message });
   }
 };
 
 router.post('/login', validateRequest(loginSchema), loginHandler);
 router.post('/register', validateRequest(registerSchema), registerHandler);
-router.post('/logout', (_req, res) => {
-  clearAuthCookie(res);
+router.post('/logout', async (req, res) => {
+  const refreshToken = getCookieValue(req, 'refresh_token');
+  if (refreshToken) {
+    try {
+      await authService.revokeRefreshToken(refreshToken);
+    } catch (error) {
+      loggerService.warn('Não foi possível revogar refresh token no logout', {
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  }
+
+  clearSessionCookies(res);
   res.json({ message: 'Logout realizado com sucesso' });
 });
-router.post('/refresh', authenticateToken, refreshHandler);
-router.post('/refresh-token', authenticateToken, refreshHandler);
+router.post('/refresh', refreshHandler);
+router.post('/refresh-token', refreshHandler);
 router.get('/profile', authenticateToken, profileHandler);
 router.get('/me', authenticateToken, profileHandler);
 router.put('/profile', authenticateToken, validateRequest(updateProfileSchema), updateProfileHandler);
@@ -256,8 +285,40 @@ function setAuthCookie(res: Response, token: string): void {
   }
 }
 
-function clearAuthCookie(res: Response): void {
+function setRefreshCookie(res: Response, token: string): void {
+  try {
+    res.cookie('refresh_token', token, REFRESH_COOKIE_OPTIONS);
+  } catch (error) {
+    loggerService.warn('Não foi possível definir cookie de refresh token', {
+      error: error instanceof Error ? error.message : String(error)
+    });
+  }
+}
+
+function clearSessionCookies(res: Response): void {
   res.clearCookie('auth_token', COOKIE_OPTIONS);
+  res.clearCookie('refresh_token', REFRESH_COOKIE_OPTIONS);
+}
+
+function getCookieValue(req: Request, name: string): string | undefined {
+  const cookieHeader = req.headers.cookie;
+  if (!cookieHeader) {
+    return undefined;
+  }
+
+  const cookies = cookieHeader.split(';').map((c) => c.trim());
+  const raw = cookies.find((cookie) => cookie.startsWith(`${name}=`));
+
+  if (!raw) {
+    return undefined;
+  }
+
+  const [, value] = raw.split('=');
+  if (!value) {
+    return undefined;
+  }
+
+  return decodeURIComponent(value);
 }
 
 function handleUnexpectedError(res: Response, error: unknown, logMessage: string): void {

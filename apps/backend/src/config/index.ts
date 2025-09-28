@@ -49,7 +49,7 @@ const config = {
     secret: env.JWT_SECRET,
     refreshSecret: env.JWT_REFRESH_SECRET || env.JWT_SECRET,
     expiresIn: env.JWT_EXPIRY || '1h',
-    refreshExpiresIn: '7d',
+    refreshExpiresIn: env.JWT_REFRESH_EXPIRY || '7d',
   },
 
   // Configurações do WebSocket
