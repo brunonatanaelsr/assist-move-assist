@@ -56,7 +56,9 @@ describe('POST /auth/login security middlewares', () => {
 
     const dbQuerySpy = jest.spyOn(db, 'query').mockResolvedValue([]);
 
-    for (let attempt = 0; attempt < 5; attempt += 1) {
+    const maxAttempts = (loginRateLimiter as any).options?.max ?? 5;
+
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
       const response = await request(app)
         .post('/auth/login')
         .send({ email: 'user@example.com', password: 'wrong-password' });
@@ -70,7 +72,7 @@ describe('POST /auth/login security middlewares', () => {
 
     expect(blockedResponse.status).toBe(429);
     expect(blockedResponse.body.error).toContain('Muitas tentativas de login');
-    expect(recordMock).toHaveBeenCalledTimes(5);
+    expect(recordMock).toHaveBeenCalledTimes(maxAttempts);
 
     dbQuerySpy.mockRestore();
   });
