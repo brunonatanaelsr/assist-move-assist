@@ -11,7 +11,7 @@ import type {
   BeneficiariaFiltros,
 } from '@assist/types';
 import { translateErrorMessage } from '@/lib/apiError';
-import { API_URL, REQUIRE_CSRF_HEADER } from '@/config';
+import { API_URL, AUTH_TOKEN_KEY, USER_KEY, REQUIRE_CSRF_HEADER } from '@/config';
 import type { DashboardStatsResponse } from '@/types/dashboard';
 import type { ApiResponse, Pagination } from '@/types/api';
 import type {
@@ -60,7 +60,10 @@ class ApiService {
     // Interceptor para adicionar token em todas as requisições
     this.api.interceptors.request.use(
       (config) => {
-        const token = localStorage.getItem('token') || localStorage.getItem('auth_token');
+        const token =
+          localStorage.getItem(AUTH_TOKEN_KEY) ||
+          localStorage.getItem('auth_token') ||
+          localStorage.getItem('token');
         if (token && token !== 'undefined') {
           config.headers.Authorization = `Bearer ${token}`;
         } else if (config.headers && 'Authorization' in config.headers) {
@@ -114,8 +117,14 @@ class ApiService {
         
         // Tratar erro de autenticação
         if (error.response && error.response.status === 401) {
-          localStorage.removeItem('token');
+          const tokenKeys = new Set([
+            'token',
+            'auth_token',
+            AUTH_TOKEN_KEY
+          ]);
+          tokenKeys.forEach((key) => localStorage.removeItem(key));
           localStorage.removeItem('user');
+          localStorage.removeItem(USER_KEY);
           // HashRouter-safe redirect
           if (typeof window !== 'undefined') {
             window.dispatchEvent(new Event('auth:logout'));
