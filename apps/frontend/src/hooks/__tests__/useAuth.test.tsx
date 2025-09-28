@@ -1,12 +1,17 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
-import { describe, it, beforeEach, expect } from 'vitest';
+import { describe, it, beforeEach, afterEach, expect, vi } from 'vitest';
 import type { ReactNode } from 'react';
 
 import { AuthProvider, useAuth } from '../useAuth';
+import { AuthService } from '../../services/auth.service';
 
 const wrapper = ({ children }: { children: ReactNode }) => (
   <AuthProvider>{children}</AuthProvider>
 );
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe('useAuth - logout events', () => {
   const mockUser = {
@@ -39,5 +44,50 @@ describe('useAuth - logout events', () => {
     expect(result.current.loading).toBe(false);
 
     unmount();
+  });
+});
+
+describe('useAuth - signOut cleanup', () => {
+  const mockUser = {
+    id: 2,
+    email: 'admin@example.com',
+    nome: 'Admin User',
+    papel: 'admin'
+  };
+
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it('should remove tokens and user data from storage after signOut', async () => {
+    const logoutMock = vi.fn().mockResolvedValue(undefined);
+    const getUserMock = vi.fn(() => mockUser);
+    vi.spyOn(AuthService, 'getInstance').mockReturnValue({
+      login: vi.fn(),
+      logout: logoutMock,
+      getUser: getUserMock
+    } as unknown as AuthService);
+
+    localStorage.setItem('auth_token', 'token123');
+    localStorage.setItem('token', 'token123');
+    localStorage.setItem('user', JSON.stringify(mockUser));
+
+    const { result } = renderHook(() => useAuth(), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    expect(result.current.user).toEqual(mockUser);
+
+    await act(async () => {
+      await result.current.signOut();
+    });
+
+    expect(logoutMock).toHaveBeenCalledTimes(1);
+    expect(localStorage.getItem('auth_token')).toBeNull();
+    expect(localStorage.getItem('token')).toBeNull();
+    expect(localStorage.getItem('user')).toBeNull();
+    expect(result.current.user).toBeNull();
   });
 });
