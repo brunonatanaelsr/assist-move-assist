@@ -6,6 +6,11 @@ import { loggerService } from '../services/logger';
 import { authService } from '../services';
 import { env } from '../config/env';
 import {
+  checkLoginBlock,
+  loginRateLimiter,
+  recordFailedAttempt
+} from '../middleware/auth.security';
+import {
   changePasswordSchema,
   loginSchema,
   registerSchema,
@@ -77,6 +82,9 @@ const loginHandler: RequestHandler<
     const result = await authService.login(req.body.email, req.body.password, ipAddress);
 
     if (!result) {
+      if (req.body?.email) {
+        await recordFailedAttempt(req.body.email);
+      }
       res.status(401).json({ error: 'Credenciais inválidas' });
       return;
     }
@@ -233,7 +241,13 @@ const refreshHandler: RequestHandler<EmptyParams, RefreshResponse | { error: str
   }
 };
 
-router.post('/login', validateRequest(loginSchema), loginHandler);
+router.post(
+  '/login',
+  loginRateLimiter,
+  checkLoginBlock,
+  validateRequest(loginSchema),
+  loginHandler
+);
 router.post('/register', validateRequest(registerSchema), registerHandler);
 router.post('/logout', (_req, res) => {
   clearAuthCookie(res);
