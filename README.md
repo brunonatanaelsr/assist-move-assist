@@ -75,6 +75,7 @@ assist-move-assist/
 
    ```env
    PORT=3000
+   FRONTEND_URL=http://localhost:5173
    POSTGRES_HOST=localhost
    POSTGRES_USER=assistmove
    POSTGRES_PASSWORD=assistmove123
