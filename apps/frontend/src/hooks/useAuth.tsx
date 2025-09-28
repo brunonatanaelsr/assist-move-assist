@@ -77,16 +77,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       setLoading(true);
       const response = await authService.login({ email, password });
-      // Tipagem explícita do retorno esperado
-      type LoginResponse = { token?: string; user?: User };
-      const resp = response as LoginResponse;
-      if (resp.token) {
-        localStorage.setItem('auth_token', resp.token);
-        localStorage.setItem('token', resp.token);
+      const accessToken = response.token ?? response.accessToken ?? null;
+      if (accessToken) {
+        localStorage.setItem('auth_token', accessToken);
+        localStorage.setItem('token', accessToken);
       }
-      if (resp.user) {
-        localStorage.setItem('user', JSON.stringify(resp.user));
-        setUser(resp.user);
+      if (response.user) {
+        localStorage.setItem('user', JSON.stringify(response.user));
+        setUser(response.user);
       }
       return {};
     } catch (error) {
@@ -102,6 +100,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await authService.logout();
     } finally {
       localStorage.removeItem("auth_token");
+      localStorage.removeItem("token");
       localStorage.removeItem("user");
       setUser(null);
       setLoading(false);

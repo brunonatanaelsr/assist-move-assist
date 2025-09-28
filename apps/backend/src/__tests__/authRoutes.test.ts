@@ -8,7 +8,9 @@ jest.mock('../services', () => ({
   authService: {
     login: jest.fn(),
     getProfile: jest.fn(),
-    generateToken: jest.fn().mockReturnValue('test-token')
+    generateToken: jest.fn().mockReturnValue('test-token'),
+    renewAccessToken: jest.fn(),
+    revokeRefreshToken: jest.fn()
   }
 }));
 import { authService } from '../services';
@@ -42,7 +44,7 @@ describe('Auth and protected routes', () => {
         avatar_url: null,
         active: true
       };
-      (authService.login as jest.Mock).mockResolvedValue({ user, token: 'jwt-token' });
+      (authService.login as jest.Mock).mockResolvedValue({ user, token: 'jwt-token', refreshToken: 'refresh-token' });
 
       const res = await request(app)
         .post('/auth/login')
@@ -52,6 +54,7 @@ describe('Auth and protected routes', () => {
       expect(res.body.user.email).toBe(user.email);
       // Login retorna token no corpo em ambiente de testes/CI
       expect(res.body.token).toBeTruthy();
+      expect(res.body.refreshToken).toBe('refresh-token');
     });
 
     it('should reject invalid credentials', async () => {
