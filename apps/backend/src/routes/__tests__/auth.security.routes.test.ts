@@ -1,6 +1,8 @@
 import request from 'supertest';
 import express from 'express';
 
+const originalEnableLoginRateLimit = process.env.ENABLE_LOGIN_RATE_LIMIT;
+
 jest.mock('../../middleware/auth', () => ({
   authenticateToken: jest.fn((_req: any, _res: any, next: any) => next()),
   requireProfissional: jest.fn(),
@@ -44,9 +46,17 @@ const resetRateLimiter = () => {
 };
 
 describe('POST /auth/login security middlewares', () => {
+  beforeAll(() => {
+    process.env.ENABLE_LOGIN_RATE_LIMIT = '1';
+  });
+
   beforeEach(() => {
     jest.clearAllMocks();
     resetRateLimiter();
+  });
+
+  afterAll(() => {
+    process.env.ENABLE_LOGIN_RATE_LIMIT = originalEnableLoginRateLimit;
   });
 
   it('should limit excessive login attempts', async () => {
