@@ -81,7 +81,8 @@ export default function DeclaracoesReciboGeral() {
     try {
       const response = await apiService.getBeneficiarias();
       if (response.success && response.data) {
-        setBeneficiarias(response.data);
+        const { items = [] } = response.data;
+        setBeneficiarias(items);
       }
     } catch (error) {
       console.error('Erro ao carregar beneficiárias:', error);

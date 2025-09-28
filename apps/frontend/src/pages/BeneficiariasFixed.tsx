@@ -69,10 +69,13 @@ export default function BeneficiariasFixed() {
 
   const beneficiariasQuery = useBeneficiarias(queryFilters);
   const beneficiariasResponse = beneficiariasQuery.data;
+  const beneficiariasPagination = beneficiariasResponse?.data?.pagination;
   const beneficiarias: Beneficiaria[] = useMemo(() => {
     if (beneficiariasResponse?.success === false) return [];
     const data = beneficiariasResponse?.data;
-    return Array.isArray(data) ? data : [];
+    if (!data) return [];
+    if (Array.isArray((data as any)?.items)) return (data as any).items as Beneficiaria[];
+    return Array.isArray(data) ? (data as Beneficiaria[]) : [];
   }, [beneficiariasResponse]);
 
   const firstBeneficiariaId = beneficiarias.length > 0 ? String(beneficiarias[0].id) : '';
@@ -90,7 +93,10 @@ export default function BeneficiariasFixed() {
     [beneficiarias, programaFilter, searchTerm, statusFilter]
   );
 
-  const totalPages = Math.max(1, Math.ceil(filteredBeneficiarias.length / ITEMS_PER_PAGE));
+  const totalPages = Math.max(
+    1,
+    beneficiariasPagination?.totalPages ?? Math.ceil(filteredBeneficiarias.length / ITEMS_PER_PAGE)
+  );
   const safePage = Math.min(Math.max(currentPage, 1), totalPages);
   const startIndex = (safePage - 1) * ITEMS_PER_PAGE;
   const endIndex = startIndex + ITEMS_PER_PAGE;

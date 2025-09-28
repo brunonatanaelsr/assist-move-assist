@@ -8,7 +8,7 @@ import { beneficiariaSchema } from '../validation/zodSchemas';
 type Beneficiaria = z.infer<typeof beneficiariaSchema>;
 
 // Hooks para beneficiárias
-type BeneficiariasQueryResult = { data: Beneficiaria[]; pagination?: Pagination };
+type BeneficiariasQueryResult = { items: Beneficiaria[]; pagination: Pagination };
 
 export const useBeneficiarias = (params?: { page?: number; limit?: number }) => {
   const queryKey = ['beneficiarias', params] as const;
@@ -22,19 +22,31 @@ export const useBeneficiarias = (params?: { page?: number; limit?: number }) => 
       }
 
       const payload = response.data;
-      const data = Array.isArray(payload)
+      const items = Array.isArray(payload)
         ? payload
-        : Array.isArray((payload as any)?.data)
-          ? (payload as any).data
-          : [];
+        : Array.isArray((payload as any)?.items)
+          ? (payload as any).items
+          : Array.isArray((payload as any)?.data)
+            ? (payload as any).data
+            : [];
 
-      const pagination = (!Array.isArray(payload) && (payload as any)?.pagination)
-        || response.pagination;
+      const rawPagination = !Array.isArray(payload)
+        ? (payload as any)?.pagination
+        : undefined;
+
+      const pagination = rawPagination
+        ?? response.pagination
+        ?? {
+          page: Number(params?.page ?? 1),
+          limit: Number(params?.limit ?? items.length ?? 0),
+          total: items.length,
+          totalPages: rawPagination?.totalPages ?? undefined,
+        };
 
       return {
-        data,
+        items,
         pagination,
-      };
+      } satisfies BeneficiariasQueryResult;
     },
     staleTime: 60_000,
     refetchOnWindowFocus: false,

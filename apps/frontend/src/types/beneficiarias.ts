@@ -1,4 +1,4 @@
-import type { ApiResponse } from '@/types/api';
+import type { ApiResponse, Pagination } from '@/types/api';
 import type { Beneficiaria } from '@/types/shared';
 
 export interface ListBeneficiariasParams {
@@ -9,7 +9,12 @@ export interface ListBeneficiariasParams {
   escolaridade?: string;
 }
 
-export type BeneficiariaListResponse = ApiResponse<Beneficiaria[]>;
+export interface BeneficiariaListData {
+  items: Beneficiaria[];
+  pagination: Pagination;
+}
+
+export type BeneficiariaListResponse = ApiResponse<BeneficiariaListData>;
 
 export type BeneficiariaResponse = ApiResponse<Beneficiaria>;
 

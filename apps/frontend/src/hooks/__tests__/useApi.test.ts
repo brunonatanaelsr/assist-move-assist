@@ -1,6 +1,6 @@
 import { beforeEach, afterEach, vi, describe, it, expect } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
-import type { ReactNode } from 'react';
+import { createElement, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { apiService } from '@/services/apiService';
 import useApi, { useBeneficiarias, useCreateParticipacao, useParticipacoes, useUpdateParticipacao } from '../useApi';
@@ -17,9 +17,8 @@ const createWrapper = () => {
     },
   });
 
-  const wrapper = ({ children }: { children: ReactNode }) => (
-    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-  );
+  const wrapper = ({ children }: { children: ReactNode }) =>
+    createElement(QueryClientProvider, { client: queryClient, children });
 
   return { wrapper, queryClient };
 };
@@ -33,7 +32,13 @@ vi.mock('sonner', () => ({
 
 describe('useApi hooks', () => {
   beforeEach(() => {
-    vi.spyOn(apiService, 'getBeneficiarias').mockResolvedValue({ success: true, data: [] });
+    vi.spyOn(apiService, 'getBeneficiarias').mockResolvedValue({
+      success: true,
+      data: {
+        items: [],
+        pagination: { page: 1, limit: 0, total: 0 },
+      },
+    });
     vi.spyOn(apiService, 'createBeneficiaria').mockResolvedValue({ success: true, data: {} });
     vi.spyOn(apiService, 'updateBeneficiaria').mockResolvedValue({ success: true, data: {} });
   });
@@ -53,7 +58,7 @@ describe('useApi hooks', () => {
     (apiService.getBeneficiarias as any).mockResolvedValueOnce({
       success: true,
       data: {
-        data: [{ id: 1 }],
+        items: [{ id: 1 }],
         pagination,
       },
     });
@@ -67,7 +72,7 @@ describe('useApi hooks', () => {
     });
 
     expect(apiService.getBeneficiarias).toHaveBeenCalledWith(params);
-    expect(result.current.data).toEqual({ data: [{ id: 1 }], pagination });
+    expect(result.current.data).toEqual({ items: [{ id: 1 }], pagination });
   });
 
   it('deve retornar array de dados e sem paginação quando a resposta for simples', async () => {
@@ -84,7 +89,15 @@ describe('useApi hooks', () => {
     });
 
     expect(apiService.getBeneficiarias).toHaveBeenCalledWith(undefined);
-    expect(result.current.data).toEqual({ data: [{ id: 1 }, { id: 2 }], pagination: undefined });
+    expect(result.current.data).toEqual({
+      items: [{ id: 1 }, { id: 2 }],
+      pagination: {
+        page: 1,
+        limit: 2,
+        total: 2,
+        totalPages: undefined,
+      },
+    });
   });
 
   it('deve enviar o filtro correto ao buscar participações', async () => {

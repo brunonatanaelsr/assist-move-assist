@@ -13,7 +13,10 @@ describe('BeneficiariasFixed page', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     (beneficiariasHooks.useBeneficiarias as unknown as Mock).mockReturnValue({
-      data: { success: true, data: [] },
+      data: {
+        success: true,
+        data: { items: [], pagination: { page: 1, limit: 0, total: 0 } },
+      },
       isLoading: false,
       isFetching: false,
       isError: false,
@@ -40,7 +43,10 @@ describe('BeneficiariasFixed page', () => {
 
   it('displays error alert when loading fails', () => {
     (beneficiariasHooks.useBeneficiarias as unknown as Mock).mockReturnValue({
-      data: { success: true, data: [] },
+      data: {
+        success: true,
+        data: { items: [], pagination: { page: 1, limit: 0, total: 0 } },
+      },
       isLoading: false,
       isError: true,
       error: new Error('Falha ao listar'),
@@ -60,7 +66,11 @@ describe('BeneficiariasFixed page', () => {
 
   it('displays backend error message when request succeeds with failure response', () => {
     (beneficiariasHooks.useBeneficiarias as unknown as Mock).mockReturnValue({
-      data: { success: false, message: 'Erro remoto', data: [] },
+      data: {
+        success: false,
+        message: 'Erro remoto',
+        data: { items: [], pagination: { page: 1, limit: 0, total: 0 } },
+      },
       isLoading: false,
       isError: false,
       isFetching: false,

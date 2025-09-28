@@ -14,6 +14,7 @@ import { translateErrorMessage } from '@/lib/apiError';
 import { API_URL } from '@/config';
 import type { DashboardStatsResponse } from '@/types/dashboard';
 import type { ApiResponse, Pagination } from '@/types/api';
+import type { BeneficiariaListData } from '@/types/beneficiarias';
 import type {
   ConfiguracoesGlobais,
   ConfiguracaoUsuario,
@@ -261,8 +262,61 @@ class ApiService {
   }
 
   // Métodos específicos para beneficiárias
-  async getBeneficiarias(params?: any): Promise<ApiResponse<Beneficiaria[]>> {
-    return this.get<Beneficiaria[]>('/beneficiarias', { params });
+  async getBeneficiarias(
+    params?: any
+  ): Promise<ApiResponse<BeneficiariaListData>> {
+    const response = await this.get<any>('/beneficiarias', { params });
+
+    const normalizePagination = (
+      source?: Pagination,
+      items: Beneficiaria[] = []
+    ): Pagination => ({
+      page: source?.page ?? Number(params?.page ?? 1),
+      limit: source?.limit ?? Number(params?.limit ?? items.length ?? 0),
+      total: source?.total ?? items.length,
+      totalPages: source?.totalPages,
+    });
+
+    if (!response.success) {
+      const pagination = normalizePagination(response.pagination);
+      return {
+        success: false,
+        message: response.message,
+        data: {
+          items: [],
+          pagination,
+        },
+        pagination,
+      } satisfies ApiResponse<BeneficiariaListData>;
+    }
+
+    const payload = response.data;
+    const items: Beneficiaria[] = Array.isArray(payload)
+      ? payload
+      : Array.isArray(payload?.items)
+        ? payload.items
+        : Array.isArray(payload?.data)
+          ? payload.data
+          : [];
+
+    const rawPagination = !Array.isArray(payload)
+      ? (payload?.pagination as Pagination | undefined)
+      : undefined;
+
+    const pagination = normalizePagination(
+      rawPagination ?? response.pagination,
+      items
+    );
+
+    return {
+      success: true,
+      message: response.message,
+      data: {
+        items,
+        pagination,
+      },
+      pagination,
+    } satisfies ApiResponse<BeneficiariaListData>;
   }
 
   async getBeneficiaria(id: string | number): Promise<ApiResponse<Beneficiaria>> {

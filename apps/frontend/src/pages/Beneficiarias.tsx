@@ -24,6 +24,7 @@ import { ListSkeleton } from "@/components/ui/list-skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import usePersistedFilters from "@/hooks/usePersistedFilters";
 import { apiService } from "@/services/apiService";
+import type { Pagination } from "@/types/api";
 
 // Tipo local simplificado baseado no banco real
 interface Beneficiaria {
@@ -66,6 +67,7 @@ export default function Beneficiarias() {
   const [itemsPerPage] = useState(10);
   const [beneficiarias, setBeneficiarias] = useState<Beneficiaria[]>([]);
   const [loading, setLoading] = useState(true);
+  const [pagination, setPagination] = useState<Pagination | null>(null);
   const [stats, setStats] = useState({
     total: 0,
     ativas: 0,
@@ -95,22 +97,22 @@ export default function Beneficiarias() {
       
       // Usar apiService consistente
       const response = await apiService.getBeneficiarias();
-      console.log('Resposta API beneficiárias:', response);
-      
+
       if (response.success && response.data) {
-        const data = response.data;
-        setBeneficiarias(data);
+        const { items, pagination: paginationInfo } = response.data;
+        setBeneficiarias(items);
+        setPagination(paginationInfo ?? null);
         // Prefetch: carregar detalhes do primeiro item
-        if (Array.isArray(data) && data.length > 0) {
-          void apiService.getBeneficiaria(data[0].id);
+        if (Array.isArray(items) && items.length > 0) {
+          void apiService.getBeneficiaria(items[0].id);
         }
-        
+
         // Calculate stats com status real do banco
-        const total = data.length;
-        const ativas = data.filter(b => getBeneficiariaStatus(b) === 'Ativa').length;
-        const inativas = data.filter(b => getBeneficiariaStatus(b) === 'Inativa').length;
-        const aguardando = data.filter(b => getBeneficiariaStatus(b) === 'Aguardando').length;
-        
+        const total = paginationInfo?.total ?? items.length;
+        const ativas = items.filter(b => getBeneficiariaStatus(b) === 'Ativa').length;
+        const inativas = items.filter(b => getBeneficiariaStatus(b) === 'Inativa').length;
+        const aguardando = items.filter(b => getBeneficiariaStatus(b) === 'Aguardando').length;
+
         setStats({
           total,
           ativas,
@@ -120,11 +122,14 @@ export default function Beneficiarias() {
       } else {
         console.error('Erro na resposta:', response);
         setBeneficiarias([]);
+        setBeneficiarias([]);
+        setPagination(null);
         setStats({ total: 0, ativas: 0, aguardando: 0, inativas: 0 });
       }
     } catch (error) {
       console.error('Erro ao carregar beneficiárias:', error);
       setBeneficiarias([]);
+      setPagination(null);
       setStats({ total: 0, ativas: 0, aguardando: 0, inativas: 0 });
     } finally {
       setLoading(false);
@@ -145,7 +150,7 @@ export default function Beneficiarias() {
   });
 
   // Pagination logic
-  const totalPages = Math.ceil(filteredBeneficiarias.length / itemsPerPage);
+  const totalPages = pagination?.totalPages ?? Math.ceil(filteredBeneficiarias.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
   const paginatedBeneficiarias = filteredBeneficiarias.slice(startIndex, endIndex);

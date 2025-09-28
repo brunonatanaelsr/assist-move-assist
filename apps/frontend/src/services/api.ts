@@ -60,15 +60,33 @@ export const beneficiariasService = {
     if (!response.success) {
       return {
         ...response,
-        data: [],
+        data: {
+          items: response.data?.items ?? [],
+          pagination: response.data?.pagination ?? {
+            page: Number(params.page ?? 1),
+            limit: Number(params.limit ?? (response.data?.items?.length ?? 0)),
+            total: 0,
+            totalPages: response.pagination?.totalPages,
+          },
+        },
       } satisfies BeneficiariaListResponse;
     }
 
-    const data = Array.isArray(response.data) ? response.data : [];
+    const items = response.data?.items ?? [];
+    const pagination = response.data?.pagination ?? response.pagination ?? {
+      page: Number(params.page ?? 1),
+      limit: Number(params.limit ?? items.length ?? 0),
+      total: items.length,
+      totalPages: undefined,
+    };
 
     return {
       ...response,
-      data,
+      data: {
+        items,
+        pagination,
+      },
+      pagination,
     } satisfies BeneficiariaListResponse;
   },
   buscarPorId: async (id: string): Promise<BeneficiariaResponse> => {
