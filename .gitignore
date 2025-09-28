@@ -43,3 +43,6 @@ cookies.txt
 
 # TypeScript build caches
 *.tsbuildinfo
+
+# Backend generated artifacts
+apps/backend/var/

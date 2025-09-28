@@ -35,12 +35,17 @@ assist-move-assist/
 │   │   └── public/       # Assets estáticos
 │   └── backend/          # API Express (TypeScript)
 │       ├── src/          # Código-fonte do backend
+│       │   └── database/ # SQL versionado (migrações e fixtures de teste)
+│       │       ├── migrations/    # Migrações aplicadas pelos scripts oficiais
+│       │       └── test/          # Setup adicional usado pelos testes de integração
 │       ├── scripts/      # Migrações, seeds e utilitários
-│       └── src/database/migrations/ # Migrações SQL versionadas
+│       └── var/          # Artefatos gerados (ex.: backups via scripts/backup-database.sh)
 ├── scripts/              # Automatizações (deploy, e2e, codespaces, etc.)
 ├── docs/                 # Guias complementares (deploy, API, testes)
 └── docker-compose*.yml   # Orquestração Docker dev/prod
 ```
+
+> Todo o SQL mantido fora de `src/` era legado e foi removido. Caso rode `scripts/backup-database.sh`, os arquivos `.sql.gz` serão gravados em `apps/backend/var/backups`, diretório dedicado a artefatos gerados automaticamente e não versionados.
 
 ## Requisitos
 

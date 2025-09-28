@@ -21,8 +21,8 @@ if [ -z "$POSTGRES_HOST" ] || [ -z "$POSTGRES_PORT" ] || [ -z "$POSTGRES_DB" ] |
 fi
 
 # Criar diretório de backups se não existir
-BACKUP_DIR="database/backups"
-mkdir -p $BACKUP_DIR
+BACKUP_DIR="var/backups"
+mkdir -p "$BACKUP_DIR"
 
 # Nome do arquivo de backup (data + hora)
 BACKUP_FILE="$BACKUP_DIR/backup_$(date +%Y%m%d_%H%M%S).sql"
@@ -47,7 +47,11 @@ if [ $? -eq 0 ]; then
   
   # Listar últimos 5 backups
   echo -e "\n${YELLOW}Últimos backups:${NC}"
-  ls -lh ${BACKUP_DIR}/*.gz | tail -n 5
+  if ls -1 ${BACKUP_DIR}/*.gz >/dev/null 2>&1; then
+    ls -lh ${BACKUP_DIR}/*.gz | tail -n 5
+  else
+    echo "(nenhum backup encontrado)"
+  fi
   
   # Mostrar tamanho total dos backups
   echo -e "\n${YELLOW}Tamanho total dos backups:${NC}"
