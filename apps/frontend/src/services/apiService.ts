@@ -262,7 +262,38 @@ class ApiService {
 
   // Métodos específicos para beneficiárias
   async getBeneficiarias(params?: any): Promise<ApiResponse<Beneficiaria[]>> {
-    return this.get<Beneficiaria[]>('/beneficiarias', { params });
+    const response = await this.get<{ items?: Beneficiaria[]; pagination?: Pagination }>(
+      '/beneficiarias',
+      { params }
+    );
+
+    if (!response.success) {
+      return {
+        success: false,
+        message: response.message,
+        data: [],
+        pagination: response.pagination,
+      };
+    }
+
+    const payload = response.data ?? { items: [] };
+    const items = Array.isArray(payload)
+      ? payload
+      : Array.isArray(payload.items)
+        ? payload.items
+        : [];
+
+    const pagination = !Array.isArray(payload)
+      ? payload.pagination ?? response.pagination
+      : response.pagination;
+
+    return {
+      success: true,
+      message: response.message,
+      data: items,
+      pagination,
+      total: pagination?.total,
+    };
   }
 
   async getBeneficiaria(id: string | number): Promise<ApiResponse<Beneficiaria>> {

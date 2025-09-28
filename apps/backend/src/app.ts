@@ -57,7 +57,7 @@ const corsOptions = {
   origin: corsOriginOption,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token'],
 };
 app.use(cors(corsOptions));
 
@@ -90,11 +90,15 @@ applySecurityMiddlewares(app);
 
 // Health check
 app.get('/health', (req, res) => {
-  res.status(200).json({ 
+  res.status(200).json({
     status: 'OK',
     timestamp: new Date().toISOString(),
     environment: env.NODE_ENV
   });
+});
+
+app.get('/api/csrf-token', (req, res) => {
+  res.status(200).json({ csrfToken: res.locals.csrfToken });
 });
 
 // Rotas
