@@ -59,16 +59,22 @@ export const beneficiariasService = {
 
     if (!response.success) {
       return {
-        ...response,
+        success: false,
+        message: response.message,
         data: [],
+        pagination: response.pagination,
+        total: response.total,
       } satisfies BeneficiariaListResponse;
     }
 
     const data = Array.isArray(response.data) ? response.data : [];
 
     return {
-      ...response,
+      success: true,
+      message: response.message,
       data,
+      pagination: response.pagination,
+      total: response.total,
     } satisfies BeneficiariaListResponse;
   },
   buscarPorId: async (id: string): Promise<BeneficiariaResponse> => {

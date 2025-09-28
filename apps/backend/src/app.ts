@@ -16,7 +16,7 @@ import { errorHandler } from './middleware/errorHandler';
 import { logger } from './services/logger';
 import { pool } from './config/database';
 import { env } from './config/env';
-import { csrfMiddleware } from './middleware/csrf';
+import { applySecurityMiddlewares } from './middleware/security.middleware';
 
 const app: Express = express();
 const server = createServer(app);
@@ -85,23 +85,22 @@ app.use(cookieParser());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// CSRF protection (disabled only during automated tests)
-if (env.NODE_ENV !== 'test') {
-  app.use(csrfMiddleware);
-} else {
-  logger.info('CSRF middleware desativado no ambiente de teste');
-}
+applySecurityMiddlewares(app);
 
 // Removido: exposição direta de uploads
 // Os arquivos agora são servidos por rotas autenticadas (ex.: /api/feed/images/:filename)
 
 // Health check
 app.get('/health', (req, res) => {
-  res.status(200).json({ 
+  res.status(200).json({
     status: 'OK',
     timestamp: new Date().toISOString(),
     environment: env.NODE_ENV
   });
+});
+
+app.get('/api/csrf-token', (req, res) => {
+  res.status(200).json({ csrfToken: res.locals.csrfToken });
 });
 
 // Rotas
