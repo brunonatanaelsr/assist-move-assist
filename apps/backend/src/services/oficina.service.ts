@@ -31,6 +31,16 @@ type OficinaColumnMap = {
   data_atualizacao: string | null;
 };
 
+export interface OficinaListResult {
+  data: Oficina[];
+  pagination: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}
+
 export class OficinaService {
   private pool: Pool;
   private redis: RedisClient;
@@ -128,7 +138,7 @@ export class OficinaService {
     }
   }
 
-  private async setCacheKey(key: string, data: any) {
+  private async setCacheKey<T>(key: string, data: T) {
     try {
       await cacheService.set(`oficinas:${key}`, data, this.CACHE_TTL);
     } catch (error) {
@@ -146,7 +156,7 @@ export class OficinaService {
     }
   }
 
-  async listarOficinas(filters: OficinaFilters) {
+  async listarOficinas(filters: OficinaFilters): Promise<OficinaListResult> {
     try {
       const { page, limit, projeto_id, status, data_inicio, data_fim, instrutor, local, search } = filters;
       const offset = (page - 1) * limit;
@@ -154,7 +164,7 @@ export class OficinaService {
       // Tentar buscar do cache se não houver filtros complexos
       if (!search && !data_inicio && !data_fim && page === 1) {
         const cacheKey = `list:${projeto_id || 'all'}:${status || 'all'}:${limit}`;
-        const cachedData = await this.getCacheKey(cacheKey);
+        const cachedData = await this.getCacheKey<OficinaListResult>(cacheKey);
         if (cachedData) {
           return cachedData;
         }
@@ -261,7 +271,7 @@ export class OficinaService {
       const oficinas = formatArrayDates(result.rows, ['data_inicio', 'data_fim', 'data_criacao', 'data_atualizacao']);
       const total = result.rows.length > 0 ? parseInt(result.rows[0].total_count) : 0;
 
-      const response = {
+      const response: OficinaListResult = {
         data: oficinas,
         pagination: {
           page: parseInt(String(page)),
@@ -273,7 +283,7 @@ export class OficinaService {
 
       if (!search && !data_inicio && !data_fim && page === 1) {
         const cacheKey = `list:${projeto_id || 'all'}:${status || 'all'}:${limit}`;
-        await this.setCacheKey(cacheKey, response);
+        await this.setCacheKey<OficinaListResult>(cacheKey, response);
       }
 
       return response;
