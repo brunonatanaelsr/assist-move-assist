@@ -13,7 +13,7 @@ describe('OficinaService', () => {
   let oficinaService: OficinaService;
   let mockPool: MockPool;
   let mockRedis: MockRedis;
-  let cacheGetSpy: jest.SpyInstance;
+  let cacheGetSpy: jest.SpiedFunction<typeof cacheService.get>;
 
   const mockOficina: Oficina = {
     id: 1,
