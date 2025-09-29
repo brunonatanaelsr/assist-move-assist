@@ -97,6 +97,8 @@ assist-move-assist/
    CORS_ORIGIN=http://localhost:5173,http://localhost:4173
    ```
 
+   > A mesma lista é reutilizada para as validações de CORS HTTP e para o handshake do WebSocket.
+
 3. Para ambientes diferentes, mantenha arquivos separados e utilize `ENV_FILE` ao iniciar a API (`ENV_FILE=.env.staging npm --prefix apps/backend run start`).
 
 ## Fluxos de Execução
