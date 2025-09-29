@@ -1,3 +1,5 @@
+import { API_URL } from '@/config';
+
 /**
  * Utilitário para download de PDFs
  * Garante compatibilidade entre diferentes browsers
@@ -9,6 +11,17 @@ export interface DownloadPdfOptions {
   token?: string;
 }
 
+function resolveApiUrl(endpoint: string): string {
+  try {
+    const isAbsoluteUrl = /^https?:\/\//i.test(API_URL);
+    const baseUrl = isAbsoluteUrl ? API_URL : new URL(API_URL, window.location.origin).toString();
+    return new URL(endpoint, baseUrl).toString();
+  } catch (error) {
+    console.error('Erro ao montar URL de download de PDF:', error);
+    return endpoint;
+  }
+}
+
 /**
  * Faz download de PDF via API
  * @param options Configurações do download
@@ -16,9 +29,10 @@ export interface DownloadPdfOptions {
  */
 export async function downloadPdf(options: DownloadPdfOptions): Promise<boolean> {
   const { endpoint, filename, token } = options;
-  
+  const requestUrl = resolveApiUrl(endpoint);
+
   try {
-    console.log(`Iniciando download de PDF: ${endpoint}`);
+    console.log(`Iniciando download de PDF: ${requestUrl}`);
     
     // Headers da requisição
     const headers: HeadersInit = {
@@ -31,7 +45,7 @@ export async function downloadPdf(options: DownloadPdfOptions): Promise<boolean>
     }
     
     // Fazer requisição para o PDF
-    const response = await fetch(endpoint, {
+    const response = await fetch(requestUrl, {
       method: 'GET',
       headers
     });
@@ -74,12 +88,11 @@ export async function downloadPdf(options: DownloadPdfOptions): Promise<boolean>
     
   } catch (error) {
     console.error('Erro no download do PDF:', error);
-    
+
     // Fallback: tentar abrir em nova aba
     try {
       console.log('Tentando fallback: abrir em nova aba');
-      const fallbackUrl = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
-      window.open(fallbackUrl, '_blank');
+      window.open(requestUrl, '_blank');
       return true;
     } catch (fallbackError) {
       console.error('Fallback também falhou:', fallbackError);
@@ -125,17 +138,19 @@ export function supportsDownload(): boolean {
  * Imprimir PDF diretamente (abre em nova aba com foco na impressão)
  */
 export async function printPdf(endpoint: string, token?: string): Promise<boolean> {
+  const requestUrl = resolveApiUrl(endpoint);
+
   try {
     // Headers da requisição
     const headers: HeadersInit = {
       'Accept': 'application/pdf, text/plain, */*'
     };
-    
+
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
     }
-    
-    const response = await fetch(endpoint, { headers });
+
+    const response = await fetch(requestUrl, { headers });
     
     if (!response.ok) {
       throw new Error(`Erro HTTP: ${response.status}`);
