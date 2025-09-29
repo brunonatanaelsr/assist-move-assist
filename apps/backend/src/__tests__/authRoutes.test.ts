@@ -10,7 +10,10 @@ jest.mock('../services', () => ({
     getProfile: jest.fn(),
     generateToken: jest.fn().mockReturnValue('test-token'),
     renewAccessToken: jest.fn(),
-    revokeRefreshToken: jest.fn()
+    revokeRefreshToken: jest.fn(),
+    register: jest.fn(),
+    updateProfile: jest.fn(),
+    changePassword: jest.fn()
   }
 }));
 import { authService } from '../services';
@@ -90,6 +93,39 @@ describe('Auth and protected routes', () => {
     });
   });
 
+  describe('POST /auth/register', () => {
+    it('should validate registration payload', async () => {
+      const res = await request(app)
+        .post('/auth/register')
+        .send({ email: 'invalid-email', password: '123' });
+
+      expect(res.status).toBe(400);
+      expect(authService.register).not.toHaveBeenCalled();
+    });
+
+    it('should register with valid payload', async () => {
+      const payload = {
+        email: 'user@example.com',
+        password: 'SenhaSegura1',
+        nome_completo: 'Usuário Teste'
+      };
+      (authService.register as jest.Mock).mockResolvedValue({
+        token: 'jwt-token',
+        refreshToken: 'refresh-token',
+        user: { id: 1, email: payload.email, role: 'user' }
+      });
+
+      const res = await request(app)
+        .post('/auth/register')
+        .send(payload);
+
+      expect(res.status).toBe(201);
+      expect(authService.register).toHaveBeenCalledWith(payload);
+      expect(res.body.token).toBe('jwt-token');
+      expect(res.body.refreshToken).toBe('refresh-token');
+    });
+  });
+
   describe('POST /auth/refresh', () => {
     it('should renew the access token when refresh token cookie is valid', async () => {
       (authService.renewAccessToken as jest.Mock).mockResolvedValue({
@@ -139,6 +175,20 @@ describe('Auth and protected routes', () => {
 
       expect(res.status).toBe(200);
       expect(authService.revokeRefreshToken).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('POST /auth/change-password', () => {
+    it('should reject weak new password before calling service', async () => {
+      const token = AuthService.generateToken({ id: 1, email: 'user@example.com', role: 'user' });
+
+      const res = await request(app)
+        .post('/auth/change-password')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ currentPassword: 'SenhaAtual1', newPassword: 'senha123' });
+
+      expect(res.status).toBe(400);
+      expect(authService.changePassword).not.toHaveBeenCalled();
     });
   });
 

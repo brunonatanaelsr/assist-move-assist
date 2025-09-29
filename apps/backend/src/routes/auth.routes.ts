@@ -18,7 +18,7 @@ import {
   refreshTokenSchema,
   registerSchema,
   updateProfileSchema
-} from '../validation/schemas/auth.schema';
+} from '../validators/auth.validator';
 import type {
   AuthResponse,
   ChangePasswordRequest,
