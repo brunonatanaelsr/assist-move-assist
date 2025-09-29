@@ -9,7 +9,7 @@ jest.mock('../services', () => ({
     login: jest.fn(),
     getProfile: jest.fn(),
     generateToken: jest.fn().mockReturnValue('test-token'),
-    refreshWithToken: jest.fn(),
+    renewAccessToken: jest.fn(),
     revokeRefreshToken: jest.fn()
   }
 }));
@@ -92,7 +92,7 @@ describe('Auth and protected routes', () => {
 
   describe('POST /auth/refresh', () => {
     it('should renew the access token when refresh token cookie is valid', async () => {
-      (authService.refreshWithToken as jest.Mock).mockResolvedValue({
+      (authService.renewAccessToken as jest.Mock).mockResolvedValue({
         token: 'new-access',
         refreshToken: 'rotated-refresh',
         user: { id: 1, email: 'user@example.com', role: 'user' }
@@ -103,7 +103,7 @@ describe('Auth and protected routes', () => {
         .set('Cookie', ['refresh_token=old-refresh']);
 
       expect(res.status).toBe(200);
-      expect(authService.refreshWithToken).toHaveBeenCalledWith('old-refresh');
+      expect(authService.renewAccessToken).toHaveBeenCalledWith('old-refresh', expect.any(Object));
       expect(res.body.token).toBe('new-access');
       expect(res.body.user).toEqual({ id: 1, email: 'user@example.com', role: 'user' });
     });
@@ -111,9 +111,9 @@ describe('Auth and protected routes', () => {
     it('should reject when refresh token is missing', async () => {
       const res = await request(app).post('/auth/refresh');
 
-      expect(res.status).toBe(401);
-      expect(res.body.error).toBe('Refresh token não fornecido');
-      expect(authService.refreshWithToken).not.toHaveBeenCalled();
+      expect(res.status).toBe(400);
+      expect(res.body.error).toBe('Refresh token é obrigatório');
+      expect(authService.renewAccessToken).not.toHaveBeenCalled();
     });
   });
 
@@ -126,7 +126,10 @@ describe('Auth and protected routes', () => {
         .set('Cookie', ['refresh_token=encoded-token']);
 
       expect(res.status).toBe(200);
-      expect(authService.revokeRefreshToken).toHaveBeenCalledWith('encoded-token');
+      expect(authService.revokeRefreshToken).toHaveBeenCalledWith('encoded-token', {
+        deviceId: null,
+        userAgent: null
+      });
     });
 
     it('should handle logout without refresh token cookie', async () => {

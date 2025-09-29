@@ -75,13 +75,20 @@ const COOKIE_OPTIONS: CookieOptions = {
 };
 
 const REFRESH_COOKIE_MAX_AGE = (() => {
-  if (typeof env.JWT_REFRESH_EXPIRY === 'number') {
-    return env.JWT_REFRESH_EXPIRY * 1000;
+  const rawRefreshExpiry = env.JWT_REFRESH_EXPIRY;
+
+  if (typeof rawRefreshExpiry === 'number') {
+    return rawRefreshExpiry * 1000;
   }
-  const parsed = ms(String(env.JWT_REFRESH_EXPIRY));
-  return typeof parsed === 'number' && !Number.isNaN(parsed)
-    ? parsed
-    : 7 * 24 * 60 * 60 * 1000;
+
+  if (typeof rawRefreshExpiry === 'string' && rawRefreshExpiry.trim().length > 0) {
+    const parsed = ms(rawRefreshExpiry as ms.StringValue);
+    if (typeof parsed === 'number' && !Number.isNaN(parsed)) {
+      return parsed;
+    }
+  }
+
+  return 7 * 24 * 60 * 60 * 1000;
 })();
 
 const REFRESH_COOKIE_OPTIONS: CookieOptions = {
@@ -232,10 +239,12 @@ const logoutHandler: RequestHandler<
   const refreshToken = extractRefreshToken(req);
   const deviceId = req.body?.deviceId ?? null;
   const userAgent = req.get('user-agent') || null;
+  const revocationMetadata = { deviceId, userAgent };
 
   if (refreshToken) {
     try {
-      await authService.revokeRefreshToken(refreshToken, { deviceId, userAgent });
+      loggerService.info('Processando logout com metadados de dispositivo', revocationMetadata);
+      await authService.revokeRefreshToken(refreshToken, revocationMetadata);
     } catch (error) {
       loggerService.warn('Falha ao revogar refresh token no logout', {
         error: error instanceof Error ? error.message : String(error)
