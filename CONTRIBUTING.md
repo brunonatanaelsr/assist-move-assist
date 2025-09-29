@@ -27,6 +27,7 @@
 - Siga o ESLint e Prettier configurados
 - Escreva testes para novas funcionalidades
 - Documente APIs usando OpenAPI/Swagger
+- Valide entradas com Zod (vide `apps/backend/src/validation`) aplicando transforms para sanitizar dados
 - Use commits semânticos (feat:, fix:, docs:, etc.)
 
 ## Pull Requests

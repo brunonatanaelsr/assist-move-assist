@@ -35,6 +35,17 @@ export const validateRequest = (schema: z.ZodType<RequestShape>): RequestHandler
       return;
     }
 
+    const { body, query, params } = validationResult.data;
+    if (body !== undefined) {
+      req.body = body as Request['body'];
+    }
+    if (query !== undefined) {
+      req.query = query as Request['query'];
+    }
+    if (params !== undefined) {
+      req.params = params as Request['params'];
+    }
+
     next();
   };
 };

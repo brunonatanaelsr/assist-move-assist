@@ -80,7 +80,7 @@ assist-move-assist/
    - CORS configurável
    - Rate limiting
    - JWT com refresh tokens
-   - Validação de input com Zod
+   - Validação e sanitização de input com Zod (transforms centralizados em `apps/backend/src/validation`)
 
 3. **Banco de Dados**
    - PostgreSQL para persistência
