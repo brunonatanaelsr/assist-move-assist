@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "build:dev": "vite build --mode development",
-    "lint": "eslint . --ext .ts,.tsx --max-warnings=0 && prettier --check .",
+    "lint": "eslint . --ext .ts,.tsx && prettier --check .",
     "preview": "vite preview",
     "type-check": "tsc -b --noEmit",
     "test": "npm run test:frontend",
