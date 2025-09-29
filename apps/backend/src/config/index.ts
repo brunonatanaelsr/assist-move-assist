@@ -56,7 +56,7 @@ const config = {
   websocket: {
     path: '/ws',
     cors: {
-      origin: '*',
+      origin: parseCorsOrigin(env.CORS_ORIGIN),
       methods: ['GET', 'POST'],
     },
   },

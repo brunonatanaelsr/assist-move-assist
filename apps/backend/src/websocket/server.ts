@@ -26,10 +26,31 @@ export class WebSocketServer {
     server: HttpServer,
     private pool: Pool
   ) {
+    const { websocket } = config;
+    const corsOrigin = websocket.cors.origin;
+    const normalizedOrigins = Array.isArray(corsOrigin)
+      ? corsOrigin
+      : typeof corsOrigin === 'string' && corsOrigin.length > 0 && corsOrigin !== '*'
+        ? [corsOrigin]
+        : undefined;
+
     this.io = new Server(server, {
-      cors: {
-        origin: process.env.FRONTEND_URL || 'http://localhost:5173',
-        methods: ['GET', 'POST']
+      path: websocket.path,
+      cors: websocket.cors,
+      allowRequest: (req, callback) => {
+        if (!normalizedOrigins) {
+          callback(null, true);
+          return;
+        }
+
+        const requestOrigin = (req.headers.origin || req.headers.Origin) as string | undefined;
+
+        if (!requestOrigin || !normalizedOrigins.includes(requestOrigin)) {
+          callback('CORS: Origin not allowed', false);
+          return;
+        }
+
+        callback(null, true);
       }
     });
 

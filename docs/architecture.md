@@ -105,6 +105,7 @@ assist-move-assist/
    ```
    Cliente <-> WS Server <-> Redis PubSub <-> Service
    ```
+   - O handshake aplica o mesmo `CORS_ORIGIN` da API, aceitando múltiplas origens separadas por vírgula.
 
 3. **Cache**
    ```
