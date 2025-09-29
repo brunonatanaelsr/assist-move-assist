@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { ProtectedRoute } from '../ProtectedRoute';
 
@@ -50,5 +50,31 @@ describe('ProtectedRoute', () => {
 
     expect(screen.getByText('Área Administrativa')).toBeInTheDocument();
     expect(mockNavigate).not.toHaveBeenCalled();
+  });
+
+  it('não renderiza conteúdo protegido para usuários sem permissão de admin', async () => {
+    mockUseAuth.mockReturnValue({
+      user: { id: 2, nome: 'Usuário Comum', papel: 'voluntaria' },
+      profile: null,
+      loading: false,
+      signIn: vi.fn(),
+      signOut: vi.fn(),
+      isAuthenticated: true,
+      isAdmin: false
+    });
+
+    render(
+      <MemoryRouter>
+        <ProtectedRoute adminOnly>
+          <div>Área Administrativa</div>
+        </ProtectedRoute>
+      </MemoryRouter>
+    );
+
+    expect(screen.queryByText('Área Administrativa')).not.toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith('/', { replace: true });
+    });
   });
 });
