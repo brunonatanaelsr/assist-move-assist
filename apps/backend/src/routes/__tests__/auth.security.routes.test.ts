@@ -5,6 +5,7 @@ const originalEnableLoginRateLimit = process.env.ENABLE_LOGIN_RATE_LIMIT;
 
 jest.mock('../../middleware/auth', () => ({
   authenticateToken: jest.fn((_req: any, _res: any, next: any) => next()),
+  requireGestor: jest.fn((_req: any, _res: any, next: any) => next()),
   requireProfissional: jest.fn(),
   authorize: () => (_req: any, _res: any, next: any) => next()
 }));
