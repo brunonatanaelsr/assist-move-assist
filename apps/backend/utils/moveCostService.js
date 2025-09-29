@@ -1,5 +1,45 @@
-const { withCache, generateCacheKey } = require('./redisCache');
 const { calculateMoveCost } = require('./moveCostCalculator');
+
+const cacheStore = new Map();
+
+function generateCacheKey(prefix, params = {}) {
+  const sortValue = (value) => {
+    if (Array.isArray(value)) {
+      return value.map((item) => sortValue(item));
+    }
+
+    if (value && typeof value === 'object') {
+      return Object.keys(value)
+        .sort()
+        .reduce((acc, key) => {
+          acc[key] = sortValue(value[key]);
+          return acc;
+        }, {});
+    }
+
+    return value;
+  };
+
+  const sorted = sortValue(params);
+  return `${prefix}:${JSON.stringify(sorted)}`;
+}
+
+async function withCache(key, resolver, ttlSeconds = 300) {
+  const now = Date.now();
+  const cached = cacheStore.get(key);
+
+  if (cached && cached.expiresAt > now) {
+    return cached.value;
+  }
+
+  const result = await Promise.resolve(resolver());
+  cacheStore.set(key, {
+    value: result,
+    expiresAt: now + ttlSeconds * 1000
+  });
+
+  return result;
+}
 
 /**
  * Calcula o custo da mudança com cache

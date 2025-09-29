@@ -3,7 +3,6 @@ import type { RedisClient } from '../lib/redis';
 import { BeneficiariasRepository } from '../repositories/beneficiariasRepository';
 import { logger } from '../services/logger';
 import { AppError, BaseError } from '../utils';
-import { withCache } from '../utils/redisCache';
 import { cacheService } from './cache.service';
 import { validateBeneficiaria } from '../validators/beneficiaria.validator';
 import type { BeneficiariaDetalhada } from '../models/beneficiaria';
@@ -55,18 +54,26 @@ export class BeneficiariasService {
 
     const cacheKey = `beneficiarias:search:${term.toLowerCase()}:${limit}`;
 
-    return withCache(cacheKey, async () => {
-      const rows = await this.repository.buscarPorTexto(term, limit);
-      return rows.slice(0, limit);
-    }, 60);
+    return cacheService.getOrSet(
+      cacheKey,
+      async () => {
+        const rows = await this.repository.buscarPorTexto(term, limit);
+        return rows.slice(0, limit);
+      },
+      60
+    );
   }
 
   async listarAtivas({ page = 1, limit = 10, filtros }: ListBeneficiariasParams = {}) {
     const cacheKey = `beneficiarias:list:${page}:${limit}:${JSON.stringify(filtros ?? {})}`;
 
-    return withCache(cacheKey, async () => {
-      return this.repository.listarAtivas(page, limit, filtros);
-    }, 300);
+    return cacheService.getOrSet(
+      cacheKey,
+      async () => {
+        return this.repository.listarAtivas(page, limit, filtros);
+      },
+      300
+    );
   }
 
   async getDetalhes(id: number): Promise<BeneficiariaDetalhada> {
@@ -80,13 +87,17 @@ export class BeneficiariasService {
   async getResumo(id: number): Promise<BeneficiariaResumoDetalhado> {
     const cacheKey = `beneficiarias:${id}:resumo`;
 
-    return withCache(cacheKey, async () => {
-      const resumo = await this.repository.getResumo(id);
-      if (!resumo) {
-        throw new AppError('Beneficiária não encontrada', 404);
-      }
-      return resumo;
-    }, 300);
+    return cacheService.getOrSet(
+      cacheKey,
+      async () => {
+        const resumo = await this.repository.getResumo(id);
+        if (!resumo) {
+          throw new AppError('Beneficiária não encontrada', 404);
+        }
+        return resumo;
+      },
+      300
+    );
   }
 
   async getAtividades(
@@ -98,13 +109,17 @@ export class BeneficiariasService {
     const safeLimit = Math.min(Math.max(1, limit), 100);
     const cacheKey = `beneficiarias:${id}:atividades:${safePage}:${safeLimit}`;
 
-    return withCache(cacheKey, async () => {
-      const resumo = await this.repository.getResumo(id);
-      if (!resumo) {
-        throw new AppError('Beneficiária não encontrada', 404);
-      }
-      return this.repository.getAtividades(id, safePage, safeLimit);
-    }, 120);
+    return cacheService.getOrSet(
+      cacheKey,
+      async () => {
+        const resumo = await this.repository.getResumo(id);
+        if (!resumo) {
+          throw new AppError('Beneficiária não encontrada', 404);
+        }
+        return this.repository.getAtividades(id, safePage, safeLimit);
+      },
+      120
+    );
   }
 
   async createBeneficiaria(
