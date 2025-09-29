@@ -122,7 +122,11 @@ export const filterBeneficiarias = (
       paedi.includes(normalized);
 
     const matchesStatus = statusFilter === 'Todas' || statusDisplay === statusFilter;
-    const matchesPrograma = programaFilter === 'Todos' || !filters.programa;
+    const beneficiariaPrograma = beneficiaria.programa_servico?.toLowerCase() ?? '';
+    const matchesPrograma =
+      programaFilter === 'Todos' ||
+      !filters.programa ||
+      beneficiariaPrograma === programaFilter.toLowerCase();
 
     return matchesSearch && matchesStatus && matchesPrograma;
   });
