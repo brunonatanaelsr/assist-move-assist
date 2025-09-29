@@ -239,7 +239,8 @@ const logoutHandler: RequestHandler<
   const refreshToken = extractRefreshToken(req);
   const deviceId = req.body?.deviceId ?? null;
   const userAgent = req.get('user-agent') || null;
-  const revocationMetadata = { deviceId, userAgent };
+  const ipAddress = req.ip || req.socket.remoteAddress || 'unknown';
+  const revocationMetadata = { deviceId, userAgent, ipAddress };
 
   if (refreshToken) {
     try {

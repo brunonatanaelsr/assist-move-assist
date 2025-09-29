@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { Pool } from 'pg';
 import bcrypt from 'bcryptjs';
-import jwt, { SignOptions } from 'jsonwebtoken';
+import jwt, { SignOptions, type JwtPayload } from 'jsonwebtoken';
 
 import { env } from '../config/env';
 import ms from 'ms';
@@ -30,8 +30,12 @@ interface DatabaseUser {
 
 interface RefreshTokenRecord {
   userId: number;
+  tokenId: string;
+  deviceId: string;
+  userAgent: string | null;
+  ipAddress: string | null;
   expiresAt: Date;
-  revoked: boolean;
+  revokedAt: Date | null;
 }
 
 interface RefreshTokenMetadata {
@@ -43,6 +47,18 @@ interface RefreshTokenMetadata {
 interface RefreshTokenRevocationMetadata {
   deviceId?: string | null;
   userAgent?: string | null;
+  ipAddress?: string | null;
+}
+
+interface PersistedRefreshTokenMetadata extends RefreshTokenMetadata {
+  deviceId: string;
+}
+
+interface PersistRefreshTokenParams extends PersistedRefreshTokenMetadata {
+  userId: number;
+  tokenId: string;
+  tokenHash: string;
+  expiresAt: Date;
 }
 
 export class AuthService {
@@ -52,7 +68,8 @@ export class AuthService {
   private readonly refreshExpiry: SignOptions['expiresIn'];
   private readonly refreshTtlSeconds: number;
   private readonly CACHE_TTL = 300; // 5 minutos
-  private refreshTableEnsured = false;
+  private refreshInfrastructureEnsured = false;
+  private legacyMigrationAttempted = false;
 
   constructor(
     private pool: Pool,
@@ -96,42 +113,112 @@ export class AuthService {
     return createHash('sha256').update(token).digest('hex');
   }
 
-  private async ensureRefreshTokenTable(): Promise<void> {
-    if (this.refreshTableEnsured) {
+  private async ensureRefreshTokenInfrastructure(): Promise<void> {
+    if (this.refreshInfrastructureEnsured) {
       return;
     }
 
     try {
-      await this.pool.query(
-        `CREATE TABLE IF NOT EXISTS refresh_tokens (
-          token_hash TEXT PRIMARY KEY,
-          user_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
-          expires_at TIMESTAMPTZ NOT NULL,
-          revoked BOOLEAN NOT NULL DEFAULT FALSE,
-          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-          revoked_at TIMESTAMPTZ
-        )`
+      const result = await this.pool.query(
+        "SELECT to_regclass('public.user_refresh_tokens') as table_name"
       );
-      await this.pool.query(
-        'CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user_id ON refresh_tokens(user_id)'
-      );
-      await this.pool.query(
-        'CREATE INDEX IF NOT EXISTS idx_refresh_tokens_expires_at ON refresh_tokens(expires_at)'
-      );
-      this.refreshTableEnsured = true;
+
+      if (!result.rows.length || !result.rows[0]?.table_name) {
+        loggerService.error('Tabela user_refresh_tokens não encontrada. Certifique-se de executar as migrações.');
+        return;
+      }
+
+      await this.migrateLegacyRefreshTokens();
+      this.refreshInfrastructureEnsured = true;
     } catch (error) {
-      loggerService.warn('Não foi possível garantir a tabela de refresh tokens', {
+      loggerService.warn('Não foi possível verificar a tabela de refresh tokens', {
         error: error instanceof Error ? error.message : String(error)
       });
     }
   }
 
-  private async persistRefreshToken(tokenHash: string, userId: number, expiresAt: Date): Promise<void> {
+  private async migrateLegacyRefreshTokens(): Promise<void> {
+    if (this.legacyMigrationAttempted) {
+      return;
+    }
+
+    this.legacyMigrationAttempted = true;
+
+    try {
+      const legacyResult = await this.pool.query(
+        "SELECT to_regclass('public.refresh_tokens') as table_name"
+      );
+
+      if (!legacyResult.rows.length || !legacyResult.rows[0]?.table_name) {
+        return;
+      }
+
+      const { rows } = await this.pool.query(
+        'SELECT token_hash, user_id, expires_at, revoked, revoked_at FROM refresh_tokens'
+      );
+
+      for (const row of rows) {
+        const tokenHash = String(row.token_hash);
+        const userId = Number(row.user_id);
+        const expiresAt = new Date(row.expires_at);
+        const revokedAt = row.revoked ? (row.revoked_at ? new Date(row.revoked_at) : new Date()) : null;
+        const deviceId = `legacy:${tokenHash}`;
+        const tokenId = tokenHash;
+
+        try {
+          await this.pool.query(
+            `INSERT INTO user_refresh_tokens (
+              user_id,
+              token_id,
+              token_hash,
+              device_id,
+              user_agent,
+              ip_address,
+              expires_at,
+              revoked_at
+            )
+            VALUES ($1, $2, $3, $4, NULL, NULL, $5, $6)
+            ON CONFLICT (user_id, device_id)
+            DO NOTHING`,
+            [userId, tokenId, tokenHash, deviceId, expiresAt, revokedAt]
+          );
+        } catch (error) {
+          loggerService.warn('Falha ao migrar refresh token legado', {
+            userId,
+            tokenHash,
+            error: error instanceof Error ? error.message : String(error)
+          });
+        }
+      }
+    } catch (error) {
+      loggerService.warn('Falha ao migrar tokens de refresh legados', {
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  }
+
+  private normalizeDeviceId(deviceId: string | null | undefined, tokenId: string): string {
+    const trimmed = deviceId?.trim();
+    if (trimmed && trimmed.length > 0) {
+      return trimmed;
+    }
+
+    return `token-${tokenId}`;
+  }
+
+  private async persistRefreshToken(params: PersistRefreshTokenParams): Promise<void> {
     if (env.REDIS_HOST) {
       try {
         await this.redis.set(
-          this.getRefreshRedisKey(tokenHash),
-          JSON.stringify({ userId, expiresAt: expiresAt.toISOString() }),
+          this.getRefreshRedisKey(params.tokenHash),
+          JSON.stringify({
+            userId: params.userId,
+            tokenId: params.tokenId,
+            deviceId: params.deviceId,
+            userAgent: params.userAgent ?? null,
+            ipAddress: params.ipAddress ?? null,
+            expiresAt: params.expiresAt.toISOString()
+          }),
           'EX',
           this.refreshTtlSeconds
         );
@@ -142,18 +229,41 @@ export class AuthService {
       }
     }
 
-    await this.ensureRefreshTokenTable();
-    if (!this.refreshTableEnsured) {
+    await this.ensureRefreshTokenInfrastructure();
+    if (!this.refreshInfrastructureEnsured) {
       return;
     }
 
     try {
       await this.pool.query(
-        `INSERT INTO refresh_tokens (token_hash, user_id, expires_at, revoked, revoked_at)
-         VALUES ($1, $2, $3, false, NULL)
-         ON CONFLICT (token_hash)
-         DO UPDATE SET user_id = EXCLUDED.user_id, expires_at = EXCLUDED.expires_at, revoked = false, revoked_at = NULL`,
-        [tokenHash, userId, expiresAt]
+        `INSERT INTO user_refresh_tokens (
+          user_id,
+          token_id,
+          token_hash,
+          device_id,
+          user_agent,
+          ip_address,
+          expires_at
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        ON CONFLICT (user_id, device_id)
+        DO UPDATE SET
+          token_id = EXCLUDED.token_id,
+          token_hash = EXCLUDED.token_hash,
+          user_agent = EXCLUDED.user_agent,
+          ip_address = EXCLUDED.ip_address,
+          expires_at = EXCLUDED.expires_at,
+          revoked_at = NULL,
+          updated_at = NOW()`,
+        [
+          params.userId,
+          params.tokenId,
+          params.tokenHash,
+          params.deviceId,
+          params.userAgent ?? null,
+          params.ipAddress ?? null,
+          params.expiresAt
+        ]
       );
     } catch (error) {
       loggerService.warn('Falha ao registrar refresh token no banco de dados', {
@@ -169,12 +279,26 @@ export class AuthService {
           this.getRefreshRedisKey(tokenHash)
         );
         if (cached) {
-          const parsed = JSON.parse(cached) as { userId: number; expiresAt: string };
-          return {
-            userId: parsed.userId,
-            expiresAt: new Date(parsed.expiresAt),
-            revoked: false
+          const parsed = JSON.parse(cached) as {
+            userId: number;
+            tokenId?: string;
+            deviceId?: string;
+            userAgent?: string | null;
+            ipAddress?: string | null;
+            expiresAt: string;
           };
+
+          if (parsed.userId && parsed.expiresAt && parsed.tokenId && parsed.deviceId) {
+            return {
+              userId: parsed.userId,
+              tokenId: parsed.tokenId,
+              deviceId: parsed.deviceId,
+              userAgent: parsed.userAgent ?? null,
+              ipAddress: parsed.ipAddress ?? null,
+              expiresAt: new Date(parsed.expiresAt),
+              revokedAt: null
+            };
+          }
         }
       } catch (error) {
         loggerService.warn('Falha ao buscar refresh token no Redis', {
@@ -183,14 +307,16 @@ export class AuthService {
       }
     }
 
-    await this.ensureRefreshTokenTable();
-    if (!this.refreshTableEnsured) {
+    await this.ensureRefreshTokenInfrastructure();
+    if (!this.refreshInfrastructureEnsured) {
       return null;
     }
 
     try {
       const result = await this.pool.query(
-        'SELECT user_id, expires_at, revoked FROM refresh_tokens WHERE token_hash = $1',
+        `SELECT user_id, token_id, device_id, user_agent, ip_address, expires_at, revoked_at
+         FROM user_refresh_tokens
+         WHERE token_hash = $1`,
         [tokenHash]
       );
 
@@ -201,8 +327,12 @@ export class AuthService {
       const row = result.rows[0];
       return {
         userId: Number(row.user_id),
+        tokenId: String(row.token_id),
+        deviceId: String(row.device_id),
+        userAgent: row.user_agent ? String(row.user_agent) : null,
+        ipAddress: row.ip_address ? String(row.ip_address) : null,
         expiresAt: new Date(row.expires_at),
-        revoked: Boolean(row.revoked)
+        revokedAt: row.revoked_at ? new Date(row.revoked_at) : null
       };
     } catch (error) {
       loggerService.warn('Falha ao buscar refresh token no banco de dados', {
@@ -232,23 +362,46 @@ export class AuthService {
   ): Promise<void> {
     const tokenHash = this.hashToken(token);
 
-    if (metadata && (metadata.deviceId || metadata.userAgent)) {
-      loggerService.info('Revogando refresh token com metadados adicionais', {
-        deviceId: metadata.deviceId ?? null,
-        userAgent: metadata.userAgent ?? null
-      });
-    }
-
     await this.removeRefreshTokenFromRedis(tokenHash);
 
-    await this.ensureRefreshTokenTable();
-    if (!this.refreshTableEnsured) {
+    await this.ensureRefreshTokenInfrastructure();
+    if (!this.refreshInfrastructureEnsured) {
       return;
     }
 
     try {
+      const stored = await this.fetchRefreshToken(tokenHash);
+
+      if (!stored) {
+        return;
+      }
+
+      if (metadata?.deviceId && stored.deviceId !== metadata.deviceId) {
+        loggerService.info('Ignorando revogação: deviceId não corresponde ao registro', {
+          esperado: stored.deviceId,
+          recebido: metadata.deviceId
+        });
+        return;
+      }
+
+      if (metadata?.userAgent && stored.userAgent && stored.userAgent !== metadata.userAgent) {
+        loggerService.info('Revogando token apesar de userAgent divergente', {
+          esperado: stored.userAgent,
+          recebido: metadata.userAgent
+        });
+      }
+
+      if (metadata?.ipAddress && stored.ipAddress && stored.ipAddress !== metadata.ipAddress) {
+        loggerService.info('Revogando token apesar de IP divergente', {
+          esperado: stored.ipAddress,
+          recebido: metadata.ipAddress
+        });
+      }
+
       await this.pool.query(
-        'UPDATE refresh_tokens SET revoked = true, revoked_at = NOW() WHERE token_hash = $1',
+        `UPDATE user_refresh_tokens
+         SET revoked_at = NOW(), updated_at = NOW()
+         WHERE token_hash = $1`,
         [tokenHash]
       );
     } catch (error) {
@@ -259,14 +412,16 @@ export class AuthService {
   }
 
   async revokeAllRefreshTokensForUser(userId: number): Promise<void> {
-    await this.ensureRefreshTokenTable();
-    if (!this.refreshTableEnsured) {
+    await this.ensureRefreshTokenInfrastructure();
+    if (!this.refreshInfrastructureEnsured) {
       return;
     }
 
     try {
       await this.pool.query(
-        'UPDATE refresh_tokens SET revoked = true, revoked_at = NOW() WHERE user_id = $1 AND revoked = false',
+        `UPDATE user_refresh_tokens
+         SET revoked_at = NOW(), updated_at = NOW()
+         WHERE user_id = $1 AND revoked_at IS NULL`,
         [userId]
       );
     } catch (error) {
@@ -276,7 +431,10 @@ export class AuthService {
     }
   }
 
-  async generateRefreshToken(payload: JWTPayload): Promise<string> {
+  async generateRefreshToken(
+    payload: JWTPayload,
+    metadata: RefreshTokenMetadata = {}
+  ): Promise<string> {
     const jwtId = randomUUID();
     const token = jwt.sign(
       {
@@ -294,55 +452,103 @@ export class AuthService {
 
     const expiresAt = new Date(Date.now() + this.refreshTtlSeconds * 1000);
     const tokenHash = this.hashToken(token);
-    await this.persistRefreshToken(tokenHash, payload.id, expiresAt);
+    const normalizedDeviceId = this.normalizeDeviceId(metadata.deviceId, jwtId);
+
+    await this.persistRefreshToken({
+      userId: payload.id,
+      tokenId: jwtId,
+      tokenHash,
+      deviceId: normalizedDeviceId,
+      userAgent: metadata.userAgent ?? null,
+      ipAddress: metadata.ipAddress ?? null,
+      expiresAt
+    });
 
     return token;
   }
 
-  async validateRefreshToken(token: string): Promise<JWTPayload> {
+  private async validateRefreshTokenAndGetRecord(token: string): Promise<{
+    payload: JWTPayload;
+    record: RefreshTokenRecord;
+  }> {
     try {
-      const decoded = jwt.verify(token, this.refreshSecret) as JWTPayload;
+      const decoded = jwt.verify(token, this.refreshSecret) as JWTPayload & JwtPayload;
       const tokenHash = this.hashToken(token);
       const stored = await this.fetchRefreshToken(tokenHash);
 
-      if (!stored || stored.revoked) {
+      if (!stored || stored.revokedAt) {
+        throw new Error('Refresh token inválido');
+      }
+
+      const decodedTokenId = typeof decoded.jti === 'string' ? decoded.jti : undefined;
+      if (decodedTokenId && stored.tokenId && decodedTokenId !== stored.tokenId) {
         throw new Error('Refresh token inválido');
       }
 
       if (stored.expiresAt.getTime() <= Date.now()) {
-        await this.revokeRefreshToken(token);
+        await this.revokeRefreshToken(token, {
+          deviceId: stored.deviceId,
+          userAgent: stored.userAgent ?? undefined,
+          ipAddress: stored.ipAddress ?? undefined
+        });
         throw new Error('Refresh token expirado');
       }
 
       const userQuery =
         'SELECT id, email, papel as role, ativo FROM usuarios WHERE id = $1';
-      const userResult = await this.pool.query(userQuery, [decoded.id]);
+      const userResult = await this.pool.query(userQuery, [stored.userId]);
 
       if (userResult.rows.length === 0 || !userResult.rows[0].ativo) {
-        await this.revokeRefreshToken(token);
+        await this.revokeRefreshToken(token, {
+          deviceId: stored.deviceId,
+          userAgent: stored.userAgent ?? undefined,
+          ipAddress: stored.ipAddress ?? undefined
+        });
         throw new Error('Usuário inválido ou inativo');
       }
 
       const { id, email, role } = userResult.rows[0];
 
-      return {
+      const payload: JWTPayload = {
         id,
         email,
         role
       };
+
+      if (decoded.permissions) {
+        payload.permissions = decoded.permissions;
+      }
+
+      return { payload, record: stored };
     } catch (error) {
       loggerService.error('Erro ao validar refresh token:', error);
       throw error instanceof Error ? error : new Error('Refresh token inválido');
     }
   }
 
-  async refreshWithToken(refreshToken: string): Promise<AuthResponse> {
+  async validateRefreshToken(token: string): Promise<JWTPayload> {
+    const { payload } = await this.validateRefreshTokenAndGetRecord(token);
+    return payload;
+  }
+
+  async refreshWithToken(
+    refreshToken: string,
+    metadata: RefreshTokenMetadata = {}
+  ): Promise<AuthResponse> {
     try {
-      const payload = await this.validateRefreshToken(refreshToken);
-      await this.revokeRefreshToken(refreshToken);
+      const { payload, record } = await this.validateRefreshTokenAndGetRecord(refreshToken);
+      await this.revokeRefreshToken(refreshToken, {
+        deviceId: metadata.deviceId ?? record.deviceId,
+        userAgent: metadata.userAgent ?? record.userAgent ?? undefined,
+        ipAddress: metadata.ipAddress ?? record.ipAddress ?? undefined
+      });
 
       const token = this.generateToken(payload);
-      const newRefreshToken = await this.generateRefreshToken(payload);
+      const newRefreshToken = await this.generateRefreshToken(payload, {
+        deviceId: record.deviceId,
+        userAgent: metadata.userAgent ?? record.userAgent ?? null,
+        ipAddress: metadata.ipAddress ?? record.ipAddress ?? null
+      });
 
       let user: DatabaseUser | undefined;
 
@@ -402,9 +608,9 @@ export class AuthService {
 
   async renewAccessToken(
     refreshToken: string,
-    _metadata: RefreshTokenMetadata
+    metadata: RefreshTokenMetadata
   ): Promise<RefreshSessionResponse> {
-    const result = await this.refreshWithToken(refreshToken);
+    const result = await this.refreshWithToken(refreshToken, metadata);
 
     return {
       token: result.token,
@@ -469,7 +675,11 @@ export class AuthService {
         role: user.papel
       };
       const token = this.generateToken(tokenPayload);
-      const refreshToken = await this.generateRefreshToken(tokenPayload);
+      const refreshToken = await this.generateRefreshToken(tokenPayload, {
+        deviceId,
+        userAgent,
+        ipAddress
+      });
 
       const sessionUser = this.buildSessionUser(user);
 
