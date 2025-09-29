@@ -7,7 +7,6 @@ import cookieParser from 'cookie-parser';
 import apiRoutes from './routes/api';
 // WebSocket opcional em runtime
 let webSocketServer: any = null;
-import feedRoutes from './routes/feed.routes';
 import { errorHandler } from './middleware/errorHandler';
 import { logger } from './services/logger';
 import { pool } from './config/database';
@@ -56,7 +55,6 @@ app.get('/api/csrf-token', (req, res) => {
 
 // Rotas
 app.use('/api', apiRoutes);
-app.use('/api/feed', feedRoutes);
 
 // Documentação OpenAPI/Swagger (apenas em desenvolvimento)
 if (env.NODE_ENV === 'development') {
