@@ -43,6 +43,7 @@ export interface Beneficiaria {
     telefone: string;
     telefone_secundario?: string | null;
     email?: string | null;
+    programa_servico?: string | null;
     endereco?:
         | string
         | {
