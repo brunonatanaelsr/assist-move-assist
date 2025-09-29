@@ -163,6 +163,19 @@ const filterMenuItems = (
     return acc;
   }, []);
 
+const normalizeTitleForId = (value: string) =>
+  value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+
+const getSidebarItemId = (title: string, suffix: string) => {
+  const normalized = normalizeTitleForId(title);
+  return `sidebar-${normalized || "item"}-${suffix}`;
+};
+
 export default function Sidebar() {
   const [isOpen, setIsOpen] = useState(false);
   const [expandedItems, setExpandedItems] = useState<string[]>(["Formulários"]);
@@ -208,6 +221,9 @@ export default function Sidebar() {
         className="fixed top-4 left-4 z-50 md:hidden"
         onClick={() => setIsOpen(!isOpen)}
         data-testid="mobile-menu-toggle"
+        aria-label={isOpen ? "Fechar menu de navegação" : "Abrir menu de navegação"}
+        aria-expanded={isOpen}
+        aria-controls="sidebar-navigation"
       >
         {isOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
       </Button>
@@ -221,10 +237,14 @@ export default function Sidebar() {
       )}
 
       {/* Sidebar */}
-      <aside className={cn(
-        "fixed left-0 top-0 z-40 h-full w-64 transform bg-sidebar border-r border-sidebar-border transition-transform duration-200 ease-in-out md:translate-x-0",
-        isOpen ? "translate-x-0" : "-translate-x-full"
-      )} data-testid="mobile-navigation">
+      <aside
+        id="sidebar-navigation"
+        className={cn(
+          "fixed left-0 top-0 z-40 h-full w-64 transform bg-sidebar border-r border-sidebar-border transition-transform duration-200 ease-in-out md:translate-x-0",
+          isOpen ? "translate-x-0" : "-translate-x-full"
+        )}
+        data-testid="mobile-navigation"
+      >
         <div className="flex flex-col h-full">
           {/* Header */}
           <div className="p-6 border-b border-sidebar-border">
@@ -241,49 +261,67 @@ export default function Sidebar() {
 
           {/* Navigation */}
           <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-            {availableMenuItems.map((item) => (
-              <div key={item.title}>
-                {item.children ? (
-                  <div>
-                    <Button
-                      variant="ghost"
-                      className={cn(
-                        "w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-                        expandedItems.includes(item.title) && "bg-sidebar-accent text-sidebar-accent-foreground"
+            {availableMenuItems.map((item) => {
+              const isExpanded = expandedItems.includes(item.title);
+              const baseId = getSidebarItemId(item.title, "section");
+              const buttonId = `${baseId}-button`;
+              const submenuId = `${baseId}-submenu`;
+
+              return (
+                <div key={item.title}>
+                  {item.children ? (
+                    <div>
+                      <Button
+                        id={buttonId}
+                        variant="ghost"
+                        className={cn(
+                          "w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                          isExpanded && "bg-sidebar-accent text-sidebar-accent-foreground"
+                        )}
+                        onClick={() => toggleExpanded(item.title)}
+                        aria-expanded={isExpanded}
+                        aria-controls={submenuId}
+                      >
+                        <item.icon className="h-4 w-4 mr-2" />
+                        {item.title}
+                        <ClipboardList
+                          className={cn(
+                            "h-4 w-4 ml-auto transition-transform",
+                            isExpanded && "rotate-90"
+                          )}
+                        />
+                      </Button>
+                      {isExpanded && (
+                        <ul
+                          id={submenuId}
+                          role="menu"
+                          aria-labelledby={buttonId}
+                          className="ml-6 mt-2 space-y-1"
+                        >
+                          {item.children.map((child) => (
+                            <li key={child.href}>
+                              <NavLink
+                                to={child.href}
+                                className={({ isActive }) => cn(
+                                  "block px-3 py-2 text-sm rounded-md transition-colors",
+                                  isActive
+                                    ? "bg-primary text-primary-foreground shadow-soft"
+                                    : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                                )}
+                                onClick={() => setIsOpen(false)}
+                                role="menuitem"
+                              >
+                                {child.title}
+                              </NavLink>
+                            </li>
+                          ))}
+                        </ul>
                       )}
-                      onClick={() => toggleExpanded(item.title)}
-                    >
-                      <item.icon className="h-4 w-4 mr-2" />
-                      {item.title}
-                      <ClipboardList className={cn(
-                        "h-4 w-4 ml-auto transition-transform",
-                        expandedItems.includes(item.title) && "rotate-90"
-                      )} />
-                    </Button>
-                    {expandedItems.includes(item.title) && (
-                      <div className="ml-6 mt-2 space-y-1">
-                        {item.children.map((child) => (
-                          <NavLink
-                            key={child.href}
-                            to={child.href}
-                            className={({ isActive }) => cn(
-                              "block px-3 py-2 text-sm rounded-md transition-colors",
-                              isActive 
-                                ? "bg-primary text-primary-foreground shadow-soft" 
-                                : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                            )}
-                            onClick={() => setIsOpen(false)}
-                          >
-                            {child.title}
-                          </NavLink>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <NavLink
-                    to={item.href}
-                    className={({ isActive }) => cn(
+                    </div>
+                  ) : (
+                    <NavLink
+                      to={item.href}
+                      className={({ isActive }) => cn(
                       "flex items-center gap-2 w-full px-3 py-2 rounded-md text-sm font-medium transition-colors",
                       isActive 
                         ? "bg-primary text-primary-foreground shadow-soft" 
@@ -300,11 +338,12 @@ export default function Sidebar() {
                     }
                   >
                     <item.icon className="h-4 w-4" />
-                    {item.title}
-                  </NavLink>
-                )}
+                      {item.title}
+                    </NavLink>
+                  )}
                 </div>
-            ))}
+              );
+            })}
           </nav>
 
           {/* Footer */}
