@@ -1,5 +1,5 @@
-import { ReactNode, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { ReactNode } from 'react';
+import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 
 interface ProtectedRouteProps {
@@ -15,20 +15,6 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   const navigate = useNavigate();
   const location = useLocation();
   const hasRequiredPermissions = !adminOnly || isAdmin;
-
-  useEffect(() => {
-    if (!loading) {
-      if (user) {
-        // Usuário autenticado: segue fluxo normal
-        if (!hasRequiredPermissions) {
-          navigate('/', { replace: true });
-        }
-      } else {
-        // Não autenticado: não redireciona automaticamente. Exibimos CTA de login.
-        // Isso evita flakiness nos testes E2E no carregamento inicial.
-      }
-    }
-  }, [loading, user, navigate, location, hasRequiredPermissions]);
 
   // Show loading state while checking authentication
   if (loading) {
@@ -63,7 +49,13 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   }
 
   if (!hasRequiredPermissions) {
-    return null;
+    return (
+      <Navigate
+        to="/"
+        replace
+        state={{ from: location.pathname }}
+      />
+    );
   }
 
   return <>{children}</>;
