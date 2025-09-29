@@ -23,6 +23,7 @@ const getCookieToken = (req: Request): string | undefined => {
     if (process.env.NODE_ENV !== 'test') {
       console.warn('[csrf] Cookie não assinado detectado, gerando novo token.');
     }
+    return unsignedToken;
   }
 
   return undefined;
@@ -30,11 +31,15 @@ const getCookieToken = (req: Request): string | undefined => {
 
 export function csrfMiddleware(req: Request, res: Response, next: NextFunction) {
   try {
+    const hasSignedCookie = typeof req.signedCookies?.[CSRF_COOKIE_NAME] === 'string' && req.signedCookies[CSRF_COOKIE_NAME].length > 0;
     let token = getCookieToken(req);
 
     // Gera token se ausente
     if (!token) {
       token = crypto.randomBytes(16).toString('hex');
+    }
+
+    if (!hasSignedCookie && token) {
       res.cookie(CSRF_COOKIE_NAME, token, CSRF_COOKIE_OPTIONS);
     }
 
