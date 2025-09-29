@@ -88,6 +88,9 @@ assist-move-assist/
    # DATABASE_URL=postgresql://assistmove:assistmove123@localhost:5432/assist_move_assist # opcional (scripts/e2e)
    REDIS_HOST=127.0.0.1
    REDIS_PORT=6379
+   # Retenção das listas de não lidos (defaults: 30 dias ou 200 itens)
+   REDIS_UNREAD_TTL_SECONDS=2592000
+   REDIS_UNREAD_MAX_ITEMS=200
   CORS_ORIGIN=http://localhost:5173
   ```
 

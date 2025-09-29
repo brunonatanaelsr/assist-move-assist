@@ -42,6 +42,10 @@ const config = {
   redis: {
     host: env.REDIS_HOST || 'localhost',
     port: env.REDIS_PORT || 6379,
+    unreadRetention: {
+      ttlSeconds: env.REDIS_UNREAD_TTL_SECONDS ?? 60 * 60 * 24 * 30,
+      maxItems: env.REDIS_UNREAD_MAX_ITEMS ?? 200,
+    },
   },
 
   // Configurações do JWT
