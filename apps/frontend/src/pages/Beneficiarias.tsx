@@ -1,10 +1,10 @@
-import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { Search, Plus, Filter, MoreHorizontal, Edit, Eye, FileText } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Search, Plus, Filter, MoreHorizontal, Edit, Eye, FileText } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import {
   Table,
   TableBody,
@@ -12,104 +12,59 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
+} from '@/components/ui/table';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { ListSkeleton } from "@/components/ui/list-skeleton";
-import { EmptyState } from "@/components/ui/empty-state";
-import usePersistedFilters from "@/hooks/usePersistedFilters";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { useBeneficiarias, useBeneficiaria } from "@/hooks/useBeneficiarias";
+} from '@/components/ui/dropdown-menu';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { ListSkeleton } from '@/components/ui/list-skeleton';
+import { EmptyState } from '@/components/ui/empty-state';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import type { UseBeneficiariasListConfig } from '@/hooks/useBeneficiariasList';
+import useBeneficiariasList from '@/hooks/useBeneficiariasList';
 import {
-  buildBeneficiariasStats,
   deriveBeneficiariaStatus,
   formatBeneficiariaDate,
   formatCpf,
   generatePaedi,
   getBeneficiariaBadgeVariant,
   getBeneficiariaInitials,
-  normalizeBeneficiariaSearch,
-  toStatusFilterValue,
-} from "@/utils/beneficiarias";
-import type { Beneficiaria } from "@/types/shared";
+} from '@/utils/beneficiarias';
+import type { Beneficiaria } from '@/types/shared';
 
-const ITEMS_PER_PAGE = 10;
+export interface BeneficiariasPageProps extends UseBeneficiariasListConfig {}
 
-export default function Beneficiarias() {
+export default function BeneficiariasPage(props: BeneficiariasPageProps = {}) {
   const navigate = useNavigate();
   const [showFilters, setShowFilters] = useState(false);
-  const { state: filterState, set: setFilters } = usePersistedFilters({
-    key: 'beneficiarias:filters',
-    initial: { search: '', status: 'Todas', programa: 'Todos', page: 1 },
-  });
 
-  const searchTerm = (filterState.search as string) ?? '';
-  const selectedStatus = (filterState.status as string) ?? 'Todas';
-  const programaFilter = (filterState.programa as string) ?? 'Todos';
-  const currentPage = Number(filterState.page || 1);
-  const trimmedSearch = searchTerm.trim();
+  const {
+    beneficiarias,
+    stats,
+    filters: { searchTerm, selectedStatus, programaFilter },
+    setFilters,
+    resetFilters,
+    hasSearch,
+    showLoading,
+    queryError,
+    activeFilterCount,
+    pagination,
+    statusOptions,
+    programOptions,
+  } = useBeneficiariasList(props);
 
-  const statusFilter = useMemo(() => toStatusFilterValue(selectedStatus), [selectedStatus]);
+  const pageSize = pagination.pageSize;
+  const totalItems = pagination.totalItems;
+  const totalPages = pagination.totalPages;
+  const safePage = pagination.currentPage;
+  const showingFrom = pagination.showingFrom;
+  const showingTo = pagination.showingTo;
 
-  const queryParams = useMemo(
-    () => ({
-      page: currentPage,
-      limit: ITEMS_PER_PAGE,
-      search: trimmedSearch || undefined,
-      status: statusFilter,
-    }),
-    [currentPage, trimmedSearch, statusFilter]
-  );
-
-  const beneficiariasQuery = useBeneficiarias(queryParams);
-  const beneficiariasResponse = beneficiariasQuery.data;
-
-  const beneficiarias: Beneficiaria[] = useMemo(() => {
-    if (!beneficiariasResponse) return [];
-    const data = beneficiariasResponse.data;
-    return Array.isArray(data) ? data : [];
-  }, [beneficiariasResponse]);
-
-  const firstBeneficiariaId = beneficiarias.length > 0 ? String(beneficiarias[0].id) : '';
-  useBeneficiaria(firstBeneficiariaId);
-
-  const stats = useMemo(() => buildBeneficiariasStats(beneficiarias), [beneficiarias]);
-
-  const pagination = beneficiariasResponse?.pagination;
-  const limit = pagination?.limit ?? ITEMS_PER_PAGE;
-  const apiPage = pagination?.page ?? currentPage;
-  const totalItems = pagination?.total ?? beneficiarias.length;
-  const computedTotalPages = limit > 0 ? Math.max(1, Math.ceil(totalItems / limit)) : 1;
-  const totalPages = pagination?.totalPages ?? computedTotalPages;
-  const safePage = Math.min(Math.max(apiPage, 1), Math.max(totalPages, 1));
-  const showingFrom = beneficiarias.length === 0 ? 0 : (safePage - 1) * limit + 1;
-  const showingTo = beneficiarias.length === 0 ? 0 : showingFrom + beneficiarias.length - 1;
-
-  const displayStats = useMemo(
-    () => ({
-      ...stats,
-      total: totalItems,
-    }),
-    [stats, totalItems]
-  );
-
-  const { hasSearch } = useMemo(() => normalizeBeneficiariaSearch(searchTerm), [searchTerm]);
-  const showLoading = beneficiariasQuery.isLoading || beneficiariasQuery.isFetching;
-  const backendErrorMessage =
-    beneficiariasResponse && beneficiariasResponse.success === false ? beneficiariasResponse.message : undefined;
-  const queryError = beneficiariasQuery.isError
-    ? (beneficiariasQuery.error as Error | undefined)
-    : backendErrorMessage
-    ? new Error(backendErrorMessage)
-    : undefined;
-  const activeFilterCount =
-    (selectedStatus !== 'Todas' ? 1 : 0) + (programaFilter !== 'Todos' ? 1 : 0) + (hasSearch ? 1 : 0);
   const showEmptyState = !showLoading && !queryError && beneficiarias.length === 0;
+  const hasPagination = totalItems > pageSize;
 
   return (
     <div className="space-y-6">
@@ -117,11 +72,14 @@ export default function Beneficiarias() {
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Beneficiárias</h1>
-          <p className="text-muted-foreground">
-            Gerencie o cadastro das beneficiárias do instituto
-          </p>
+          <p className="text-muted-foreground">Gerencie o cadastro das beneficiárias do instituto</p>
         </div>
-        <Button className="w-fit" size="lg" onClick={() => navigate('/beneficiarias/nova')} data-testid="cadastrar-beneficiaria">
+        <Button
+          className="w-fit"
+          size="lg"
+          onClick={() => navigate('/beneficiarias/nova')}
+          data-testid="cadastrar-beneficiaria"
+        >
           <Plus className="h-4 w-4 mr-2" />
           Nova Beneficiária
         </Button>
@@ -131,25 +89,25 @@ export default function Beneficiarias() {
       <div className="grid gap-4 md:grid-cols-4">
         <Card className="shadow-soft">
           <CardContent className="p-4">
-            <div className="text-2xl font-bold text-primary">{showLoading ? "..." : displayStats.total}</div>
+            <div className="text-2xl font-bold text-primary">{showLoading ? '...' : stats.total}</div>
             <p className="text-sm text-muted-foreground">Total de Beneficiárias</p>
           </CardContent>
         </Card>
         <Card className="shadow-soft">
           <CardContent className="p-4">
-            <div className="text-2xl font-bold text-success">{showLoading ? "..." : displayStats.ativas}</div>
+            <div className="text-2xl font-bold text-success">{showLoading ? '...' : stats.ativas}</div>
             <p className="text-sm text-muted-foreground">Ativas</p>
           </CardContent>
         </Card>
         <Card className="shadow-soft">
           <CardContent className="p-4">
-            <div className="text-2xl font-bold text-warning">{showLoading ? "..." : displayStats.aguardando}</div>
+            <div className="text-2xl font-bold text-warning">{showLoading ? '...' : stats.aguardando}</div>
             <p className="text-sm text-muted-foreground">Aguardando</p>
           </CardContent>
         </Card>
         <Card className="shadow-soft">
           <CardContent className="p-4">
-            <div className="text-2xl font-bold text-muted-foreground">{showLoading ? "..." : displayStats.inativas}</div>
+            <div className="text-2xl font-bold text-muted-foreground">{showLoading ? '...' : stats.inativas}</div>
             <p className="text-sm text-muted-foreground">Inativas</p>
           </CardContent>
         </Card>
@@ -182,11 +140,7 @@ export default function Beneficiarias() {
                 />
               </div>
               <div className="relative">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => setShowFilters(!showFilters)}
-                >
+                <Button variant="outline" size="icon" onClick={() => setShowFilters(!showFilters)}>
                   <Filter className="h-4 w-4" />
                 </Button>
                 {activeFilterCount > 0 ? (
@@ -198,11 +152,7 @@ export default function Beneficiarias() {
                   </span>
                 ) : null}
               </div>
-                <Button
-                  variant="default"
-                  onClick={() => setFilters({ search: trimmedSearch, page: 1 })}
-                  data-testid="search-button"
-                >
+              <Button variant="default" onClick={() => setFilters({ search: searchTerm, page: 1 })} data-testid="search-button">
                 Buscar
               </Button>
             </div>
@@ -223,10 +173,11 @@ export default function Beneficiarias() {
                       onChange={(e) => setFilters({ status: e.target.value, page: 1 })}
                       className="w-full p-2 border rounded-md"
                     >
-                      <option value="Todas">Todas</option>
-                      <option value="Ativa">Ativa</option>
-                      <option value="Aguardando">Aguardando</option>
-                      <option value="Inativa">Inativa</option>
+                      {statusOptions.map((option) => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
                     </select>
                   </div>
                   <div>
@@ -236,17 +187,19 @@ export default function Beneficiarias() {
                       onChange={(e) => setFilters({ programa: e.target.value, page: 1 })}
                       className="w-full p-2 border rounded-md"
                     >
-                      <option value="Todos">Todos</option>
-                      <option value="Assistência Social">Assistência Social</option>
-                      <option value="Educação Profissional">Educação Profissional</option>
-                      <option value="Capacitação Técnica">Capacitação Técnica</option>
+                      {programOptions.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
                     </select>
                   </div>
                   <div className="flex items-end">
                     <Button
                       variant="outline"
                       onClick={() => {
-                        setFilters({ status: 'Todas', programa: 'Todos', search: '', page: 1 });
+                        resetFilters();
+                        setShowFilters(false);
                       }}
                     >
                       Limpar Filtros
@@ -265,17 +218,17 @@ export default function Beneficiarias() {
                   <TableHead>Beneficiária</TableHead>
                   <TableHead>CPF</TableHead>
                   <TableHead>PAEDI</TableHead>
-                  <TableHead>Programa</TableHead>
+                  <TableHead>Telefone</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Data de Início</TableHead>
-                  <TableHead className="w-[50px]"></TableHead>
+                  <TableHead>Data Nascimento</TableHead>
+                  <TableHead className="w-[50px]" />
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {showLoading ? (
-                  <TableRow>
+                  <TableRow data-testid="beneficiarias-loading">
                     <TableCell colSpan={7} className="py-4">
-                      <ListSkeleton rows={limit} columns={6} />
+                      <ListSkeleton rows={pageSize} columns={6} />
                     </TableCell>
                   </TableRow>
                 ) : showEmptyState ? (
@@ -294,10 +247,10 @@ export default function Beneficiarias() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  beneficiarias.map((beneficiaria) => {
+                  beneficiarias.map((beneficiaria: Beneficiaria) => {
                     const statusDisplay = deriveBeneficiariaStatus(beneficiaria);
                     const badgeVariant = getBeneficiariaBadgeVariant(statusDisplay);
-                    const telefone = beneficiaria.telefone || beneficiaria.telefone_secundario || '';
+                    const telefone = beneficiaria.telefone || beneficiaria.contato1 || beneficiaria.telefone_secundario || 'Não informado';
 
                     return (
                       <TableRow key={beneficiaria.id} className="hover:bg-muted/30" data-testid="beneficiaria-item">
@@ -310,7 +263,7 @@ export default function Beneficiarias() {
                             </Avatar>
                             <div>
                               <div className="font-medium text-foreground">{beneficiaria.nome_completo}</div>
-                              <div className="text-sm text-muted-foreground">{telefone}</div>
+                              <div className="text-sm text-muted-foreground">{beneficiaria.email || telefone}</div>
                             </div>
                           </div>
                         </TableCell>
@@ -318,7 +271,7 @@ export default function Beneficiarias() {
                         <TableCell className="font-mono text-sm font-medium text-primary">
                           {generatePaedi(beneficiaria)}
                         </TableCell>
-                        <TableCell>{beneficiaria.status || 'Não informado'}</TableCell>
+                        <TableCell>{telefone}</TableCell>
                         <TableCell>
                           <Badge variant={badgeVariant}>{statusDisplay}</Badge>
                         </TableCell>
@@ -339,9 +292,7 @@ export default function Beneficiarias() {
                                 <Edit className="mr-2 h-4 w-4" />
                                 Editar
                               </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() => navigate(`/beneficiarias/${beneficiaria.id}/declaracoes-recibos`)}
-                              >
+                              <DropdownMenuItem onClick={() => navigate(`/beneficiarias/${beneficiaria.id}/formularios/declaracoes-recibos`)}>
                                 <FileText className="mr-2 h-4 w-4" />
                                 Gerar Documento
                               </DropdownMenuItem>
@@ -357,7 +308,7 @@ export default function Beneficiarias() {
           </div>
 
           {/* Pagination */}
-          {totalItems > limit && (
+          {hasPagination && (
             <div className="flex items-center justify-between pt-4">
               <div className="text-sm text-muted-foreground">
                 Mostrando {showingFrom} a {showingTo} de {totalItems} beneficiárias
@@ -385,7 +336,6 @@ export default function Beneficiarias() {
               </div>
             </div>
           )}
-
         </CardContent>
       </Card>
     </div>
