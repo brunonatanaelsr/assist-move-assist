@@ -268,6 +268,13 @@ class ApiService {
     return this.matchesInternalPrefix(requestUrl);
   }
 
+  private createBlobRequestConfig(): ApiRequestConfig {
+    return {
+      responseType: 'blob',
+      skipEnvelope: true
+    };
+  }
+
   // Métodos genéricos para API
   async get<T>(url: string, config?: ApiRequestConfig): Promise<ApiResponse<T>> {
     const attempt = async (): Promise<ApiResponse<T>> => {
@@ -822,7 +829,10 @@ class ApiService {
     return this.put(`/formularios/${tipo}/${id}`, data);
   }
   async exportFormularioPdf(tipo: string, id: number): Promise<Blob> {
-    const response = await this.api.get(`/formularios/${tipo}/${id}/pdf`, { responseType: 'blob' });
+    const response = await this.api.get<Blob>(
+      `/formularios/${tipo}/${id}/pdf`,
+      this.createBlobRequestConfig()
+    );
     return response.data as Blob;
   }
 
@@ -835,7 +845,10 @@ class ApiService {
   }
 
   async downloadTermoConsentimentoPdf(termoId: number): Promise<Blob> {
-    const response = await this.api.get(`/formularios/termos-consentimento/${termoId}/pdf`, { responseType: 'blob' });
+    const response = await this.api.get<Blob>(
+      `/formularios/termos-consentimento/${termoId}/pdf`,
+      this.createBlobRequestConfig()
+    );
     return response.data as Blob;
   }
 

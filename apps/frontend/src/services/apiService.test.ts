@@ -31,6 +31,36 @@ describe('apiService', () => {
     expect(res.data).toEqual({ ok: true });
   });
 
+  it('retorna Blob ao exportar formulário em PDF sem envelope', async () => {
+    const axiosInstance = getAxiosInstance();
+    const originalAdapter = axiosInstance.defaults.adapter;
+    const pdfBlob = new Blob(['conteúdo'], { type: 'application/pdf' });
+
+    const adapter = vi.fn(async (config: any) => {
+      expect(config.skipEnvelope).toBe(true);
+      expect(config.responseType).toBe('blob');
+
+      return {
+        data: pdfBlob,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config
+      };
+    });
+
+    axiosInstance.defaults.adapter = adapter;
+
+    try {
+      const result = await apiService.exportFormularioPdf('ficha', 123);
+      expect(result).toBeInstanceOf(Blob);
+      expect(result).toBe(pdfBlob);
+      expect(adapter).toHaveBeenCalledTimes(1);
+    } finally {
+      axiosInstance.defaults.adapter = originalAdapter;
+    }
+  });
+
   it('não envia Authorization após limpar tokens', async () => {
     const handlers = getAxiosInstance().interceptors.request.handlers;
     const requestHandler = handlers.find((handler: any) => handler && typeof handler.fulfilled === 'function');
