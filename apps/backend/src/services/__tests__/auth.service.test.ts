@@ -193,4 +193,27 @@ describe('AuthService refresh tokens', () => {
     const revokedEntry = pool.refreshTokens.get(tokenHash);
     expect(revokedEntry?.revoked).toBe(true);
   });
+
+  it('rejects when redis cache is stale but database token is expired', async () => {
+    const payload = { id: 1, email: 'user@example.com', role: 'admin' };
+    const refreshToken = await service.generateRefreshToken(payload);
+    const tokenHash = createHash('sha256').update(refreshToken).digest('hex');
+    const redisKey = `auth:refresh:${tokenHash}`;
+
+    const dbEntry = pool.refreshTokens.get(tokenHash);
+    if (!dbEntry) {
+      throw new Error('Refresh token não foi persistido no mock');
+    }
+
+    dbEntry.expiresAt = new Date(Date.now() - 1000);
+    pool.refreshTokens.set(tokenHash, dbEntry);
+
+    await expect(service.refreshWithToken(refreshToken)).rejects.toThrow('Refresh token expirado');
+
+    const revokedEntry = pool.refreshTokens.get(tokenHash);
+    expect(revokedEntry?.revoked).toBe(true);
+
+    const cached = await redis.get(redisKey);
+    expect(cached).toBeNull();
+  });
 });
