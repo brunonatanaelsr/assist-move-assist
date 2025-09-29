@@ -44,6 +44,21 @@ class InMemoryRedis {
     return 'OK';
   }
 
+  async ttl(key: string): Promise<number> {
+    if (this.isExpired(key)) {
+      return -2;
+    }
+    const entry = this.kv.get(key);
+    if (!entry) {
+      return -2;
+    }
+    if (!entry.expiresAt) {
+      return -1;
+    }
+    const remaining = Math.ceil((entry.expiresAt - Date.now()) / 1000);
+    return remaining <= 0 ? -2 : remaining;
+  }
+
   async del(...keys: string[] | [string[]]): Promise<number> {
     const list = Array.isArray(keys[0]) ? (keys[0] as string[]) : (keys as string[]);
     let count = 0;
@@ -62,7 +77,32 @@ class InMemoryRedis {
       ...Array.from(this.kv.keys()),
       ...Array.from(this.lists.keys()),
       ...Array.from(this.hashes.keys())
-    ].filter((k, i, arr) => arr.indexOf(k) === i).filter((k) => rx.test(k));
+    ]
+      .filter((k, i, arr) => arr.indexOf(k) === i)
+      .filter((k) => !this.isExpired(k))
+      .filter((k) => rx.test(k));
+  }
+
+  async scan(cursor: number, pattern = '*', count = 10): Promise<[number, string[]]> {
+    const esc = pattern.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
+    const rx = new RegExp(`^${esc}$`);
+    const uniqueKeys = [
+      ...Array.from(this.kv.keys()),
+      ...Array.from(this.lists.keys()),
+      ...Array.from(this.hashes.keys())
+    ].filter((k, idx, arr) => arr.indexOf(k) === idx);
+
+    const filtered = uniqueKeys.filter((key) => {
+      if (this.isExpired(key)) {
+        return false;
+      }
+      return rx.test(key);
+    });
+
+    const start = Math.min(cursor, filtered.length);
+    const end = Math.min(start + count, filtered.length);
+    const nextCursor = end >= filtered.length ? 0 : end;
+    return [nextCursor, filtered.slice(start, end)];
   }
 
   async incr(key: string): Promise<number> {
