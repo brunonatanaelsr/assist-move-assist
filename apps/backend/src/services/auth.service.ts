@@ -163,18 +163,15 @@ export class AuthService {
   }
 
   private async fetchRefreshToken(tokenHash: string): Promise<RefreshTokenRecord | null> {
+    let cached: { userId: number; expiresAt: string } | null = null;
+
     if (env.REDIS_HOST) {
       try {
-        const cached = await this.redis.get(
+        const cachedValue = await this.redis.get(
           this.getRefreshRedisKey(tokenHash)
         );
-        if (cached) {
-          const parsed = JSON.parse(cached) as { userId: number; expiresAt: string };
-          return {
-            userId: parsed.userId,
-            expiresAt: new Date(parsed.expiresAt),
-            revoked: false
-          };
+        if (cachedValue) {
+          cached = JSON.parse(cachedValue) as { userId: number; expiresAt: string };
         }
       } catch (error) {
         loggerService.warn('Falha ao buscar refresh token no Redis', {
@@ -184,10 +181,19 @@ export class AuthService {
     }
 
     await this.ensureRefreshTokenTable();
+
     if (!this.refreshTableEnsured) {
+      if (cached) {
+        return {
+          userId: cached.userId,
+          expiresAt: new Date(cached.expiresAt),
+          revoked: false
+        };
+      }
       return null;
     }
 
+    let databaseRecord: RefreshTokenRecord | null = null;
     try {
       const result = await this.pool.query(
         'SELECT user_id, expires_at, revoked FROM refresh_tokens WHERE token_hash = $1',
@@ -195,21 +201,79 @@ export class AuthService {
       );
 
       if (result.rowCount === 0) {
-        return null;
+        databaseRecord = null;
+      } else {
+        const row = result.rows[0];
+        databaseRecord = {
+          userId: Number(row.user_id),
+          expiresAt: new Date(row.expires_at),
+          revoked: Boolean(row.revoked)
+        };
       }
-
-      const row = result.rows[0];
-      return {
-        userId: Number(row.user_id),
-        expiresAt: new Date(row.expires_at),
-        revoked: Boolean(row.revoked)
-      };
     } catch (error) {
       loggerService.warn('Falha ao buscar refresh token no banco de dados', {
         error: error instanceof Error ? error.message : String(error)
       });
+      if (cached) {
+        return {
+          userId: cached.userId,
+          expiresAt: new Date(cached.expiresAt),
+          revoked: false
+        };
+      }
       return null;
     }
+
+    if (!databaseRecord) {
+      if (cached) {
+        await this.removeRefreshTokenFromRedis(tokenHash);
+      }
+      return null;
+    }
+
+    if (databaseRecord.revoked) {
+      if (cached) {
+        await this.removeRefreshTokenFromRedis(tokenHash);
+      }
+      return databaseRecord;
+    }
+
+    const cachedExpiresAt = cached ? new Date(cached.expiresAt) : null;
+    const cacheMatchesDatabase =
+      cached &&
+      cached.userId === databaseRecord.userId &&
+      cachedExpiresAt?.getTime() === databaseRecord.expiresAt.getTime();
+
+    if (!cacheMatchesDatabase) {
+      if (databaseRecord.expiresAt.getTime() <= Date.now()) {
+        await this.removeRefreshTokenFromRedis(tokenHash);
+      } else if (env.REDIS_HOST) {
+        const ttlSeconds = Math.max(
+          1,
+          Math.min(
+            this.refreshTtlSeconds,
+            Math.floor((databaseRecord.expiresAt.getTime() - Date.now()) / 1000)
+          )
+        );
+        try {
+          await this.redis.set(
+            this.getRefreshRedisKey(tokenHash),
+            JSON.stringify({
+              userId: databaseRecord.userId,
+              expiresAt: databaseRecord.expiresAt.toISOString()
+            }),
+            'EX',
+            ttlSeconds
+          );
+        } catch (error) {
+          loggerService.warn('Falha ao atualizar refresh token no Redis', {
+            error: error instanceof Error ? error.message : String(error)
+          });
+        }
+      }
+    }
+
+    return databaseRecord;
   }
 
   private async removeRefreshTokenFromRedis(tokenHash: string): Promise<void> {
