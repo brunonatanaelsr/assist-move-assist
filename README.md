@@ -1,6 +1,6 @@
 # Assist Move Assist
 
-Sistema completo de gestão para institutos sociais com acompanhamento de beneficiárias, administração de oficinas/projetos, painel analítico e comunicação interna em tempo real. A stack é composta por **React 18 + Vite** no frontend e **Node.js/Express + PostgreSQL** no backend, com Redis para cache, filas e controle de permissões.
+Sistema completo de gestão para institutos sociais com acompanhamento de beneficiárias, administração de oficinas/projetos, painel analítico e comunicação interna em tempo real. A stack é composta por **React 18 + Vite** no frontend e **Node.js/Express + PostgreSQL** no backend, com Redis para cache, filas e controle de permissões. O ORM Prisma foi removido: o acesso ao banco agora é feito diretamente via SQL com `node-postgres` e scripts versionados neste repositório.
 
 ## Sumário
 
@@ -182,6 +182,13 @@ npm --prefix apps/backend run migrate:node # Migrações + seed automáticos
 npm --prefix apps/backend run test       # Testes unitários backend
 npm run test:e2e            # Playwright (necessita API ativa)
 ```
+
+### Migrações SQL (sem ORM)
+
+- As migrações oficiais residem em `apps/backend/src/database/migrations` e são executadas sem Prisma.
+- Para aplicar todas as migrações pendentes em ambientes Linux/macOS utilize `npm --prefix apps/backend run migrate` (shell Bash) ou `npm --prefix apps/backend run migrate:node` para a versão 100% Node.js que também aplica o seed inicial.
+- Em pipelines CI/CD e ambientes de produção, sempre execute uma das opções acima antes de iniciar o backend para garantir que o schema esteja sincronizado.
+- Caso precise gerar uma nova migração, crie um arquivo `.sql` incremental na pasta `apps/backend/src/database/migrations` seguindo o padrão existente e inclua a instrução correspondente no script de bootstrap se necessário.
 
 ## Testes
 
