@@ -7,6 +7,19 @@ interface ProtectedRouteProps {
   adminOnly?: boolean;
 }
 
+const Fallback: React.FC = () => (
+  <div
+    className="flex items-center justify-center min-h-screen bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5"
+    data-testid="protected-route-fallback"
+  >
+    <div className="text-center">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+      <h3 className="text-lg font-semibold text-primary mb-2">Instituto Move Marias</h3>
+      <p className="text-muted-foreground">Carregando sistema...</p>
+    </div>
+  </div>
+);
+
 export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   children,
   adminOnly = false
@@ -30,17 +43,9 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     }
   }, [loading, user, adminOnly, navigate, location, isAdmin]);
 
-  // Show loading state while checking authentication
+  // Show fallback while checking authentication state
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <h3 className="text-lg font-semibold text-primary mb-2">Instituto Move Marias</h3>
-          <p className="text-muted-foreground">Carregando sistema...</p>
-        </div>
-      </div>
-    );
+    return <Fallback />;
   }
 
   // Render a minimal public landing with login CTA when not authenticated
@@ -60,6 +65,10 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
         </button>
       </div>
     );
+  }
+
+  if (adminOnly && !isAdmin) {
+    return <Fallback />;
   }
 
   return <>{children}</>;

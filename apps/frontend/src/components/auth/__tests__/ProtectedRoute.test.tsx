@@ -51,4 +51,50 @@ describe('ProtectedRoute', () => {
     expect(screen.getByText('Área Administrativa')).toBeInTheDocument();
     expect(mockNavigate).not.toHaveBeenCalled();
   });
+
+  it('renderiza fallback enquanto o estado de autenticação está carregando', () => {
+    mockUseAuth.mockReturnValue({
+      user: null,
+      profile: null,
+      loading: true,
+      signIn: vi.fn(),
+      signOut: vi.fn(),
+      isAuthenticated: false,
+      isAdmin: false
+    });
+
+    render(
+      <MemoryRouter>
+        <ProtectedRoute>
+          <div>Conteúdo protegido</div>
+        </ProtectedRoute>
+      </MemoryRouter>
+    );
+
+    expect(screen.getByTestId('protected-route-fallback')).toBeInTheDocument();
+    expect(screen.queryByText('Conteúdo protegido')).not.toBeInTheDocument();
+  });
+
+  it('não renderiza filhos quando usuário autenticado não é admin', () => {
+    mockUseAuth.mockReturnValue({
+      user: { id: 2, nome: 'Usuário', papel: 'user' },
+      profile: null,
+      loading: false,
+      signIn: vi.fn(),
+      signOut: vi.fn(),
+      isAuthenticated: true,
+      isAdmin: false
+    });
+
+    render(
+      <MemoryRouter>
+        <ProtectedRoute adminOnly>
+          <div>Área Administrativa</div>
+        </ProtectedRoute>
+      </MemoryRouter>
+    );
+
+    expect(screen.getByTestId('protected-route-fallback')).toBeInTheDocument();
+    expect(screen.queryByText('Área Administrativa')).not.toBeInTheDocument();
+  });
 });
