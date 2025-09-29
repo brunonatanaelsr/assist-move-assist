@@ -10,7 +10,7 @@ import {
   projetoSchema,
   createProjetoSchema,
   updateProjetoSchema
-} from '../validators/projeto.validator';
+} from '../validation/schemas/projeto.schema';
 
 export class ProjetoService {
   private pool: Pool;

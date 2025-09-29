@@ -3,17 +3,19 @@ import { isCPF } from 'brazilian-values';
 
 const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
 
-const optionalDate = z.string()
+const optionalDate = z
+  .string()
   .regex(dateRegex, 'Data deve estar no formato YYYY-MM-DD')
-  .transform(value => new Date(value))
+  .transform((value) => new Date(value))
   .optional()
   .nullable()
-  .refine(value => !value || value < new Date(), 'Data informada não pode ser futura');
+  .refine((value) => !value || value < new Date(), 'Data informada não pode ser futura');
 
-const requiredDate = z.string()
+const requiredDate = z
+  .string()
   .regex(dateRegex, 'Data deve estar no formato YYYY-MM-DD')
-  .transform(value => new Date(value))
-  .refine(value => value < new Date(), 'Data informada não pode ser futura');
+  .transform((value) => new Date(value))
+  .refine((value) => value < new Date(), 'Data informada não pode ser futura');
 
 const familiarSchema = z.object({
   nome: z.string().min(2, 'Nome do familiar é obrigatório').max(150),
@@ -25,55 +27,47 @@ const familiarSchema = z.object({
 });
 
 export const beneficiariaSchema = z.object({
-  nome_completo: z.string()
+  nome_completo: z
+    .string()
     .min(3, 'Nome deve ter no mínimo 3 caracteres')
     .max(150, 'Nome deve ter no máximo 150 caracteres')
-    .transform(nome => nome.trim()),
-
-  cpf: z.string()
+    .transform((nome) => nome.trim()),
+  cpf: z
+    .string()
     .length(11, 'CPF deve ter 11 dígitos')
-    .refine(cpf => isCPF(cpf), 'CPF inválido'),
-
+    .refine((cpf) => isCPF(cpf), 'CPF inválido'),
   rg: z.string().max(20).optional().nullable(),
   rg_orgao_emissor: z.string().max(50).optional().nullable(),
   rg_data_emissao: optionalDate,
   nis: z.string().max(20).optional().nullable(),
-
-  data_nascimento: z.string()
+  data_nascimento: z
+    .string()
     .regex(dateRegex, 'Data deve estar no formato YYYY-MM-DD')
-    .transform(data => new Date(data))
-    .refine(data => data < new Date(), 'Data de nascimento não pode ser futura'),
-
-  telefone: z.string()
+    .transform((data) => new Date(data))
+    .refine((data) => data < new Date(), 'Data de nascimento não pode ser futura'),
+  telefone: z
+    .string()
     .regex(/^\d{10,11}$/, 'Telefone deve ter 10 ou 11 dígitos'),
-
-  telefone_secundario: z.string()
+  telefone_secundario: z
+    .string()
     .regex(/^\d{10,11}$/, 'Telefone secundário deve ter 10 ou 11 dígitos')
     .optional()
     .nullable(),
-
-  email: z.string()
-    .email('Email inválido')
-    .optional()
-    .nullable(),
-
+  email: z.string().email('Email inválido').optional().nullable(),
   endereco: z.string().max(255).optional().nullable(),
   bairro: z.string().max(120).optional().nullable(),
   cidade: z.string().max(120).optional().nullable(),
   estado: z.string().length(2, 'Estado deve ter 2 caracteres').optional().nullable(),
   cep: z.string().regex(/^\d{5}-?\d{3}$/, 'CEP inválido').optional().nullable(),
   referencia_endereco: z.string().max(255).optional().nullable(),
-
   escolaridade: z.string().max(100).optional().nullable(),
   estado_civil: z.string().max(50).optional().nullable(),
   num_dependentes: z.number().min(0).max(25).optional().nullable(),
   renda_familiar: z.number().min(0).optional().nullable(),
   situacao_moradia: z.string().max(120).optional().nullable(),
   observacoes_socioeconomicas: z.string().optional().nullable(),
-
   status: z.enum(['ativa', 'inativa', 'pendente', 'desistente']).optional(),
   observacoes: z.string().optional().nullable(),
-
   familiares: z.array(familiarSchema).optional(),
   vulnerabilidades: z.array(z.string()).optional()
 });
@@ -111,7 +105,7 @@ export const dependenteSchema = z.object({
   cpf: z
     .string()
     .length(11, 'CPF deve ter 11 dígitos')
-    .refine(cpf => isCPF(cpf), 'CPF inválido')
+    .refine((cpf) => isCPF(cpf), 'CPF inválido')
     .optional()
     .nullable()
 });
@@ -129,4 +123,39 @@ export const atendimentoSchema = z.object({
     .min(5, 'Descrição deve ter ao menos 5 caracteres'),
   encaminhamentos: z.string().optional().nullable(),
   profissional_id: z.number().int().positive().optional().nullable()
+});
+
+const emptyObject = z.object({}).optional();
+const anyOptional = z.any().optional();
+
+export const createBeneficiariaRequestSchema = z.object({
+  body: beneficiariaSchema,
+  query: anyOptional,
+  params: emptyObject
+});
+
+export const updateBeneficiariaRequestSchema = z.object({
+  params: z.object({ id: z.coerce.number() }),
+  body: beneficiariaSchema.partial(),
+  query: anyOptional
+});
+
+const paramsWithId = z.object({ id: z.coerce.number() });
+
+export const updateInfoSocioeconomicaRequestSchema = z.object({
+  params: paramsWithId,
+  body: infoSocioeconomicaSchema,
+  query: anyOptional
+});
+
+export const createDependenteRequestSchema = z.object({
+  params: paramsWithId,
+  body: dependenteSchema,
+  query: anyOptional
+});
+
+export const createAtendimentoRequestSchema = z.object({
+  params: paramsWithId,
+  body: atendimentoSchema,
+  query: anyOptional
 });

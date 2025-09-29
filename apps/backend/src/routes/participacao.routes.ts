@@ -7,11 +7,11 @@ import {
   registrarPresenca,
   emitirCertificado
 } from '../controllers/participacao.controller';
-import { validateRequest } from '../middleware/validateRequest';
+import { validateRequest } from '../middleware/validationMiddleware';
 import {
-  createParticipacaoSchema,
-  updateParticipacaoSchema
-} from '../validators/participacao.validator';
+  createParticipacaoRequestSchema,
+  updateParticipacaoRequestSchema
+} from '../validation/schemas/participacao.schema';
 import { authenticateToken } from '../middleware/auth';
 import { catchAsync } from '../middleware/errorHandler';
 
@@ -24,10 +24,10 @@ router.use(authenticateToken);
 router.get('/', catchAsync(listarParticipacoes));
 
 // Criar nova participação
-router.post('/', validateRequest(createParticipacaoSchema), catchAsync(criarParticipacao));
+router.post('/', validateRequest(createParticipacaoRequestSchema), catchAsync(criarParticipacao));
 
 // Atualizar participação
-router.patch('/:id', validateRequest(updateParticipacaoSchema), catchAsync(atualizarParticipacao));
+router.patch('/:id', validateRequest(updateParticipacaoRequestSchema), catchAsync(atualizarParticipacao));
 
 // Excluir participação
 router.delete('/:id', catchAsync(excluirParticipacao));

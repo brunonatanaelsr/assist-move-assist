@@ -3,28 +3,21 @@ import { authenticateToken, AuthenticatedRequest } from '../middleware/auth';
 import { pool } from '../config/database';
 import { successResponse, errorResponse } from '../utils/responseFormatter';
 import { validateRequest } from '../middleware/validationMiddleware';
-import { z } from 'zod';
+import {
+  createNotificationRequestSchema,
+  deleteNotificationRequestSchema,
+  notificationPreferencesRequestSchema,
+  pushSubscriptionRequestSchema,
+  updateNotificationRequestSchema
+} from '../validation/schemas/notifications.schema';
 import { loggerService } from '../services/logger';
 
 const router = Router();
 
-const pushSubscriptionSchema = z.object({
-  body: z.object({
-    endpoint: z.string().url('Endpoint inválido'),
-    expirationTime: z.union([z.number().nonnegative(), z.null()]).optional(),
-    keys: z.object({
-      p256dh: z.string().min(1, 'Chave p256dh é obrigatória'),
-      auth: z.string().min(1, 'Chave auth é obrigatória'),
-    }),
-  }).strict(),
-  params: z.any().optional(),
-  query: z.any().optional(),
-});
-
 router.post(
   '/push-subscription',
   authenticateToken,
-  validateRequest(pushSubscriptionSchema),
+  validateRequest(pushSubscriptionRequestSchema),
   async (req: AuthenticatedRequest, res): Promise<void> => {
     try {
       const userId = Number(req.user!.id);
@@ -110,12 +103,10 @@ router.get('/unread/count', authenticateToken, async (req: AuthenticatedRequest,
 });
 
 // PATCH /notifications/:id
-router.patch('/:id', authenticateToken,
-  validateRequest(z.object({
-    params: z.object({ id: z.coerce.number() }),
-    body: z.object({ read: z.boolean().optional() }),
-    query: z.any().optional(),
-  })),
+router.patch(
+  '/:id',
+  authenticateToken,
+  validateRequest(updateNotificationRequestSchema),
   async (req: AuthenticatedRequest, res): Promise<void> => {
   try {
     const userId = Number(req.user!.id);
@@ -135,12 +126,10 @@ router.patch('/:id', authenticateToken,
 });
 
 // DELETE /notifications/:id
-router.delete('/:id', authenticateToken,
-  validateRequest(z.object({
-    params: z.object({ id: z.coerce.number() }),
-    body: z.any().optional(),
-    query: z.any().optional(),
-  })),
+router.delete(
+  '/:id',
+  authenticateToken,
+  validateRequest(deleteNotificationRequestSchema),
   async (req: AuthenticatedRequest, res): Promise<void> => {
   try {
     const userId = Number(req.user!.id);
@@ -183,12 +172,10 @@ router.get('/preferences', authenticateToken, async (req: AuthenticatedRequest, 
 });
 
 // PUT /notifications/preferences
-router.put('/preferences', authenticateToken,
-  validateRequest(z.object({
-    body: z.object({}).passthrough(),
-    query: z.any().optional(),
-    params: z.any().optional(),
-  })),
+router.put(
+  '/preferences',
+  authenticateToken,
+  validateRequest(notificationPreferencesRequestSchema),
   async (req: AuthenticatedRequest, res): Promise<void> => {
   try {
     const userId = Number(req.user!.id);
@@ -231,19 +218,10 @@ router.put('/preferences', authenticateToken,
 });
 
 // POST /notifications - criar notificação manual
-router.post('/', authenticateToken,
-  validateRequest(z.object({
-    body: z.object({
-      user_id: z.coerce.number(),
-      title: z.string().min(1),
-      message: z.string().min(1),
-      type: z.string().optional(),
-      action_url: z.string().url().optional().nullable(),
-      data: z.any().optional(),
-    }),
-    query: z.any().optional(),
-    params: z.any().optional(),
-  })),
+router.post(
+  '/',
+  authenticateToken,
+  validateRequest(createNotificationRequestSchema),
   async (req: AuthenticatedRequest, res): Promise<void> => {
   try {
     const { user_id, title, message, type = 'info', action_url, data } = (req.body ?? {}) as Record<string, any>;

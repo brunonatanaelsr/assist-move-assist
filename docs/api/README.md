@@ -4,6 +4,8 @@
 
 A API pública é servida sob o caminho base `/api`. Em produção utilize `https://{domínio}/api` e concatene os endpoints listados abaixo.
 
+> **Referência de validação**: todos os esquemas oficiais utilizados pelas rotas estão centralizados em `apps/backend/src/validation/schemas`. Consulte esses arquivos ao integrar novos campos ou revisar contratos.
+
 ## Autenticação
 
 - Utilize `Authorization: Bearer <token>` para todos os endpoints marcados com **Bearer JWT**.

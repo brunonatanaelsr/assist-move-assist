@@ -5,7 +5,7 @@ import { logger } from '../services/logger';
 import { AppError, BaseError } from '../utils';
 import { withCache } from '../utils/redisCache';
 import { cacheService } from './cache.service';
-import { validateBeneficiaria } from '../validators/beneficiaria.validator';
+import { validateBeneficiaria } from '../validation/schemas/beneficiaria.schema';
 import type { BeneficiariaDetalhada } from '../models/beneficiaria';
 import type {
   Beneficiaria,

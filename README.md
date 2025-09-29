@@ -35,6 +35,8 @@ assist-move-assist/
 │   │   └── public/       # Assets estáticos
 │   └── backend/          # API Express (TypeScript)
 │       ├── src/          # Código-fonte do backend
+│       │   ├── validation/
+│       │   │   └── schemas/ # Schemas oficiais (Zod) compartilhados por rotas e serviços
 │       │   └── database/ # SQL versionado (migrações e fixtures de teste)
 │       │       ├── migrations/    # Migrações aplicadas pelos scripts oficiais
 │       │       └── test/          # Setup adicional usado pelos testes de integração

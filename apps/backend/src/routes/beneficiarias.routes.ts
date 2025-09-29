@@ -10,12 +10,13 @@ import { AppError } from '../utils';
 import { loggerService } from '../services/logger';
 import { validateRequest } from '../middleware/validationMiddleware';
 import {
-  atendimentoSchema,
-  beneficiariaSchema,
-  dependenteSchema,
-  infoSocioeconomicaSchema,
+  createAtendimentoRequestSchema,
+  createBeneficiariaRequestSchema,
+  createDependenteRequestSchema,
+  updateBeneficiariaRequestSchema,
+  updateInfoSocioeconomicaRequestSchema,
   validateBeneficiaria
-} from '../validators/beneficiaria.validator';
+} from '../validation/schemas/beneficiaria.schema';
 import { pool } from '../config/database';
 import { ZodError } from 'zod';
 import { redis } from '../lib/redis';
@@ -252,13 +253,7 @@ router.post(
   authenticateToken,
   requireProfissional,
   authorize('beneficiarias.criar'),
-  validateRequest(
-    require('zod').z.object({
-      body: beneficiariaSchema,
-      query: require('zod').z.any().optional(),
-      params: require('zod').z.any().optional(),
-    })
-  ),
+  validateRequest(createBeneficiariaRequestSchema),
   async (req: ExtendedRequest, res: Response): Promise<void> => {
     try {
       const parsed = await validateBeneficiaria(req.body);
@@ -301,13 +296,7 @@ router.put(
   authenticateToken,
   requireProfissional,
   authorize('beneficiarias.editar'),
-  validateRequest(
-    require('zod').z.object({
-      body: beneficiariaSchema.partial(),
-      query: require('zod').z.any().optional(),
-      params: require('zod').z.any().optional(),
-    })
-  ),
+  validateRequest(updateBeneficiariaRequestSchema),
   async (req: ExtendedRequest, res: Response): Promise<void> => {
     try {
       const { id } = req.params;
@@ -383,13 +372,7 @@ router.put(
   authenticateToken,
   requireProfissional,
   authorize('beneficiarias.editar'),
-  validateRequest(
-    require('zod').z.object({
-      body: infoSocioeconomicaSchema,
-      query: require('zod').z.any().optional(),
-      params: require('zod').z.object({ id: require('zod').z.string().regex(/^\d+$/) })
-    })
-  ),
+  validateRequest(updateInfoSocioeconomicaRequestSchema),
   async (req: ExtendedRequest, res: Response): Promise<void> => {
     try {
       const { id } = req.params;
@@ -431,13 +414,7 @@ router.post(
   authenticateToken,
   requireProfissional,
   authorize('beneficiarias.editar'),
-  validateRequest(
-    require('zod').z.object({
-      body: dependenteSchema,
-      query: require('zod').z.any().optional(),
-      params: require('zod').z.object({ id: require('zod').z.string().regex(/^\d+$/) })
-    })
-  ),
+  validateRequest(createDependenteRequestSchema),
   async (req: ExtendedRequest, res: Response): Promise<void> => {
     try {
       const { id } = req.params;
@@ -505,13 +482,7 @@ router.post(
   authenticateToken,
   requireProfissional,
   authorize('beneficiarias.editar'),
-  validateRequest(
-    require('zod').z.object({
-      body: atendimentoSchema,
-      query: require('zod').z.any().optional(),
-      params: require('zod').z.object({ id: require('zod').z.string().regex(/^\d+$/) })
-    })
-  ),
+  validateRequest(createAtendimentoRequestSchema),
   async (req: ExtendedRequest, res: Response): Promise<void> => {
     try {
       const { id } = req.params;

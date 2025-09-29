@@ -2,9 +2,10 @@ import { z } from 'zod';
 
 const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
 
-const optionalDate = z.string()
+const optionalDate = z
+  .string()
   .regex(dateRegex, 'Data deve estar no formato YYYY-MM-DD')
-  .transform(value => new Date(value))
+  .transform((value) => new Date(value))
   .optional()
   .nullable();
 
@@ -38,3 +39,17 @@ export const validatePlanoAcao = async (data: unknown, partial = false) => {
   const schema = partial ? planoAcaoSchema.partial() : planoAcaoSchema;
   return schema.parseAsync(data);
 };
+
+const emptyObject = z.object({}).optional();
+
+export const createPlanoAcaoRequestSchema = z.object({
+  body: planoAcaoSchema,
+  params: emptyObject,
+  query: emptyObject
+});
+
+export const updatePlanoAcaoRequestSchema = z.object({
+  body: planoAcaoSchema.partial(),
+  params: emptyObject,
+  query: emptyObject
+});

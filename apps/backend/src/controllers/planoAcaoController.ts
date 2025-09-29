@@ -3,7 +3,7 @@ import pool from '../config/database';
 import { logger } from '../services/logger';
 import { PlanoAcao, PlanoAcaoResponse } from '../models/PlanoAcao';
 import { formatDateToISO } from '../utils/dateFormatter';
-import { validatePlanoAcao } from '../validators/planoAcao.validator';
+import { validatePlanoAcao } from '../validation/schemas/planoAcao.schema';
 import { ZodError } from 'zod';
 
 const hydratePlano = (row: any): PlanoAcao => {

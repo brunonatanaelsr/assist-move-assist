@@ -3,19 +3,15 @@ import { pool } from '../config/database';
 import { authenticateToken, authorize, AuthenticatedRequest } from '../middleware/auth';
 import { successResponse, errorResponse } from '../utils/responseFormatter';
 import { validateRequest } from '../middleware/validationMiddleware';
-import { z } from 'zod';
+import {
+  createOrganizacaoRequestSchema,
+  deleteOrganizacaoRequestSchema,
+  getOrganizacaoRequestSchema,
+  organizacaoPayloadSchema,
+  updateOrganizacaoRequestSchema
+} from '../validation/schemas/organizacoes.schema';
 
 const router = Router();
-
-// Schema básico de organização
-const OrganizacaoSchema = z.object({
-  nome: z.string().min(2),
-  cnpj: z.string().min(11).max(18).optional().nullable(),
-  email: z.string().email().optional().nullable(),
-  telefone: z.string().min(8).max(20).optional().nullable(),
-  endereco: z.string().max(255).optional().nullable(),
-  ativo: z.boolean().optional(),
-});
 
 // GET /organizacoes
 router.get('/', authenticateToken, authorize('organizacoes.ler'), async (_req: AuthenticatedRequest, res) => {
@@ -33,8 +29,11 @@ router.get('/', authenticateToken, authorize('organizacoes.ler'), async (_req: A
 });
 
 // GET /organizacoes/:id
-router.get('/:id', authenticateToken, authorize('organizacoes.ler'),
-  validateRequest(z.object({ params: z.object({ id: z.coerce.number() }) })),
+router.get(
+  '/:id',
+  authenticateToken,
+  authorize('organizacoes.ler'),
+  validateRequest(getOrganizacaoRequestSchema),
   async (req: AuthenticatedRequest, res) => {
     try {
       const { id } = req.params as any;
@@ -53,11 +52,14 @@ router.get('/:id', authenticateToken, authorize('organizacoes.ler'),
 );
 
 // POST /organizacoes
-router.post('/', authenticateToken, authorize('organizacoes.criar'),
-  validateRequest(z.object({ body: OrganizacaoSchema })),
+router.post(
+  '/',
+  authenticateToken,
+  authorize('organizacoes.criar'),
+  validateRequest(createOrganizacaoRequestSchema),
   async (req: AuthenticatedRequest, res) => {
     try {
-      const { nome, cnpj, email, telefone, endereco, ativo } = req.body as any;
+      const { nome, cnpj, email, telefone, endereco, ativo } = organizacaoPayloadSchema.parse(req.body);
       const result = await pool.query(
         `INSERT INTO organizacoes (nome, cnpj, email, telefone, endereco, ativo)
          VALUES ($1,$2,$3,$4,$5,COALESCE($6,true))
@@ -72,12 +74,15 @@ router.post('/', authenticateToken, authorize('organizacoes.criar'),
 );
 
 // PUT /organizacoes/:id
-router.put('/:id', authenticateToken, authorize('organizacoes.editar'),
-  validateRequest(z.object({ params: z.object({ id: z.coerce.number() }), body: OrganizacaoSchema.partial() })),
+router.put(
+  '/:id',
+  authenticateToken,
+  authorize('organizacoes.editar'),
+  validateRequest(updateOrganizacaoRequestSchema),
   async (req: AuthenticatedRequest, res) => {
     try {
       const { id } = req.params as any;
-      const fields = (req.body ?? {}) as Record<string, any>;
+      const fields = organizacaoPayloadSchema.partial().parse(req.body ?? {});
       const result = await pool.query(
         `UPDATE organizacoes SET
            nome = COALESCE($2, nome),
@@ -100,8 +105,11 @@ router.put('/:id', authenticateToken, authorize('organizacoes.editar'),
 );
 
 // DELETE /organizacoes/:id (soft delete)
-router.delete('/:id', authenticateToken, authorize('organizacoes.excluir'),
-  validateRequest(z.object({ params: z.object({ id: z.coerce.number() }) })),
+router.delete(
+  '/:id',
+  authenticateToken,
+  authorize('organizacoes.excluir'),
+  validateRequest(deleteOrganizacaoRequestSchema),
   async (req: AuthenticatedRequest, res) => {
     try {
       const { id } = req.params as any;

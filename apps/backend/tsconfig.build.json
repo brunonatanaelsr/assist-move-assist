@@ -40,7 +40,7 @@
     "src/config/database.ts",
     "src/config/redis.ts",
     "src/utils/**/*.ts",
-    "src/validators/**/*.ts",
+    "src/validation/**/*.ts",
     "src/types/**/*.d.ts",
     "src/middleware/**/*.ts"
   ]

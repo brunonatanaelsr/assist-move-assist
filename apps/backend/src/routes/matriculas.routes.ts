@@ -7,16 +7,14 @@ import {
   verificarElegibilidade
 } from '../controllers/matriculas-fixed.controller';
 import { authenticateToken } from '../middleware/auth';
+import { validateRequest } from '../middleware/validationMiddleware';
 import {
-  validateRequest,
-  validateQuery,
-  validateParams,
-  createMatriculaSchema,
-  updateMatriculaSchema,
-  verificarElegibilidadeSchema,
-  listarMatriculasQuerySchema,
-  idParamSchema
-} from '../validators/matriculas.validator';
+  createMatriculaRequestSchema,
+  listarMatriculasRequestSchema,
+  matriculaIdRequestSchema,
+  updateMatriculaRequestSchema,
+  verificarElegibilidadeRequestSchema
+} from '../validation/schemas/matriculas.schema';
 
 const router = express.Router();
 
@@ -24,33 +22,37 @@ const router = express.Router();
 router.use(authenticateToken);
 
 // Verificar elegibilidade para projeto (DEVE vir antes de /:id)
-router.post('/verificar-elegibilidade', 
-  validateRequest(verificarElegibilidadeSchema), 
+router.post(
+  '/verificar-elegibilidade',
+  validateRequest(verificarElegibilidadeRequestSchema),
   verificarElegibilidade
 );
 
 // Listar matrículas
-router.get('/', 
-  validateQuery(listarMatriculasQuerySchema), 
+router.get(
+  '/',
+  validateRequest(listarMatriculasRequestSchema),
   listarMatriculas
 );
 
 // Criar nova matrícula
-router.post('/', 
-  validateRequest(createMatriculaSchema), 
+router.post(
+  '/',
+  validateRequest(createMatriculaRequestSchema),
   criarMatricula
 );
 
 // Obter matrícula específica
-router.get('/:id', 
-  validateParams(idParamSchema), 
+router.get(
+  '/:id',
+  validateRequest(matriculaIdRequestSchema),
   obterMatricula
 );
 
 // Atualizar matrícula
-router.patch('/:id', 
-  validateParams(idParamSchema),
-  validateRequest(updateMatriculaSchema), 
+router.patch(
+  '/:id',
+  validateRequest(updateMatriculaRequestSchema),
   atualizarMatricula
 );
 

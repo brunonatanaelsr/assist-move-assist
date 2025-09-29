@@ -1,7 +1,7 @@
 import express from 'express';
 import { authenticateToken, requireGestor, authorize } from '../middleware/auth';
 import { successResponse, errorResponse } from '../utils/responseFormatter';
-import { createProjetoSchema, projetoFilterSchema } from '../validators/projeto.validator';
+import { createProjetoSchema, projetoFilterSchema } from '../validation/schemas/projeto.schema';
 import { ProjetoService } from '../services/projeto.service';
 import { pool } from '../config/database';
 

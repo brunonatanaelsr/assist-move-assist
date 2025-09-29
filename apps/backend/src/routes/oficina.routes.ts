@@ -2,7 +2,7 @@ import express from 'express';
 import { OficinaService } from '../services/oficina.service';
 import { authenticateToken, requireGestor, authorize } from '../middleware/auth';
 import { successResponse, errorResponse } from '../utils/responseFormatter';
-import { oficinaFilterSchema, createOficinaSchema, updateOficinaSchema } from '../validators/oficina.validator';
+import { oficinaFilterSchema, createOficinaSchema, updateOficinaSchema } from '../validation/schemas/oficina.schema';
 import { pool } from '../config/database';
 import { OficinaRepository } from '../repositories/OficinaRepository';
 import PDFDocument = require('pdfkit');

@@ -10,7 +10,7 @@ import {
   participacaoSchema,
   createParticipacaoSchema,
   updateParticipacaoSchema
-} from '../validators/participacao.validator';
+} from '../validation/schemas/participacao.schema';
 
 export class ParticipacaoService {
   private pool: Pool;

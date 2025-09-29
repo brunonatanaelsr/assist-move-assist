@@ -1,18 +1,12 @@
 import { z } from 'zod';
 
-// Schema para participação
 export const participacaoSchema = z.object({
   id: z.number(),
   beneficiaria_id: z.string(),
   projeto_id: z.number(),
-  status: z.enum([
-    'ativa', 
-    'concluida', 
-    'desistente', 
-    'em_espera',
-    'interesse',
-    'inscrita'
-  ]).default('inscrita'),
+  status: z
+    .enum(['ativa', 'concluida', 'desistente', 'em_espera', 'interesse', 'inscrita'])
+    .default('inscrita'),
   data_inscricao: z.coerce.date(),
   data_conclusao: z.coerce.date().nullable().optional(),
   observacoes: z.string().max(1000).nullable().optional(),
@@ -23,20 +17,15 @@ export const participacaoSchema = z.object({
   data_atualizacao: z.coerce.date()
 });
 
-// Schema para criação de participação
-export const createParticipacaoSchema = participacaoSchema
-  .partial()
-  .required({
-    beneficiaria_id: true,
-    projeto_id: true
-  });
+export const createParticipacaoSchema = participacaoSchema.partial().required({
+  beneficiaria_id: true,
+  projeto_id: true
+});
 
-// Schema para atualização de participação
 export const updateParticipacaoSchema = participacaoSchema
   .partial()
   .refine(
     (data) => {
-      // Se status for 'concluida', data_conclusao é obrigatória
       if (data.status === 'concluida') {
         return data.data_conclusao !== undefined && data.data_conclusao !== null;
       }
@@ -48,18 +37,16 @@ export const updateParticipacaoSchema = participacaoSchema
   )
   .refine(
     (data) => {
-      // Se certificado_emitido é true, presenca_percentual deve ser >= 75%
       if (data.certificado_emitido) {
         return data.presenca_percentual !== undefined && data.presenca_percentual >= 75;
       }
       return true;
     },
     {
-      message: "Presença mínima de 75% é necessária para emitir certificado"
+      message: 'Presença mínima de 75% é necessária para emitir certificado'
     }
   );
 
-// Schema para filtros de listagem
 export const participacaoFilterSchema = z.object({
   beneficiaria_id: z.coerce.number().optional(),
   projeto_id: z.coerce.number().optional(),
@@ -72,8 +59,22 @@ export const participacaoFilterSchema = z.object({
   limit: z.coerce.number().positive().max(100).default(50)
 });
 
-// Types
 export type Participacao = z.infer<typeof participacaoSchema>;
 export type CreateParticipacaoDTO = z.infer<typeof createParticipacaoSchema>;
 export type UpdateParticipacaoDTO = z.infer<typeof updateParticipacaoSchema>;
 export type ParticipacaoFilters = z.infer<typeof participacaoFilterSchema>;
+
+const emptyObject = z.object({}).optional();
+const anyOptional = z.any().optional();
+
+export const createParticipacaoRequestSchema = z.object({
+  body: createParticipacaoSchema,
+  params: emptyObject,
+  query: anyOptional
+});
+
+export const updateParticipacaoRequestSchema = z.object({
+  params: z.object({ id: z.coerce.number() }),
+  body: updateParticipacaoSchema,
+  query: anyOptional
+});

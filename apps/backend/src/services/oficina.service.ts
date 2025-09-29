@@ -10,7 +10,7 @@ import {
   oficinaSchema,
   createOficinaSchema,
   updateOficinaSchema
-} from '../validators/oficina.validator';
+} from '../validation/schemas/oficina.schema';
 import { formatArrayDates, formatObjectDates } from '../utils/dateFormatter';
 
 type OficinaColumnMap = {

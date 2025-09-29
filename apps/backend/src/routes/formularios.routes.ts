@@ -3,7 +3,10 @@ import { authenticateToken, AuthenticatedRequest } from '../middleware/auth';
 import { pool } from '../config/database';
 import { successResponse, errorResponse } from '../utils/responseFormatter';
 import { validateRequest } from '../middleware/validationMiddleware';
-import { z } from 'zod';
+import {
+  createGenericFormularioRequestSchema,
+  revokeTermoConsentimentoRequestSchema
+} from '../validation/schemas/formularios.schema';
 import { renderFormPdf, renderAnamnesePdf, renderFichaEvolucaoPdf, renderTermosPdf, renderVisaoHolisticaPdf } from '../services/formsExport.service';
 
 type TermoConsentimentoRow = {
@@ -376,13 +379,7 @@ router.get('/termos-consentimento/:id/pdf', authenticateToken, async (req, res):
 router.patch(
   '/termos-consentimento/:id/revogacao',
   authenticateToken,
-  validateRequest(
-    z.object({
-      params: z.object({ id: z.coerce.number() }),
-      body: z.object({ motivo: z.string().max(500).optional() }),
-      query: z.any().optional(),
-    })
-  ),
+  validateRequest(revokeTermoConsentimentoRequestSchema),
   async (req: AuthenticatedRequest, res): Promise<void> => {
     try {
       const { id } = req.params as any;
@@ -681,17 +678,10 @@ router.get('/beneficiaria/:beneficiariaId', authenticateToken, async (req: Authe
 });
 
 // Criar formulário genérico por tipo
-router.post('/:tipo', authenticateToken,
-  validateRequest(z.object({
-    body: z.object({
-      beneficiaria_id: z.coerce.number(),
-      dados: z.any().optional(),
-      status: z.string().optional(),
-      observacoes: z.string().optional(),
-    }),
-    params: z.object({ tipo: z.string().min(1) }),
-    query: z.any().optional(),
-  })),
+router.post(
+  '/:tipo',
+  authenticateToken,
+  validateRequest(createGenericFormularioRequestSchema),
   async (req: AuthenticatedRequest, res): Promise<void> => {
   try {
     const { tipo } = req.params as any;
