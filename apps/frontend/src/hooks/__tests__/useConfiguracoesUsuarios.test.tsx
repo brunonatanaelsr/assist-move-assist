@@ -2,7 +2,7 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import apiService from '@/services/apiService';
+import { configuracoesApi } from '@/services/apiService';
 import {
   configuracoesUsuariosKeys,
   useConfiguracoesUsuarioPermissoes,
@@ -44,7 +44,7 @@ afterEach(() => {
 
 describe('useConfiguracoesUsuarios', () => {
   it('consulta lista de usuários e normaliza paginação', async () => {
-    vi.spyOn(apiService, 'listUsers').mockResolvedValue({
+    vi.spyOn(configuracoesApi, 'listUsers').mockResolvedValue({
       success: true,
       data: {
         data: [
@@ -63,13 +63,13 @@ describe('useConfiguracoesUsuarios', () => {
       expect(result.current.isSuccess).toBe(true);
     });
 
-    expect(apiService.listUsers).toHaveBeenCalledWith({ page: 2, limit: 5 });
+    expect(configuracoesApi.listUsers).toHaveBeenCalledWith({ page: 2, limit: 5 });
     expect(result.current.data?.data).toHaveLength(1);
     expect(result.current.data?.pagination).toEqual({ page: 2, limit: 5, total: 15, totalPages: 3 });
   });
 
   it('propaga erro quando a API falha', async () => {
-    vi.spyOn(apiService, 'listUsers').mockResolvedValue({ success: false, message: 'Falha' } as any);
+    vi.spyOn(configuracoesApi, 'listUsers').mockResolvedValue({ success: false, message: 'Falha' } as any);
 
     const { wrapper } = createWrapper();
     const { result } = renderHook(() => useConfiguracoesUsuarios(), { wrapper });
@@ -84,7 +84,7 @@ describe('useConfiguracoesUsuarios', () => {
 
 describe('mutações de usuários', () => {
   it('invalida lista ao criar usuário', async () => {
-    vi.spyOn(apiService, 'createUser').mockResolvedValue({ success: true } as any);
+    vi.spyOn(configuracoesApi, 'createUser').mockResolvedValue({ success: true } as any);
 
     const { wrapper, queryClient } = createWrapper();
     const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
@@ -95,7 +95,7 @@ describe('mutações de usuários', () => {
       await result.current.mutateAsync({ email: 'novo@example.com', password: '123', nome: 'Novo' });
     });
 
-    expect(apiService.createUser).toHaveBeenCalled();
+    expect(configuracoesApi.createUser).toHaveBeenCalled();
     expect(invalidateSpy).toHaveBeenCalledWith({
       queryKey: configuracoesUsuariosKeys.lists(),
       exact: false,
@@ -103,7 +103,7 @@ describe('mutações de usuários', () => {
   });
 
   it('invalida lista ao atualizar usuário', async () => {
-    vi.spyOn(apiService, 'updateUser').mockResolvedValue({ success: true } as any);
+    vi.spyOn(configuracoesApi, 'updateUser').mockResolvedValue({ success: true } as any);
 
     const { wrapper, queryClient } = createWrapper();
     const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
@@ -114,7 +114,7 @@ describe('mutações de usuários', () => {
       await result.current.mutateAsync({ id: 3, data: { ativo: false } });
     });
 
-    expect(apiService.updateUser).toHaveBeenCalledWith(3, { ativo: false });
+    expect(configuracoesApi.updateUser).toHaveBeenCalledWith(3, { ativo: false });
     expect(invalidateSpy).toHaveBeenCalledWith({
       queryKey: configuracoesUsuariosKeys.lists(),
       exact: false,
@@ -124,7 +124,7 @@ describe('mutações de usuários', () => {
 
 describe('permissões de usuário', () => {
   it('busca permissões do usuário quando habilitado', async () => {
-    vi.spyOn(apiService, 'getUserPermissions').mockResolvedValue({ success: true, data: ['config.view'] } as any);
+    vi.spyOn(configuracoesApi, 'getUserPermissions').mockResolvedValue({ success: true, data: ['config.view'] } as any);
 
     const { wrapper } = createWrapper();
     const { result } = renderHook(() => useConfiguracoesUsuarioPermissoes(9), { wrapper });
@@ -133,12 +133,12 @@ describe('permissões de usuário', () => {
       expect(result.current.isSuccess).toBe(true);
     });
 
-    expect(apiService.getUserPermissions).toHaveBeenCalledWith(9);
+    expect(configuracoesApi.getUserPermissions).toHaveBeenCalledWith(9);
     expect(result.current.data).toEqual(['config.view']);
   });
 
   it('atualiza cache ao salvar permissões', async () => {
-    vi.spyOn(apiService, 'setUserPermissions').mockResolvedValue({ success: true } as any);
+    vi.spyOn(configuracoesApi, 'setUserPermissions').mockResolvedValue({ success: true } as any);
 
     const { wrapper, queryClient } = createWrapper();
     const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
@@ -151,7 +151,7 @@ describe('permissões de usuário', () => {
       await result.current.mutateAsync({ userId: 7, permissions: ['new.permission'] });
     });
 
-    expect(apiService.setUserPermissions).toHaveBeenCalledWith(7, ['new.permission']);
+    expect(configuracoesApi.setUserPermissions).toHaveBeenCalledWith(7, ['new.permission']);
     expect(queryClient.getQueryData(configuracoesUsuariosKeys.permissions(7))).toEqual(['new.permission']);
     expect(invalidateSpy).toHaveBeenCalledWith({
       queryKey: configuracoesUsuariosKeys.permissions(7),

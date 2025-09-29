@@ -12,7 +12,7 @@ import { Separator } from '@/components/ui/separator';
 import { AlertCircle, ArrowLeft, Edit, Save, X, Plus, FileText, Calendar, User, Phone, Mail, MapPin, GraduationCap, Heart, Users, Activity, Target, TrendingUp, Award, Shield, Eye, CheckCircle, Download, ExternalLink, Loader2 } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { formatDate } from '@/lib/dayjs';
-import { apiService } from '@/services/apiService';
+import { apiService, formulariosApi } from '@/services/apiService';
 import type { LucideIcon } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -377,7 +377,7 @@ export default function DetalhesBeneficiaria() {
 
     try {
       setExportingAtividadeId(atividade.id);
-      const blob = await apiService.exportFormularioPdf(atividade.type, atividade.id);
+      const blob = await formulariosApi.exportFormularioPdf(atividade.type, atividade.id);
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;

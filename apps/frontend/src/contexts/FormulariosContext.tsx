@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import { Formulario, FormularioFiltros, TipoFormulario } from '../types/formularios';
-import { apiService } from '@/services/apiService';
+import { apiService, formulariosApi } from '@/services/apiService';
 
 interface FormulariosContextData {
   formularios: Formulario[];
@@ -43,7 +43,7 @@ export const FormulariosProvider: React.FC<{ children: React.ReactNode }> = ({ c
       if (filtros.data_fim) params.data_fim = filtros.data_fim.toISOString();
       if (filtros.responsavel) params.responsavel = filtros.responsavel;
 
-      const resp = await apiService.listFormularios(params);
+      const resp = await formulariosApi.listFormularios(params);
       if (resp.success) {
         const d: any = resp.data || {};
         setFormularios(d.data || []);
@@ -58,7 +58,7 @@ export const FormulariosProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   const carregarFormulario = useCallback(async (id: number, tipo: TipoFormulario) => {
     try {
-      const resp = await apiService.getFormulario(String(tipo), id);
+      const resp = await formulariosApi.getFormulario(String(tipo), id);
       return resp.success ? (resp.data as any) : null;
     } catch (error) {
       console.error('Erro ao carregar formulário:', error);
@@ -70,12 +70,12 @@ export const FormulariosProvider: React.FC<{ children: React.ReactNode }> = ({ c
     try {
       if (!formulario.tipo) throw new Error('tipo é obrigatório');
       if (formulario.id) {
-        const resp = await apiService.updateFormulario(String(formulario.tipo), Number(formulario.id), formulario);
+        const resp = await formulariosApi.updateFormulario(String(formulario.tipo), Number(formulario.id), formulario);
         if (!resp.success) throw new Error(resp.message || 'Falha ao atualizar formulário');
         await carregarFormularios();
         return resp.data as any;
       } else {
-        const resp = await apiService.createFormulario(String(formulario.tipo), formulario);
+        const resp = await formulariosApi.createFormulario(String(formulario.tipo), formulario);
         if (!resp.success) throw new Error(resp.message || 'Falha ao criar formulário');
         await carregarFormularios();
         return resp.data as any;

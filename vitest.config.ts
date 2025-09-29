@@ -7,23 +7,23 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'jsdom',
-    setupFiles: ['./src/__tests__/setup.ts'],
+    setupFiles: ['./apps/frontend/src/__tests__/setup.ts'],
     css: true,
-    include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+    include: ['apps/frontend/src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
     exclude: ['node_modules/', 'apps/backend/**/*', 'tests/e2e/**/*', '**/*.config.*', '**/coverage/**'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
       exclude: [
         'node_modules/',
-        'src/__tests__/',
+        'apps/frontend/src/__tests__/',
         'apps/backend/',
         'tests/',
         '**/*.d.ts',
         '**/*.config.*',
         '**/coverage/**',
-        'src/main.tsx',
-        'src/vite-env.d.ts',
+        'apps/frontend/src/main.tsx',
+        'apps/frontend/src/vite-env.d.ts',
       ],
       thresholds: {
         global: {
@@ -37,7 +37,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src'),
+      '@': path.resolve(__dirname, './apps/frontend/src'),
       '@assist/types': path.resolve(__dirname, './packages/types/src'),
       '@assist/types/*': path.resolve(__dirname, './packages/types/src/*'),
     },

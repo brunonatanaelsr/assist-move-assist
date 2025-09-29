@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import apiService from '@/services/apiService';
+import { configuracoesApi } from '@/services/apiService';
 import type {
   ConfiguracaoUsuario,
   CreateUsuarioPayload,
@@ -58,7 +58,7 @@ export const useConfiguracoesUsuarios = (
   useQuery<UsuariosQueryData, Error>({
     queryKey: configuracoesUsuariosKeys.list(params),
     queryFn: async () => {
-      const response = await apiService.listUsers(params);
+      const response = await configuracoesApi.listUsers(params);
       if (!response.success || !response.data) {
         throw new Error(response.message ?? 'Não foi possível carregar os usuários.');
       }
@@ -79,7 +79,7 @@ export const useCreateConfiguracaoUsuario = () => {
 
   return useMutation({
     mutationFn: async (payload: CreateUsuarioPayload) => {
-      const response = await apiService.createUser(payload);
+      const response = await configuracoesApi.createUser(payload);
       if (!response.success) {
         throw new Error(response.message ?? 'Não foi possível criar o usuário.');
       }
@@ -100,7 +100,7 @@ export const useUpdateConfiguracaoUsuario = () => {
 
   return useMutation({
     mutationFn: async ({ id, data }: { id: number; data: UpdateUsuarioPayload }) => {
-      const response = await apiService.updateUser(id, data);
+      const response = await configuracoesApi.updateUser(id, data);
       if (!response.success) {
         throw new Error(response.message ?? 'Não foi possível atualizar o usuário.');
       }
@@ -119,7 +119,7 @@ export const useUpdateConfiguracaoUsuario = () => {
 export const useResetConfiguracaoUsuarioSenha = () =>
   useMutation({
     mutationFn: async ({ id, newPassword }: { id: number; newPassword: string }) => {
-      const response = await apiService.resetUserPassword(id, newPassword);
+      const response = await configuracoesApi.resetUserPassword(id, newPassword);
       if (!response.success) {
         throw new Error(response.message ?? 'Não foi possível redefinir a senha.');
       }
@@ -143,7 +143,7 @@ export const useConfiguracoesUsuarioPermissoes = (
         : configuracoesUsuariosKeys.permissionsPlaceholder(),
     queryFn: async () => {
       if (userId == null) return [];
-      const response = await apiService.getUserPermissions(userId);
+      const response = await configuracoesApi.getUserPermissions(userId);
       if (!response.success || !response.data) {
         throw new Error(response.message ?? 'Não foi possível carregar as permissões do usuário.');
       }
@@ -157,7 +157,7 @@ export const useSetConfiguracoesUsuarioPermissoes = () => {
 
   return useMutation({
     mutationFn: async ({ userId, permissions }: { userId: number; permissions: UsuarioPermissions }) => {
-      const response = await apiService.setUserPermissions(userId, permissions);
+      const response = await configuracoesApi.setUserPermissions(userId, permissions);
       if (!response.success) {
         throw new Error(response.message ?? 'Não foi possível atualizar as permissões do usuário.');
       }

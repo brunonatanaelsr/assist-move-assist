@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import apiService from '@/services/apiService';
+import { formulariosApi } from '@/services/apiService';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
@@ -34,7 +34,7 @@ export default function FormulariosBeneficiaria() {
     if (!beneficiariaId) return;
     try {
       setLoading(true);
-      const resp = await apiService.listFormulariosBeneficiaria(beneficiariaId);
+      const resp = await formulariosApi.listFormulariosBeneficiaria(beneficiariaId);
       if (resp.success && resp.data) {
         setRows(resp.data.data || []);
       }
@@ -57,7 +57,7 @@ export default function FormulariosBeneficiaria() {
 
   const exportPdf = async (row: Row) => {
     try {
-      const blob = await apiService.exportFormularioPdf(row.tipo, row.id);
+      const blob = await formulariosApi.exportFormularioPdf(row.tipo, row.id);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;

@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { ArrowLeft, Eye, Target, TrendingUp, AlertCircle, CheckCircle, Brain, Heart, Users } from 'lucide-react';
-import { apiService } from '@/services/apiService';
+import { apiService, formulariosApi } from '@/services/apiService';
 
 interface VisaoHolistica {
   beneficiaria_id: number;
@@ -162,7 +162,7 @@ export default function VisaoHolistica() {
   const salvarVisaoHolistica = async () => {
     try {
       setLoading(true);
-      const response = await apiService.post('/formularios/visao-holistica', visaoData);
+      const response = await formulariosApi.createFormulario('visao-holistica', visaoData);
 
       if (response.success) {
         alert('Visão Holística salva com sucesso!');

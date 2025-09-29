@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FileText, ArrowLeft, Save, Download } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
-import apiService from "@/services/apiService";
+import { formulariosApi } from "@/services/apiService";
 
 const formularioTitles: { [key: string]: string } = {
   "declaracao": "Declaração de Comparecimento",
@@ -58,7 +58,7 @@ export default function FormularioGenerico() {
       setSaving(true);
       let dados: any = {};
       try { dados = JSON.parse(dadosText); } catch { throw new Error('JSON inválido em dados'); }
-      const resp = await apiService.createFormulario(tipo, { beneficiaria_id: beneficiariaId, dados, status, observacoes });
+      const resp = await formulariosApi.createFormulario(tipo, { beneficiaria_id: beneficiariaId, dados, status, observacoes });
       if (resp.success && resp.data) {
         setCreated({ id: resp.data.id });
         toast({ title: 'Salvo', description: `Formulário ${tipo} criado` });
@@ -74,7 +74,7 @@ export default function FormularioGenerico() {
 
   const handleExport = async () => {
     if (!created?.id || !tipo) return;
-    const blob = await apiService.exportFormularioPdf(tipo, created.id);
+    const blob = await formulariosApi.exportFormularioPdf(tipo, created.id);
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url; a.download = `form_${tipo}_${created.id}.pdf`; a.click();

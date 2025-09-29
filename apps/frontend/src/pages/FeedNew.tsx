@@ -31,7 +31,7 @@ import {
 import { useAuth } from '@/hooks/useAuth';
 import useSocket from '@/hooks/useSocket';
 import { useToast } from '@/components/ui/use-toast';
-import apiService from '@/services/apiService';
+import { feedApi } from '@/services/apiService';
 
 interface Post {
   id: number;
@@ -159,8 +159,8 @@ export default function Feed() {
       
       // Carregar posts e estatísticas
       const [postsResponse, statsResponse] = await Promise.all([
-        apiService.getFeed({ page, limit, tipo: filtroTipo !== 'todos' ? filtroTipo : undefined }),
-        apiService.getFeedStats()
+        feedApi.getFeed({ page, limit, tipo: filtroTipo !== 'todos' ? filtroTipo : undefined }),
+        feedApi.getFeedStats()
       ]);
 
       if (postsResponse.success && postsResponse.data) {
@@ -258,7 +258,7 @@ export default function Feed() {
   // Curtir post
   const handleLike = async (postId: number) => {
     try {
-      const response = await apiService.likeFeedPost(postId);
+      const response = await feedApi.likeFeedPost(postId);
       
       if (response.success) {
         const liked = !!response?.data?.liked;
@@ -283,7 +283,7 @@ export default function Feed() {
   // Compartilhar post
   const handleShare = async (postId: number) => {
     try {
-      const response = await apiService.shareFeedPost(postId);
+      const response = await feedApi.shareFeedPost(postId);
       
       if (response.success) {
         toast({
@@ -307,7 +307,7 @@ export default function Feed() {
     try {
       setLoadingComments(prev => ({ ...prev, [postId]: true }));
       
-      const response = await apiService.getCommentsByPostId(postId, { page: 1, limit: commentLimit });
+      const response = await feedApi.getCommentsByPostId(postId, { page: 1, limit: commentLimit });
       if (response.success && response.data) {
         const payload = response.data;
         setComments(prev => ({ ...prev, [postId]: payload.data || [] }));
@@ -342,7 +342,7 @@ export default function Feed() {
     try {
       const nextPage = (commentPage[postId] || 1) + 1;
       setLoadingComments(prev => ({ ...prev, [postId]: true }));
-      const response = await apiService.getCommentsByPostId(postId, { page: nextPage, limit: commentLimit });
+      const response = await feedApi.getCommentsByPostId(postId, { page: nextPage, limit: commentLimit });
       if (response.success && response.data) {
         const payload = response.data;
         setComments(prev => ({ ...prev, [postId]: ([...(prev[postId] || []), ...(payload.data || [])]) }));
@@ -370,7 +370,7 @@ export default function Feed() {
     }
 
     try {
-      const response = await apiService.createComment(postId, { conteudo });
+      const response = await feedApi.createComment(postId, { conteudo });
       
       if (response.success && response.data) {
         // Atualizar lista de comentários
@@ -423,7 +423,7 @@ export default function Feed() {
       return;
     }
     try {
-      const resp = await apiService.updateComment(commentId, { conteudo });
+      const resp = await feedApi.updateComment(commentId, { conteudo });
       if (resp.success && resp.data) {
         setComments(prev => ({
           ...prev,
@@ -441,7 +441,7 @@ export default function Feed() {
 
   const handleDeleteComment = async (postId: number, commentId: number) => {
     try {
-      const resp = await apiService.deleteComment(commentId);
+      const resp = await feedApi.deleteComment(commentId);
       if (resp.success || resp === undefined) {
         setComments(prev => ({
           ...prev,
@@ -505,7 +505,7 @@ export default function Feed() {
     try {
       setUploadingImage(true);
       
-      const response = await apiService.uploadImage(selectedFile);
+      const response = await feedApi.uploadImage(selectedFile);
       
       if (response.success && response.data) {
         // Usar URL absoluta retornada pela API (autenticada)
@@ -561,7 +561,7 @@ export default function Feed() {
       if (selectedFile && !formData.imagem_url) {
         setUploadingImage(true);
         
-        const uploadResponse = await apiService.uploadImage(selectedFile);
+        const uploadResponse = await feedApi.uploadImage(selectedFile);
         
         if (uploadResponse.success && uploadResponse.data) {
           finalImageUrl = uploadResponse.data.url;
@@ -572,7 +572,7 @@ export default function Feed() {
         setUploadingImage(false);
       }
 
-      const response = await apiService.createFeedPost({
+      const response = await feedApi.createFeedPost({
         ...formData,
         imagem_url: finalImageUrl,
         autor_nome: profile?.nome_completo || formData.autor_nome
@@ -628,7 +628,7 @@ export default function Feed() {
       // Adicionar post ao conjunto de exclusões
       setDeletingPosts(prev => new Set([...prev, postId]));
 
-      const response = await apiService.deleteFeedPost(postId);
+      const response = await feedApi.deleteFeedPost(postId);
 
       if (response.success) {
         // Recarregar dados
@@ -731,7 +731,7 @@ export default function Feed() {
     try {
       setEditUploadingImage(true);
       
-      const uploadResponse = await apiService.uploadImage(editSelectedFile);
+      const uploadResponse = await feedApi.uploadImage(editSelectedFile);
       
       if (uploadResponse.success && uploadResponse.data) {
         const imageUrl = uploadResponse.data.url;
@@ -783,7 +783,7 @@ export default function Feed() {
       if (editSelectedFile && !editFormData.imagem_url) {
         setEditUploadingImage(true);
         
-        const uploadResponse = await apiService.uploadImage(editSelectedFile);
+        const uploadResponse = await feedApi.uploadImage(editSelectedFile);
         
         if (uploadResponse.success && uploadResponse.data) {
           finalImageUrl = uploadResponse.data.url;
@@ -792,7 +792,7 @@ export default function Feed() {
         }
       }
 
-      const response = await apiService.updateFeedPost(editingPost.id, {
+      const response = await feedApi.updateFeedPost(editingPost.id, {
         ...editFormData,
         imagem_url: finalImageUrl
       });

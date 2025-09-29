@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ArrowLeft, Save, FileText, User, Home, Heart, Users, Briefcase, GraduationCap, ChevronLeft, ChevronRight } from 'lucide-react';
-import { apiService } from '@/services/apiService';
+import { apiService, formulariosApi } from '@/services/apiService';
 import useAutosave from '@/hooks/useAutosave';
 import { useToast } from '@/components/ui/use-toast';
 import { Stepper } from '@/components/ui/stepper';
@@ -132,7 +132,7 @@ export default function AnamneseSocial() {
   const salvarAnamnese = async () => {
     try {
       setLoading(true);
-      const response = await apiService.post('/formularios/anamnese', formData);
+      const response = await formulariosApi.createFormulario('anamnese', formData);
 
       if (response.success) {
         clear();

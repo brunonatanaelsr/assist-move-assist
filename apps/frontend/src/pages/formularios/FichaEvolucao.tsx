@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Save, Plus, TrendingUp, Calendar, User, Activity, Target } from 'lucide-react';
 import { formatDate } from '@/lib/dayjs';
-import { apiService } from '@/services/apiService';
+import { apiService, formulariosApi } from '@/services/apiService';
 import useAutosave from '@/hooks/useAutosave';
 import { useToast } from '@/components/ui/use-toast';
 
@@ -143,7 +143,7 @@ export default function FichaEvolucao() {
   const salvarFicha = async () => {
     try {
       setLoading(true);
-      const response = await apiService.post('/formularios/ficha-evolucao', fichaData);
+      const response = await formulariosApi.createFormulario('ficha-evolucao', fichaData);
 
       if (response.success) {
         clear();

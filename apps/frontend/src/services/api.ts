@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { beneficiariaSchema } from '../validation/zodSchemas';
-import { apiService } from '@/services/apiService';
+import { apiService, formulariosApi } from '@/services/apiService';
 import type {
   BeneficiariaListResponse,
   BeneficiariaResponse,
@@ -116,63 +116,63 @@ export const beneficiariasService = {
 export const formulariosService = {
   anamnese: {
     criar: async (formulario: any) => {
-      const res = await apiService.createFormulario('anamnese', formulario);
+      const res = await formulariosApi.createFormulario('anamnese', formulario);
       if (res.success) return res.data;
       throw new Error(res.message || 'Erro ao criar anamnese');
     },
     buscar: async (id: string) => {
-      const res = await apiService.getFormulario('anamnese', Number(id));
+      const res = await formulariosApi.getFormulario('anamnese', Number(id));
       if (res.success) return res.data;
       throw new Error(res.message || 'Erro ao buscar anamnese');
     },
     atualizar: async (id: string, formulario: any) => {
-      const res = await apiService.updateFormulario('anamnese', Number(id), formulario);
+      const res = await formulariosApi.updateFormulario('anamnese', Number(id), formulario);
       if (res.success) return res.data;
       throw new Error(res.message || 'Erro ao atualizar anamnese');
     },
   },
   rodaVida: {
     criar: async (formulario: any) => {
-      const res = await apiService.createFormulario('roda-vida', formulario);
+      const res = await formulariosApi.createFormulario('roda-vida', formulario);
       if (res.success) return res.data;
       throw new Error(res.message || 'Erro ao criar Roda da Vida');
     },
     buscar: async (id: string) => {
-      const res = await apiService.getFormulario('roda-vida', Number(id));
+      const res = await formulariosApi.getFormulario('roda-vida', Number(id));
       if (res.success) return res.data;
       throw new Error(res.message || 'Erro ao buscar Roda da Vida');
     },
     atualizar: async (id: string, formulario: any) => {
-      const res = await apiService.updateFormulario('roda-vida', Number(id), formulario);
+      const res = await formulariosApi.updateFormulario('roda-vida', Number(id), formulario);
       if (res.success) return res.data;
       throw new Error(res.message || 'Erro ao atualizar Roda da Vida');
     },
   },
   visaoHolistica: {
     criar: async (formulario: any) => {
-      const res = await apiService.createFormulario('visao-holistica', formulario);
+      const res = await formulariosApi.createFormulario('visao-holistica', formulario);
       if (res.success) return res.data;
       throw new Error(res.message || 'Erro ao criar Visão Holística');
     },
     buscar: async (id: string) => {
-      const res = await apiService.getFormulario('visao-holistica', Number(id));
+      const res = await formulariosApi.getFormulario('visao-holistica', Number(id));
       if (res.success) return res.data;
       throw new Error(res.message || 'Erro ao buscar Visão Holística');
     },
     atualizar: async (id: string, formulario: any) => {
-      const res = await apiService.updateFormulario('visao-holistica', Number(id), formulario);
+      const res = await formulariosApi.updateFormulario('visao-holistica', Number(id), formulario);
       if (res.success) return res.data;
       throw new Error(res.message || 'Erro ao atualizar Visão Holística');
     },
   },
   fichaEvolucao: {
     criar: async (formulario: any) => {
-      const res = await apiService.createFormulario('ficha-evolucao', formulario);
+      const res = await formulariosApi.createFormulario('ficha-evolucao', formulario);
       if (res.success) return res.data;
       throw new Error(res.message || 'Erro ao criar Ficha de Evolução');
     },
     buscar: async (id: string) => {
-      const res = await apiService.getFormulario('ficha-evolucao', Number(id));
+      const res = await formulariosApi.getFormulario('ficha-evolucao', Number(id));
       if (res.success) return res.data;
       throw new Error(res.message || 'Erro ao buscar Ficha de Evolução');
     },
