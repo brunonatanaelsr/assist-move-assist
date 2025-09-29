@@ -27,6 +27,7 @@ import type {
 } from '@/types/configuracoes';
 import type { Oficina } from '@/types/oficinas';
 import { applyCsrfTokenToAxios, applyCsrfTokenToConfig, getCsrfToken } from './csrfTokenStore';
+import { ensureCsrfTokenFetched } from './csrf.service';
 const IS_DEV = (import.meta as any)?.env?.DEV === true || (import.meta as any)?.env?.MODE === 'development';
 
 type SessionUser = AuthenticatedSessionUser & { ativo?: boolean };
@@ -53,7 +54,7 @@ class ApiService {
 
     // Interceptor para adicionar token em todas as requisições
     this.api.interceptors.request.use(
-      (config) => {
+      async (config) => {
         const token =
           localStorage.getItem(AUTH_TOKEN_KEY) ||
           localStorage.getItem('auth_token') ||
@@ -66,9 +67,16 @@ class ApiService {
 
         // CSRF header opcional (se o backend validar)
         if (REQUIRE_CSRF_HEADER) {
-          const csrf = getCsrfToken();
-          if (csrf && config.method && ['post', 'put', 'patch', 'delete'].includes(config.method)) {
+          const method = config.method?.toLowerCase();
+          const isMutating = method ? ['post', 'put', 'patch', 'delete'].includes(method) : false;
+
+          if (isMutating) {
+            if (!getCsrfToken()) {
+              await ensureCsrfTokenFetched(this.api);
+            }
             applyCsrfTokenToConfig(config);
+          } else if (config.headers && 'X-CSRF-Token' in config.headers) {
+            delete (config.headers as any)['X-CSRF-Token'];
           }
         } else if (config.headers && 'X-CSRF-Token' in config.headers) {
           delete (config.headers as any)['X-CSRF-Token'];

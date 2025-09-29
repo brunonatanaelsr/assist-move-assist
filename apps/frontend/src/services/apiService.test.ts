@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { AUTH_TOKEN_KEY } from '@/config';
 import apiService from './apiService';
-import { clearCsrfToken, setCsrfToken } from './csrfTokenStore';
+import { clearCsrfToken, getCsrfToken, setCsrfToken } from './csrfTokenStore';
 
 const getAxiosInstance = () => (apiService as unknown as { api: any }).api;
 
@@ -58,12 +58,15 @@ describe('ApiService CSRF handling', () => {
     expect(config.headers['X-CSRF-Token']).toBe('stored-token');
   });
 
-  it('should not inject CSRF header when token is missing', async () => {
-    const requestHandler = getAxiosInstance().interceptors.request.handlers[0].fulfilled!;
+  it('should not fetch CSRF token for safe methods without stored token', async () => {
+    const axiosInstance = getAxiosInstance();
+    const getSpy = vi.spyOn(axiosInstance, 'get');
+    const requestHandler = axiosInstance.interceptors.request.handlers[0].fulfilled!;
 
-    const config = await requestHandler({ method: 'delete', headers: {} });
+    const config = await requestHandler({ method: 'get', headers: {} });
 
     expect(config.headers['X-CSRF-Token']).toBeUndefined();
+    expect(getSpy).not.toHaveBeenCalled();
   });
 
   it('should skip CSRF header for safe methods', async () => {
@@ -73,5 +76,46 @@ describe('ApiService CSRF handling', () => {
     const config = await requestHandler({ method: 'get', headers: {} });
 
     expect(config.headers['X-CSRF-Token']).toBeUndefined();
+  });
+
+  it('fetches CSRF token when missing before mutating requests', async () => {
+    const axiosInstance = getAxiosInstance();
+    const getSpy = vi
+      .spyOn(axiosInstance, 'get')
+      .mockResolvedValue({ data: { csrfToken: 'fetched-token' } });
+
+    const requestHandler = axiosInstance.interceptors.request.handlers[0].fulfilled!;
+
+    const config = await requestHandler({ method: 'post', headers: {} });
+
+    expect(getSpy).toHaveBeenCalledWith('/csrf-token', { withCredentials: true });
+    expect(config.headers['X-CSRF-Token']).toBe('fetched-token');
+    expect(getCsrfToken()).toBe('fetched-token');
+  });
+
+  it('reuses in-flight CSRF requests across concurrent mutations', async () => {
+    const axiosInstance = getAxiosInstance();
+    let resolveFetch: ((value: unknown) => void) | undefined;
+    const fetchPromise = new Promise((resolve) => {
+      resolveFetch = resolve;
+    });
+
+    const getSpy = vi
+      .spyOn(axiosInstance, 'get')
+      .mockImplementation(() => fetchPromise as Promise<{ data: { csrfToken: string } }>);
+
+    const requestHandler = axiosInstance.interceptors.request.handlers[0].fulfilled!;
+
+    const firstCall = requestHandler({ method: 'post', headers: {} });
+    const secondCall = requestHandler({ method: 'patch', headers: {} });
+
+    resolveFetch?.({ data: { csrfToken: 'race-token' } });
+
+    const [firstConfig, secondConfig] = await Promise.all([firstCall, secondCall]);
+
+    expect(getSpy).toHaveBeenCalledTimes(1);
+    expect(firstConfig.headers['X-CSRF-Token']).toBe('race-token');
+    expect(secondConfig.headers['X-CSRF-Token']).toBe('race-token');
+    expect(getCsrfToken()).toBe('race-token');
   });
 });
