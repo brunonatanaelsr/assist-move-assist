@@ -10,9 +10,9 @@ type AuthRequest = Request & {
 
 type AuthMiddleware = (req: AuthRequest, res: Response, next: () => void) => void;
 
-export const authenticateToken = jest.fn<AuthMiddleware>().mockImplementation(
-  (req: AuthRequest, res: Response, next: () => void) => {
-    req.user = { id: 123, role: 'admin' };
-    next();
-  }
-);
+const authenticateTokenImpl: AuthMiddleware = (req, _res, next) => {
+  req.user = { id: 123, role: 'admin' };
+  next();
+};
+
+export const authenticateToken = jest.fn(authenticateTokenImpl) as jest.MockedFunction<AuthMiddleware>;
