@@ -8,20 +8,40 @@
  * @param isoDate String de data ISO (YYYY-MM-DD)
  * @returns String formatada (DD/MM/YYYY)
  */
+const UTC_SHORT_DATE_FORMATTER = new Intl.DateTimeFormat('pt-BR', {
+  timeZone: 'UTC',
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric'
+});
+
+const UTC_LONG_DATE_FORMATTER = new Intl.DateTimeFormat('pt-BR', {
+  timeZone: 'UTC',
+  day: 'numeric',
+  month: 'long',
+  year: 'numeric'
+});
+
+const parseDate = (value?: string | Date | null): Date | null => {
+  if (!value) return null;
+
+  const date = value instanceof Date ? new Date(value.getTime()) : new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  return date;
+};
+
 export const formatDisplayDate = (isoDate?: string | null): string => {
-  if (!isoDate) return '-';
-  
+  const date = parseDate(isoDate);
+  if (!date) {
+    if (isoDate) console.warn('Data inválida:', isoDate);
+    return '-';
+  }
+
   try {
-    // Se já é uma data válida, usar diretamente
-    const date = new Date(isoDate);
-    
-    // Verificar se a data é válida
-    if (isNaN(date.getTime())) {
-      console.warn('Data inválida:', isoDate);
-      return '-';
-    }
-    
-    return date.toLocaleDateString('pt-BR');
+    return UTC_SHORT_DATE_FORMATTER.format(date);
   } catch (error) {
     console.error('Erro ao formatar data:', error);
     return '-';
@@ -34,17 +54,13 @@ export const formatDisplayDate = (isoDate?: string | null): string => {
  * @returns String formatada (Ex: "15 de agosto de 2023")
  */
 export const formatLongDate = (isoDate?: string | null): string => {
-  if (!isoDate) return '-';
+  const date = parseDate(isoDate);
+  if (!date) {
+    return '-';
+  }
+
   try {
-    const date = new Date(isoDate);
-    if (isNaN(date.getTime())) {
-      return '-';
-    }
-    return date.toLocaleDateString('pt-BR', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
+    return UTC_LONG_DATE_FORMATTER.format(date);
   } catch (error) {
     console.error('Erro ao formatar data longa:', error);
     return '-';
@@ -55,15 +71,17 @@ export const formatLongDate = (isoDate?: string | null): string => {
  * Formata data para DD/MM/YYYY
  */
 export function formatDate(date: Date): string {
-  const d = date instanceof Date ? date : new Date(date);
-  if (Number.isNaN(d.getTime())) {
+  const parsed = parseDate(date);
+  if (!parsed) {
     return '';
   }
 
-  const day = String(d.getUTCDate()).padStart(2, '0');
-  const month = String(d.getUTCMonth() + 1).padStart(2, '0');
-  const year = d.getUTCFullYear();
-  return `${day}/${month}/${year}`;
+  try {
+    return UTC_SHORT_DATE_FORMATTER.format(parsed);
+  } catch (error) {
+    console.error('Erro ao formatar data curta:', error);
+    return '';
+  }
 }
 
 /**
@@ -110,9 +128,9 @@ export const formatInputDate = (isoDate?: string | null): string => {
       return '';
     }
     
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
+    const year = date.getUTCFullYear();
+    const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(date.getUTCDate()).padStart(2, '0');
     
     return `${year}-${month}-${day}`;
   } catch (error) {

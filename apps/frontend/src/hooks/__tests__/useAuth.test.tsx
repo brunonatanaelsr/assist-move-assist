@@ -1,15 +1,36 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, it, beforeEach, afterEach, expect, vi } from 'vitest';
 import type { ReactNode } from 'react';
 
 import { AuthProvider, useAuth } from '../useAuth';
 import { AuthService } from '../../services/auth.service';
 
-const wrapper = ({ children }: { children: ReactNode }) => (
-  <AuthProvider>{children}</AuthProvider>
-);
+let queryClient: QueryClient;
+let wrapper: ({ children }: { children: ReactNode }) => JSX.Element;
+
+beforeEach(() => {
+  queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+        gcTime: 0,
+        staleTime: 0,
+      },
+    },
+  });
+
+  wrapper = ({ children }: { children: ReactNode }) => (
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>{children}</AuthProvider>
+    </QueryClientProvider>
+  );
+
+  localStorage.clear();
+});
 
 afterEach(() => {
+  queryClient.clear();
   vi.restoreAllMocks();
 });
 
@@ -21,12 +42,13 @@ describe('useAuth - logout events', () => {
     papel: 'admin'
   };
 
-  beforeEach(() => {
-    localStorage.clear();
-  });
-
   it('should reset user and loading state when auth:logout event is dispatched', async () => {
     localStorage.setItem('user', JSON.stringify(mockUser));
+    const authService = AuthService.getInstance();
+    vi
+      .spyOn(authService, 'fetchCurrentUser')
+      .mockResolvedValueOnce(mockUser as any)
+      .mockResolvedValue(null);
 
     const { result, unmount } = renderHook(() => useAuth(), { wrapper });
 
@@ -40,7 +62,9 @@ describe('useAuth - logout events', () => {
       window.dispatchEvent(new Event('auth:logout'));
     });
 
-    expect(result.current.user).toBeNull();
+    await waitFor(() => {
+      expect(result.current.user).toBeNull();
+    });
     expect(result.current.loading).toBe(false);
 
     unmount();
@@ -55,18 +79,10 @@ describe('useAuth - signOut cleanup', () => {
     papel: 'admin'
   };
 
-  beforeEach(() => {
-    localStorage.clear();
-  });
-
   it('should remove tokens and user data from storage after signOut', async () => {
-    const logoutMock = vi.fn().mockResolvedValue(undefined);
-    const getUserMock = vi.fn(() => mockUser);
-    vi.spyOn(AuthService, 'getInstance').mockReturnValue({
-      login: vi.fn(),
-      logout: logoutMock,
-      getUser: getUserMock
-    } as unknown as AuthService);
+    const authService = AuthService.getInstance();
+    const logoutMock = vi.spyOn(authService, 'logout').mockResolvedValue(undefined);
+    vi.spyOn(authService, 'fetchCurrentUser').mockResolvedValue(mockUser as any);
 
     localStorage.setItem('auth_token', 'token123');
     localStorage.setItem('token', 'token123');

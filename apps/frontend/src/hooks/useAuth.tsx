@@ -7,6 +7,7 @@ import {
   useContext,
   type ReactNode,
 } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AUTH_TOKEN_KEY, USER_KEY } from "@/config";
 import { AuthService } from "@/services/auth.service";
 
@@ -25,6 +26,7 @@ interface User {
   foto_url?: string;
   endereco?: string;
   data_nascimento?: string;
+  permissions?: string[];
 }
 
 interface AuthContextType {
@@ -39,23 +41,42 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const authKeys = {
+  all: ['auth'] as const,
+  session: () => ['auth', 'session'] as const,
+};
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const authService = useMemo(() => AuthService.getInstance(), []);
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const [authenticating, setAuthenticating] = useState(false);
 
-  useEffect(() => {
-    const savedUser = authService.getUser?.();
-    if (savedUser) setUser(savedUser);
-    setLoading(false);
-  }, [authService]);
+  const initialUser = useMemo<User | null>(() => authService.getUser?.() ?? null, [authService]);
+
+  const {
+    data: sessionUser,
+    isPending,
+    isFetching,
+  } = useQuery<User | null>({
+    queryKey: authKeys.session(),
+    queryFn: () => authService.fetchCurrentUser(),
+    initialData: initialUser,
+    staleTime: 0,
+    gcTime: 0,
+    retry: false,
+    refetchOnWindowFocus: false,
+    enabled: typeof window !== "undefined",
+  });
+
+  const user = sessionUser ?? null;
+  const loading = isPending || isFetching || authenticating;
 
   useEffect(() => {
     if (typeof window === "undefined") return;
 
     const handleLogoutEvent = () => {
-      setUser(null);
-      setLoading(false);
+      authService.clearStoredSession();
+      queryClient.setQueryData(authKeys.session(), null);
     };
 
     const handleStorageEvent = (event: StorageEvent) => {
@@ -67,7 +88,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         USER_KEY
       ]);
       if (event.key === null || relevantKeys.has(event.key)) {
-        handleLogoutEvent();
+        queryClient.invalidateQueries({ queryKey: authKeys.session() }).catch((error) => {
+          console.error('Erro ao sincronizar sessão de autenticação:', error);
+        });
       }
     };
 
@@ -78,14 +101,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       window.removeEventListener("auth:logout", handleLogoutEvent);
       window.removeEventListener("storage", handleStorageEvent);
     };
-  }, []);
+  }, [authService, queryClient]);
 
   const legacyTokenKeys = useMemo(() => ['auth_token', 'token'], []);
   const legacyUserKeys = useMemo(() => ['user'], []);
 
   const signIn = async (email: string, password: string): Promise<{ error?: Error }> => {
     try {
-      setLoading(true);
+      setAuthenticating(true);
       const response = await authService.login({ email, password });
 
       // Tipagem explícita do retorno esperado
@@ -104,27 +127,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         legacyUserKeys
           .filter((key) => key !== USER_KEY)
           .forEach((key) => localStorage.removeItem(key));
-        setUser(resp.user);
+        queryClient.setQueryData(authKeys.session(), resp.user);
       }
+      await queryClient.invalidateQueries({ queryKey: authKeys.session() });
       return {};
     } catch (error) {
       return { error: error as Error };
     } finally {
-      setLoading(false);
+      setAuthenticating(false);
     }
   };
 
   const signOut = async () => {
     try {
-      setLoading(true);
+      setAuthenticating(true);
       await authService.logout();
     } finally {
-      const tokenKeys = new Set([...legacyTokenKeys, AUTH_TOKEN_KEY]);
-      tokenKeys.forEach((key) => localStorage.removeItem(key));
-      const userKeys = new Set([...legacyUserKeys, USER_KEY]);
-      userKeys.forEach((key) => localStorage.removeItem(key));
-      setUser(null);
-      setLoading(false);
+      authService.clearStoredSession();
+      queryClient.setQueryData(authKeys.session(), null);
+      setAuthenticating(false);
     }
   };
 

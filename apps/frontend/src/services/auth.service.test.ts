@@ -1,6 +1,7 @@
 import type { AxiosRequestConfig } from 'axios';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import api from '@/config/api';
+import { AUTH_TOKEN_KEY, USER_KEY } from '@/config';
 import { AuthService } from './auth.service';
 import { clearCsrfToken, getCsrfToken } from './csrfTokenStore';
 
@@ -293,5 +294,30 @@ describe('AuthService', () => {
     expect(result).toEqual(responsePayload);
     expect(getHeaderValue(refreshRequest, 'X-CSRF-Token')).toBe('refresh-token');
     expect(getHeaderValue(refreshRequest, 'X-CSRF-Token')).not.toBe('csrf-cookie');
+  });
+
+  it('should persist user data when fetching current session', async () => {
+    const userPayload = { id: 42, email: 'persist@example.com', nome: 'Persist', papel: 'admin', permissions: ['a'] };
+    vi.spyOn(api, 'get').mockResolvedValueOnce({ data: { user: userPayload } } as any);
+
+    const user = await authService.fetchCurrentUser();
+
+    expect(user).toEqual(userPayload);
+    expect(localStorage.getItem(USER_KEY)).toBe(JSON.stringify(userPayload));
+  });
+
+  it('should clear stored session when fetchCurrentUser receives 401', async () => {
+    localStorage.setItem(AUTH_TOKEN_KEY, 'token');
+    localStorage.setItem(USER_KEY, JSON.stringify({ id: 1 }));
+
+    vi.spyOn(api, 'get').mockRejectedValueOnce({
+      isAxiosError: true,
+      response: { status: 401 }
+    });
+
+    await expect(authService.fetchCurrentUser()).resolves.toBeNull();
+
+    expect(localStorage.getItem(AUTH_TOKEN_KEY)).toBeNull();
+    expect(localStorage.getItem(USER_KEY)).toBeNull();
   });
 });
