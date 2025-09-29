@@ -1,7 +1,8 @@
 import { AUTH_TOKEN_KEY, USER_KEY } from '@/config';
 import api from '@/config/api';
 import axios from 'axios';
-import { applyCsrfTokenToAxios, getCsrfToken, setCsrfToken } from './csrfTokenStore';
+import { applyCsrfTokenToAxios, getCsrfToken } from './csrfTokenStore';
+import { ensureCsrfTokenFetched } from './csrf.service';
 
 export interface AuthResponse {
   token: string;
@@ -60,15 +61,10 @@ export class AuthService {
 
     for (const endpoint of this.csrfEndpoints) {
       try {
-        const response = await api.get<{ csrfToken?: string }>(endpoint, { withCredentials: true });
-        const csrfToken = response?.data?.csrfToken;
-
-        if (csrfToken) {
-          setCsrfToken(csrfToken);
-          applyCsrfTokenToAxios(api);
+        const token = await ensureCsrfTokenFetched(api, endpoint);
+        if (token) {
           return;
         }
-
         lastError = new Error('Resposta sem token CSRF');
       } catch (error) {
         lastError = error;
