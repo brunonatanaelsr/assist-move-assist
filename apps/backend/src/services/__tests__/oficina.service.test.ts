@@ -13,7 +13,7 @@ describe('OficinaService', () => {
   let oficinaService: OficinaService;
   let mockPool: MockPool;
   let mockRedis: MockRedis;
-  let cacheGetSpy: jest.SpyInstance;
+  let cacheGetSpy: ReturnType<typeof jest.spyOn>;
 
   const mockOficina: Oficina = {
     id: 1,
@@ -39,7 +39,8 @@ describe('OficinaService', () => {
     mockRedis = createMockRedis();
     oficinaService = new OficinaService(mockPool as unknown as Pool, mockRedis as unknown as Redis);
 
-    cacheGetSpy = jest.spyOn(cacheService, 'get').mockResolvedValue(null);
+    cacheGetSpy = jest.spyOn(cacheService, 'get');
+    (cacheGetSpy as jest.SpiedFunction<typeof cacheService.get>).mockResolvedValue(null);
     jest.spyOn(cacheService, 'set').mockResolvedValue();
     jest.spyOn(cacheService, 'deletePattern').mockResolvedValue();
   });
@@ -62,7 +63,7 @@ describe('OficinaService', () => {
 
       cacheGetSpy.mockResolvedValueOnce(mockCachedData);
 
-      const result = await oficinaService.listarOficinas(mockFilters);
+      const result = (await oficinaService.listarOficinas(mockFilters)) as any;
 
       expect(result).toEqual(mockCachedData);
       expect(cacheService.get).toHaveBeenCalledWith('oficinas:list:all:all:10');
@@ -83,7 +84,7 @@ describe('OficinaService', () => {
         rows: [dbRow]
       });
 
-      const result = await oficinaService.listarOficinas(mockFilters);
+      const result = (await oficinaService.listarOficinas(mockFilters)) as any;
 
       expect(result.data).toHaveLength(1);
       expect(result).toEqual({
@@ -138,7 +139,7 @@ describe('OficinaService', () => {
         rows: [{ ...mockOficina, total_count: '1' }]
       });
 
-      const result = await oficinaService.listarOficinas(filters);
+      const result = (await oficinaService.listarOficinas(filters)) as any;
 
       expect(result.data).toHaveLength(1);
       expect(mockPool.query).toHaveBeenCalledWith(
