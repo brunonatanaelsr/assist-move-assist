@@ -7,7 +7,10 @@ import {
   testConcurrency 
 } from '../helpers/database';
 import { factory } from 'factory-girl';
-import { generateToken } from '../../utils/auth';
+import { generateToken } from '../../middleware/authMiddleware';
+
+process.env.NODE_ENV = 'test';
+process.env.REDIS_DISABLED = 'true';
 
 describe('Beneficiárias API', () => {
   let authToken: string;
@@ -198,6 +201,149 @@ describe('Beneficiárias API', () => {
 
       expect(response.status).toBe(400);
       expect(response.body.errors).toContain('Email inválido');
+    });
+  });
+
+  describe('PATCH /beneficiarias/:id/arquivar', () => {
+    it('arquiva beneficiária e atualiza status', async () => {
+      const beneficiaria = await factory.create('beneficiaria');
+
+      const response = await request(app)
+        .patch(`/api/beneficiarias/${beneficiaria.id}/arquivar`)
+        .set('Authorization', `Bearer ${authToken}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+
+      const detalhes = await request(app)
+        .get(`/api/beneficiarias/${beneficiaria.id}`)
+        .set('Authorization', `Bearer ${authToken}`);
+
+      expect(detalhes.status).toBe(200);
+      expect(detalhes.body.data.status).toBe('inativa');
+      expect(detalhes.body.data.arquivada_em).not.toBeNull();
+    });
+  });
+
+  describe('PUT /beneficiarias/:id/info-socioeconomica', () => {
+    it('atualiza informações socioeconômicas', async () => {
+      const beneficiaria = await factory.create('beneficiaria');
+
+      const payload = {
+        renda_familiar: 2500.5,
+        quantidade_moradores: 3,
+        tipo_moradia: 'alugada',
+        escolaridade: 'ensino medio',
+        profissao: 'autônoma',
+        situacao_trabalho: 'informal',
+        beneficios_sociais: ['bolsa_familia']
+      };
+
+      const response = await request(app)
+        .put(`/api/beneficiarias/${beneficiaria.id}/info-socioeconomica`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .send(payload);
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.data.info_socioeconomica).toMatchObject({
+        renda_familiar: 2500.5,
+        quantidade_moradores: 3,
+        tipo_moradia: 'alugada',
+        beneficios_sociais: ['bolsa_familia']
+      });
+    });
+  });
+
+  describe('POST /beneficiarias/:id/dependentes', () => {
+    it('adiciona dependente à beneficiária', async () => {
+      const beneficiaria = await factory.create('beneficiaria');
+
+      const response = await request(app)
+        .post(`/api/beneficiarias/${beneficiaria.id}/dependentes`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({
+          nome_completo: 'Dependente Teste',
+          data_nascimento: '2015-05-10',
+          parentesco: 'filha',
+          cpf: '12345678901'
+        });
+
+      expect(response.status).toBe(201);
+      expect(response.body.success).toBe(true);
+      expect(response.body.data.dependentes).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ nome_completo: 'Dependente Teste' })
+        ])
+      );
+    });
+  });
+
+  describe('DELETE /beneficiarias/:id/dependentes/:dependenteId', () => {
+    it('remove dependente existente', async () => {
+      const beneficiaria = await factory.create('beneficiaria');
+
+      const dependenteResponse = await request(app)
+        .post(`/api/beneficiarias/${beneficiaria.id}/dependentes`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({
+          nome_completo: 'Dependente Removido',
+          data_nascimento: '2012-07-20',
+          parentesco: 'filho'
+        });
+
+      const dependenteId = dependenteResponse.body.data.dependentes[0].id;
+
+      const response = await request(app)
+        .delete(`/api/beneficiarias/${beneficiaria.id}/dependentes/${dependenteId}`)
+        .set('Authorization', `Bearer ${authToken}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+
+      const detalhes = await request(app)
+        .get(`/api/beneficiarias/${beneficiaria.id}`)
+        .set('Authorization', `Bearer ${authToken}`);
+
+      expect(detalhes.body.data.dependentes).toEqual([]);
+    });
+  });
+
+  describe('POST /beneficiarias/:id/atendimentos', () => {
+    it('registra atendimento e retorna histórico', async () => {
+      const beneficiaria = await factory.create('beneficiaria');
+
+      const response = await request(app)
+        .post(`/api/beneficiarias/${beneficiaria.id}/atendimentos`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({
+          tipo: 'psicologico',
+          data: '2024-01-15',
+          descricao: 'Sessão de acolhimento',
+          encaminhamentos: 'Acompanhamento mensal'
+        });
+
+      expect(response.status).toBe(201);
+      expect(response.body.success).toBe(true);
+      expect(response.body.data.historico_atendimentos[0]).toMatchObject({
+        tipo: 'psicologico',
+        descricao: 'Sessão de acolhimento'
+      });
+    });
+  });
+
+  describe('POST /beneficiarias/:id/foto', () => {
+    it('envia foto e retorna URL', async () => {
+      const beneficiaria = await factory.create('beneficiaria');
+
+      const response = await request(app)
+        .post(`/api/beneficiarias/${beneficiaria.id}/foto`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .attach('foto', Buffer.from('fake-image-content'), 'foto.png');
+
+      expect(response.status).toBe(201);
+      expect(response.body.success).toBe(true);
+      expect(response.body.data.foto_url).toMatch(/^\/api\/upload\/files\//);
     });
   });
 

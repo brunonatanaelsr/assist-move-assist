@@ -10,6 +10,11 @@ const optionalDate = z.string()
   .nullable()
   .refine(value => !value || value < new Date(), 'Data informada não pode ser futura');
 
+const requiredDate = z.string()
+  .regex(dateRegex, 'Data deve estar no formato YYYY-MM-DD')
+  .transform(value => new Date(value))
+  .refine(value => value < new Date(), 'Data informada não pode ser futura');
+
 const familiarSchema = z.object({
   nome: z.string().min(2, 'Nome do familiar é obrigatório').max(150),
   parentesco: z.string().max(80, 'Parentesco deve ter no máximo 80 caracteres').optional(),
@@ -82,3 +87,46 @@ export const validateBeneficiaria = async (
   const schema = partial ? beneficiariaSchema.partial() : beneficiariaSchema;
   return schema.parseAsync(data);
 };
+
+export const infoSocioeconomicaSchema = z.object({
+  renda_familiar: z.number().min(0).optional().nullable(),
+  quantidade_moradores: z.number().int().min(0).optional().nullable(),
+  tipo_moradia: z.string().max(120).optional().nullable(),
+  escolaridade: z.string().max(120).optional().nullable(),
+  profissao: z.string().max(120).optional().nullable(),
+  situacao_trabalho: z.string().max(120).optional().nullable(),
+  beneficios_sociais: z.array(z.string().max(120)).optional().nullable()
+});
+
+export const dependenteSchema = z.object({
+  nome_completo: z
+    .string()
+    .min(3, 'Nome deve ter no mínimo 3 caracteres')
+    .max(150, 'Nome deve ter no máximo 150 caracteres'),
+  data_nascimento: requiredDate,
+  parentesco: z
+    .string()
+    .min(2, 'Parentesco deve ter no mínimo 2 caracteres')
+    .max(120, 'Parentesco deve ter no máximo 120 caracteres'),
+  cpf: z
+    .string()
+    .length(11, 'CPF deve ter 11 dígitos')
+    .refine(cpf => isCPF(cpf), 'CPF inválido')
+    .optional()
+    .nullable()
+});
+
+export const atendimentoSchema = z.object({
+  tipo: z
+    .string()
+    .min(3, 'Tipo do atendimento deve ter ao menos 3 caracteres')
+    .max(120, 'Tipo do atendimento deve ter no máximo 120 caracteres'),
+  data: z.coerce
+    .date()
+    .refine((value) => !Number.isNaN(value.getTime()), 'Data do atendimento é obrigatória'),
+  descricao: z
+    .string()
+    .min(5, 'Descrição deve ter ao menos 5 caracteres'),
+  encaminhamentos: z.string().optional().nullable(),
+  profissional_id: z.number().int().positive().optional().nullable()
+});
