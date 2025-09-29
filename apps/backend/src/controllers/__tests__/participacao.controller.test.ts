@@ -7,6 +7,7 @@ import {
   emitirCertificado
 } from '../participacao.controller';
 import { ParticipacaoService } from '../../services/participacao.service';
+import { AppError, ValidationError } from '../../utils';
 
 // Mock do ParticipacaoService
 jest.mock('../../services/participacao.service');
@@ -14,9 +15,12 @@ jest.mock('../../services/participacao.service');
 describe('ParticipacaoController', () => {
   let mockReq: any;
   let mockRes: any;
-  let mockParticipacaoService: any;
+  let mockParticipacaoService: jest.MockedClass<typeof ParticipacaoService>;
+  let participacaoServiceInstance!: jest.Mocked<ParticipacaoService>;
+  const next = jest.fn();
 
   beforeEach(() => {
+    next.mockReset();
     mockReq = {
       query: {},
       body: {},
@@ -28,49 +32,56 @@ describe('ParticipacaoController', () => {
       send: jest.fn()
     };
     mockParticipacaoService = ParticipacaoService as jest.MockedClass<typeof ParticipacaoService>;
-    mockParticipacaoService.prototype.listarParticipacoes = jest.fn();
-    mockParticipacaoService.prototype.criarParticipacao = jest.fn();
-    mockParticipacaoService.prototype.atualizarParticipacao = jest.fn();
-    mockParticipacaoService.prototype.excluirParticipacao = jest.fn();
-    mockParticipacaoService.prototype.registrarPresenca = jest.fn();
-    mockParticipacaoService.prototype.emitirCertificado = jest.fn();
-  });
+    if (!participacaoServiceInstance) {
+      const instance = mockParticipacaoService.mock.instances[0];
+      if (!instance) {
+        throw new Error('ParticipacaoService instance was not initialized');
+      }
+      participacaoServiceInstance = instance as jest.Mocked<ParticipacaoService>;
+    }
 
-  afterEach(() => {
-    jest.clearAllMocks();
+    participacaoServiceInstance.listarParticipacoes = jest.fn();
+    participacaoServiceInstance.criarParticipacao = jest.fn();
+    participacaoServiceInstance.atualizarParticipacao = jest.fn();
+    participacaoServiceInstance.excluirParticipacao = jest.fn();
+    participacaoServiceInstance.registrarPresenca = jest.fn();
+    participacaoServiceInstance.emitirCertificado = jest.fn();
   });
-
   describe('listarParticipacoes', () => {
     it('deve listar participações com sucesso', async () => {
       const mockResult = {
         data: [{ id: 1 }],
         pagination: { total: 1 }
       };
-      mockParticipacaoService.prototype.listarParticipacoes.mockResolvedValue(mockResult);
+      participacaoServiceInstance.listarParticipacoes.mockResolvedValue(mockResult as any);
 
       mockReq.query = {
         page: '1',
         limit: '10'
       };
 
-      await listarParticipacoes(mockReq, mockRes);
+      await listarParticipacoes(mockReq, mockRes, next);
 
       expect(mockRes.json).toHaveBeenCalledWith(mockResult);
-      expect(mockParticipacaoService.prototype.listarParticipacoes).toHaveBeenCalledWith({
+      expect(participacaoServiceInstance.listarParticipacoes).toHaveBeenCalledWith({
         page: 1,
         limit: 10
       });
+      expect(next).not.toHaveBeenCalled();
     });
 
     it('deve tratar erro ao listar participações', async () => {
-      mockParticipacaoService.prototype.listarParticipacoes.mockRejectedValue(new Error());
+      participacaoServiceInstance.listarParticipacoes.mockRejectedValue(new Error());
 
-      await listarParticipacoes(mockReq, mockRes);
+      await listarParticipacoes(mockReq, mockRes, next);
 
-      expect(mockRes.status).toHaveBeenCalledWith(500);
-      expect(mockRes.json).toHaveBeenCalledWith({ 
-        error: 'Erro interno ao buscar participações' 
-      });
+      expect(mockRes.status).not.toHaveBeenCalled();
+      expect(mockRes.json).not.toHaveBeenCalled();
+      expect(next).toHaveBeenCalledTimes(1);
+      const error = next.mock.calls[0][0];
+      expect(error).toBeInstanceOf(AppError);
+      expect(error.message).toBe('Erro interno ao buscar participações');
+      expect(error.statusCode).toBe(500);
     });
   });
 
@@ -81,30 +92,33 @@ describe('ParticipacaoController', () => {
         beneficiaria_id: 1,
         projeto_id: 1
       };
-      mockParticipacaoService.prototype.criarParticipacao.mockResolvedValue(mockParticipacao);
+      participacaoServiceInstance.criarParticipacao.mockResolvedValue(mockParticipacao as any);
 
       mockReq.body = {
         beneficiaria_id: 1,
         projeto_id: 1
       };
 
-      await criarParticipacao(mockReq, mockRes);
+      await criarParticipacao(mockReq, mockRes, next);
 
       expect(mockRes.status).toHaveBeenCalledWith(201);
       expect(mockRes.json).toHaveBeenCalledWith(mockParticipacao);
+      expect(next).not.toHaveBeenCalled();
     });
 
     it('deve tratar erro de beneficiária não encontrada', async () => {
-      mockParticipacaoService.prototype.criarParticipacao.mockRejectedValue(
+      participacaoServiceInstance.criarParticipacao.mockRejectedValue(
         new Error('Beneficiária não encontrada')
       );
 
-      await criarParticipacao(mockReq, mockRes);
+      await criarParticipacao(mockReq, mockRes, next);
 
-      expect(mockRes.status).toHaveBeenCalledWith(404);
-      expect(mockRes.json).toHaveBeenCalledWith({ 
-        error: 'Beneficiária não encontrada' 
-      });
+      expect(mockRes.status).not.toHaveBeenCalled();
+      expect(mockRes.json).not.toHaveBeenCalled();
+      expect(next).toHaveBeenCalledTimes(1);
+      const error = next.mock.calls[0][0];
+      expect(error).toBeInstanceOf(Error);
+      expect(error.message).toBe('Beneficiária não encontrada');
     });
   });
 
@@ -114,57 +128,63 @@ describe('ParticipacaoController', () => {
         id: 1,
         status: 'em_andamento'
       };
-      mockParticipacaoService.prototype.atualizarParticipacao.mockResolvedValue(mockParticipacao);
+      participacaoServiceInstance.atualizarParticipacao.mockResolvedValue(mockParticipacao as any);
 
       mockReq.params = { id: '1' };
       mockReq.body = { status: 'em_andamento' };
 
-      await atualizarParticipacao(mockReq, mockRes);
+      await atualizarParticipacao(mockReq, mockRes, next);
 
       expect(mockRes.json).toHaveBeenCalledWith(mockParticipacao);
+      expect(next).not.toHaveBeenCalled();
     });
 
     it('deve tratar erro de participação não encontrada', async () => {
-      mockParticipacaoService.prototype.atualizarParticipacao.mockRejectedValue(
+      participacaoServiceInstance.atualizarParticipacao.mockRejectedValue(
         new Error('Participação não encontrada')
       );
 
       mockReq.params = { id: '999' };
 
-      await atualizarParticipacao(mockReq, mockRes);
+      await atualizarParticipacao(mockReq, mockRes, next);
 
-      expect(mockRes.status).toHaveBeenCalledWith(404);
-      expect(mockRes.json).toHaveBeenCalledWith({ 
-        error: 'Participação não encontrada' 
-      });
+      expect(mockRes.status).not.toHaveBeenCalled();
+      expect(mockRes.json).not.toHaveBeenCalled();
+      expect(next).toHaveBeenCalledTimes(1);
+      const error = next.mock.calls[0][0];
+      expect(error).toBeInstanceOf(Error);
+      expect(error.message).toBe('Participação não encontrada');
     });
   });
 
   describe('excluirParticipacao', () => {
     it('deve excluir participação com sucesso', async () => {
-      mockParticipacaoService.prototype.excluirParticipacao.mockResolvedValue(undefined);
+      participacaoServiceInstance.excluirParticipacao.mockResolvedValue(undefined);
 
       mockReq.params = { id: '1' };
 
-      await excluirParticipacao(mockReq, mockRes);
+      await excluirParticipacao(mockReq, mockRes, next);
 
       expect(mockRes.status).toHaveBeenCalledWith(204);
       expect(mockRes.send).toHaveBeenCalled();
+      expect(next).not.toHaveBeenCalled();
     });
 
     it('deve tratar erro de participação não encontrada', async () => {
-      mockParticipacaoService.prototype.excluirParticipacao.mockRejectedValue(
+      participacaoServiceInstance.excluirParticipacao.mockRejectedValue(
         new Error('Participação não encontrada')
       );
 
       mockReq.params = { id: '999' };
 
-      await excluirParticipacao(mockReq, mockRes);
+      await excluirParticipacao(mockReq, mockRes, next);
 
-      expect(mockRes.status).toHaveBeenCalledWith(404);
-      expect(mockRes.json).toHaveBeenCalledWith({ 
-        error: 'Participação não encontrada' 
-      });
+      expect(mockRes.status).not.toHaveBeenCalled();
+      expect(mockRes.json).not.toHaveBeenCalled();
+      expect(next).toHaveBeenCalledTimes(1);
+      const error = next.mock.calls[0][0];
+      expect(error).toBeInstanceOf(Error);
+      expect(error.message).toBe('Participação não encontrada');
     });
   });
 
@@ -174,42 +194,47 @@ describe('ParticipacaoController', () => {
         id: 1,
         presenca_percentual: 80
       };
-      mockParticipacaoService.prototype.registrarPresenca.mockResolvedValue(mockParticipacao);
+      participacaoServiceInstance.registrarPresenca.mockResolvedValue(mockParticipacao as any);
 
       mockReq.params = { id: '1' };
       mockReq.body = { presenca: 80 };
 
-      await registrarPresenca(mockReq, mockRes);
+      await registrarPresenca(mockReq, mockRes, next);
 
       expect(mockRes.json).toHaveBeenCalledWith(mockParticipacao);
+      expect(next).not.toHaveBeenCalled();
     });
 
     it('deve validar presença obrigatória', async () => {
       mockReq.params = { id: '1' };
       mockReq.body = {};
 
-      await registrarPresenca(mockReq, mockRes);
+      await registrarPresenca(mockReq, mockRes, next);
 
-      expect(mockRes.status).toHaveBeenCalledWith(400);
-      expect(mockRes.json).toHaveBeenCalledWith({ 
-        error: 'Percentual de presença é obrigatório' 
-      });
+      expect(mockRes.status).not.toHaveBeenCalled();
+      expect(mockRes.json).not.toHaveBeenCalled();
+      expect(next).toHaveBeenCalledTimes(1);
+      const error = next.mock.calls[0][0];
+      expect(error).toBeInstanceOf(ValidationError);
+      expect(error.message).toBe('Percentual de presença é obrigatório');
     });
 
     it('deve validar presença entre 0 e 100', async () => {
-      mockParticipacaoService.prototype.registrarPresenca.mockRejectedValue(
+      participacaoServiceInstance.registrarPresenca.mockRejectedValue(
         new Error('Percentual de presença deve estar entre 0 e 100')
       );
 
       mockReq.params = { id: '1' };
       mockReq.body = { presenca: 101 };
 
-      await registrarPresenca(mockReq, mockRes);
+      await registrarPresenca(mockReq, mockRes, next);
 
-      expect(mockRes.status).toHaveBeenCalledWith(400);
-      expect(mockRes.json).toHaveBeenCalledWith({ 
-        error: 'Percentual de presença deve estar entre 0 e 100' 
-      });
+      expect(mockRes.status).not.toHaveBeenCalled();
+      expect(mockRes.json).not.toHaveBeenCalled();
+      expect(next).toHaveBeenCalledTimes(1);
+      const error = next.mock.calls[0][0];
+      expect(error).toBeInstanceOf(Error);
+      expect(error.message).toBe('Percentual de presença deve estar entre 0 e 100');
     });
   });
 
@@ -220,28 +245,31 @@ describe('ParticipacaoController', () => {
         certificado_emitido: true,
         status: 'concluida'
       };
-      mockParticipacaoService.prototype.emitirCertificado.mockResolvedValue(mockParticipacao);
+      participacaoServiceInstance.emitirCertificado.mockResolvedValue(mockParticipacao as any);
 
       mockReq.params = { id: '1' };
 
-      await emitirCertificado(mockReq, mockRes);
+      await emitirCertificado(mockReq, mockRes, next);
 
       expect(mockRes.json).toHaveBeenCalledWith(mockParticipacao);
+      expect(next).not.toHaveBeenCalled();
     });
 
     it('deve validar presença mínima', async () => {
-      mockParticipacaoService.prototype.emitirCertificado.mockRejectedValue(
+      participacaoServiceInstance.emitirCertificado.mockRejectedValue(
         new Error('Presença mínima de 75% é necessária para emitir certificado')
       );
 
       mockReq.params = { id: '1' };
 
-      await emitirCertificado(mockReq, mockRes);
+      await emitirCertificado(mockReq, mockRes, next);
 
-      expect(mockRes.status).toHaveBeenCalledWith(400);
-      expect(mockRes.json).toHaveBeenCalledWith({ 
-        error: 'Presença mínima de 75% é necessária para emitir certificado' 
-      });
+      expect(mockRes.status).not.toHaveBeenCalled();
+      expect(mockRes.json).not.toHaveBeenCalled();
+      expect(next).toHaveBeenCalledTimes(1);
+      const error = next.mock.calls[0][0];
+      expect(error).toBeInstanceOf(Error);
+      expect(error.message).toBe('Presença mínima de 75% é necessária para emitir certificado');
     });
   });
 });
