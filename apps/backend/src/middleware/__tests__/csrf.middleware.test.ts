@@ -47,7 +47,7 @@ describe('csrfMiddleware', () => {
 
     const res = await request(app)
       .post('/protected')
-      .set('Cookie', 'csrf_token=fake')
+      .set('Cookie', 'csrf_token=s%3Atampered.fake')
       .set('X-CSRF-Token', 'fake')
       .send({});
 
@@ -86,5 +86,24 @@ describe('csrfMiddleware', () => {
 
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ ok: true });
+  });
+
+  it('accepts legacy unsigned cookies and reissues a signed cookie', async () => {
+    const app = buildApp();
+    const legacyToken = 'legacy-token';
+
+    const res = await request(app)
+      .post('/protected')
+      .set('Cookie', `csrf_token=${legacyToken}`)
+      .set('X-CSRF-Token', legacyToken)
+      .send({});
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ ok: true });
+
+    const setCookies = res.headers['set-cookie'] as string[] | undefined;
+    const csrfCookie = extractCsrfCookie(setCookies);
+    expect(csrfCookie).toBeDefined();
+    expect(isSignedCsrfCookie(csrfCookie)).toBe(true);
   });
 });

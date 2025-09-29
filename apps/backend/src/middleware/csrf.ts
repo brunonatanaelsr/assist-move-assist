@@ -1,6 +1,12 @@
 import { Request, Response, NextFunction, CookieOptions } from 'express';
 import crypto from 'crypto';
 
+declare module 'express-serve-static-core' {
+  interface Request {
+    csrfNeedsReissue?: boolean;
+  }
+}
+
 const isIdempotent = (method?: string) => !method || ['GET', 'HEAD', 'OPTIONS'].includes(method.toUpperCase());
 
 const CSRF_COOKIE_NAME = 'csrf_token';
@@ -19,10 +25,12 @@ const getCookieToken = (req: Request): string | undefined => {
   }
 
   const unsignedToken = req.cookies?.[CSRF_COOKIE_NAME];
-  if (typeof unsignedToken === 'string' && unsignedToken.length > 0) {
+  if (typeof unsignedToken === 'string' && unsignedToken.length > 0 && !unsignedToken.startsWith('s:')) {
     if (process.env.NODE_ENV !== 'test') {
-      console.warn('[csrf] Cookie não assinado detectado, gerando novo token.');
+      console.warn('[csrf] Cookie não assinado detectado, será reemitido assinado.');
     }
+    req.csrfNeedsReissue = true;
+    return unsignedToken;
   }
 
   return undefined;
@@ -31,6 +39,10 @@ const getCookieToken = (req: Request): string | undefined => {
 export function csrfMiddleware(req: Request, res: Response, next: NextFunction) {
   try {
     let token = getCookieToken(req);
+
+    if (token && req.csrfNeedsReissue) {
+      res.cookie(CSRF_COOKIE_NAME, token, CSRF_COOKIE_OPTIONS);
+    }
 
     // Gera token se ausente
     if (!token) {
