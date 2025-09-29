@@ -3,8 +3,8 @@ import { jest } from '@jest/globals';
 
 type UploadMiddleware = (req: Request, res: Response, next: () => void) => void;
 
-export const uploadMiddleware = jest.fn<UploadMiddleware>().mockImplementation(
-  (req: Request, res: Response, next: () => void) => {
-    next();
-  }
-);
+const uploadMiddlewareImpl: UploadMiddleware = (_req, _res, next) => {
+  next();
+};
+
+export const uploadMiddleware = jest.fn(uploadMiddlewareImpl) as jest.MockedFunction<UploadMiddleware>;

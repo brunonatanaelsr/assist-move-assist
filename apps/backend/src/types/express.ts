@@ -1,11 +1,11 @@
-import { Request, Response } from 'express';
+import type { Request, Response } from 'express';
+import type { ParamsDictionary } from 'express-serve-static-core';
+import type { ParsedQs } from 'qs';
 
-export interface TypedRequest<T = any, P = any> extends Request {
-  body: T;
-  params: P;
-}
+export type TypedRequest<
+  T = any,
+  P extends ParamsDictionary = ParamsDictionary,
+  Q extends ParsedQs = ParsedQs
+> = Request<P, any, T, Q>;
 
-export interface TypedResponse<T = any> extends Response {
-  json: (body: T) => TypedResponse<T>;
-  status: (code: number) => TypedResponse<T>;
-}
+export type TypedResponse<T = any> = Response<T>;

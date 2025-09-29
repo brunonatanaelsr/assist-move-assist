@@ -1,7 +1,7 @@
 import type { Express, RequestHandler } from 'express';
 import express from 'express';
 import helmet from 'helmet';
-import cors, { type CorsOptions } from 'cors';
+import cors from 'cors';
 import compression from 'compression';
 import rateLimit from 'express-rate-limit';
 import mongoSanitize from 'express-mongo-sanitize';
@@ -14,9 +14,28 @@ import { logger } from '../services/logger';
 
 export type SecurityEnvConfig = Pick<Env, 'NODE_ENV' | 'CORS_ORIGIN' | 'CORS_ALLOWED_HEADERS' | 'RATE_LIMIT_DISABLE'>;
 
+type StaticCorsOrigin = boolean | string | RegExp | Array<boolean | string | RegExp>;
+type CustomCorsOrigin = (
+  requestOrigin: string | undefined,
+  callback: (err: Error | null, origin?: StaticCorsOrigin) => void
+) => void;
+
+interface StaticCorsOptions {
+  origin?: StaticCorsOrigin | CustomCorsOrigin;
+  methods?: string | string[];
+  allowedHeaders?: string | string[];
+  exposedHeaders?: string | string[];
+  credentials?: boolean;
+  maxAge?: number;
+  preflightContinue?: boolean;
+  optionsSuccessStatus?: number;
+}
+
+type CorsOrigin = StaticCorsOrigin | CustomCorsOrigin;
+
 export interface SecurityMiddlewareOptions {
   env?: Partial<SecurityEnvConfig>;
-  corsOptions?: CorsOptions;
+  corsOptions?: StaticCorsOptions;
   jsonLimit?: string;
   urlencodedLimit?: string;
   rateLimitWindowMs?: number;
@@ -28,7 +47,7 @@ export interface SecurityMiddlewareOptions {
 
 export interface SecurityMiddlewareBundle {
   env: SecurityEnvConfig;
-  corsOptions: CorsOptions;
+  corsOptions: StaticCorsOptions;
   globalMiddlewares: RequestHandler[];
   rateLimitMiddleware: RequestHandler;
   shouldApplyRateLimit: boolean;
@@ -47,7 +66,7 @@ const baseEnvConfig: SecurityEnvConfig = {
   RATE_LIMIT_DISABLE: defaultEnv.RATE_LIMIT_DISABLE
 };
 
-const parseCorsOrigin = (env: SecurityEnvConfig): CorsOptions['origin'] => {
+const parseCorsOrigin = (env: SecurityEnvConfig): CorsOrigin => {
   const rawOrigins = env.CORS_ORIGIN
     ?.split(',')
     .map((origin) => origin.trim())
@@ -93,7 +112,7 @@ export const createSecurityMiddleware = (
     ...(additionalAllowedHeaders || [])
   ]));
 
-  const corsOptions: CorsOptions = options.corsOptions ?? {
+  const corsOptions: StaticCorsOptions = options.corsOptions ?? {
     origin: parseCorsOrigin(effectiveEnv),
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
