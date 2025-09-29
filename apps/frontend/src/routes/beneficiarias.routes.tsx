@@ -2,7 +2,7 @@ import { lazy } from "react";
 import { Route } from "react-router-dom";
 
 // Lazy loaded components
-const Beneficiarias = lazy(() => import("@/pages/BeneficiariasFixed"));
+const Beneficiarias = lazy(() => import("@/pages/Beneficiarias"));
 const CadastroBeneficiaria = lazy(() => import("@/pages/CadastroBeneficiaria"));
 const DetalhesBeneficiaria = lazy(() => import("@/pages/DetalhesBeneficiaria"));
 const EditarBeneficiaria = lazy(() => import("@/pages/EditarBeneficiaria"));
