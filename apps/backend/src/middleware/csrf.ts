@@ -12,7 +12,11 @@ const CSRF_COOKIE_OPTIONS: CookieOptions = {
   signed: true
 };
 
-const getCookieToken = (req: Request): string | undefined => {
+type LegacyAwareRequest = Request & {
+  csrfLegacyTokenAccepted?: boolean;
+};
+
+const getCookieToken = (req: LegacyAwareRequest): string | undefined => {
   const signedToken = req.signedCookies?.[CSRF_COOKIE_NAME];
   if (typeof signedToken === 'string' && signedToken.length > 0) {
     return signedToken;
@@ -21,8 +25,10 @@ const getCookieToken = (req: Request): string | undefined => {
   const unsignedToken = req.cookies?.[CSRF_COOKIE_NAME];
   if (typeof unsignedToken === 'string' && unsignedToken.length > 0) {
     if (process.env.NODE_ENV !== 'test') {
-      console.warn('[csrf] Cookie não assinado detectado, gerando novo token.');
+      console.warn('[csrf] Cookie não assinado detectado, emitindo versão assinada.');
     }
+    req.csrfLegacyTokenAccepted = true;
+    return unsignedToken;
   }
 
   return undefined;
@@ -30,11 +36,14 @@ const getCookieToken = (req: Request): string | undefined => {
 
 export function csrfMiddleware(req: Request, res: Response, next: NextFunction) {
   try {
-    let token = getCookieToken(req);
+    const legacyAwareReq = req as LegacyAwareRequest;
+    let token = getCookieToken(legacyAwareReq);
 
     // Gera token se ausente
     if (!token) {
       token = crypto.randomBytes(16).toString('hex');
+      res.cookie(CSRF_COOKIE_NAME, token, CSRF_COOKIE_OPTIONS);
+    } else if (legacyAwareReq.csrfLegacyTokenAccepted) {
       res.cookie(CSRF_COOKIE_NAME, token, CSRF_COOKIE_OPTIONS);
     }
 
