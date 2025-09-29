@@ -3,6 +3,28 @@
  * Garante consistência na exibição e conversão de datas
  */
 
+const shortDateFormatter = new Intl.DateTimeFormat('pt-BR', {
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
+  timeZone: 'UTC'
+});
+
+const longDateFormatter = new Intl.DateTimeFormat('pt-BR', {
+  day: 'numeric',
+  month: 'long',
+  year: 'numeric',
+  timeZone: 'UTC'
+});
+
+const toUTCDate = (value: string | number | Date): Date | null => {
+  const date = value instanceof Date ? new Date(value.getTime()) : new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const normalizeUTCDate = (date: Date): Date =>
+  new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+
 /**
  * Formata data ISO para exibição em pt-BR
  * @param isoDate String de data ISO (YYYY-MM-DD)
@@ -10,18 +32,15 @@
  */
 export const formatDisplayDate = (isoDate?: string | null): string => {
   if (!isoDate) return '-';
-  
+
   try {
-    // Se já é uma data válida, usar diretamente
-    const date = new Date(isoDate);
-    
-    // Verificar se a data é válida
-    if (isNaN(date.getTime())) {
+    const date = toUTCDate(isoDate);
+    if (!date) {
       console.warn('Data inválida:', isoDate);
       return '-';
     }
-    
-    return date.toLocaleDateString('pt-BR');
+
+    return shortDateFormatter.format(date);
   } catch (error) {
     console.error('Erro ao formatar data:', error);
     return '-';
@@ -35,16 +54,15 @@ export const formatDisplayDate = (isoDate?: string | null): string => {
  */
 export const formatLongDate = (isoDate?: string | null): string => {
   if (!isoDate) return '-';
+
   try {
-    const date = new Date(isoDate);
-    if (isNaN(date.getTime())) {
+    const date = toUTCDate(isoDate);
+    if (!date) {
+      console.warn('Data inválida:', isoDate);
       return '-';
     }
-    return date.toLocaleDateString('pt-BR', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
+
+    return longDateFormatter.format(date);
   } catch (error) {
     console.error('Erro ao formatar data longa:', error);
     return '-';
@@ -54,16 +72,13 @@ export const formatLongDate = (isoDate?: string | null): string => {
 /**
  * Formata data para DD/MM/YYYY
  */
-export function formatDate(date: Date): string {
-  const d = date instanceof Date ? date : new Date(date);
-  if (Number.isNaN(d.getTime())) {
+export function formatDate(date: Date | string | number): string {
+  const parsed = toUTCDate(date);
+  if (!parsed) {
     return '';
   }
 
-  const day = String(d.getUTCDate()).padStart(2, '0');
-  const month = String(d.getUTCMonth() + 1).padStart(2, '0');
-  const year = d.getUTCFullYear();
-  return `${day}/${month}/${year}`;
+  return shortDateFormatter.format(parsed);
 }
 
 /**
@@ -97,24 +112,19 @@ export const formatISODate = (localDate: string): string => {
  */
 export const formatInputDate = (isoDate?: string | null): string => {
   if (!isoDate) return '';
-  
+
   try {
-    // Se já está no formato correto
     if (isoDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
       return isoDate;
     }
-    
-    const date = new Date(isoDate);
-    
-    if (isNaN(date.getTime())) {
+
+    const date = toUTCDate(isoDate);
+    if (!date) {
+      console.warn('Formato de data inválido:', isoDate);
       return '';
     }
-    
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    
-    return `${year}-${month}-${day}`;
+
+    return date.toISOString().slice(0, 10);
   } catch (error) {
     console.error('Erro ao formatar data para input:', error);
     return '';
@@ -129,16 +139,16 @@ export const formatInputDate = (isoDate?: string | null): string => {
  */
 export const calculateDaysDifference = (startDate: string, endDate: string): number => {
   try {
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    
-    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+    const start = toUTCDate(startDate);
+    const end = toUTCDate(endDate);
+
+    if (!start || !end) {
       return 0;
     }
-    
+
     const diffTime = Math.abs(end.getTime() - start.getTime());
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
+
     return diffDays;
   } catch (error) {
     console.error('Erro ao calcular diferença de dias:', error);
@@ -153,14 +163,16 @@ export const calculateDaysDifference = (startDate: string, endDate: string): num
  */
 export const isPastDate = (isoDate: string): boolean => {
   try {
-    const date = new Date(isoDate);
+    const date = toUTCDate(isoDate);
+    if (!date) {
+      return false;
+    }
+
     const today = new Date();
-    
-    // Zerar horas para comparar apenas as datas
-    today.setHours(0, 0, 0, 0);
-    date.setHours(0, 0, 0, 0);
-    
-    return date < today;
+    const normalizedToday = normalizeUTCDate(today);
+    const normalizedDate = normalizeUTCDate(date);
+
+    return normalizedDate < normalizedToday;
   } catch (error) {
     return false;
   }
@@ -173,14 +185,16 @@ export const isPastDate = (isoDate: string): boolean => {
  */
 export const isFutureDate = (isoDate: string): boolean => {
   try {
-    const date = new Date(isoDate);
+    const date = toUTCDate(isoDate);
+    if (!date) {
+      return false;
+    }
+
     const today = new Date();
-    
-    // Zerar horas para comparar apenas as datas
-    today.setHours(0, 0, 0, 0);
-    date.setHours(0, 0, 0, 0);
-    
-    return date > today;
+    const normalizedToday = normalizeUTCDate(today);
+    const normalizedDate = normalizeUTCDate(date);
+
+    return normalizedDate > normalizedToday;
   } catch (error) {
     return false;
   }

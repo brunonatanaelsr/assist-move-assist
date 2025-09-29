@@ -7,15 +7,11 @@ import {
   useContext,
   type ReactNode,
 } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AUTH_TOKEN_KEY, USER_KEY } from "@/config";
-import { AuthService } from "@/services/auth.service";
+import { AuthService, type AuthUser } from "@/services/auth.service";
 
-interface User {
-  id: number;
-  email: string;
-  nome: string;
-  papel: string;
-  avatar_url?: string;
+type User = AuthUser & {
   ativo?: boolean;
   telefone?: string;
   nome_completo?: string;
@@ -25,7 +21,7 @@ interface User {
   foto_url?: string;
   endereco?: string;
   data_nascimento?: string;
-}
+};
 
 interface AuthContextType {
   user: User | null;
@@ -39,23 +35,61 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const authQueryKeys = {
+  all: ["auth"] as const,
+  profile: () => ["auth", "me"] as const,
+};
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const authService = useMemo(() => AuthService.getInstance(), []);
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const initialHasSession = authService.isAuthenticated();
+  const [hasSession, setHasSession] = useState(initialHasSession);
+  const [user, setUser] = useState<User | null>(() =>
+    initialHasSession ? (authService.getUser?.() as User | null) : null
+  );
+  const [authLoading, setAuthLoading] = useState(false);
+
+  const {
+    data: profile,
+    status: profileStatus,
+    isPending: isProfilePending,
+    refetch: refetchProfile,
+  } = useQuery({
+    queryKey: authQueryKeys.profile(),
+    queryFn: async () => authService.getProfile(),
+    enabled: hasSession,
+    staleTime: 1000 * 60 * 5,
+    gcTime: 1000 * 60 * 30,
+  });
 
   useEffect(() => {
-    const savedUser = authService.getUser?.();
-    if (savedUser) setUser(savedUser);
-    setLoading(false);
-  }, [authService]);
+    if (!hasSession) {
+      return;
+    }
+
+    if (profile) {
+      const nextUser = profile as User;
+      setUser(nextUser);
+      authService.setUser(nextUser);
+      return;
+    }
+
+    if (profileStatus === "success" && profile === null) {
+      setUser(null);
+      authService.setUser(null);
+      setHasSession(false);
+    }
+  }, [profile, profileStatus, authService, hasSession]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
 
     const handleLogoutEvent = () => {
       setUser(null);
-      setLoading(false);
+      setHasSession(false);
+      authService.setUser(null);
+      queryClient.removeQueries({ queryKey: authQueryKeys.profile(), exact: true });
     };
 
     const handleStorageEvent = (event: StorageEvent) => {
@@ -67,7 +101,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         USER_KEY
       ]);
       if (event.key === null || relevantKeys.has(event.key)) {
-        handleLogoutEvent();
+        const authenticated = authService.isAuthenticated();
+        setHasSession(authenticated);
+
+        if (!event.newValue) {
+          handleLogoutEvent();
+          return;
+        }
+
+        if (event.key === USER_KEY && event.newValue) {
+          try {
+            const normalized = authService.getUser();
+            if (normalized) {
+              setUser(normalized as User);
+            }
+          } catch (error) {
+            console.warn("Falha ao sincronizar usuário do storage", error);
+          }
+        }
+
+        queryClient.invalidateQueries({ queryKey: authQueryKeys.profile() });
       }
     };
 
@@ -78,14 +131,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       window.removeEventListener("auth:logout", handleLogoutEvent);
       window.removeEventListener("storage", handleStorageEvent);
     };
-  }, []);
+  }, [authService, queryClient]);
 
   const legacyTokenKeys = useMemo(() => ['auth_token', 'token'], []);
   const legacyUserKeys = useMemo(() => ['user'], []);
 
   const signIn = async (email: string, password: string): Promise<{ error?: Error }> => {
     try {
-      setLoading(true);
+      setAuthLoading(true);
       const response = await authService.login({ email, password });
 
       // Tipagem explícita do retorno esperado
@@ -100,31 +153,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           .forEach((key) => localStorage.removeItem(key));
       }
       if (resp.user) {
-        localStorage.setItem(USER_KEY, JSON.stringify(resp.user));
+        authService.setUser(resp.user);
+        const normalized = authService.getUser();
+        if (normalized) {
+          setUser(normalized as User);
+          queryClient.setQueryData(authQueryKeys.profile(), normalized);
+        }
         legacyUserKeys
           .filter((key) => key !== USER_KEY)
           .forEach((key) => localStorage.removeItem(key));
-        setUser(resp.user);
       }
+      setHasSession(true);
+      await refetchProfile().catch(() => undefined);
       return {};
     } catch (error) {
       return { error: error as Error };
     } finally {
-      setLoading(false);
+      setAuthLoading(false);
     }
   };
 
   const signOut = async () => {
     try {
-      setLoading(true);
+      setAuthLoading(true);
       await authService.logout();
     } finally {
       const tokenKeys = new Set([...legacyTokenKeys, AUTH_TOKEN_KEY]);
       tokenKeys.forEach((key) => localStorage.removeItem(key));
       const userKeys = new Set([...legacyUserKeys, USER_KEY]);
       userKeys.forEach((key) => localStorage.removeItem(key));
+      authService.setUser(null);
       setUser(null);
-      setLoading(false);
+      setHasSession(false);
+      queryClient.removeQueries({ queryKey: authQueryKeys.profile(), exact: true });
+      setAuthLoading(false);
     }
   };
 
@@ -140,7 +202,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       value={{
         user,
         profile: user, // alias para compatibilidade
-        loading,
+        loading: authLoading || (hasSession && isProfilePending),
         signIn,
         signOut,
         isAuthenticated: !!user,
