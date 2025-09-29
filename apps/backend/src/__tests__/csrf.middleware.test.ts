@@ -41,7 +41,7 @@ describe('csrfMiddleware integration', () => {
     expect(response.body).toEqual({ error: 'CSRF token inválido' });
   });
 
-  it('should allow requests with an unsigned legacy CSRF token', async () => {
+  it('should reject unsigned legacy CSRF tokens and refresh the cookie', async () => {
     const token = 'legacy-token';
     const app = setupTestApp();
 
@@ -51,8 +51,12 @@ describe('csrfMiddleware integration', () => {
       .set('X-CSRF-Token', token)
       .send({ value: 'test' });
 
-    expect(response.status).toBe(200);
-    expect(response.body).toEqual({ ok: true });
+    expect(response.status).toBe(403);
+    expect(response.body).toEqual({ error: 'CSRF token inválido' });
+
+    const cookies = response.headers['set-cookie'] as string[] | undefined;
+    expect(cookies?.some((cookie) => cookie.startsWith('csrf_token='))).toBe(true);
+    expect(cookies?.some((cookie) => cookie.includes('csrf_token=s%3A'))).toBe(true);
   });
 
   it('should expose a signed CSRF token via GET /api/csrf-token', async () => {
