@@ -52,6 +52,9 @@ const transports: winston.transport[] = [
   })
 ];
 
+// Estado de contexto atual
+let currentContext: string | undefined;
+
 // Criar logger
 const logger = winston.createLogger({
   level: process.env.LOG_LEVEL || 'info',
@@ -60,46 +63,85 @@ const logger = winston.createLogger({
   exitOnError: false,
 });
 
+const mergeContext = (meta?: any) => {
+  const contextMeta = currentContext ? { context: currentContext } : undefined;
+
+  if (!contextMeta) {
+    return meta;
+  }
+
+  if (meta === undefined) {
+    return contextMeta;
+  }
+
+  if (meta && typeof meta === 'object' && !Array.isArray(meta)) {
+    return {
+      ...meta,
+      ...contextMeta
+    };
+  }
+
+  return {
+    payload: meta,
+    ...contextMeta
+  };
+};
+
+const logWithContext = (level: keyof winston.Logger, message: string, meta?: any) => {
+  const mergedMeta = mergeContext(meta);
+
+  if (mergedMeta !== undefined) {
+    (logger[level] as winston.LeveledLogMethod)(message, mergedMeta);
+    return;
+  }
+
+  (logger[level] as winston.LeveledLogMethod)(message);
+};
+
+export const setContext = (context?: string) => {
+  currentContext = context;
+};
+
 // Helper functions para diferentes níveis de log
 export const loggerService = {
   error: (message: string, meta?: any) => {
-    logger.error(message, meta);
+    logWithContext('error', message, meta);
   },
-  
+
   warn: (message: string, meta?: any) => {
-    logger.warn(message, meta);
+    logWithContext('warn', message, meta);
   },
-  
+
   info: (message: string, meta?: any) => {
-    logger.info(message, meta);
+    logWithContext('info', message, meta);
   },
-  
+
   debug: (message: string, meta?: any) => {
-    logger.debug(message, meta);
+    logWithContext('debug', message, meta);
   },
-  
+
   // Log para auditoria
   audit: (action: string, userId?: string | number, details?: Record<string, unknown>) => {
-    logger.info('AUDIT', {
+    logWithContext('info', 'AUDIT', {
       action,
       userId,
       details,
       timestamp: new Date().toISOString()
     });
   },
-  
+
   // Log para performance
   performance: (operation: string, duration: number, meta?: any) => {
-    logger.info('PERFORMANCE', {
+    logWithContext('info', 'PERFORMANCE', {
       operation,
       duration: `${duration}ms`,
       ...meta
     });
   },
-  
+
   // Log para requests HTTP
   request: (method: string, url: string, statusCode: number, duration: number, userId?: string) => {
-    logger.info('HTTP_REQUEST', {
+    logWithContext('info', 'HTTP_REQUEST', {
       method,
       url,
       statusCode,
@@ -115,7 +157,7 @@ export const requestLogger = (req: any, res: any, next: any) => {
 
   res.on('finish', () => {
     const duration = Date.now() - startTime;
-    logger.info('HTTP Request', {
+    logWithContext('info', 'HTTP Request', {
       method: req.method,
       url: req.url,
       statusCode: res.statusCode,
@@ -130,7 +172,7 @@ export const requestLogger = (req: any, res: any, next: any) => {
 
 // Função para log de erros com contexto
 export const logError = (error: Error, context?: any) => {
-  logger.error('Application Error', {
+  logWithContext('error', 'Application Error', {
     message: error.message,
     stack: error.stack,
     context
@@ -139,12 +181,26 @@ export const logError = (error: Error, context?: any) => {
 
 // Função para log de ações de usuário
 export const logUserAction = (userId: string, action: string, details?: any) => {
-  logger.info('User Action', {
+  logWithContext('info', 'User Action', {
     userId,
     action,
     details,
     timestamp: new Date().toISOString()
   });
+};
+
+export const errorWithStack = (
+  error: Error,
+  message?: string,
+  meta?: Record<string, unknown>
+) => {
+  const metaWithStack: Record<string, unknown> = {
+    ...meta,
+    errorMessage: error.message,
+    stack: error.stack
+  };
+
+  loggerService.error(message ?? error.message, metaWithStack);
 };
 
 // Substituir console.log em produção para manter logs estruturados
