@@ -1,17 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { render, screen } from '@testing-library/react';
+import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { ProtectedRoute } from '../ProtectedRoute';
-
-const mockNavigate = vi.fn();
-
-vi.mock('react-router-dom', async () => {
-  const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
-  return {
-    ...actual,
-    useNavigate: () => mockNavigate
-  };
-});
 
 const mockUseAuth = vi.fn();
 
@@ -19,9 +9,18 @@ vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => mockUseAuth()
 }));
 
+const renderWithRoutes = (ui: React.ReactNode) =>
+  render(
+    <MemoryRouter initialEntries={['/admin']}>
+      <Routes>
+        <Route path="/admin" element={ui} />
+        <Route path="/" element={<div>Home Pública</div>} />
+      </Routes>
+    </MemoryRouter>
+  );
+
 describe('ProtectedRoute', () => {
   beforeEach(() => {
-    mockNavigate.mockClear();
     mockUseAuth.mockReset();
   });
 
@@ -40,16 +39,14 @@ describe('ProtectedRoute', () => {
       isAdmin: true
     });
 
-    render(
-      <MemoryRouter>
-        <ProtectedRoute adminOnly>
-          <div>Área Administrativa</div>
-        </ProtectedRoute>
-      </MemoryRouter>
+    renderWithRoutes(
+      <ProtectedRoute adminOnly>
+        <div>Área Administrativa</div>
+      </ProtectedRoute>
     );
 
     expect(screen.getByText('Área Administrativa')).toBeInTheDocument();
-    expect(mockNavigate).not.toHaveBeenCalled();
+    expect(screen.queryByText('Home Pública')).not.toBeInTheDocument();
   });
 
   it('não renderiza conteúdo protegido para usuários sem permissão de admin', async () => {
@@ -63,18 +60,13 @@ describe('ProtectedRoute', () => {
       isAdmin: false
     });
 
-    render(
-      <MemoryRouter>
-        <ProtectedRoute adminOnly>
-          <div>Área Administrativa</div>
-        </ProtectedRoute>
-      </MemoryRouter>
+    renderWithRoutes(
+      <ProtectedRoute adminOnly>
+        <div>Área Administrativa</div>
+      </ProtectedRoute>
     );
 
     expect(screen.queryByText('Área Administrativa')).not.toBeInTheDocument();
-
-    await waitFor(() => {
-      expect(mockNavigate).toHaveBeenCalledWith('/', { replace: true });
-    });
+    expect(screen.getByText('Home Pública')).toBeInTheDocument();
   });
 });
