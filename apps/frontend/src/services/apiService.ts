@@ -28,7 +28,7 @@ import type {
 import type { Oficina } from '@/types/oficinas';
 import { applyCsrfTokenToAxios, applyCsrfTokenToConfig, getCsrfToken } from './csrfTokenStore';
 import { ensureCsrfTokenFetched } from './csrf.service';
-const IS_DEV = (import.meta as any)?.env?.DEV === true || (import.meta as any)?.env?.MODE === 'development';
+import { logger } from '@/utils/logger';
 
 type SessionUser = AuthenticatedSessionUser & { ativo?: boolean };
 type LoginSuccessPayload = Omit<AuthResponse, 'user'> & { user: SessionUser } & { message?: string };
@@ -38,7 +38,11 @@ type PaginatedPermissionsPayload = PaginatedCollection<PermissionSummary>;
 type PaginationQuery = Partial<{ search: string; page: number; limit: number }>;
 
 class ApiService {
+  private static readonly FALLBACK_ORIGIN =
+    typeof window !== 'undefined' && window.location?.origin ? window.location.origin : 'http://localhost';
+
   private api: AxiosInstance;
+  private readonly internalApiUrl: URL | null;
 
   constructor() {
     this.api = axios.create({
@@ -49,6 +53,8 @@ class ApiService {
         'Content-Type': 'application/json',
       },
     });
+
+    this.internalApiUrl = ApiService.createUrl(API_URL);
 
     applyCsrfTokenToAxios(this.api);
 
@@ -82,13 +88,15 @@ class ApiService {
           delete (config.headers as any)['X-CSRF-Token'];
         }
 
-        if (IS_DEV) {
-          console.log(`API Request: ${config.method?.toUpperCase()} ${config.url}`);
-        }
+        logger.debug('API Request', {
+          method: config.method?.toUpperCase(),
+          url: config.url,
+          baseURL: config.baseURL ?? this.api.defaults.baseURL,
+        });
         return config;
       },
       (error) => {
-        if (IS_DEV) console.error('Request error:', error);
+        logger.error('Request error:', error);
         return Promise.reject(error);
       }
     );
@@ -96,8 +104,16 @@ class ApiService {
     // Interceptor para tratar respostas e erros
     this.api.interceptors.response.use(
       (response: AxiosResponse<ApiResponse>) => {
-        if (IS_DEV) console.log(`API Response: ${response.status} - ${response.config.url}`);
-        
+        logger.debug('API Response', {
+          status: response.status,
+          url: response.config.url,
+          baseURL: response.config.baseURL ?? this.api.defaults.baseURL,
+        });
+
+        if (!this.isInternalRequest(response.config)) {
+          return response;
+        }
+
         // Se a resposta já tem o formato esperado, retorna como está
         if (response.data && typeof response.data.success === 'boolean') {
           return response;
@@ -115,8 +131,8 @@ class ApiService {
         };
       },
       (error) => {
-        if (IS_DEV) console.error('API Error:', error);
-        
+        logger.error('API Error:', error);
+
         // Tratar erro de autenticação
         if (error.response && error.response.status === 401) {
           const tokenKeys = new Set([
@@ -184,22 +200,20 @@ class ApiService {
 
   async post<T>(url: string, data: any, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
     try {
-      if (IS_DEV) console.log('POST Request:', { url, data, baseURL: this.api.defaults.baseURL });
+      logger.debug('POST Request', { url, data, baseURL: this.api.defaults.baseURL });
       const response = await this.api.post<ApiResponse<T>>(url, data, config);
-      if (IS_DEV) console.log('POST Response Success:', response.data);
+      logger.debug('POST Response Success', response.data);
       return response.data;
     } catch (error: any) {
-      if (IS_DEV) {
-        console.error('POST Error:', error);
-        console.error('Error details:', {
-          message: error.message,
-          code: error.code,
-          response: error.response?.data,
-          status: error.response?.status,
-          url: error.config?.url
-        });
-      }
-      
+      logger.error('POST Error:', error);
+      logger.debug('POST Error details', {
+        message: error.message,
+        code: error.code,
+        response: error.response?.data,
+        status: error.response?.status,
+        url: error.config?.url
+      });
+
       if (error.response && error.response.data) {
         return error.response.data;
       }
@@ -227,9 +241,9 @@ class ApiService {
 
   // Métodos específicos para autenticação
   async login(email: string, password: string): Promise<ApiResponse<LoginSuccessPayload>> {
-    if (IS_DEV) console.log('Login attempt:', { email, apiUrl: API_URL });
+    logger.debug('Login attempt', { email, apiUrl: API_URL });
     const result = await this.post<LoginSuccessPayload>('/auth/login', { email, password });
-    if (IS_DEV) console.log('Login result:', result);
+    logger.debug('Login result', result);
     return result;
   }
 
@@ -726,6 +740,70 @@ class ApiService {
 
   async setUserPermissions(userId: number, permissions: UsuarioPermissions): Promise<ApiResponse<{ id: number; permissions: UsuarioPermissions }>> {
     return this.put<{ id: number; permissions: UsuarioPermissions }>(`/configuracoes/usuarios/${userId}/permissions`, { permissions });
+  }
+
+  private static isAbsoluteUrl(value?: string): boolean {
+    return typeof value === 'string' && /^https?:\/\//i.test(value);
+  }
+
+  private static ensureTrailingSlash(value: string): string {
+    return value.endsWith('/') ? value : `${value}/`;
+  }
+
+  private static createUrl(value?: string, base: string = ApiService.FALLBACK_ORIGIN): URL | null {
+    if (!value) {
+      return null;
+    }
+
+    try {
+      if (ApiService.isAbsoluteUrl(value)) {
+        return new URL(value);
+      }
+
+      return new URL(value, ApiService.ensureTrailingSlash(base));
+    } catch (error) {
+      logger.debug('Failed to create URL', { value, base, error });
+      return null;
+    }
+  }
+
+  private static normalizePath(pathname: string): string {
+    if (!pathname || pathname === '/') {
+      return '/';
+    }
+
+    return pathname.endsWith('/') ? pathname : `${pathname}/`;
+  }
+
+  private resolveRequestUrl(config: AxiosRequestConfig): URL | null {
+    try {
+      const finalUri = this.api.getUri(config);
+      const base = this.internalApiUrl?.origin ?? ApiService.FALLBACK_ORIGIN;
+      return ApiService.createUrl(finalUri, base);
+    } catch {
+      return null;
+    }
+  }
+
+  private isInternalRequest(config: AxiosRequestConfig): boolean {
+    const requestUrl = this.resolveRequestUrl(config);
+
+    if (!requestUrl) {
+      return !ApiService.isAbsoluteUrl(config.url);
+    }
+
+    if (!this.internalApiUrl) {
+      return !ApiService.isAbsoluteUrl(config.url);
+    }
+
+    if (requestUrl.origin !== this.internalApiUrl.origin) {
+      return false;
+    }
+
+    const basePath = ApiService.normalizePath(this.internalApiUrl.pathname);
+    const requestPath = ApiService.normalizePath(requestUrl.pathname);
+
+    return requestPath.startsWith(basePath);
   }
 }
 
