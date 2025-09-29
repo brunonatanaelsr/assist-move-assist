@@ -7,7 +7,7 @@ export interface CsrfContext {
   token: string;
 }
 
-function extractCsrfCookie(setCookies: string[] | undefined): string | undefined {
+export function extractCsrfCookie(setCookies: string[] | undefined): string | undefined {
   if (!setCookies) return undefined;
   for (const raw of setCookies) {
     const [pair] = raw.split(';');
@@ -17,6 +17,16 @@ function extractCsrfCookie(setCookies: string[] | undefined): string | undefined
     return `csrf_token=${rest.join('=').trim()}`;
   }
   return undefined;
+}
+
+export function isSignedCsrfCookie(cookie: string | undefined): boolean {
+  if (!cookie) return false;
+  const [, ...rest] = cookie.split('=');
+  if (!rest.length) return false;
+  const value = decodeURIComponent(rest.join('='));
+  if (!value.startsWith('s:')) return false;
+  const [, signature] = value.split('.');
+  return Boolean(signature);
 }
 
 export async function fetchCsrfToken(app: Express): Promise<CsrfContext> {

@@ -20,7 +20,9 @@ const getCookieToken = (req: Request): string | undefined => {
 
   const unsignedToken = req.cookies?.[CSRF_COOKIE_NAME];
   if (typeof unsignedToken === 'string' && unsignedToken.length > 0) {
-    return unsignedToken;
+    if (process.env.NODE_ENV !== 'test') {
+      console.warn('[csrf] Cookie não assinado detectado, gerando novo token.');
+    }
   }
 
   return undefined;
