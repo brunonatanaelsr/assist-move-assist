@@ -40,6 +40,11 @@ interface RefreshTokenMetadata {
   ipAddress?: string | null;
 }
 
+interface RefreshTokenRevocationMetadata {
+  deviceId?: string | null;
+  userAgent?: string | null;
+}
+
 export class AuthService {
   private readonly jwtSecret: string;
   private readonly jwtExpiry: SignOptions['expiresIn'];
@@ -221,8 +226,19 @@ export class AuthService {
     }
   }
 
-  async revokeRefreshToken(token: string): Promise<void> {
+  async revokeRefreshToken(
+    token: string,
+    metadata?: RefreshTokenRevocationMetadata
+  ): Promise<void> {
     const tokenHash = this.hashToken(token);
+
+    if (metadata && (metadata.deviceId || metadata.userAgent)) {
+      loggerService.info('Revogando refresh token com metadados adicionais', {
+        deviceId: metadata.deviceId ?? null,
+        userAgent: metadata.userAgent ?? null
+      });
+    }
+
     await this.removeRefreshTokenFromRedis(tokenHash);
 
     await this.ensureRefreshTokenTable();

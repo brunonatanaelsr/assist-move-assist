@@ -28,9 +28,24 @@ router.get(
       const page = parseInt((req.query.page as string) || '1', 10);
       const limit = parseInt((req.query.limit as string) || '50', 10);
       const search = typeof req.query.search === 'string' ? req.query.search.trim() : undefined;
+      type BeneficiariaStatus =
+        | 'ativa'
+        | 'inativa'
+        | 'pendente'
+        | 'desistente'
+        | 'em_acompanhamento';
       const status = typeof req.query.status === 'string' ? req.query.status.trim() : undefined;
-      const allowedStatus = new Set(['ativa', 'inativa', 'pendente', 'desistente', 'em_acompanhamento']);
-      const statusFilter = status && allowedStatus.has(status) ? (status as typeof status) : undefined;
+      const allowedStatus: ReadonlySet<BeneficiariaStatus> = new Set([
+        'ativa',
+        'inativa',
+        'pendente',
+        'desistente',
+        'em_acompanhamento'
+      ]);
+      const statusFilter: BeneficiariaStatus | undefined =
+        status && allowedStatus.has(status as BeneficiariaStatus)
+          ? (status as BeneficiariaStatus)
+          : undefined;
 
       const filtros = {
         ...(statusFilter ? { status: statusFilter } : {}),
