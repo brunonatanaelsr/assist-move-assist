@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Textarea } from '@/components/ui/textarea';
 import { ArrowLeft, Save, Target, TrendingUp, Heart, Home, Users, Briefcase, GraduationCap, Smile } from 'lucide-react';
-import { apiService } from '@/services/apiService';
+import { apiService, formulariosApi } from '@/services/apiService';
 
 interface RodaVidaData {
   beneficiaria_id: number;
@@ -116,7 +116,7 @@ export default function RodaVida() {
   const salvarRodaVida = async () => {
     try {
       setLoading(true);
-      const response = await apiService.post('/formularios/roda-vida', formData);
+      const response = await formulariosApi.createFormulario('roda-vida', formData);
 
       if (response.success) {
         navigate(`/beneficiarias/${id}`);

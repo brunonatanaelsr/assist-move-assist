@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import apiService from '@/services/apiService';
+import { configuracoesApi } from '@/services/apiService';
 import type {
   PaginatedCollection,
   PermissionSummary,
@@ -55,7 +55,7 @@ export const useConfiguracoesPermissoes = (
   useQuery<PermissionsQueryData, Error>({
     queryKey: configuracoesPermissoesKeys.list(params),
     queryFn: async () => {
-      const response = await apiService.listPermissions(params);
+      const response = await configuracoesApi.listPermissions(params);
       if (!response.success || !response.data) {
         throw new Error(response.message ?? 'Não foi possível carregar as permissões.');
       }
@@ -75,7 +75,7 @@ export const useConfiguracoesRoles = (): UseQueryResult<string[], Error> =>
   useQuery<string[], Error>({
     queryKey: configuracoesPermissoesKeys.roles(),
     queryFn: async () => {
-      const response = await apiService.listRoles();
+      const response = await configuracoesApi.listRoles();
       if (!response.success || !response.data) {
         throw new Error(response.message ?? 'Não foi possível carregar os papéis.');
       }
@@ -89,7 +89,7 @@ export const useConfiguracoesRolePermissoes = (
   useQuery<UsuarioPermissions, Error>({
     queryKey: configuracoesPermissoesKeys.rolePermissions(role),
     queryFn: async () => {
-      const response = await apiService.getRolePermissions(role);
+      const response = await configuracoesApi.getRolePermissions(role);
       if (!response.success || !response.data) {
         throw new Error(response.message ?? 'Não foi possível carregar as permissões do papel.');
       }
@@ -103,7 +103,7 @@ export const useCreateConfiguracaoPermissao = () => {
 
   return useMutation({
     mutationFn: async ({ name, description }: { name: string; description?: string }) => {
-      const response = await apiService.createPermission(name, description);
+      const response = await configuracoesApi.createPermission(name, description);
       if (!response.success) {
         throw new Error(response.message ?? 'Não foi possível criar a permissão.');
       }
@@ -124,7 +124,7 @@ export const useSetConfiguracoesRolePermissoes = () => {
 
   return useMutation({
     mutationFn: async ({ role, permissions }: { role: string; permissions: UsuarioPermissions }) => {
-      const response = await apiService.setRolePermissions(role, permissions);
+      const response = await configuracoesApi.setRolePermissions(role, permissions);
       if (!response.success) {
         throw new Error(response.message ?? 'Não foi possível atualizar as permissões do papel.');
       }

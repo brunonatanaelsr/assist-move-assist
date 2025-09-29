@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
 import { ArrowLeft, Shield, FileText, CheckCircle, Download, Loader2 } from 'lucide-react';
 import { formatDate } from '@/lib/dayjs';
-import { apiService } from '@/services/apiService';
+import { apiService, formulariosApi } from '@/services/apiService';
 
 interface TermoEvidencia {
   registrado_em?: string;
@@ -131,7 +131,7 @@ export default function TermosConsentimento() {
 
     try {
       setHistoricoLoading(true);
-      const response = await apiService.listTermosConsentimento(beneficiariaId);
+      const response = await formulariosApi.listTermosConsentimento(beneficiariaId);
       if (response.success && Array.isArray(response.data)) {
         const termos = (response.data as TermoConsentimentoRegistro[]).map((termo) => ({
           ...termo,
@@ -182,7 +182,7 @@ export default function TermosConsentimento() {
         assinatura: assinatura || undefined,
         data_aceite: new Date().toISOString()
       };
-      const response = await apiService.post('/formularios/termos-consentimento', payload);
+      const response = await formulariosApi.createFormulario('termos-consentimento', payload);
 
       if (response.success) {
         toast({
@@ -227,7 +227,7 @@ export default function TermosConsentimento() {
   const gerarPDF = async (termoId: number) => {
     try {
       setPdfGerandoId(termoId);
-      const blob = await apiService.downloadTermoConsentimentoPdf(termoId);
+      const blob = await formulariosApi.downloadTermoConsentimentoPdf(termoId);
 
       if (!(blob instanceof Blob) || blob.size === 0) {
         throw new Error('PDF vazio ou inválido');
@@ -264,7 +264,7 @@ export default function TermosConsentimento() {
 
     try {
       setRevogandoId(termoId);
-      const response = await apiService.revokeTermoConsentimento(termoId);
+      const response = await formulariosApi.revokeTermoConsentimento(termoId);
       if (response.success) {
         toast({
           title: 'Termo revogado',

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import apiService from '@/services/apiService';
+import { formulariosApi } from '@/services/apiService';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, TrendingUp } from 'lucide-react';
@@ -26,7 +26,7 @@ export default function EvolucaoBeneficiaria() {
     const load = async () => {
       try {
         setLoading(true);
-        const resp = await apiService.getFichaEvolucaoSeries(beneficiariaId);
+        const resp = await formulariosApi.getFichaEvolucaoSeries(beneficiariaId);
         if (resp.success && resp.data) {
           setData(resp.data.data || []);
         }

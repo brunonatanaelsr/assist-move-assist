@@ -3,7 +3,7 @@ import { AUTH_TOKEN_KEY } from '@/config';
 import apiService from './apiService';
 import { clearCsrfToken, getCsrfToken, setCsrfToken } from './csrfTokenStore';
 
-const getAxiosInstance = () => (apiService as unknown as { api: any }).api;
+const getAxiosInstance = () => apiService.getHttpClient();
 
 beforeEach(() => {
   localStorage.clear();
