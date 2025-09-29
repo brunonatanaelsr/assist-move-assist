@@ -1,6 +1,6 @@
 import { Pool } from 'pg';
 import Redis from 'ioredis';
-import { OficinaService } from '../oficina.service';
+import { OficinaService, OficinaListResponse } from '../oficina.service';
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { createMockPool, createMockRedis, MockPool, MockRedis } from '../../utils/testUtils';
 import { Oficina, Participante } from '../../types/oficina';
@@ -13,7 +13,11 @@ describe('OficinaService', () => {
   let oficinaService: OficinaService;
   let mockPool: MockPool;
   let mockRedis: MockRedis;
-  let cacheGetSpy: jest.SpyInstance;
+  type CacheGetSpy = ReturnType<typeof jest.spyOn<typeof cacheService, 'get'>>;
+  type CacheSetSpy = ReturnType<typeof jest.spyOn<typeof cacheService, 'set'>>;
+
+  let cacheGetSpy: CacheGetSpy;
+  let cacheSetSpy: CacheSetSpy;
 
   const mockOficina: Oficina = {
     id: 1,
@@ -39,8 +43,12 @@ describe('OficinaService', () => {
     mockRedis = createMockRedis();
     oficinaService = new OficinaService(mockPool as unknown as Pool, mockRedis as unknown as Redis);
 
-    cacheGetSpy = jest.spyOn(cacheService, 'get').mockResolvedValue(null);
-    jest.spyOn(cacheService, 'set').mockResolvedValue();
+    cacheGetSpy = jest
+      .spyOn(cacheService, 'get')
+      .mockResolvedValue(null) as CacheGetSpy;
+    cacheSetSpy = jest
+      .spyOn(cacheService, 'set')
+      .mockResolvedValue() as CacheSetSpy;
     jest.spyOn(cacheService, 'deletePattern').mockResolvedValue();
   });
 
@@ -55,7 +63,7 @@ describe('OficinaService', () => {
     };
 
     it('deve retornar oficinas do cache quando disponível', async () => {
-      const mockCachedData = {
+      const mockCachedData: OficinaListResponse = {
         data: [mockOficina],
         pagination: { total: 1, page: 1, limit: 10, totalPages: 1 }
       };
@@ -104,7 +112,7 @@ describe('OficinaService', () => {
         }
       });
       expect(mockPool.query).toHaveBeenCalled();
-      expect(cacheService.set).toHaveBeenCalledWith(
+      expect(cacheSetSpy).toHaveBeenCalledWith(
         'oficinas:list:all:all:10',
         {
           data: [
@@ -180,7 +188,7 @@ describe('OficinaService', () => {
         data_atualizacao: '2025-08-26'
       });
       expect(mockPool.query).toHaveBeenCalled();
-      expect(cacheService.set).toHaveBeenCalledWith(
+      expect(cacheSetSpy).toHaveBeenCalledWith(
         'oficinas:detail:1',
         {
           ...dbRow,
@@ -330,7 +338,7 @@ describe('OficinaService', () => {
 
       expect(result).toEqual(mockParticipantes);
       expect(mockPool.query).toHaveBeenCalledTimes(2);
-      expect(cacheService.set).toHaveBeenCalledWith('oficinas:participantes:1', mockParticipantes, 300);
+      expect(cacheSetSpy).toHaveBeenCalledWith('oficinas:participantes:1', mockParticipantes, 300);
     });
 
     it('deve lançar erro quando oficina não é encontrada', async () => {

@@ -12,6 +12,7 @@ import {
   updateOficinaSchema
 } from '../validators/oficina.validator';
 import { formatArrayDates, formatObjectDates } from '../utils/dateFormatter';
+import type { Oficina as OficinaEntity } from '../types/oficina';
 
 type OficinaColumnMap = {
   nome: string | null;
@@ -30,6 +31,16 @@ type OficinaColumnMap = {
   data_criacao: string | null;
   data_atualizacao: string | null;
 };
+
+export interface OficinaListResponse {
+  data: OficinaEntity[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
 
 export class OficinaService {
   private pool: Pool;
@@ -146,7 +157,7 @@ export class OficinaService {
     }
   }
 
-  async listarOficinas(filters: OficinaFilters) {
+  async listarOficinas(filters: OficinaFilters): Promise<OficinaListResponse> {
     try {
       const { page, limit, projeto_id, status, data_inicio, data_fim, instrutor, local, search } = filters;
       const offset = (page - 1) * limit;
@@ -154,7 +165,7 @@ export class OficinaService {
       // Tentar buscar do cache se não houver filtros complexos
       if (!search && !data_inicio && !data_fim && page === 1) {
         const cacheKey = `list:${projeto_id || 'all'}:${status || 'all'}:${limit}`;
-        const cachedData = await this.getCacheKey(cacheKey);
+        const cachedData = await this.getCacheKey<OficinaListResponse>(cacheKey);
         if (cachedData) {
           return cachedData;
         }
@@ -261,7 +272,7 @@ export class OficinaService {
       const oficinas = formatArrayDates(result.rows, ['data_inicio', 'data_fim', 'data_criacao', 'data_atualizacao']);
       const total = result.rows.length > 0 ? parseInt(result.rows[0].total_count) : 0;
 
-      const response = {
+      const response: OficinaListResponse = {
         data: oficinas,
         pagination: {
           page: parseInt(String(page)),
