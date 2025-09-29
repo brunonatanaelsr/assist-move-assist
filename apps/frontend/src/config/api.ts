@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { API_URL } from '@/config';
+import { applyCsrfTokenToConfig } from '@/services/csrfTokenStore';
 
 const api = axios.create({
   baseURL: API_URL,
@@ -7,8 +8,8 @@ const api = axios.create({
     'Content-Type': 'application/json',
   },
   withCredentials: true,
-  xsrfCookieName: 'csrf_token',
-  xsrfHeaderName: 'X-CSRF-Token',
 });
+
+api.interceptors.request.use((config) => applyCsrfTokenToConfig(config));
 
 export default api;
