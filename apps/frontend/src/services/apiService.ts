@@ -28,7 +28,43 @@ import type {
 import type { Oficina } from '@/types/oficinas';
 import { applyCsrfTokenToAxios, applyCsrfTokenToConfig, getCsrfToken } from './csrfTokenStore';
 import { ensureCsrfTokenFetched } from './csrf.service';
-const IS_DEV = (import.meta as any)?.env?.DEV === true || (import.meta as any)?.env?.MODE === 'development';
+import { logger } from '@/lib/logger';
+
+type ImportMetaEnv = { [key: string]: unknown; DEV?: boolean; MODE?: string };
+
+const safeImportMetaEnv = (): ImportMetaEnv => {
+  try {
+    return ((import.meta as unknown as { env?: ImportMetaEnv })?.env ?? {}) as ImportMetaEnv;
+  } catch (error) {
+    return {};
+  }
+};
+
+const ENV = safeImportMetaEnv();
+const IS_DEV = ENV?.DEV === true || ENV?.MODE === 'development';
+const SHOULD_DEBUG = IS_DEV && Boolean(API_URL);
+
+const INTERNAL_ROUTE_PREFIXES = [
+  '/auth',
+  '/beneficiarias',
+  '/oficinas',
+  '/dashboard',
+  '/projetos',
+  '/participacoes',
+  '/mensagens',
+  '/feed',
+  '/relatorios',
+  '/documentos',
+  '/matriculas-projetos',
+  '/auditoria',
+  '/configuracoes',
+  '/declaracoes',
+  '/formularios',
+  '/health',
+  '/csrf-token',
+] as const;
+
+type ApiRequestConfig<T = any> = AxiosRequestConfig<T> & { skipEnvelope?: boolean };
 
 type SessionUser = AuthenticatedSessionUser & { ativo?: boolean };
 type LoginSuccessPayload = Omit<AuthResponse, 'user'> & { user: SessionUser } & { message?: string };
@@ -39,6 +75,7 @@ type PaginationQuery = Partial<{ search: string; page: number; limit: number }>;
 
 class ApiService {
   private api: AxiosInstance;
+  private readonly baseUrlOrigin?: string;
 
   constructor() {
     this.api = axios.create({
@@ -50,11 +87,13 @@ class ApiService {
       },
     });
 
+    this.baseUrlOrigin = this.getBaseUrlOrigin(API_URL);
+
     applyCsrfTokenToAxios(this.api);
 
     // Interceptor para adicionar token em todas as requisições
     this.api.interceptors.request.use(
-      async (config) => {
+      async (config: ApiRequestConfig) => {
         const token =
           localStorage.getItem(AUTH_TOKEN_KEY) ||
           localStorage.getItem('auth_token') ||
@@ -82,13 +121,17 @@ class ApiService {
           delete (config.headers as any)['X-CSRF-Token'];
         }
 
-        if (IS_DEV) {
-          console.log(`API Request: ${config.method?.toUpperCase()} ${config.url}`);
+        if (SHOULD_DEBUG) {
+          logger.debug('API Request', {
+            method: config.method?.toUpperCase(),
+            url: config.url,
+            baseURL: config.baseURL ?? this.api.defaults.baseURL,
+          });
         }
         return config;
       },
       (error) => {
-        if (IS_DEV) console.error('Request error:', error);
+        logger.error('Request error', error);
         return Promise.reject(error);
       }
     );
@@ -96,13 +139,17 @@ class ApiService {
     // Interceptor para tratar respostas e erros
     this.api.interceptors.response.use(
       (response: AxiosResponse<ApiResponse>) => {
-        if (IS_DEV) console.log(`API Response: ${response.status} - ${response.config.url}`);
-        
-        // Se a resposta já tem o formato esperado, retorna como está
-        if (response.data && typeof response.data.success === 'boolean') {
+        if (SHOULD_DEBUG) {
+          logger.debug('API Response', {
+            status: response.status,
+            url: response.config.url,
+          });
+        }
+
+        if (!this.shouldWrapResponse(response)) {
           return response;
         }
-        
+
         // Para compatibilidade com respostas antigas, wrappa em ApiResponse
         const wrappedResponse: ApiResponse = {
           success: true,
@@ -115,8 +162,8 @@ class ApiService {
         };
       },
       (error) => {
-        if (IS_DEV) console.error('API Error:', error);
-        
+        logger.error('API Error', error);
+
         // Tratar erro de autenticação
         if (error.response && error.response.status === 401) {
           const tokenKeys = new Set([
@@ -145,14 +192,84 @@ class ApiService {
         if (error.response) {
           error.response.data = errorResponse;
         }
-        
+
         return Promise.reject(error);
       }
     );
   }
 
+  private getBaseUrlOrigin(baseURL?: string): string | undefined {
+    if (!baseURL) {
+      return undefined;
+    }
+
+    try {
+      if (/^https?:\/\//i.test(baseURL)) {
+        return new URL(baseURL).origin;
+      }
+
+      if (typeof window !== 'undefined' && baseURL.startsWith('/')) {
+        return window.location.origin;
+      }
+    } catch (error) {
+      if (SHOULD_DEBUG) {
+        logger.debug('Failed to determine API base origin', { baseURL, error });
+      }
+    }
+
+    return undefined;
+  }
+
+  private matchesInternalPrefix(url: string): boolean {
+    const normalized = url.startsWith('/') ? url : `/${url}`;
+    const [pathWithoutQuery] = normalized.split('?');
+
+    return INTERNAL_ROUTE_PREFIXES.some(
+      (prefix) => pathWithoutQuery === prefix || pathWithoutQuery.startsWith(`${prefix}/`)
+    );
+  }
+
+  private shouldWrapResponse(response: AxiosResponse): boolean {
+    const config = response.config as ApiRequestConfig;
+
+    if (config.skipEnvelope) {
+      return false;
+    }
+
+    const data = response.data as { success?: unknown } | undefined;
+    if (data && typeof data.success === 'boolean') {
+      return false;
+    }
+
+    const requestUrl = config.url ?? '';
+    if (!requestUrl) {
+      return true;
+    }
+
+    if (/^https?:\/\//i.test(requestUrl)) {
+      if (!this.baseUrlOrigin) {
+        return false;
+      }
+
+      try {
+        const targetUrl = new URL(requestUrl);
+        if (targetUrl.origin !== this.baseUrlOrigin) {
+          return false;
+        }
+        return this.matchesInternalPrefix(targetUrl.pathname);
+      } catch (error) {
+        if (SHOULD_DEBUG) {
+          logger.debug('Failed to inspect response URL for envelope wrapping', { requestUrl, error });
+        }
+        return false;
+      }
+    }
+
+    return this.matchesInternalPrefix(requestUrl);
+  }
+
   // Métodos genéricos para API
-  async get<T>(url: string, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
+  async get<T>(url: string, config?: ApiRequestConfig): Promise<ApiResponse<T>> {
     const attempt = async (): Promise<ApiResponse<T>> => {
       const response = await this.api.get<ApiResponse<T>>(url, config);
       return response.data;
@@ -182,16 +299,20 @@ class ApiService {
     }
   }
 
-  async post<T>(url: string, data: any, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
+  async post<T>(url: string, data: any, config?: ApiRequestConfig): Promise<ApiResponse<T>> {
     try {
-      if (IS_DEV) console.log('POST Request:', { url, data, baseURL: this.api.defaults.baseURL });
+      if (SHOULD_DEBUG) {
+        logger.debug('POST Request', { url, data, baseURL: this.api.defaults.baseURL });
+      }
       const response = await this.api.post<ApiResponse<T>>(url, data, config);
-      if (IS_DEV) console.log('POST Response Success:', response.data);
+      if (SHOULD_DEBUG) {
+        logger.debug('POST Response Success', response.data);
+      }
       return response.data;
     } catch (error: any) {
-      if (IS_DEV) {
-        console.error('POST Error:', error);
-        console.error('Error details:', {
+      logger.error('POST Error', error);
+      if (SHOULD_DEBUG) {
+        logger.debug('POST Error details', {
           message: error.message,
           code: error.code,
           response: error.response?.data,
@@ -199,7 +320,7 @@ class ApiService {
           url: error.config?.url
         });
       }
-      
+
       if (error.response && error.response.data) {
         return error.response.data;
       }
@@ -210,26 +331,30 @@ class ApiService {
     }
   }
 
-  async put<T>(endpoint: string, data?: any): Promise<ApiResponse<T>> {
-    const response = await this.api.put<ApiResponse<T>>(endpoint, data);
+  async put<T>(endpoint: string, data?: any, config?: ApiRequestConfig): Promise<ApiResponse<T>> {
+    const response = await this.api.put<ApiResponse<T>>(endpoint, data, config);
     return response.data;
   }
 
-  async patch<T>(endpoint: string, data?: any): Promise<ApiResponse<T>> {
-    const response = await this.api.patch(endpoint, data);
+  async patch<T>(endpoint: string, data?: any, config?: ApiRequestConfig): Promise<ApiResponse<T>> {
+    const response = await this.api.patch<ApiResponse<T>>(endpoint, data, config);
     return response.data;
   }
 
-  async delete<T>(endpoint: string): Promise<ApiResponse<T>> {
-    const response = await this.api.delete(endpoint);
+  async delete<T>(endpoint: string, config?: ApiRequestConfig): Promise<ApiResponse<T>> {
+    const response = await this.api.delete<ApiResponse<T>>(endpoint, config);
     return response.data;
   }
 
   // Métodos específicos para autenticação
   async login(email: string, password: string): Promise<ApiResponse<LoginSuccessPayload>> {
-    if (IS_DEV) console.log('Login attempt:', { email, apiUrl: API_URL });
+    if (SHOULD_DEBUG) {
+      logger.debug('Login attempt', { email, apiUrl: API_URL });
+    }
     const result = await this.post<LoginSuccessPayload>('/auth/login', { email, password });
-    if (IS_DEV) console.log('Login result:', result);
+    if (SHOULD_DEBUG) {
+      logger.debug('Login result', result);
+    }
     return result;
   }
 
