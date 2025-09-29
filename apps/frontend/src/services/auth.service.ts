@@ -1,6 +1,7 @@
 import { AUTH_TOKEN_KEY, USER_KEY } from '@/config';
 import api from '@/config/api';
 import axios from 'axios';
+import { applyCsrfTokenToAxios, getCsrfToken, setCsrfToken } from './csrfTokenStore';
 
 export interface AuthResponse {
   token: string;
@@ -49,13 +50,33 @@ export class AuthService {
   }
 
   private async ensureCsrfToken(): Promise<void> {
+    const existingToken = getCsrfToken();
+    if (existingToken) {
+      applyCsrfTokenToAxios(api);
+      return;
+    }
+
+    let lastError: unknown;
+
     for (const endpoint of this.csrfEndpoints) {
       try {
-        await api.get(endpoint, { withCredentials: true });
-        return;
-      } catch {
-        // tenta próximo endpoint
+        const response = await api.get<{ csrfToken?: string }>(endpoint, { withCredentials: true });
+        const csrfToken = response?.data?.csrfToken;
+
+        if (csrfToken) {
+          setCsrfToken(csrfToken);
+          applyCsrfTokenToAxios(api);
+          return;
+        }
+
+        lastError = new Error('Resposta sem token CSRF');
+      } catch (error) {
+        lastError = error;
       }
+    }
+
+    if (lastError instanceof Error) {
+      throw lastError;
     }
 
     throw new Error('Não foi possível obter o token CSRF');

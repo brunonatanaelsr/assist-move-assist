@@ -1,6 +1,20 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { AUTH_TOKEN_KEY } from '@/config';
 import apiService from './apiService';
+import { clearCsrfToken, setCsrfToken } from './csrfTokenStore';
+
+const getAxiosInstance = () => (apiService as unknown as { api: any }).api;
+
+beforeEach(() => {
+  localStorage.clear();
+  clearCsrfToken();
+  const axiosInstance = getAxiosInstance();
+  delete axiosInstance.defaults.headers.common['X-CSRF-Token'];
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe('apiService', () => {
   it('deve retornar erro para rota inexistente', async () => {
@@ -18,7 +32,7 @@ describe('apiService', () => {
   });
 
   it('não envia Authorization após limpar tokens', async () => {
-    const handlers = (apiService as any).api.interceptors.request.handlers;
+    const handlers = getAxiosInstance().interceptors.request.handlers;
     const requestHandler = handlers.find((handler: any) => handler && typeof handler.fulfilled === 'function');
     expect(requestHandler).toBeDefined();
 
@@ -31,5 +45,33 @@ describe('apiService', () => {
     localStorage.clear();
     const withoutToken = await handlerFn({ headers: { Authorization: 'Bearer antigo' } });
     expect(withoutToken.headers.Authorization).toBeUndefined();
+  });
+});
+
+describe('ApiService CSRF handling', () => {
+  it('should inject stored CSRF token on mutating requests', async () => {
+    setCsrfToken('stored-token');
+    const requestHandler = getAxiosInstance().interceptors.request.handlers[0].fulfilled!;
+
+    const config = await requestHandler({ method: 'post', headers: {} });
+
+    expect(config.headers['X-CSRF-Token']).toBe('stored-token');
+  });
+
+  it('should not inject CSRF header when token is missing', async () => {
+    const requestHandler = getAxiosInstance().interceptors.request.handlers[0].fulfilled!;
+
+    const config = await requestHandler({ method: 'delete', headers: {} });
+
+    expect(config.headers['X-CSRF-Token']).toBeUndefined();
+  });
+
+  it('should skip CSRF header for safe methods', async () => {
+    setCsrfToken('stored-token');
+    const requestHandler = getAxiosInstance().interceptors.request.handlers[0].fulfilled!;
+
+    const config = await requestHandler({ method: 'get', headers: {} });
+
+    expect(config.headers['X-CSRF-Token']).toBeUndefined();
   });
 });

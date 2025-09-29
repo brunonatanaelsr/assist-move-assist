@@ -26,6 +26,7 @@ import type {
   UsuarioPermissions,
 } from '@/types/configuracoes';
 import type { Oficina } from '@/types/oficinas';
+import { applyCsrfTokenToAxios, applyCsrfTokenToConfig, getCsrfToken } from './csrfTokenStore';
 const IS_DEV = (import.meta as any)?.env?.DEV === true || (import.meta as any)?.env?.MODE === 'development';
 
 type SessionUser = AuthenticatedSessionUser & { ativo?: boolean };
@@ -34,15 +35,6 @@ type ProfilePayload = { user: SessionUser };
 type PaginatedUsersPayload = PaginatedCollection<ConfiguracaoUsuario>;
 type PaginatedPermissionsPayload = PaginatedCollection<PermissionSummary>;
 type PaginationQuery = Partial<{ search: string; page: number; limit: number }>;
-
-function getCookie(name: string): string | null {
-  if (typeof document === 'undefined') return null;
-  const value = `; ${document.cookie}`;
-  const parts = value.split(`; ${name}=`);
-  if (parts.length === 2) return decodeURIComponent(parts.pop()!.split(';').shift() || '');
-  return null;
-}
-
 
 class ApiService {
   private api: AxiosInstance;
@@ -56,6 +48,8 @@ class ApiService {
         'Content-Type': 'application/json',
       },
     });
+
+    applyCsrfTokenToAxios(this.api);
 
     // Interceptor para adicionar token em todas as requisições
     this.api.interceptors.request.use(
@@ -72,9 +66,9 @@ class ApiService {
 
         // CSRF header opcional (se o backend validar)
         if (REQUIRE_CSRF_HEADER) {
-          const csrf = getCookie('csrf_token');
+          const csrf = getCsrfToken();
           if (csrf && config.method && ['post', 'put', 'patch', 'delete'].includes(config.method)) {
-            (config.headers as any)['X-CSRF-Token'] = csrf;
+            applyCsrfTokenToConfig(config);
           }
         } else if (config.headers && 'X-CSRF-Token' in config.headers) {
           delete (config.headers as any)['X-CSRF-Token'];
