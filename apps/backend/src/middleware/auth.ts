@@ -104,9 +104,12 @@ export const AuthService = {
 
     return fallbackValidateRefreshToken(token);
   },
-  async refreshWithToken(refreshToken: string) {
+  async refreshWithToken(
+    refreshToken: string,
+    metadata?: Parameters<typeof authService.refreshWithToken>[1]
+  ) {
     if (!shouldUseFallback(authService.refreshWithToken)) {
-      return authService.refreshWithToken(refreshToken);
+      return authService.refreshWithToken(refreshToken, metadata ?? {});
     }
 
     const payload = await fallbackValidateRefreshToken(refreshToken);
@@ -123,9 +126,12 @@ export const AuthService = {
       }
     };
   },
-  async revokeRefreshToken(token: string): Promise<void> {
+  async revokeRefreshToken(
+    token: string,
+    metadata?: Parameters<typeof authService.revokeRefreshToken>[1]
+  ): Promise<void> {
     if (!shouldUseFallback(authService.revokeRefreshToken)) {
-      await authService.revokeRefreshToken(token);
+      await authService.revokeRefreshToken(token, metadata);
     }
   },
   async verifyToken(token: string): Promise<JWTPayload> {

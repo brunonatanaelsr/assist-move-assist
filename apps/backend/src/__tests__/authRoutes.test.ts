@@ -128,7 +128,8 @@ describe('Auth and protected routes', () => {
       expect(res.status).toBe(200);
       expect(authService.revokeRefreshToken).toHaveBeenCalledWith('encoded-token', {
         deviceId: null,
-        userAgent: null
+        userAgent: null,
+        ipAddress: expect.stringContaining('127.0.0.1')
       });
     });
 
