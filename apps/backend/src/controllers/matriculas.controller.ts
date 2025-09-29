@@ -1,5 +1,8 @@
 import { Request, Response } from 'express';
 import { MatriculasServiceError, matriculasService } from '../services/matriculas.service';
+import { loggerService } from '../services/logger';
+import { AppError } from '../utils/AppError';
+import { BaseError } from '../utils/errors';
 
 const parseNumberParam = (value: unknown): number | undefined => {
   if (value === undefined || value === null || value === '') {
@@ -22,7 +25,33 @@ const handleControllerError = (
     });
   }
 
-  console.error(defaultMessage, error);
+  if (error instanceof BaseError) {
+    return res.status(error.status).json({
+      success: false,
+      error: error.message,
+      code: error.code
+    });
+  }
+
+  if (error instanceof AppError) {
+    return res.status(error.statusCode).json({
+      success: false,
+      error: error.message
+    });
+  }
+
+  const serializedError =
+    error instanceof Error
+      ? {
+          message: error.message,
+          name: error.name,
+          stack: error.stack
+        }
+      : error;
+
+  loggerService.error(defaultMessage, {
+    error: serializedError
+  });
   return res.status(500).json({
     success: false,
     error: defaultMessage
