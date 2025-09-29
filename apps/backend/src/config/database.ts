@@ -1,25 +1,21 @@
 import { Pool } from 'pg';
-import dotenv from 'dotenv';
-import path from 'path';
 import { logger } from '../services/logger';
+import { env } from './env';
 
-// Garante que usamos o .env do diretório do backend (não o da raiz)
-dotenv.config({ path: path.resolve(__dirname, '..', '..', '.env') });
-
-const host = process.env.POSTGRES_HOST || 'localhost';
-const port = parseInt(process.env.POSTGRES_PORT || '5432');
-const database = process.env.POSTGRES_DB || 'movemarias';
-const user = process.env.POSTGRES_USER || 'postgres';
-const password = process.env.POSTGRES_PASSWORD || 'postgres';
+const host = env.POSTGRES_HOST || 'localhost';
+const port = env.POSTGRES_PORT || 5432;
+const database = env.POSTGRES_DB || 'movemarias';
+const user = env.POSTGRES_USER || 'postgres';
+const password = env.POSTGRES_PASSWORD || 'postgres';
 
 // SSL strategy:
 // - Prefer explicit POSTGRES_SSL env ("true"/"false")
 // - Otherwise, disable SSL for localhost/127.0.0.1
 // - Only enable implicit SSL in production for remote hosts
-const envSsl = String(process.env.POSTGRES_SSL || '').toLowerCase();
+const envSsl = String(env.POSTGRES_SSL || '').toLowerCase();
 const explicitSsl = envSsl === 'true' ? true : envSsl === 'false' ? false : undefined;
 const isLocalHost = host === 'localhost' || host === '127.0.0.1';
-const useSsl = explicitSsl !== undefined ? explicitSsl : (!isLocalHost && process.env.NODE_ENV === 'production');
+const useSsl = explicitSsl !== undefined ? explicitSsl : (!isLocalHost && env.NODE_ENV === 'production');
 
 export const pool = new Pool({
   host,
@@ -70,7 +66,7 @@ const initializeDatabase = async () => {
     logger.info('🗄️ Versão PostgreSQL:', result.rows[0].version.split(' ')[0]);
   } catch (err) {
     logger.error('❌ Erro ao conectar ao PostgreSQL:', err);
-    if (process.env.NODE_ENV !== 'test') {
+    if (env.NODE_ENV !== 'test') {
       process.exit(1);
     }
   }
@@ -141,7 +137,7 @@ export const db = {
 };
 
 // Inicializar ao importar o módulo
-if (process.env.NODE_ENV !== 'test') {
+if (env.NODE_ENV !== 'test') {
   initializeDatabase();
 }
 

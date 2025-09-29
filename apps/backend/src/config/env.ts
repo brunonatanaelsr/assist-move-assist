@@ -82,6 +82,7 @@ const envSchema = z.object({
   POSTGRES_DB: z.string().min(1, 'POSTGRES_DB é obrigatório'),
   POSTGRES_USER: z.string().min(1, 'POSTGRES_USER é obrigatório'),
   POSTGRES_PASSWORD: z.string().min(1, 'POSTGRES_PASSWORD é obrigatório'),
+  POSTGRES_SSL: z.string().optional(),
   REDIS_HOST: z.string().optional(),
   REDIS_PORT: z.coerce.number().optional(),
   SMTP_HOST: z.string().optional(),
