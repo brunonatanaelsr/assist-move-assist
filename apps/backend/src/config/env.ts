@@ -1,8 +1,9 @@
 import path from 'node:path';
 import { config as dotenvConfig } from 'dotenv';
 import { z } from 'zod';
-import type { StringValue } from 'ms';
 import type { SignOptions } from 'jsonwebtoken';
+
+type MsStringValue = import('ms').StringValue;
 
 /**
  * Converts string based environment variables to booleans following Node.js conventions.
@@ -43,7 +44,7 @@ const jwtExpirySchema = z
         /^\d+(\.\d+)?\s*(ms|s|m|h|d|w|y)$/i,
         'JWT_EXPIRY deve seguir o formato 15m, 2h, 1d, etc.'
       )
-      .transform((value) => value.replace(/\s+/g, '').toLowerCase() as StringValue)
+      .transform((value) => value.replace(/\s+/g, '').toLowerCase() as MsStringValue)
   ])
   .default('24h')
   .transform((value): SignOptions['expiresIn'] => value);
@@ -58,7 +59,7 @@ const jwtRefreshExpirySchema = z
         /^\d+(\.\d+)?\s*(ms|s|m|h|d|w|y)$/i,
         'JWT_REFRESH_EXPIRY deve seguir o formato 15m, 2h, 1d, etc.'
       )
-      .transform((value) => value.replace(/\s+/g, '').toLowerCase() as StringValue)
+      .transform((value) => value.replace(/\s+/g, '').toLowerCase() as MsStringValue)
   ])
   .default('7d')
   .transform((value): SignOptions['expiresIn'] => value);
