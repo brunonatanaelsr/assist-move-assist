@@ -16,6 +16,7 @@ export interface AuthenticatedSessionUser {
   ultimo_login?: Date | string | null;
   data_criacao?: Date | string;
   data_atualizacao?: Date | string;
+  permissions?: string[];
 }
 
 export interface AuthResponse {

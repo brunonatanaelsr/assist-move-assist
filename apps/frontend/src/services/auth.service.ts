@@ -13,7 +13,9 @@ export interface AuthResponse {
     nome: string;
     papel: string;
     avatar_url?: string;
+    permissions?: string[];
   };
+  permissions?: string[];
 }
 
 export interface LoginCredentials {
@@ -29,19 +31,34 @@ export interface RefreshSessionResponse {
     id: number;
     email?: string;
     role: string;
+    permissions?: string[];
   };
+  permissions?: string[];
 }
 
 const LEGACY_TOKEN_KEYS = ['auth_token', 'token'];
 const LEGACY_USER_KEYS = ['user'];
+
+type StoredUser = AuthResponse['user'] | null;
 
 export class AuthService {
   private static instance: AuthService;
 
   private readonly deviceStorageKey = 'auth_device_id';
   private readonly csrfEndpoints = ['/csrf-token', '/auth/csrf'];
+  private readonly tokenStorageKeys: string[];
+  private readonly userStorageKeys: string[];
 
-  private constructor() {}
+  private constructor() {
+    this.tokenStorageKeys = [
+      AUTH_TOKEN_KEY,
+      ...LEGACY_TOKEN_KEYS.filter((key) => key !== AUTH_TOKEN_KEY),
+    ];
+    this.userStorageKeys = [
+      USER_KEY,
+      ...LEGACY_USER_KEYS.filter((key) => key !== USER_KEY),
+    ];
+  }
 
   public static getInstance(): AuthService {
     if (!AuthService.instance) {
@@ -98,6 +115,85 @@ export class AuthService {
     return generated;
   }
 
+  private mergePermissions<T extends { permissions?: string[] }>(
+    user: T | null | undefined,
+    fallback?: string[] | null,
+  ): T | null {
+    if (!user) {
+      return null;
+    }
+
+    if (Array.isArray(user.permissions)) {
+      return user;
+    }
+
+    if (fallback && fallback.length > 0) {
+      return { ...user, permissions: [...fallback] };
+    }
+
+    return user;
+  }
+
+  private parseStoredUser(raw: string | null): StoredUser {
+    if (!raw) {
+      return null;
+    }
+
+    try {
+      const parsed = JSON.parse(raw) as StoredUser;
+      if (parsed && typeof parsed === 'object') {
+        return parsed;
+      }
+    } catch (error) {
+      console.warn('Falha ao interpretar usuário salvo em cache', error);
+    }
+
+    return null;
+  }
+
+  public storeUser(user: StoredUser): void {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    if (!user) {
+      this.userStorageKeys.forEach((key) => window.localStorage.removeItem(key));
+      return;
+    }
+
+    try {
+      window.localStorage.setItem(USER_KEY, JSON.stringify(user));
+    } catch (error) {
+      console.error('Erro ao persistir usuário autenticado:', error);
+      return;
+    }
+
+    this.userStorageKeys.forEach((key) => {
+      if (key !== USER_KEY) {
+        window.localStorage.removeItem(key);
+      }
+    });
+  }
+
+  public clearStoredUser(): void {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    this.userStorageKeys.forEach((key) => window.localStorage.removeItem(key));
+  }
+
+  public clearStoredTokens(): void {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    this.tokenStorageKeys.forEach((key) => window.localStorage.removeItem(key));
+  }
+
+  public clearStoredSession(): void {
+    this.clearStoredTokens();
+    this.clearStoredUser();
+  }
+
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
     try {
       await this.ensureCsrfToken();
@@ -105,9 +201,13 @@ export class AuthService {
       const response = await api.post<AuthResponse>(
         '/auth/login',
         { ...credentials, deviceId },
-        { withCredentials: true }
+        { withCredentials: true },
       );
-      return response.data;
+      const mergedUser = this.mergePermissions(response.data.user, response.data.permissions);
+      return {
+        ...response.data,
+        user: mergedUser ?? response.data.user,
+      };
     } catch (error) {
       if (axios.isAxiosError(error)) {
         throw new Error(error.response?.data?.message || 'Erro ao fazer login');
@@ -117,22 +217,18 @@ export class AuthService {
   }
 
   async logout(): Promise<void> {
-    const tokenKeys = new Set([...LEGACY_TOKEN_KEYS, AUTH_TOKEN_KEY]);
-    const userKeys = new Set([...LEGACY_USER_KEYS, USER_KEY]);
-
     try {
       await this.ensureCsrfToken();
       const deviceId = this.getDeviceId();
       await api.post(
         '/auth/logout',
         { deviceId },
-        { withCredentials: true }
+        { withCredentials: true },
       );
     } catch (error) {
       console.error('Erro ao fazer logout:', error);
     } finally {
-      tokenKeys.forEach((key) => localStorage.removeItem(key));
-      userKeys.forEach((key) => localStorage.removeItem(key));
+      this.clearStoredSession();
     }
   }
 
@@ -143,35 +239,97 @@ export class AuthService {
       const response = await api.post<RefreshSessionResponse>(
         '/auth/refresh',
         { deviceId },
-        { withCredentials: true }
+        { withCredentials: true },
       );
-      return response.data;
+      const mergedUser = this.mergePermissions(response.data.user, response.data.permissions);
+      if (mergedUser) {
+        this.storeUser(mergedUser as unknown as StoredUser);
+      }
+      return {
+        ...response.data,
+        user: mergedUser ?? response.data.user,
+      };
     } catch (error) {
       throw new Error('Erro ao renovar token');
     }
   }
 
+  async fetchCurrentUser(): Promise<StoredUser> {
+    try {
+      const response = await api.get('/auth/me', { withCredentials: true });
+      const payload = response.data as any;
+      const user = this.mergePermissions(
+        payload?.user ?? payload?.data?.user ?? null,
+        payload?.permissions ?? payload?.data?.permissions ?? null,
+      );
+
+      if (user) {
+        this.storeUser(user as StoredUser);
+        return user as StoredUser;
+      }
+
+      this.clearStoredUser();
+      return null;
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response && [401, 403].includes(error.response.status)) {
+        this.clearStoredSession();
+        return null;
+      }
+      throw error;
+    }
+  }
+
   isAuthenticated(): boolean {
-    const token =
-      localStorage.getItem(AUTH_TOKEN_KEY) ||
-      LEGACY_TOKEN_KEYS.map((key) => localStorage.getItem(key)).find((value) => !!value) ||
-      null;
-    return !!token;
+    if (typeof window === 'undefined') {
+      return false;
+    }
+
+    return this.tokenStorageKeys.some((key) => {
+      const value = window.localStorage.getItem(key);
+      return !!value && value !== 'undefined';
+    });
   }
 
   getToken(): string | null {
-    return (
-      localStorage.getItem(AUTH_TOKEN_KEY) ||
-      LEGACY_TOKEN_KEYS.map((key) => localStorage.getItem(key)).find((value) => !!value) ||
-      null
-    );
+    if (typeof window === 'undefined') {
+      return null;
+    }
+
+    for (const key of this.tokenStorageKeys) {
+      const value = window.localStorage.getItem(key);
+      if (value && value !== 'undefined') {
+        if (key !== AUTH_TOKEN_KEY) {
+          window.localStorage.setItem(AUTH_TOKEN_KEY, value);
+          window.localStorage.removeItem(key);
+        }
+        return value;
+      }
+    }
+
+    return null;
   }
 
-  getUser(): AuthResponse['user'] | null {
-    const userStr =
-      localStorage.getItem(USER_KEY) ||
-      LEGACY_USER_KEYS.map((key) => localStorage.getItem(key)).find((value) => !!value) ||
-      null;
-    return userStr ? JSON.parse(userStr) : null;
+  getUser(): StoredUser {
+    if (typeof window === 'undefined') {
+      return null;
+    }
+
+    for (const key of this.userStorageKeys) {
+      const stored = window.localStorage.getItem(key);
+      const parsed = this.parseStoredUser(stored);
+
+      if (parsed) {
+        if (key !== USER_KEY) {
+          this.storeUser(parsed);
+        }
+        return parsed;
+      }
+
+      if (stored && !parsed) {
+        window.localStorage.removeItem(key);
+      }
+    }
+
+    return null;
   }
 }

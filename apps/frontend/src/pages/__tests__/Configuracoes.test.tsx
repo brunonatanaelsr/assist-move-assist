@@ -1,6 +1,6 @@
 import React from 'react';
 import { MemoryRouter } from 'react-router-dom';
-import { render, screen } from '@testing-library/react';
+import { render, screen, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { UseMutationResult, UseQueryResult } from '@tanstack/react-query';
@@ -170,21 +170,29 @@ describe('Página Configurações', () => {
       </MemoryRouter>,
     );
 
-    await user.click(screen.getByRole('tab', { name: 'Usuários' }));
+    await act(async () => {
+      await user.click(screen.getByRole('tab', { name: 'Usuários' }));
+    });
     expect(await screen.findByText('Usuário Teste')).toBeInTheDocument();
 
     const permissoesButtons = screen
       .getAllByRole('button', { name: 'Permissões' })
       .filter((button) => button.getAttribute('role') !== 'tab');
-    await user.click(permissoesButtons[0]);
+    await act(async () => {
+      await user.click(permissoesButtons[0]);
+    });
 
     expect(await screen.findByText('Permissões do usuário 1')).toBeInTheDocument();
     expect(screen.getByText('geral.visualizar')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('tab', { name: 'Papéis' }));
+    await act(async () => {
+      await user.click(screen.getByRole('tab', { name: 'Papéis' }));
+    });
     expect(await screen.findByText('Papéis existentes: admin')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('tab', { name: 'Permissões' }));
+    await act(async () => {
+      await user.click(screen.getByRole('tab', { name: 'Permissões' }));
+    });
     expect(await screen.findByText('Criar permissão')).toBeInTheDocument();
     expect(screen.getByText('geral.editar')).toBeInTheDocument();
   });
@@ -219,13 +227,19 @@ describe('Página Configurações', () => {
       </MemoryRouter>,
     );
 
-    await user.click(screen.getByRole('tab', { name: 'Usuários' }));
+    await act(async () => {
+      await user.click(screen.getByRole('tab', { name: 'Usuários' }));
+    });
     expect(await screen.findByText('Carregando usuários...')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('tab', { name: 'Papéis' }));
+    await act(async () => {
+      await user.click(screen.getByRole('tab', { name: 'Papéis' }));
+    });
     expect(await screen.findByText('Carregando permissões...')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('tab', { name: 'Permissões' }));
+    await act(async () => {
+      await user.click(screen.getByRole('tab', { name: 'Permissões' }));
+    });
     expect(await screen.findByText('Carregando permissões...')).toBeInTheDocument();
   });
 
@@ -266,13 +280,19 @@ describe('Página Configurações', () => {
       </MemoryRouter>,
     );
 
-    await user.click(screen.getByRole('tab', { name: 'Usuários' }));
+    await act(async () => {
+      await user.click(screen.getByRole('tab', { name: 'Usuários' }));
+    });
     expect(await screen.findByText(/Erro ao carregar usuários/i)).toBeInTheDocument();
 
-    await user.click(screen.getByRole('tab', { name: 'Papéis' }));
+    await act(async () => {
+      await user.click(screen.getByRole('tab', { name: 'Papéis' }));
+    });
     expect(await screen.findByText('Erro ao carregar permissões: Erro permissões')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('tab', { name: 'Permissões' }));
+    await act(async () => {
+      await user.click(screen.getByRole('tab', { name: 'Permissões' }));
+    });
     expect(await screen.findByText('Erro ao carregar permissões: Erro permissões')).toBeInTheDocument();
   });
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeEach, vi, type Mock } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import NotificationsPage from '../Notifications';
 import * as notificationsHooks from '@/hooks/useNotifications';
@@ -41,7 +41,9 @@ describe('NotificationsPage', () => {
 
     expect(screen.getByText('Nova mensagem')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: /remover/i }));
+    await act(async () => {
+      await user.click(screen.getByRole('button', { name: /remover/i }));
+    });
 
     expect(deleteMutation.mutate).toHaveBeenCalledWith(1);
   });

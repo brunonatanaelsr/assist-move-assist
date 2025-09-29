@@ -3,10 +3,13 @@ import {
   useState,
   useEffect,
   useMemo,
+  useRef,
+  useCallback,
   createContext,
   useContext,
   type ReactNode,
 } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AUTH_TOKEN_KEY, USER_KEY } from "@/config";
 import { AuthService } from "@/services/auth.service";
 
@@ -25,6 +28,7 @@ interface User {
   foto_url?: string;
   endereco?: string;
   data_nascimento?: string;
+  permissions?: string[];
 }
 
 interface AuthContextType {
@@ -35,39 +39,74 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   isAuthenticated: boolean;
   isAdmin: boolean;
+  permissions: string[];
+  hasPermission: (permission: string) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const authQueryKey = ["auth", "me"] as const;
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const authService = useMemo(() => AuthService.getInstance(), []);
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const [isMutating, setIsMutating] = useState(false);
+  const [shouldEnableQuery, setShouldEnableQuery] = useState(() => authService.isAuthenticated());
+
+  const initialUserRef = useRef<User | null>((authService.getUser?.() as User | null) ?? null);
+  const legacyTokenKeys = useMemo(() => ["auth_token", "token"], []);
+  const legacyUserKeys = useMemo(() => ["user"], []);
+  const watchedStorageKeys = useMemo(
+    () => new Set([AUTH_TOKEN_KEY, USER_KEY, ...legacyTokenKeys, ...legacyUserKeys]),
+    [legacyTokenKeys, legacyUserKeys]
+  );
+
+  const { data: sessionUser, isInitialLoading, isFetching } = useQuery<User | null>({
+    queryKey: authQueryKey,
+    queryFn: async () => (await authService.fetchCurrentUser()) as User | null,
+    enabled: shouldEnableQuery,
+    initialData: initialUserRef.current ?? undefined,
+    staleTime: 5 * 60 * 1000,
+    refetchOnMount: shouldEnableQuery ? "always" : false,
+    refetchOnWindowFocus: shouldEnableQuery,
+    refetchOnReconnect: shouldEnableQuery,
+  });
+
+  const [currentUser, setCurrentUser] = useState<User | null>(initialUserRef.current ?? null);
 
   useEffect(() => {
-    const savedUser = authService.getUser?.();
-    if (savedUser) setUser(savedUser);
-    setLoading(false);
-  }, [authService]);
+    setCurrentUser(sessionUser ?? null);
+  }, [sessionUser]);
+
+  const syncFromStorage = useCallback(() => {
+    const nextUser = (authService.getUser?.() as User | null) ?? null;
+    if (nextUser) {
+      queryClient.setQueryData(authQueryKey, nextUser);
+    } else {
+      queryClient.setQueryData(authQueryKey, null);
+    }
+    setCurrentUser(nextUser);
+    const authenticated = authService.isAuthenticated();
+    setShouldEnableQuery(authenticated);
+    if (authenticated) {
+      queryClient.invalidateQueries({ queryKey: authQueryKey });
+    }
+  }, [authService, queryClient]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
 
     const handleLogoutEvent = () => {
-      setUser(null);
-      setLoading(false);
+      authService.clearStoredSession();
+      queryClient.setQueryData(authQueryKey, null);
+      queryClient.removeQueries({ queryKey: authQueryKey });
+      setShouldEnableQuery(false);
+      setCurrentUser(null);
     };
 
     const handleStorageEvent = (event: StorageEvent) => {
-      const relevantKeys = new Set([
-        "token",
-        "auth_token",
-        AUTH_TOKEN_KEY,
-        "user",
-        USER_KEY
-      ]);
-      if (event.key === null || relevantKeys.has(event.key)) {
-        handleLogoutEvent();
+      if (event.key === null || watchedStorageKeys.has(event.key)) {
+        syncFromStorage();
       }
     };
 
@@ -78,73 +117,94 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       window.removeEventListener("auth:logout", handleLogoutEvent);
       window.removeEventListener("storage", handleStorageEvent);
     };
-  }, []);
+  }, [authService, queryClient, syncFromStorage, watchedStorageKeys]);
 
-  const legacyTokenKeys = useMemo(() => ['auth_token', 'token'], []);
-  const legacyUserKeys = useMemo(() => ['user'], []);
+  const legacyTokenSet = useMemo(() => new Set([...legacyTokenKeys, AUTH_TOKEN_KEY]), [legacyTokenKeys]);
+  const legacyUserSet = useMemo(() => new Set([...legacyUserKeys, USER_KEY]), [legacyUserKeys]);
 
   const signIn = async (email: string, password: string): Promise<{ error?: Error }> => {
     try {
-      setLoading(true);
+      setIsMutating(true);
       const response = await authService.login({ email, password });
 
-      // Tipagem explícita do retorno esperado
-      type LoginResponse = { token: string; refreshToken: string; user?: User };
+      type LoginResponse = { token: string; refreshToken: string; user?: User; permissions?: string[] };
       const resp = response as LoginResponse;
 
-      // Armazenar token de acesso
       if (resp.token) {
         localStorage.setItem(AUTH_TOKEN_KEY, resp.token);
         legacyTokenKeys
           .filter((key) => key !== AUTH_TOKEN_KEY)
           .forEach((key) => localStorage.removeItem(key));
       }
-      if (resp.user) {
-        localStorage.setItem(USER_KEY, JSON.stringify(resp.user));
+
+      const normalizedUser: User | null = resp.user
+        ? { ...resp.user, permissions: resp.user.permissions ?? resp.permissions ?? [] }
+        : null;
+
+      authService.storeUser(normalizedUser);
+      queryClient.setQueryData(authQueryKey, normalizedUser);
+      setCurrentUser(normalizedUser);
+      setShouldEnableQuery(authService.isAuthenticated());
+
+      if (normalizedUser) {
         legacyUserKeys
           .filter((key) => key !== USER_KEY)
           .forEach((key) => localStorage.removeItem(key));
-        setUser(resp.user);
+      } else {
+        legacyUserKeys.forEach((key) => localStorage.removeItem(key));
       }
+
+      if (authService.isAuthenticated()) {
+        await queryClient.invalidateQueries({ queryKey: authQueryKey });
+      }
+
       return {};
     } catch (error) {
       return { error: error as Error };
     } finally {
-      setLoading(false);
+      setIsMutating(false);
     }
   };
 
   const signOut = async () => {
     try {
-      setLoading(true);
+      setIsMutating(true);
       await authService.logout();
     } finally {
-      const tokenKeys = new Set([...legacyTokenKeys, AUTH_TOKEN_KEY]);
-      tokenKeys.forEach((key) => localStorage.removeItem(key));
-      const userKeys = new Set([...legacyUserKeys, USER_KEY]);
-      userKeys.forEach((key) => localStorage.removeItem(key));
-      setUser(null);
-      setLoading(false);
+      legacyTokenSet.forEach((key) => localStorage.removeItem(key));
+      legacyUserSet.forEach((key) => localStorage.removeItem(key));
+      queryClient.setQueryData(authQueryKey, null);
+      queryClient.removeQueries({ queryKey: authQueryKey });
+      setShouldEnableQuery(false);
+      setCurrentUser(null);
+      setIsMutating(false);
     }
   };
 
   const privilegedRoles = useMemo(
-    () => new Set(['admin', 'super_admin', 'superadmin']),
+    () => new Set(["admin", "super_admin", "superadmin"]),
     []
   );
 
+  const user = currentUser;
+  const permissions = user?.permissions ?? [];
+  const hasPermission = useCallback((permission: string) => permissions.includes(permission), [permissions]);
+
   const isAdmin = !!(user?.papel && privilegedRoles.has(user.papel));
+  const loading = isMutating || (shouldEnableQuery ? isInitialLoading || isFetching : false);
 
   return (
     <AuthContext.Provider
       value={{
         user,
-        profile: user, // alias para compatibilidade
+        profile: user,
         loading,
         signIn,
         signOut,
         isAuthenticated: !!user,
-        isAdmin
+        isAdmin,
+        permissions,
+        hasPermission,
       }}
     >
       {children}

@@ -1,13 +1,43 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, it, beforeEach, afterEach, expect, vi } from 'vitest';
 import type { ReactNode } from 'react';
 
 import { AuthProvider, useAuth } from '../useAuth';
 import { AuthService } from '../../services/auth.service';
 
-const wrapper = ({ children }: { children: ReactNode }) => (
-  <AuthProvider>{children}</AuthProvider>
-);
+function createWrapper(overrides?: Partial<AuthService>) {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false, gcTime: Infinity },
+      mutations: { retry: false },
+    },
+  });
+
+  const mockService = {
+    login: vi.fn(),
+    logout: vi.fn(),
+    fetchCurrentUser: vi.fn().mockResolvedValue(null),
+    getUser: vi.fn().mockReturnValue(null),
+    isAuthenticated: vi.fn().mockReturnValue(false),
+    storeUser: vi.fn(),
+    clearStoredSession: vi.fn(),
+    clearStoredTokens: vi.fn(),
+    clearStoredUser: vi.fn(),
+    ensureCsrfToken: vi.fn(),
+  } as unknown as AuthService;
+
+  Object.assign(mockService, overrides);
+  vi.spyOn(AuthService, 'getInstance').mockReturnValue(mockService);
+
+  return function Wrapper({ children }: { children: ReactNode }) {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>{children}</AuthProvider>
+      </QueryClientProvider>
+    );
+  };
+}
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -27,6 +57,12 @@ describe('useAuth - logout events', () => {
 
   it('should reset user and loading state when auth:logout event is dispatched', async () => {
     localStorage.setItem('user', JSON.stringify(mockUser));
+    const wrapper = createWrapper({
+      getUser: vi.fn(() => mockUser),
+      isAuthenticated: vi.fn(() => false),
+      fetchCurrentUser: vi.fn().mockResolvedValue(mockUser),
+      clearStoredSession: vi.fn(),
+    });
 
     const { result, unmount } = renderHook(() => useAuth(), { wrapper });
 
@@ -40,8 +76,10 @@ describe('useAuth - logout events', () => {
       window.dispatchEvent(new Event('auth:logout'));
     });
 
-    expect(result.current.user).toBeNull();
-    expect(result.current.loading).toBe(false);
+    await waitFor(() => {
+      expect(result.current.user).toBeNull();
+      expect(result.current.loading).toBe(false);
+    });
 
     unmount();
   });
@@ -61,12 +99,12 @@ describe('useAuth - signOut cleanup', () => {
 
   it('should remove tokens and user data from storage after signOut', async () => {
     const logoutMock = vi.fn().mockResolvedValue(undefined);
-    const getUserMock = vi.fn(() => mockUser);
-    vi.spyOn(AuthService, 'getInstance').mockReturnValue({
-      login: vi.fn(),
+    const wrapper = createWrapper({
       logout: logoutMock,
-      getUser: getUserMock
-    } as unknown as AuthService);
+      getUser: vi.fn(() => mockUser),
+      fetchCurrentUser: vi.fn().mockResolvedValue(mockUser),
+      isAuthenticated: vi.fn(() => true),
+    });
 
     localStorage.setItem('auth_token', 'token123');
     localStorage.setItem('token', 'token123');

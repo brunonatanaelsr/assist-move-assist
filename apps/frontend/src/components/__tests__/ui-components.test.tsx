@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 // Correct relative imports for tested components
 import { ErrorBoundary } from '../ErrorBoundary';
@@ -68,6 +68,8 @@ describe('ErrorBoundary Tests', () => {
       throw new Error('Test Error');
     };
 
+    const user = userEvent.setup();
+
     render(
       <ErrorBoundary>
         <ThrowError />
@@ -75,7 +77,9 @@ describe('ErrorBoundary Tests', () => {
     );
 
     const retryButton = screen.getByText(/tentar novamente/i);
-    await userEvent.click(retryButton);
+    await act(async () => {
+      await user.click(retryButton);
+    });
 
     // O componente deve tentar renderizar novamente
     expect(screen.getByText(/algo deu errado/i)).toBeInTheDocument();
@@ -172,10 +176,14 @@ describe('LoadingSuspense Tests', () => {
     const onRetry = vi.fn();
     const error = new Error('Test Error');
 
+    const user = userEvent.setup();
+
     render(<LoadingRetry error={error} onRetry={onRetry} />);
 
     const retryButton = screen.getByText(/Tentar novamente/i);
-    await userEvent.click(retryButton);
+    await act(async () => {
+      await user.click(retryButton);
+    });
 
     expect(onRetry).toHaveBeenCalled();
   });
