@@ -31,6 +31,40 @@ type OficinaColumnMap = {
   data_atualizacao: string | null;
 };
 
+export interface OficinaListItem extends Record<string, unknown> {
+  id: number;
+  nome: string | null;
+  descricao: string | null;
+  instrutor: string | null;
+  data_inicio: string | null;
+  data_fim: string | null;
+  horario_inicio: string | null;
+  horario_fim: string | null;
+  local: string | null;
+  vagas_total: number | null;
+  projeto_id: number | null;
+  responsavel_id: number | string | null;
+  status: string | null;
+  ativo: boolean | null;
+  data_criacao: string | null;
+  data_atualizacao: string | null;
+  projeto_nome?: string | null;
+  responsavel_nome?: string | null;
+  total_count?: string | number | null;
+}
+
+export interface OficinasPagination {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
+export interface ListarOficinasResponse {
+  data: OficinaListItem[];
+  pagination: OficinasPagination;
+}
+
 export class OficinaService {
   private pool: Pool;
   private redis: RedisClient;
@@ -146,7 +180,7 @@ export class OficinaService {
     }
   }
 
-  async listarOficinas(filters: OficinaFilters) {
+  async listarOficinas(filters: OficinaFilters): Promise<ListarOficinasResponse> {
     try {
       const { page, limit, projeto_id, status, data_inicio, data_fim, instrutor, local, search } = filters;
       const offset = (page - 1) * limit;
@@ -154,7 +188,7 @@ export class OficinaService {
       // Tentar buscar do cache se não houver filtros complexos
       if (!search && !data_inicio && !data_fim && page === 1) {
         const cacheKey = `list:${projeto_id || 'all'}:${status || 'all'}:${limit}`;
-        const cachedData = await this.getCacheKey(cacheKey);
+        const cachedData = await this.getCacheKey<ListarOficinasResponse>(cacheKey);
         if (cachedData) {
           return cachedData;
         }
@@ -258,10 +292,11 @@ export class OficinaService {
 
       const result = await this.pool.query(query, [...params, limit, offset]);
 
-      const oficinas = formatArrayDates(result.rows, ['data_inicio', 'data_fim', 'data_criacao', 'data_atualizacao']);
+      const rawRows = result.rows as OficinaListItem[];
+      const oficinas = formatArrayDates<OficinaListItem>(rawRows, ['data_inicio', 'data_fim', 'data_criacao', 'data_atualizacao']);
       const total = result.rows.length > 0 ? parseInt(result.rows[0].total_count) : 0;
 
-      const response = {
+      const response: ListarOficinasResponse = {
         data: oficinas,
         pagination: {
           page: parseInt(String(page)),

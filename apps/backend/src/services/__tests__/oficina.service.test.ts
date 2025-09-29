@@ -1,6 +1,6 @@
 import { Pool } from 'pg';
 import Redis from 'ioredis';
-import { OficinaService } from '../oficina.service';
+import { OficinaService, type ListarOficinasResponse } from '../oficina.service';
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { createMockPool, createMockRedis, MockPool, MockRedis } from '../../utils/testUtils';
 import { Oficina, Participante } from '../../types/oficina';
@@ -13,7 +13,7 @@ describe('OficinaService', () => {
   let oficinaService: OficinaService;
   let mockPool: MockPool;
   let mockRedis: MockRedis;
-  let cacheGetSpy: jest.SpyInstance;
+  let cacheGetSpy: jest.SpiedFunction<typeof cacheService.get>;
 
   const mockOficina: Oficina = {
     id: 1,
@@ -39,7 +39,8 @@ describe('OficinaService', () => {
     mockRedis = createMockRedis();
     oficinaService = new OficinaService(mockPool as unknown as Pool, mockRedis as unknown as Redis);
 
-    cacheGetSpy = jest.spyOn(cacheService, 'get').mockResolvedValue(null);
+    cacheGetSpy = jest.spyOn(cacheService, 'get');
+    cacheGetSpy.mockResolvedValue(null);
     jest.spyOn(cacheService, 'set').mockResolvedValue();
     jest.spyOn(cacheService, 'deletePattern').mockResolvedValue();
   });
@@ -55,7 +56,7 @@ describe('OficinaService', () => {
     };
 
     it('deve retornar oficinas do cache quando disponível', async () => {
-      const mockCachedData = {
+      const mockCachedData: ListarOficinasResponse = {
         data: [mockOficina],
         pagination: { total: 1, page: 1, limit: 10, totalPages: 1 }
       };
