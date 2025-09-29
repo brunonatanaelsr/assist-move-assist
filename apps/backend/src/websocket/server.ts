@@ -5,6 +5,7 @@ import { Pool } from 'pg';
 import { logger } from '../services/logger';
 import { config } from '../config';
 import { redis } from '../lib/redis';
+import { applyUnreadRetention } from './retention';
 
 interface User {
   id: string;
@@ -247,7 +248,9 @@ export class WebSocketServer {
               if (this.userSockets.has(String(uid))) {
                 this.io.to(`user:${uid}`).emit('new_message', message);
               } else {
-                await redis.lpush(`chat:unread:${uid}`, JSON.stringify(message));
+                const unreadKey = `chat:unread:${uid}`;
+                await redis.lpush(unreadKey, JSON.stringify(message));
+                await applyUnreadRetention(unreadKey);
               }
             }
 
@@ -287,7 +290,9 @@ export class WebSocketServer {
           if (this.userSockets.has(String(destinatarioId))) {
             this.io.to(`user:${destinatarioId}`).emit('new_message', message);
           } else {
-            await redis.lpush(`chat:unread:${destinatarioId}`, JSON.stringify(message));
+            const unreadKey = `chat:unread:${destinatarioId}`;
+            await redis.lpush(unreadKey, JSON.stringify(message));
+            await applyUnreadRetention(unreadKey);
           }
           // Confirmar ao remetente
           socket.emit('message_sent', message);
@@ -535,7 +540,9 @@ export class WebSocketServer {
       this.io.to(`user:${userId}`).emit('notification', notification);
     } else {
       // Armazenar para envio posterior
-      await redis.lpush(`unread:${userId}`, JSON.stringify(notification));
+      const unreadKey = `unread:${userId}`;
+      await redis.lpush(unreadKey, JSON.stringify(notification));
+      await applyUnreadRetention(unreadKey);
     }
   }
 

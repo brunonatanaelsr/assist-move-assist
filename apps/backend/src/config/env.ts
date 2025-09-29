@@ -85,6 +85,8 @@ const envSchema = z.object({
   POSTGRES_SSL: z.string().optional(),
   REDIS_HOST: z.string().optional(),
   REDIS_PORT: z.coerce.number().optional(),
+  REDIS_UNREAD_TTL_SECONDS: z.coerce.number().int().min(0).optional(),
+  REDIS_UNREAD_MAX_ITEMS: z.coerce.number().int().min(0).optional(),
   SMTP_HOST: z.string().optional(),
   SMTP_PORT: z.coerce.number().optional(),
   SMTP_SECURE: booleanFromEnv.optional(),
