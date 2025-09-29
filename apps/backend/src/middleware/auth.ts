@@ -239,6 +239,8 @@ export const requireAdmin = requireRole('admin');
 // Middleware para gestores
 export const requireGestor = requireRole('gestor');
 
+// (authorize definido mais abaixo com RBAC baseado em banco de dados)
+
 // RBAC baseado em role_permissions (DB)
 export const authorize = (required: string | string[]) => {
   const requiredPerms = Array.isArray(required) ? required : [required];

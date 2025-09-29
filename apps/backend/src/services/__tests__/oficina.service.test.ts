@@ -13,7 +13,8 @@ describe('OficinaService', () => {
   let oficinaService: OficinaService;
   let mockPool: MockPool;
   let mockRedis: MockRedis;
-  let cacheGetSpy: jest.SpyInstance;
+  let cacheGetSpy: any;
+  let getColumnMapSpy: any;
 
   const mockOficina: Oficina = {
     id: 1,
@@ -39,6 +40,26 @@ describe('OficinaService', () => {
     mockRedis = createMockRedis();
     oficinaService = new OficinaService(mockPool as unknown as Pool, mockRedis as unknown as Redis);
 
+    getColumnMapSpy = jest
+      .spyOn(oficinaService as any, 'getColumnMap')
+      .mockResolvedValue({
+        nome: 'nome',
+        descricao: 'descricao',
+        instrutor: 'instrutor',
+        data_inicio: 'data_inicio',
+        data_fim: 'data_fim',
+        horario_inicio: 'horario_inicio',
+        horario_fim: 'horario_fim',
+        local: 'local',
+        vagas_total: 'vagas_total',
+        projeto_id: 'projeto_id',
+        responsavel_id: 'responsavel_id',
+        status: 'status',
+        ativo: 'ativo',
+        data_criacao: 'data_criacao',
+        data_atualizacao: 'data_atualizacao'
+      });
+
     cacheGetSpy = jest.spyOn(cacheService, 'get').mockResolvedValue(null);
     jest.spyOn(cacheService, 'set').mockResolvedValue();
     jest.spyOn(cacheService, 'deletePattern').mockResolvedValue();
@@ -62,7 +83,7 @@ describe('OficinaService', () => {
 
       cacheGetSpy.mockResolvedValueOnce(mockCachedData);
 
-      const result = await oficinaService.listarOficinas(mockFilters);
+      const result: any = await oficinaService.listarOficinas(mockFilters);
 
       expect(result).toEqual(mockCachedData);
       expect(cacheService.get).toHaveBeenCalledWith('oficinas:list:all:all:10');
@@ -83,7 +104,7 @@ describe('OficinaService', () => {
         rows: [dbRow]
       });
 
-      const result = await oficinaService.listarOficinas(mockFilters);
+      const result: any = await oficinaService.listarOficinas(mockFilters);
 
       expect(result.data).toHaveLength(1);
       expect(result).toEqual({
@@ -138,7 +159,7 @@ describe('OficinaService', () => {
         rows: [{ ...mockOficina, total_count: '1' }]
       });
 
-      const result = await oficinaService.listarOficinas(filters);
+      const result: any = await oficinaService.listarOficinas(filters);
 
       expect(result.data).toHaveLength(1);
       expect(mockPool.query).toHaveBeenCalledWith(
@@ -238,14 +259,11 @@ describe('OficinaService', () => {
       descricao: 'Nova descrição'
     };
 
-    beforeEach(() => {
-      mockPool.query.mockResolvedValueOnce({ 
-        rows: [{ responsavel_id: '123' }] 
-      });
-    });
-
     it('deve atualizar oficina quando usuário é responsável', async () => {
-      mockPool.query.mockResolvedValueOnce({ rows: [mockOficina] });
+      mockPool.query
+        .mockResolvedValueOnce({ rows: [{ responsavel_id: '123' }] })
+        .mockResolvedValueOnce({ rows: [{ id: 1 }] })
+        .mockResolvedValueOnce({ rows: [mockOficina] });
 
       const result = await oficinaService.atualizarOficina(1, mockUpdateData, '123', 'gestor');
 
@@ -255,7 +273,10 @@ describe('OficinaService', () => {
     });
 
     it('deve atualizar oficina quando usuário é admin', async () => {
-      mockPool.query.mockResolvedValueOnce({ rows: [mockOficina] });
+      mockPool.query
+        .mockResolvedValueOnce({ rows: [{ responsavel_id: '123' }] })
+        .mockResolvedValueOnce({ rows: [{ id: 1 }] })
+        .mockResolvedValueOnce({ rows: [mockOficina] });
 
       const result = await oficinaService.atualizarOficina(1, mockUpdateData, '456', 'admin');
 
@@ -263,6 +284,7 @@ describe('OficinaService', () => {
     });
 
     it('deve rejeitar atualização quando usuário não tem permissão', async () => {
+      mockPool.query.mockResolvedValueOnce({ rows: [{ responsavel_id: '123' }] });
       await expect(
         oficinaService.atualizarOficina(1, mockUpdateData, '456', 'gestor')
       ).rejects.toThrow('Sem permissão para editar esta oficina');
@@ -303,20 +325,28 @@ describe('OficinaService', () => {
   });
 
   describe('listarParticipantes', () => {
-    const mockParticipantes = [
-      { 
-        id: 1, 
+    const mockParticipantesCache = [
+      {
+        id: 1,
         nome_completo: 'Participante 1',
-        data_inscricao: new Date()
+        data_inscricao: '2025-09-29'
+      }
+    ];
+
+    const mockParticipantesDb = [
+      {
+        id: 1,
+        nome_completo: 'Participante 1',
+        data_inscricao: new Date('2025-09-29T15:00:31.571Z')
       }
     ];
 
     it('deve retornar participantes do cache quando disponível', async () => {
-      cacheGetSpy.mockResolvedValueOnce(mockParticipantes);
+      cacheGetSpy.mockResolvedValueOnce(mockParticipantesCache);
 
       const result = await oficinaService.listarParticipantes(1);
 
-      expect(result).toEqual(mockParticipantes);
+      expect(result).toEqual(mockParticipantesCache);
       expect(cacheService.get).toHaveBeenCalledWith('oficinas:participantes:1');
       expect(mockPool.query).not.toHaveBeenCalled();
     });
@@ -324,13 +354,13 @@ describe('OficinaService', () => {
     it('deve buscar participantes do banco quando não há cache', async () => {
       mockPool.query
         .mockResolvedValueOnce({ rows: [{ projeto_id: 1 }] })
-        .mockResolvedValueOnce({ rows: mockParticipantes });
+        .mockResolvedValueOnce({ rows: mockParticipantesDb });
 
       const result = await oficinaService.listarParticipantes(1);
 
-      expect(result).toEqual(mockParticipantes);
+      expect(result).toEqual(mockParticipantesCache);
       expect(mockPool.query).toHaveBeenCalledTimes(2);
-      expect(cacheService.set).toHaveBeenCalledWith('oficinas:participantes:1', mockParticipantes, 300);
+      expect(cacheService.set).toHaveBeenCalledWith('oficinas:participantes:1', mockParticipantesCache, 300);
     });
 
     it('deve lançar erro quando oficina não é encontrada', async () => {

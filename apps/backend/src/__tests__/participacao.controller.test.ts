@@ -44,8 +44,11 @@ describe('participacao.controller', () => {
 
     await atualizarParticipacao(req, res, next as any);
 
-    expect(res.status).toHaveBeenCalledWith(400);
-    expect(res.json).toHaveBeenCalledWith({ error: 'Nenhum campo fornecido para atualização' });
-    expect(next).not.toHaveBeenCalled();
+    expect(next).toHaveBeenCalledWith(expect.objectContaining({
+      message: 'Nenhum campo fornecido para atualização',
+      statusCode: 400
+    }));
+    expect(res.status).not.toHaveBeenCalled();
+    expect(res.json).not.toHaveBeenCalled();
   });
 });

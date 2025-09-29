@@ -31,7 +31,33 @@ interface CustomResponse {
 
 const participacaoService = new ParticipacaoService(pool, redis);
 
-export const listarParticipacoes = async (req: CustomRequest & Request, res: CustomResponse, next: NextFunction) => {
+type ExpressNext = NextFunction | undefined;
+
+const handleControllerError = (
+  error: unknown,
+  res: CustomResponse,
+  next: ExpressNext,
+  fallbackMessage: string,
+  fallbackStatus = 500
+) => {
+  const message = error instanceof Error && error.message ? error.message : fallbackMessage;
+  const status = (() => {
+    if (error instanceof AppError) return error.statusCode ?? fallbackStatus;
+    if (error instanceof ValidationError) return error.status ?? 400;
+    return fallbackStatus;
+  })();
+
+  if (next) {
+    const appError = error instanceof AppError
+      ? error
+      : new AppError(message, status);
+    return next(appError);
+  }
+
+  return res.status(status).json({ error: message });
+};
+
+export const listarParticipacoes = async (req: CustomRequest & Request, res: CustomResponse, next?: NextFunction) => {
   try {
     const {
       page = 1,
@@ -61,50 +87,53 @@ export const listarParticipacoes = async (req: CustomRequest & Request, res: Cus
     return res.json(result);
   } catch (error) {
     loggerService.error('Erro no controller ao listar participações', { error });
-    return next(error instanceof AppError ? error : new AppError('Erro interno ao buscar participações', 500));
+    return handleControllerError(error, res, next, 'Erro interno ao buscar participações');
   }
 };
 
-export const criarParticipacao = async (req: CustomRequest & Request, res: CustomResponse, next: NextFunction) => {
+export const criarParticipacao = async (req: CustomRequest & Request, res: CustomResponse, next?: NextFunction) => {
   try {
     const participacao = await participacaoService.criarParticipacao(req.body);
     return res.status(201).json(participacao);
   } catch (error: any) {
     loggerService.error('Erro no controller ao criar participação', { error });
-    return next(error);
+    const defaultMessage = error instanceof ValidationError ? error.message : 'Erro ao criar participação';
+    const status = error instanceof AppError ? error.statusCode : error instanceof ValidationError ? error.status : 500;
+    return handleControllerError(error, res, next, defaultMessage, status);
   }
 };
 
-export const atualizarParticipacao = async (req: CustomRequest & Request, res: CustomResponse, next: NextFunction) => {
+export const atualizarParticipacao = async (req: CustomRequest & Request, res: CustomResponse, next?: NextFunction) => {
   try {
     const { id } = req.params;
     const participacao = await participacaoService.atualizarParticipacao(Number(id), req.body);
     return res.json(participacao);
   } catch (error: any) {
     loggerService.error('Erro no controller ao atualizar participação', { error });
-    if (error instanceof AppError && error.statusCode === 400) {
+    const defaultStatus = error instanceof AppError ? error.statusCode : 500;
+    if (!next && error instanceof AppError && error.statusCode === 400) {
       return res.status(400).json({ error: error.message });
     }
-    return next(error);
+    return handleControllerError(error, res, next, 'Erro ao atualizar participação', defaultStatus);
   }
 };
 
-export const excluirParticipacao = async (req: CustomRequest & Request, res: CustomResponse, next: NextFunction) => {
+export const excluirParticipacao = async (req: CustomRequest & Request, res: CustomResponse, next?: NextFunction) => {
   try {
     const { id } = req.params;
     await participacaoService.excluirParticipacao(Number(id));
     return res.status(204).send();
   } catch (error: any) {
     loggerService.error('Erro no controller ao excluir participação', { error });
-    return next(error);
+    return handleControllerError(error, res, next, 'Erro ao excluir participação');
   }
 };
 
-export const registrarPresenca = async (req: CustomRequest & Request, res: CustomResponse, next: NextFunction) => {
+export const registrarPresenca = async (req: CustomRequest & Request, res: CustomResponse, next?: NextFunction) => {
   try {
     const { id } = req.params;
     const { presenca } = req.body;
-    
+
     if (presenca === undefined) {
       throw new ValidationError('Percentual de presença é obrigatório');
     }
@@ -113,17 +142,21 @@ export const registrarPresenca = async (req: CustomRequest & Request, res: Custo
     return res.json(participacao);
   } catch (error: any) {
     loggerService.error('Erro no controller ao registrar presença', { error });
-    return next(error);
+    const fallbackMessage = error instanceof ValidationError ? error.message : 'Erro ao registrar presença';
+    const fallbackStatus = error instanceof ValidationError ? error.status : 500;
+    return handleControllerError(error, res, next, fallbackMessage, fallbackStatus);
   }
 };
 
-export const emitirCertificado = async (req: CustomRequest & Request, res: CustomResponse, next: NextFunction) => {
+export const emitirCertificado = async (req: CustomRequest & Request, res: CustomResponse, next?: NextFunction) => {
   try {
     const { id } = req.params;
     const participacao = await participacaoService.emitirCertificado(Number(id));
     return res.json(participacao);
   } catch (error: any) {
     loggerService.error('Erro no controller ao emitir certificado', { error });
-    return next(error);
+    const fallbackMessage = error instanceof ValidationError ? error.message : 'Erro ao emitir certificado';
+    const fallbackStatus = error instanceof ValidationError ? error.status : 500;
+    return handleControllerError(error, res, next, fallbackMessage, fallbackStatus);
   }
 };

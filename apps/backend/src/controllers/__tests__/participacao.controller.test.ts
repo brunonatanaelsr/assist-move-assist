@@ -6,15 +6,38 @@ import {
   registrarPresenca,
   emitirCertificado
 } from '../participacao.controller';
-import { ParticipacaoService } from '../../services/participacao.service';
+import { AppError, ValidationError } from '../../utils';
 
-// Mock do ParticipacaoService
-jest.mock('../../services/participacao.service');
+type MockService = {
+  listarParticipacoes: jest.Mock;
+  criarParticipacao: jest.Mock;
+  atualizarParticipacao: jest.Mock;
+  excluirParticipacao: jest.Mock;
+  registrarPresenca: jest.Mock;
+  emitirCertificado: jest.Mock;
+};
+
+jest.mock('../../services/participacao.service', () => {
+  const service: MockService = {
+    listarParticipacoes: jest.fn(),
+    criarParticipacao: jest.fn(),
+    atualizarParticipacao: jest.fn(),
+    excluirParticipacao: jest.fn(),
+    registrarPresenca: jest.fn(),
+    emitirCertificado: jest.fn()
+  };
+
+  return {
+    ParticipacaoService: jest.fn().mockImplementation(() => service),
+    __mockService: service
+  };
+});
+
+const { __mockService: mockService } = jest.requireMock('../../services/participacao.service') as { __mockService: MockService };
 
 describe('ParticipacaoController', () => {
   let mockReq: any;
   let mockRes: any;
-  let mockParticipacaoService: any;
 
   beforeEach(() => {
     mockReq = {
@@ -27,13 +50,7 @@ describe('ParticipacaoController', () => {
       status: jest.fn().mockReturnThis(),
       send: jest.fn()
     };
-    mockParticipacaoService = ParticipacaoService as jest.MockedClass<typeof ParticipacaoService>;
-    mockParticipacaoService.prototype.listarParticipacoes = jest.fn();
-    mockParticipacaoService.prototype.criarParticipacao = jest.fn();
-    mockParticipacaoService.prototype.atualizarParticipacao = jest.fn();
-    mockParticipacaoService.prototype.excluirParticipacao = jest.fn();
-    mockParticipacaoService.prototype.registrarPresenca = jest.fn();
-    mockParticipacaoService.prototype.emitirCertificado = jest.fn();
+    Object.values(mockService).forEach((fn) => fn.mockReset());
   });
 
   afterEach(() => {
@@ -46,7 +63,7 @@ describe('ParticipacaoController', () => {
         data: [{ id: 1 }],
         pagination: { total: 1 }
       };
-      mockParticipacaoService.prototype.listarParticipacoes.mockResolvedValue(mockResult);
+      mockService.listarParticipacoes.mockResolvedValue(mockResult);
 
       mockReq.query = {
         page: '1',
@@ -56,14 +73,14 @@ describe('ParticipacaoController', () => {
       await listarParticipacoes(mockReq, mockRes);
 
       expect(mockRes.json).toHaveBeenCalledWith(mockResult);
-      expect(mockParticipacaoService.prototype.listarParticipacoes).toHaveBeenCalledWith({
+      expect(mockService.listarParticipacoes).toHaveBeenCalledWith({
         page: 1,
         limit: 10
       });
     });
 
     it('deve tratar erro ao listar participações', async () => {
-      mockParticipacaoService.prototype.listarParticipacoes.mockRejectedValue(new Error());
+      mockService.listarParticipacoes.mockRejectedValue(new Error());
 
       await listarParticipacoes(mockReq, mockRes);
 
@@ -81,7 +98,7 @@ describe('ParticipacaoController', () => {
         beneficiaria_id: 1,
         projeto_id: 1
       };
-      mockParticipacaoService.prototype.criarParticipacao.mockResolvedValue(mockParticipacao);
+      mockService.criarParticipacao.mockResolvedValue(mockParticipacao);
 
       mockReq.body = {
         beneficiaria_id: 1,
@@ -95,8 +112,8 @@ describe('ParticipacaoController', () => {
     });
 
     it('deve tratar erro de beneficiária não encontrada', async () => {
-      mockParticipacaoService.prototype.criarParticipacao.mockRejectedValue(
-        new Error('Beneficiária não encontrada')
+      mockService.criarParticipacao.mockRejectedValue(
+        new AppError('Beneficiária não encontrada', 404)
       );
 
       await criarParticipacao(mockReq, mockRes);
@@ -114,7 +131,7 @@ describe('ParticipacaoController', () => {
         id: 1,
         status: 'em_andamento'
       };
-      mockParticipacaoService.prototype.atualizarParticipacao.mockResolvedValue(mockParticipacao);
+      mockService.atualizarParticipacao.mockResolvedValue(mockParticipacao);
 
       mockReq.params = { id: '1' };
       mockReq.body = { status: 'em_andamento' };
@@ -125,8 +142,8 @@ describe('ParticipacaoController', () => {
     });
 
     it('deve tratar erro de participação não encontrada', async () => {
-      mockParticipacaoService.prototype.atualizarParticipacao.mockRejectedValue(
-        new Error('Participação não encontrada')
+      mockService.atualizarParticipacao.mockRejectedValue(
+        new AppError('Participação não encontrada', 404)
       );
 
       mockReq.params = { id: '999' };
@@ -142,7 +159,7 @@ describe('ParticipacaoController', () => {
 
   describe('excluirParticipacao', () => {
     it('deve excluir participação com sucesso', async () => {
-      mockParticipacaoService.prototype.excluirParticipacao.mockResolvedValue(undefined);
+      mockService.excluirParticipacao.mockResolvedValue(undefined);
 
       mockReq.params = { id: '1' };
 
@@ -153,8 +170,8 @@ describe('ParticipacaoController', () => {
     });
 
     it('deve tratar erro de participação não encontrada', async () => {
-      mockParticipacaoService.prototype.excluirParticipacao.mockRejectedValue(
-        new Error('Participação não encontrada')
+      mockService.excluirParticipacao.mockRejectedValue(
+        new AppError('Participação não encontrada', 404)
       );
 
       mockReq.params = { id: '999' };
@@ -174,7 +191,7 @@ describe('ParticipacaoController', () => {
         id: 1,
         presenca_percentual: 80
       };
-      mockParticipacaoService.prototype.registrarPresenca.mockResolvedValue(mockParticipacao);
+      mockService.registrarPresenca.mockResolvedValue(mockParticipacao);
 
       mockReq.params = { id: '1' };
       mockReq.body = { presenca: 80 };
@@ -197,8 +214,8 @@ describe('ParticipacaoController', () => {
     });
 
     it('deve validar presença entre 0 e 100', async () => {
-      mockParticipacaoService.prototype.registrarPresenca.mockRejectedValue(
-        new Error('Percentual de presença deve estar entre 0 e 100')
+      mockService.registrarPresenca.mockRejectedValue(
+        new ValidationError('Percentual de presença deve estar entre 0 e 100')
       );
 
       mockReq.params = { id: '1' };
@@ -220,7 +237,7 @@ describe('ParticipacaoController', () => {
         certificado_emitido: true,
         status: 'concluida'
       };
-      mockParticipacaoService.prototype.emitirCertificado.mockResolvedValue(mockParticipacao);
+      mockService.emitirCertificado.mockResolvedValue(mockParticipacao);
 
       mockReq.params = { id: '1' };
 
@@ -230,8 +247,8 @@ describe('ParticipacaoController', () => {
     });
 
     it('deve validar presença mínima', async () => {
-      mockParticipacaoService.prototype.emitirCertificado.mockRejectedValue(
-        new Error('Presença mínima de 75% é necessária para emitir certificado')
+      mockService.emitirCertificado.mockRejectedValue(
+        new ValidationError('Presença mínima de 75% é necessária para emitir certificado')
       );
 
       mockReq.params = { id: '1' };

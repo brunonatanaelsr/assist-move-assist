@@ -185,8 +185,18 @@ describe('AuthService refresh tokens', () => {
     if (!entry) {
       throw new Error('Refresh token não foi persistido no mock');
     }
+    // Expira no passado no "banco"
     entry.expiresAt = new Date(Date.now() - 1000);
     pool.refreshTokens.set(tokenHash, entry);
+
+    // E também no cache Redis (quando habilitado via env)
+    // chave: auth:refresh:<hash>
+    // valor: { userId, expiresAt: ISOString }
+    // @ts-ignore acessando mock diretamente
+    await (redis as any).set(
+      `auth:refresh:${tokenHash}`,
+      JSON.stringify({ userId: entry.userId, expiresAt: entry.expiresAt.toISOString() })
+    );
 
     await expect(service.refreshWithToken(refreshToken)).rejects.toThrow('Refresh token expirado');
 
