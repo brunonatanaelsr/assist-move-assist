@@ -13,6 +13,7 @@ export interface AuthResponse {
     nome: string;
     papel: string;
     avatar_url?: string;
+    permissions?: string[];
   };
 }
 
@@ -40,6 +41,14 @@ export class AuthService {
 
   private readonly deviceStorageKey = 'auth_device_id';
   private readonly csrfEndpoints = ['/csrf-token', '/auth/csrf'];
+
+  public clearStoredSession(): void {
+    const tokenKeys = new Set([...LEGACY_TOKEN_KEYS, AUTH_TOKEN_KEY]);
+    const userKeys = new Set([...LEGACY_USER_KEYS, USER_KEY]);
+
+    tokenKeys.forEach((key) => localStorage.removeItem(key));
+    userKeys.forEach((key) => localStorage.removeItem(key));
+  }
 
   private constructor() {}
 
@@ -117,9 +126,6 @@ export class AuthService {
   }
 
   async logout(): Promise<void> {
-    const tokenKeys = new Set([...LEGACY_TOKEN_KEYS, AUTH_TOKEN_KEY]);
-    const userKeys = new Set([...LEGACY_USER_KEYS, USER_KEY]);
-
     try {
       await this.ensureCsrfToken();
       const deviceId = this.getDeviceId();
@@ -131,8 +137,7 @@ export class AuthService {
     } catch (error) {
       console.error('Erro ao fazer logout:', error);
     } finally {
-      tokenKeys.forEach((key) => localStorage.removeItem(key));
-      userKeys.forEach((key) => localStorage.removeItem(key));
+      this.clearStoredSession();
     }
   }
 
@@ -173,5 +178,31 @@ export class AuthService {
       LEGACY_USER_KEYS.map((key) => localStorage.getItem(key)).find((value) => !!value) ||
       null;
     return userStr ? JSON.parse(userStr) : null;
+  }
+
+  async fetchCurrentUser(): Promise<AuthResponse['user'] | null> {
+    try {
+      const response = await api.get<{ user?: AuthResponse['user'] } | AuthResponse['user']>('/auth/me', {
+        withCredentials: true
+      });
+
+      const payload = response.data;
+      const user = (payload && 'user' in (payload as Record<string, unknown>)
+        ? (payload as { user?: AuthResponse['user'] }).user
+        : (payload as AuthResponse['user'] | undefined)) ?? null;
+
+      if (user) {
+        localStorage.setItem(USER_KEY, JSON.stringify(user));
+      }
+
+      return user ?? null;
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response?.status === 401) {
+        this.clearStoredSession();
+        return null;
+      }
+
+      throw error;
+    }
   }
 }
