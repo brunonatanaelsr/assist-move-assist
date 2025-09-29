@@ -12,6 +12,39 @@ export interface BeneficiariaFamiliar {
   observacoes?: string | null;
 }
 
+export interface BeneficiariaInfoSocioeconomica {
+  renda_familiar?: number | null;
+  quantidade_moradores?: number | null;
+  tipo_moradia?: string | null;
+  escolaridade?: string | null;
+  profissao?: string | null;
+  situacao_trabalho?: string | null;
+  beneficios_sociais?: string[] | null;
+  created_at?: TemporalValue;
+  updated_at?: TemporalValue;
+}
+
+export interface BeneficiariaDependente {
+  id: number;
+  nome_completo: string;
+  data_nascimento: TemporalValue;
+  parentesco: string;
+  cpf?: string | null;
+  created_at?: TemporalValue;
+  updated_at?: TemporalValue;
+}
+
+export interface BeneficiariaHistoricoAtendimento {
+  id: number;
+  data: TemporalValue;
+  tipo: string;
+  descricao: string;
+  encaminhamentos?: string | null;
+  profissional_id?: number | null;
+  created_at?: TemporalValue;
+  updated_at?: TemporalValue;
+}
+
 export interface Beneficiaria {
   id: number;
   codigo: string;
@@ -44,6 +77,9 @@ export interface Beneficiaria {
   medida_protetiva?: boolean | null;
   acompanhamento_juridico?: boolean | null;
   acompanhamento_psicologico?: boolean | null;
+  foto_filename?: string | null;
+  foto_url?: string | null;
+  arquivada_em?: TemporalValue | null;
   created_at?: TemporalValue;
   updated_at?: TemporalValue;
   deleted_at?: TemporalValue | null;
@@ -52,6 +88,9 @@ export interface Beneficiaria {
 export interface BeneficiariaDetalhada extends Beneficiaria {
   familiares: BeneficiariaFamiliar[];
   vulnerabilidades: string[];
+  info_socioeconomica?: BeneficiariaInfoSocioeconomica | null;
+  dependentes?: BeneficiariaDependente[];
+  historico_atendimentos?: BeneficiariaHistoricoAtendimento[];
 }
 
 export interface BeneficiariaFiltros {

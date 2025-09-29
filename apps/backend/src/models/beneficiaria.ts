@@ -2,5 +2,8 @@ export type {
   BeneficiariaStatus,
   BeneficiariaFamiliar,
   Beneficiaria,
-  BeneficiariaDetalhada
+  BeneficiariaDetalhada,
+  BeneficiariaInfoSocioeconomica,
+  BeneficiariaDependente,
+  BeneficiariaHistoricoAtendimento
 } from '../types/beneficiarias';

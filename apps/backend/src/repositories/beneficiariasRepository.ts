@@ -1,6 +1,13 @@
 import { Pool, PoolClient } from 'pg';
 import { PostgresBaseRepository } from './postgresBaseRepository';
-import { Beneficiaria, BeneficiariaDetalhada, BeneficiariaFamiliar } from '../models/beneficiaria';
+import {
+  Beneficiaria,
+  BeneficiariaDetalhada,
+  BeneficiariaFamiliar,
+  BeneficiariaDependente,
+  BeneficiariaInfoSocioeconomica,
+  BeneficiariaHistoricoAtendimento
+} from '../models/beneficiaria';
 import {
   BeneficiariaAtividadeLista,
   BeneficiariaResumoDetalhado
@@ -10,6 +17,21 @@ import { NotFoundError, AppError } from '../utils';
 export class BeneficiariasRepository extends PostgresBaseRepository<Beneficiaria> {
   constructor(pool: Pool) {
     super(pool, 'beneficiarias');
+  }
+
+  private buildFotoUrl(filename?: string | null): string | null {
+    if (!filename) {
+      return null;
+    }
+    return `/api/upload/files/${encodeURIComponent(filename)}`;
+  }
+
+  private decorateBeneficiaria(beneficiaria: Beneficiaria): Beneficiaria {
+    const fotoUrl = this.buildFotoUrl(beneficiaria.foto_filename);
+    return {
+      ...beneficiaria,
+      foto_url: fotoUrl ?? undefined
+    };
   }
 
   private async withTransaction<T>(handler: (client: PoolClient) => Promise<T>): Promise<T> {
@@ -64,6 +86,87 @@ export class BeneficiariasRepository extends PostgresBaseRepository<Beneficiaria
     );
 
     return result.rows.map(row => row.slug as string);
+  }
+
+  private async fetchInfoSocioeconomica(
+    client: Pool | PoolClient,
+    beneficiariaId: number
+  ): Promise<BeneficiariaInfoSocioeconomica | null> {
+    const result = await this.runQuery(
+      client,
+      `SELECT renda_familiar, quantidade_moradores, tipo_moradia, escolaridade, profissao,
+              situacao_trabalho, beneficios_sociais, created_at, updated_at
+         FROM beneficiaria_info_socioeconomica
+        WHERE beneficiaria_id = $1`,
+      [beneficiariaId]
+    );
+
+    if (result.rowCount === 0) {
+      return null;
+    }
+
+    const row = result.rows[0];
+    return {
+      renda_familiar: row.renda_familiar !== null ? Number(row.renda_familiar) : null,
+      quantidade_moradores: row.quantidade_moradores !== null ? Number(row.quantidade_moradores) : null,
+      tipo_moradia: row.tipo_moradia ?? null,
+      escolaridade: row.escolaridade ?? null,
+      profissao: row.profissao ?? null,
+      situacao_trabalho: row.situacao_trabalho ?? null,
+      beneficios_sociais: row.beneficios_sociais ?? null,
+      created_at: row.created_at ?? undefined,
+      updated_at: row.updated_at ?? undefined
+    };
+  }
+
+  private async fetchDependentes(
+    client: Pool | PoolClient,
+    beneficiariaId: number
+  ): Promise<BeneficiariaDependente[]> {
+    const result = await this.runQuery(
+      client,
+      `SELECT id, nome_completo, data_nascimento, parentesco, cpf, created_at, updated_at
+         FROM beneficiaria_dependentes
+        WHERE beneficiaria_id = $1
+        ORDER BY data_nascimento DESC NULLS LAST, created_at DESC`,
+      [beneficiariaId]
+    );
+
+    return result.rows.map(row => ({
+      id: row.id,
+      nome_completo: row.nome_completo,
+      data_nascimento: row.data_nascimento,
+      parentesco: row.parentesco,
+      cpf: row.cpf ?? null,
+      created_at: row.created_at ?? undefined,
+      updated_at: row.updated_at ?? undefined
+    }));
+  }
+
+  private async fetchHistoricoAtendimentos(
+    client: Pool | PoolClient,
+    beneficiariaId: number
+  ): Promise<BeneficiariaHistoricoAtendimento[]> {
+    const result = await this.runQuery(
+      client,
+      `SELECT id, tipo_atendimento, data_atendimento, descricao, encaminhamentos, usuario_id, created_at, updated_at
+         FROM historico_atendimentos
+        WHERE beneficiaria_id = $1
+        ORDER BY data_atendimento DESC, created_at DESC
+        LIMIT 100`,
+      [beneficiariaId]
+    );
+
+    return result.rows.map(row => ({
+      id: row.id,
+      data: row.data_atendimento,
+      tipo: row.tipo_atendimento,
+      descricao: row.descricao,
+      encaminhamentos: row.encaminhamentos ?? null,
+      profissional_id: row.usuario_id ?? null,
+      created_at: row.created_at ?? undefined,
+      updated_at: row.updated_at ?? undefined
+    }));
   }
 
   private async saveFamiliares(
@@ -125,12 +228,24 @@ export class BeneficiariasRepository extends PostgresBaseRepository<Beneficiaria
     client: Pool | PoolClient,
     beneficiaria: Beneficiaria
   ): Promise<BeneficiariaDetalhada> {
-    const [familiares, vulnerabilidades] = await Promise.all([
+    const [familiares, vulnerabilidades, infoSocio, dependentes, historico] = await Promise.all([
       this.fetchFamiliares(client, beneficiaria.id),
-      this.fetchVulnerabilidades(client, beneficiaria.id)
+      this.fetchVulnerabilidades(client, beneficiaria.id),
+      this.fetchInfoSocioeconomica(client, beneficiaria.id),
+      this.fetchDependentes(client, beneficiaria.id),
+      this.fetchHistoricoAtendimentos(client, beneficiaria.id)
     ]);
 
-    return { ...beneficiaria, familiares, vulnerabilidades };
+    const decorated = this.decorateBeneficiaria(beneficiaria);
+
+    return {
+      ...decorated,
+      familiares,
+      vulnerabilidades,
+      info_socioeconomica: infoSocio,
+      dependentes,
+      historico_atendimentos: historico
+    };
   }
 
   // Compatibilidade com testes legados
@@ -156,7 +271,7 @@ export class BeneficiariasRepository extends PostgresBaseRepository<Beneficiaria
         values
       );
 
-      const beneficiaria = insert.rows[0] as Beneficiaria;
+      const beneficiaria = this.decorateBeneficiaria(insert.rows[0] as Beneficiaria);
       await this.saveFamiliares(client, beneficiaria.id, familiares ?? []);
       await this.saveVulnerabilidades(client, beneficiaria.id, vulnerabilidades ?? []);
 
@@ -203,7 +318,8 @@ export class BeneficiariasRepository extends PostgresBaseRepository<Beneficiaria
         throw new NotFoundError(`Beneficiária não encontrada com ID: ${id}`);
       }
 
-      return this.attachRelations(client, refreshed.rows[0] as Beneficiaria);
+      const decorated = this.decorateBeneficiaria(refreshed.rows[0] as Beneficiaria);
+      return this.attachRelations(client, decorated);
     });
   }
 
@@ -212,7 +328,7 @@ export class BeneficiariasRepository extends PostgresBaseRepository<Beneficiaria
     if (!beneficiaria) {
       return null;
     }
-    return this.attachRelations(this.pool, beneficiaria);
+    return this.attachRelations(this.pool, this.decorateBeneficiaria(beneficiaria));
   }
 
   async buscarPorId(id: number): Promise<Beneficiaria> {
@@ -220,7 +336,7 @@ export class BeneficiariasRepository extends PostgresBaseRepository<Beneficiaria
     if (!found) {
       throw new AppError('Beneficiária não encontrada', 404);
     }
-    return found;
+    return this.decorateBeneficiaria(found);
   }
 
   async listar(
@@ -239,7 +355,8 @@ export class BeneficiariasRepository extends PostgresBaseRepository<Beneficiaria
   }
 
   async findByCPF(cpf: string): Promise<Beneficiaria | null> {
-    return this.findByField('cpf', cpf);
+    const found = await this.findByField('cpf', cpf);
+    return found ? this.decorateBeneficiaria(found) : null;
   }
 
   async buscarPorTexto(texto: string, limit: number = 10): Promise<Beneficiaria[]> {
@@ -346,8 +463,12 @@ export class BeneficiariasRepository extends PostgresBaseRepository<Beneficiaria
 
     const totalCount = parseInt(total.rows[0].count, 10);
 
+    const data = beneficiarias.rows.map((row) =>
+      this.decorateBeneficiaria(row as Beneficiaria)
+    );
+
     return {
-      data: beneficiarias.rows,
+      data,
       total: totalCount,
       pages: Math.ceil(totalCount / limit)
     };
@@ -379,7 +500,177 @@ export class BeneficiariasRepository extends PostgresBaseRepository<Beneficiaria
       throw new NotFoundError(`Beneficiária não encontrada com ID: ${id}`);
     }
 
-    return result.rows[0];
+    return this.decorateBeneficiaria(result.rows[0] as Beneficiaria);
+  }
+
+  async arquivar(id: number): Promise<Beneficiaria> {
+    const result = await this.query(
+      `UPDATE beneficiarias
+         SET status = 'inativa',
+             arquivada_em = CURRENT_TIMESTAMP,
+             updated_at = CURRENT_TIMESTAMP
+       WHERE id = $1 AND deleted_at IS NULL
+       RETURNING *`,
+      [id]
+    );
+
+    if (result.rowCount === 0) {
+      throw new NotFoundError(`Beneficiária não encontrada com ID: ${id}`);
+    }
+
+    return this.decorateBeneficiaria(result.rows[0] as Beneficiaria);
+  }
+
+  async upsertInfoSocioeconomica(
+    beneficiariaId: number,
+    info: Partial<BeneficiariaInfoSocioeconomica>
+  ): Promise<BeneficiariaInfoSocioeconomica> {
+    const result = await this.query(
+      `INSERT INTO beneficiaria_info_socioeconomica (
+         beneficiaria_id,
+         renda_familiar,
+         quantidade_moradores,
+         tipo_moradia,
+         escolaridade,
+         profissao,
+         situacao_trabalho,
+         beneficios_sociais
+       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+       ON CONFLICT (beneficiaria_id) DO UPDATE
+         SET renda_familiar = EXCLUDED.renda_familiar,
+             quantidade_moradores = EXCLUDED.quantidade_moradores,
+             tipo_moradia = EXCLUDED.tipo_moradia,
+             escolaridade = EXCLUDED.escolaridade,
+             profissao = EXCLUDED.profissao,
+             situacao_trabalho = EXCLUDED.situacao_trabalho,
+             beneficios_sociais = EXCLUDED.beneficios_sociais,
+             updated_at = CURRENT_TIMESTAMP
+       RETURNING renda_familiar, quantidade_moradores, tipo_moradia, escolaridade, profissao,
+                 situacao_trabalho, beneficios_sociais, created_at, updated_at`,
+      [
+        beneficiariaId,
+        info.renda_familiar ?? null,
+        info.quantidade_moradores ?? null,
+        info.tipo_moradia ?? null,
+        info.escolaridade ?? null,
+        info.profissao ?? null,
+        info.situacao_trabalho ?? null,
+        info.beneficios_sociais ?? null
+      ]
+    );
+
+    const row = result.rows[0];
+    return {
+      renda_familiar: row.renda_familiar !== null ? Number(row.renda_familiar) : null,
+      quantidade_moradores: row.quantidade_moradores !== null ? Number(row.quantidade_moradores) : null,
+      tipo_moradia: row.tipo_moradia ?? null,
+      escolaridade: row.escolaridade ?? null,
+      profissao: row.profissao ?? null,
+      situacao_trabalho: row.situacao_trabalho ?? null,
+      beneficios_sociais: row.beneficios_sociais ?? null,
+      created_at: row.created_at ?? undefined,
+      updated_at: row.updated_at ?? undefined
+    };
+  }
+
+  async addDependente(
+    beneficiariaId: number,
+    dependente: Omit<BeneficiariaDependente, 'id' | 'created_at' | 'updated_at'>
+  ): Promise<BeneficiariaDependente> {
+    const result = await this.query(
+      `INSERT INTO beneficiaria_dependentes (
+         beneficiaria_id, nome_completo, data_nascimento, parentesco, cpf
+       ) VALUES ($1,$2,$3,$4,$5)
+       RETURNING id, nome_completo, data_nascimento, parentesco, cpf, created_at, updated_at`,
+      [
+        beneficiariaId,
+        dependente.nome_completo,
+        dependente.data_nascimento,
+        dependente.parentesco,
+        dependente.cpf ?? null
+      ]
+    );
+
+    const row = result.rows[0];
+    return {
+      id: row.id,
+      nome_completo: row.nome_completo,
+      data_nascimento: row.data_nascimento,
+      parentesco: row.parentesco,
+      cpf: row.cpf ?? null,
+      created_at: row.created_at ?? undefined,
+      updated_at: row.updated_at ?? undefined
+    };
+  }
+
+  async removeDependente(beneficiariaId: number, dependenteId: number): Promise<void> {
+    const result = await this.query(
+      `DELETE FROM beneficiaria_dependentes
+        WHERE beneficiaria_id = $1 AND id = $2`,
+      [beneficiariaId, dependenteId]
+    );
+
+    if (result.rowCount === 0) {
+      throw new NotFoundError('Dependente não encontrado para esta beneficiária');
+    }
+  }
+
+  async addAtendimento(
+    beneficiariaId: number,
+    atendimento: {
+      tipo: string;
+      data: Date;
+      descricao: string;
+      encaminhamentos?: string | null;
+      profissional_id?: number | null;
+    }
+  ): Promise<BeneficiariaHistoricoAtendimento> {
+    const result = await this.query(
+      `INSERT INTO historico_atendimentos (
+         beneficiaria_id, tipo_atendimento, data_atendimento, descricao, encaminhamentos, usuario_id
+       ) VALUES ($1,$2,$3,$4,$5,$6)
+       RETURNING id, tipo_atendimento, data_atendimento, descricao, encaminhamentos, usuario_id, created_at, updated_at`,
+      [
+        beneficiariaId,
+        atendimento.tipo,
+        atendimento.data,
+        atendimento.descricao,
+        atendimento.encaminhamentos ?? null,
+        atendimento.profissional_id ?? null
+      ]
+    );
+
+    const row = result.rows[0];
+    return {
+      id: row.id,
+      tipo: row.tipo_atendimento,
+      data: row.data_atendimento,
+      descricao: row.descricao,
+      encaminhamentos: row.encaminhamentos ?? null,
+      profissional_id: row.usuario_id ?? null,
+      created_at: row.created_at ?? undefined,
+      updated_at: row.updated_at ?? undefined
+    };
+  }
+
+  async updateFoto(
+    beneficiariaId: number,
+    filename: string
+  ): Promise<Beneficiaria> {
+    const result = await this.query(
+      `UPDATE beneficiarias
+         SET foto_filename = $2,
+             updated_at = CURRENT_TIMESTAMP
+       WHERE id = $1 AND deleted_at IS NULL
+       RETURNING *`,
+      [beneficiariaId, filename]
+    );
+
+    if (result.rowCount === 0) {
+      throw new NotFoundError(`Beneficiária não encontrada com ID: ${beneficiariaId}`);
+    }
+
+    return this.decorateBeneficiaria(result.rows[0] as Beneficiaria);
   }
 
   async getResumo(id: number): Promise<BeneficiariaResumoDetalhado | null> {

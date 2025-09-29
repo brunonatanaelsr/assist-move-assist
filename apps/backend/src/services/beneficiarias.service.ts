@@ -11,6 +11,8 @@ import type {
   Beneficiaria,
   BeneficiariaAtividadeLista,
   BeneficiariaCreatePayload,
+  BeneficiariaDependente,
+  BeneficiariaInfoSocioeconomica,
   BeneficiariaResumoDetalhado,
   BeneficiariaUpdatePayload
 } from '../types/beneficiarias';
@@ -212,6 +214,144 @@ export class BeneficiariasService {
 
   async buscarPorId(id: number): Promise<Beneficiaria> {
     return this.repository.buscarPorId(id);
+  }
+
+  async arquivarBeneficiaria(id: number): Promise<Beneficiaria> {
+    try {
+      await this.repository.buscarPorId(id);
+      const beneficiaria = await this.repository.arquivar(id);
+      await this.invalidateCaches(id);
+      return beneficiaria;
+    } catch (error) {
+      logger.error('Erro ao arquivar beneficiária:', { error });
+      if (error instanceof AppError) {
+        throw error;
+      }
+      if (error instanceof BaseError) {
+        throw new AppError(error.message, error.status);
+      }
+      throw new AppError('Erro ao arquivar beneficiária', 500);
+    }
+  }
+
+  async atualizarInfoSocioeconomica(
+    id: number,
+    info: Partial<BeneficiariaInfoSocioeconomica>
+  ): Promise<BeneficiariaDetalhada> {
+    try {
+      await this.repository.buscarPorId(id);
+      await this.repository.upsertInfoSocioeconomica(id, info);
+      await this.invalidateCaches(id);
+
+      const beneficiaria = await this.repository.findWithRelations(id);
+      if (!beneficiaria) {
+        throw new AppError('Beneficiária não encontrada', 404);
+      }
+      return beneficiaria;
+    } catch (error) {
+      logger.error('Erro ao atualizar informações socioeconômicas:', { error });
+      if (error instanceof AppError) {
+        throw error;
+      }
+      if (error instanceof BaseError) {
+        throw new AppError(error.message, error.status);
+      }
+      throw new AppError('Erro ao atualizar informações socioeconômicas', 500);
+    }
+  }
+
+  async adicionarDependente(
+    id: number,
+    dependente: Omit<BeneficiariaDependente, 'id' | 'created_at' | 'updated_at'>
+  ): Promise<BeneficiariaDetalhada> {
+    try {
+      await this.repository.buscarPorId(id);
+      await this.repository.addDependente(id, dependente);
+      await this.invalidateCaches(id);
+      const beneficiaria = await this.repository.findWithRelations(id);
+      if (!beneficiaria) {
+        throw new AppError('Beneficiária não encontrada', 404);
+      }
+      return beneficiaria;
+    } catch (error) {
+      logger.error('Erro ao adicionar dependente:', { error });
+      if (error instanceof AppError) {
+        throw error;
+      }
+      if (error instanceof BaseError) {
+        throw new AppError(error.message, error.status);
+      }
+      throw new AppError('Erro ao adicionar dependente', 500);
+    }
+  }
+
+  async removerDependente(id: number, dependenteId: number): Promise<void> {
+    try {
+      await this.repository.buscarPorId(id);
+      await this.repository.removeDependente(id, dependenteId);
+      await this.invalidateCaches(id);
+    } catch (error) {
+      logger.error('Erro ao remover dependente:', { error });
+      if (error instanceof AppError) {
+        throw error;
+      }
+      if (error instanceof BaseError) {
+        throw new AppError(error.message, error.status);
+      }
+      throw new AppError('Erro ao remover dependente', 500);
+    }
+  }
+
+  async adicionarAtendimento(
+    id: number,
+    atendimento: {
+      tipo: string;
+      data: Date;
+      descricao: string;
+      encaminhamentos?: string | null;
+      profissional_id?: number | null;
+    }
+  ): Promise<BeneficiariaDetalhada> {
+    try {
+      await this.repository.buscarPorId(id);
+      await this.repository.addAtendimento(id, atendimento);
+      await this.invalidateCaches(id);
+      const beneficiaria = await this.repository.findWithRelations(id);
+      if (!beneficiaria) {
+        throw new AppError('Beneficiária não encontrada', 404);
+      }
+      return beneficiaria;
+    } catch (error) {
+      logger.error('Erro ao adicionar atendimento:', { error });
+      if (error instanceof AppError) {
+        throw error;
+      }
+      if (error instanceof BaseError) {
+        throw new AppError(error.message, error.status);
+      }
+      throw new AppError('Erro ao adicionar atendimento', 500);
+    }
+  }
+
+  async atualizarFoto(
+    id: number,
+    filename: string
+  ): Promise<Beneficiaria> {
+    try {
+      await this.repository.buscarPorId(id);
+      const beneficiaria = await this.repository.updateFoto(id, filename);
+      await this.invalidateCaches(id);
+      return beneficiaria;
+    } catch (error) {
+      logger.error('Erro ao atualizar foto da beneficiária:', { error });
+      if (error instanceof AppError) {
+        throw error;
+      }
+      if (error instanceof BaseError) {
+        throw new AppError(error.message, error.status);
+      }
+      throw new AppError('Erro ao atualizar foto da beneficiária', 500);
+    }
   }
 
   private async invalidateCaches(id?: number) {

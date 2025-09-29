@@ -69,6 +69,9 @@ export interface Beneficiaria {
     observacoes_socioeconomicas?: string | null;
     status: 'ativa' | 'inativa' | 'pendente' | 'desistente';
     observacoes?: string | null;
+    foto_filename?: string | null;
+    foto_url?: string | null;
+    arquivada_em?: string | null;
     created_at?: string;
     updated_at?: string;
     familiares?: Array<{
@@ -89,6 +92,8 @@ export interface Beneficiaria {
         profissao?: string | null;
         situacao_trabalho?: string | null;
         beneficios_sociais?: string[] | null;
+        created_at?: string;
+        updated_at?: string;
     } | null;
     dependentes?: Array<{
         id?: number;
@@ -96,13 +101,18 @@ export interface Beneficiaria {
         data_nascimento: string;
         parentesco: string;
         cpf?: string;
+        created_at?: string;
+        updated_at?: string;
     }>;
     historico_atendimentos?: Array<{
         id: number;
         data: string;
         tipo: string;
         descricao: string;
+        encaminhamentos?: string | null;
         profissional_id?: number;
+        created_at?: string;
+        updated_at?: string;
     }>;
 }
 
