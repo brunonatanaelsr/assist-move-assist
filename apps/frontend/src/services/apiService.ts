@@ -28,7 +28,61 @@ import type {
 import type { Oficina } from '@/types/oficinas';
 import { applyCsrfTokenToAxios, applyCsrfTokenToConfig, getCsrfToken } from './csrfTokenStore';
 import { ensureCsrfTokenFetched } from './csrf.service';
-const IS_DEV = (import.meta as any)?.env?.DEV === true || (import.meta as any)?.env?.MODE === 'development';
+import { logger } from '@/lib/logger';
+const env = (import.meta as any)?.env ?? {};
+const isDevelopmentEnv = env?.DEV === true || env?.MODE === 'development';
+const isApiDebugEnabled = isDevelopmentEnv || env?.VITE_API_DEBUG === 'true';
+
+const FALLBACK_ORIGIN =
+  typeof window !== 'undefined' && window.location?.origin ? window.location.origin : 'http://localhost';
+
+const isAbsoluteUrl = (url?: string): boolean =>
+  typeof url === 'string' && /^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(url);
+
+const toAbsoluteUrl = (url?: string, base?: string): URL | null => {
+  if (!url) return null;
+
+  try {
+    if (isAbsoluteUrl(url)) {
+      return new URL(url);
+    }
+
+    const effectiveBase = base
+      ? isAbsoluteUrl(base)
+        ? base
+        : new URL(base, FALLBACK_ORIGIN).toString()
+      : FALLBACK_ORIGIN;
+
+    return new URL(url, effectiveBase);
+  } catch (error) {
+    logger.debug('Falha ao normalizar URL da requisição.', { url, base, error });
+    return null;
+  }
+};
+
+const internalApiUrl = toAbsoluteUrl(API_URL ?? undefined);
+
+const isInternalRequest = (
+  config: AxiosRequestConfig,
+  instanceBaseURL?: string
+): boolean => {
+  const requestUrl = config.url;
+  const effectiveBase = config.baseURL ?? instanceBaseURL;
+  const absoluteRequest = toAbsoluteUrl(requestUrl, effectiveBase);
+
+  if (!absoluteRequest) {
+    return !isAbsoluteUrl(requestUrl);
+  }
+
+  if (!internalApiUrl) {
+    return !isAbsoluteUrl(requestUrl);
+  }
+
+  return (
+    absoluteRequest.origin === internalApiUrl.origin &&
+    absoluteRequest.pathname.startsWith(internalApiUrl.pathname)
+  );
+};
 
 type SessionUser = AuthenticatedSessionUser & { ativo?: boolean };
 type LoginSuccessPayload = Omit<AuthResponse, 'user'> & { user: SessionUser } & { message?: string };
@@ -82,13 +136,17 @@ class ApiService {
           delete (config.headers as any)['X-CSRF-Token'];
         }
 
-        if (IS_DEV) {
-          console.log(`API Request: ${config.method?.toUpperCase()} ${config.url}`);
+        if (isApiDebugEnabled) {
+          logger.debug('API Request', {
+            method: config.method?.toUpperCase(),
+            url: config.url,
+            baseURL: config.baseURL ?? this.api.defaults.baseURL,
+          });
         }
         return config;
       },
       (error) => {
-        if (IS_DEV) console.error('Request error:', error);
+        logger.error('Erro ao preparar requisição da API', error);
         return Promise.reject(error);
       }
     );
@@ -96,13 +154,28 @@ class ApiService {
     // Interceptor para tratar respostas e erros
     this.api.interceptors.response.use(
       (response: AxiosResponse<ApiResponse>) => {
-        if (IS_DEV) console.log(`API Response: ${response.status} - ${response.config.url}`);
-        
+        if (isApiDebugEnabled) {
+          logger.debug('API Response', {
+            status: response.status,
+            url: response.config.url,
+            baseURL: response.config.baseURL ?? this.api.defaults.baseURL,
+          });
+        }
+
+        const shouldNormalizeResponse = isInternalRequest(
+          response.config,
+          this.api.defaults.baseURL
+        );
+
+        if (!shouldNormalizeResponse) {
+          return response;
+        }
+
         // Se a resposta já tem o formato esperado, retorna como está
         if (response.data && typeof response.data.success === 'boolean') {
           return response;
         }
-        
+
         // Para compatibilidade com respostas antigas, wrappa em ApiResponse
         const wrappedResponse: ApiResponse = {
           success: true,
@@ -115,8 +188,8 @@ class ApiService {
         };
       },
       (error) => {
-        if (IS_DEV) console.error('API Error:', error);
-        
+        logger.error('Erro na resposta da API', error);
+
         // Tratar erro de autenticação
         if (error.response && error.response.status === 401) {
           const tokenKeys = new Set([
@@ -184,22 +257,19 @@ class ApiService {
 
   async post<T>(url: string, data: any, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
     try {
-      if (IS_DEV) console.log('POST Request:', { url, data, baseURL: this.api.defaults.baseURL });
+      if (isApiDebugEnabled) {
+        logger.debug('POST Request', { url, data, baseURL: this.api.defaults.baseURL });
+      }
       const response = await this.api.post<ApiResponse<T>>(url, data, config);
-      if (IS_DEV) console.log('POST Response Success:', response.data);
+      if (isApiDebugEnabled) {
+        logger.debug('POST Response Success', response.data);
+      }
       return response.data;
     } catch (error: any) {
-      if (IS_DEV) {
-        console.error('POST Error:', error);
-        console.error('Error details:', {
-          message: error.message,
-          code: error.code,
-          response: error.response?.data,
-          status: error.response?.status,
-          url: error.config?.url
-        });
-      }
-      
+      logger.error('Erro ao executar requisição POST', error, {
+        url,
+      });
+
       if (error.response && error.response.data) {
         return error.response.data;
       }
@@ -227,9 +297,13 @@ class ApiService {
 
   // Métodos específicos para autenticação
   async login(email: string, password: string): Promise<ApiResponse<LoginSuccessPayload>> {
-    if (IS_DEV) console.log('Login attempt:', { email, apiUrl: API_URL });
+    if (isApiDebugEnabled) {
+      logger.debug('Login attempt', { email, apiUrl: API_URL });
+    }
     const result = await this.post<LoginSuccessPayload>('/auth/login', { email, password });
-    if (IS_DEV) console.log('Login result:', result);
+    if (isApiDebugEnabled) {
+      logger.debug('Login result', result);
+    }
     return result;
   }
 

@@ -1,6 +1,7 @@
 import { ReactNode, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { logger } from '@/lib/logger';
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -13,25 +14,19 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 }) => {
   const { user, loading, isAdmin } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
+  const hasRequiredPermissions = !adminOnly || Boolean(isAdmin);
 
   useEffect(() => {
-    if (!loading) {
-      if (user) {
-        // Usuário autenticado: segue fluxo normal
-        if (adminOnly && !isAdmin) {
-          console.log('ProtectedRoute: Usuário sem privilégios de admin');
-          navigate('/', { replace: true });
-        }
-      } else {
-        // Não autenticado: não redireciona automaticamente. Exibimos CTA de login.
-        // Isso evita flakiness nos testes E2E no carregamento inicial.
-      }
+    if (!loading && user && !hasRequiredPermissions) {
+      logger.warn('Usuário autenticado sem as permissões necessárias, redirecionando.');
+      navigate('/', { replace: true });
     }
-  }, [loading, user, adminOnly, navigate, location, isAdmin]);
+  }, [loading, user, hasRequiredPermissions, navigate]);
 
-  // Show loading state while checking authentication
-  if (loading) {
+  const isCheckingAccess = loading || (user && !hasRequiredPermissions);
+
+  // Show loading state while checking authentication or permissions
+  if (isCheckingAccess) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5">
         <div className="text-center">
