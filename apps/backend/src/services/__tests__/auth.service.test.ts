@@ -129,6 +129,16 @@ class RedisMock {
   async del(key: string): Promise<number> {
     return this.store.delete(key) ? 1 : 0;
   }
+
+  async expireKey(key: string): Promise<boolean> {
+    const entry = this.store.get(key);
+    if (!entry) {
+      return false;
+    }
+    entry.expiresAt = Date.now() - 1;
+    this.store.set(key, entry);
+    return true;
+  }
 }
 
 describe('AuthService refresh tokens', () => {
@@ -180,6 +190,7 @@ describe('AuthService refresh tokens', () => {
     const payload = { id: 1, email: 'user@example.com', role: 'admin' };
     const refreshToken = await service.generateRefreshToken(payload);
     const tokenHash = createHash('sha256').update(refreshToken).digest('hex');
+    const redisKey = `auth:refresh:${tokenHash}`;
 
     const entry = pool.refreshTokens.get(tokenHash);
     if (!entry) {
@@ -187,6 +198,9 @@ describe('AuthService refresh tokens', () => {
     }
     entry.expiresAt = new Date(Date.now() - 1000);
     pool.refreshTokens.set(tokenHash, entry);
+
+    await redis.expireKey(redisKey);
+    await expect(redis.get(redisKey)).resolves.toBeNull();
 
     await expect(service.refreshWithToken(refreshToken)).rejects.toThrow('Refresh token expirado');
 
