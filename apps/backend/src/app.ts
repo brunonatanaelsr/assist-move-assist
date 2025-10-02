@@ -8,7 +8,7 @@ import apiRoutes from './routes/api';
 // WebSocket opcional em runtime
 let webSocketServer: any = null;
 import { errorHandler } from './middleware/errorHandler';
-import { logger } from './services/logger';
+import { logger, loggerContextMiddleware } from './services/logger';
 import { pool } from './config/database';
 import { env } from './config/env';
 import { applySecurityMiddleware } from './middleware/security.middleware';
@@ -16,6 +16,8 @@ import { csrfMiddleware } from './middleware/csrf';
 
 const app: Express = express();
 const server = createServer(app);
+
+app.use(loggerContextMiddleware);
 
 if (env.ENABLE_WS) {
   try {
