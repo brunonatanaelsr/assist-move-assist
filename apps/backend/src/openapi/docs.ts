@@ -1,16 +1,15 @@
 import express from 'express';
 import swaggerUi from 'swagger-ui-express';
-import { OpenAPIGenerator } from '@asteasolutions/zod-to-openapi';
-import { registry } from './routes';
+import { generator, registry } from './schemas';
 import { apiSpec } from './apiSpec';
 
 const router = express.Router();
 
-// Gera a documentação OpenAPI
-const openApiGenerator = new OpenAPIGenerator(registry.definitions, '3.1.0');
+// Gera o documento OpenAPI
+const document = generator.generateDocument(registry, apiSpec);
 const fullSpec = {
   ...apiSpec,
-  ...openApiGenerator.generateDocument(apiSpec)
+  ...document
 };
 
 // Serve a interface Swagger UI

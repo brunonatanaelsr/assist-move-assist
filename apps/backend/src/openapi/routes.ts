@@ -1,22 +1,6 @@
-import { OpenAPIRegistry } from '@asteasolutions/zod-to-openapi';
-import { z } from './init';
+import { registry, z, LoginSchema, TokenSchema } from './schemas';
 
-const registry = new OpenAPIRegistry();
-
-// Auth Schemas
-const loginSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(6)
-});
-
-registry.register('Login', loginSchema);
-
-const tokenSchema = z.object({
-  accessToken: z.string(),
-  refreshToken: z.string()
-});
-
-registry.register('Token', tokenSchema);
+// Registry já está configurado no schemas.ts
 
 // Beneficiária Schemas
 const beneficiariaSchema = z.object({
@@ -58,7 +42,7 @@ registry.registerPath({
     body: {
       content: {
         'application/json': {
-          schema: loginSchema
+          schema: LoginSchema
         }
       }
     }
@@ -68,7 +52,7 @@ registry.registerPath({
       description: 'Login realizado com sucesso',
       content: {
         'application/json': {
-          schema: tokenSchema
+          schema: TokenSchema
         }
       }
     }
