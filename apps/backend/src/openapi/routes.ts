@@ -4,18 +4,22 @@ import { z } from 'zod';
 const registry = new OpenAPIRegistry();
 
 // Auth Schemas
-const loginSchema = registry.register('Login', z.object({
+const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6)
-}));
+});
 
-const tokenSchema = registry.register('Token', z.object({
+registry.register('Login', loginSchema);
+
+const tokenSchema = z.object({
   accessToken: z.string(),
   refreshToken: z.string()
-}));
+});
+
+registry.register('Token', tokenSchema);
 
 // Beneficiária Schemas
-const beneficiariaSchema = registry.register('Beneficiaria', z.object({
+const beneficiariaSchema = z.object({
   id: z.string().uuid(),
   nome: z.string(),
   cpf: z.string(),
@@ -26,10 +30,12 @@ const beneficiariaSchema = registry.register('Beneficiaria', z.object({
   status: z.enum(['ATIVA', 'INATIVA', 'AGUARDANDO']),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime()
-}));
+});
+
+registry.register('Beneficiaria', beneficiariaSchema);
 
 // Projeto Schemas
-const projetoSchema = registry.register('Projeto', z.object({
+const projetoSchema = z.object({
   id: z.string().uuid(),
   nome: z.string(),
   descricao: z.string(),
@@ -38,7 +44,9 @@ const projetoSchema = registry.register('Projeto', z.object({
   status: z.enum(['ATIVO', 'INATIVO', 'CONCLUIDO']),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime()
-}));
+});
+
+registry.register('Projeto', projetoSchema);
 
 // Auth Routes
 registry.registerPath({
