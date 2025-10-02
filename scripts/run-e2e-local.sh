@@ -71,7 +71,7 @@ echo "[e2e-local] Starting backend (${API_URL})..."
   cd "$BACKEND_DIR"
   PORT=3000 POSTGRES_HOST=127.0.0.1 POSTGRES_PORT=${PG_HOST_PORT} POSTGRES_DB=movemarias_test POSTGRES_USER=postgres POSTGRES_PASSWORD=postgres \
   REDIS_HOST=127.0.0.1 REDIS_PORT=${REDIS_HOST_PORT} \
-  JWT_SECRET=test_secret ENABLE_WS=true CORS_ORIGIN=http://127.0.0.1:4173 \
+  JWT_SECRET=test_secret COOKIE_SECRET=test_cookie_secret ENABLE_WS=true CORS_ORIGIN=http://127.0.0.1:4173 \
   npm start
 ) & BACKEND_PID=$!
 

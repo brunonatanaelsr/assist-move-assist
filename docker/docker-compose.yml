@@ -44,6 +44,7 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - JWT_SECRET=assist-move-assist-dev-secret-key-2025
+      - COOKIE_SECRET=assist-move-assist-dev-cookie-secret-2025
       - JWT_EXPIRES_IN=24h
       - CORS_ORIGIN=http://localhost:5173
       - FRONTEND_URL=http://localhost:5173

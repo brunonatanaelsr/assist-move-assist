@@ -33,7 +33,14 @@ if (env.ENABLE_WS) {
 applySecurityMiddleware(app);
 
 // Parsing e assinatura de cookies antes dos handlers
-app.use(cookieParser(env.JWT_SECRET));
+const cookieSecret =
+  env.COOKIE_SECRET ?? (env.NODE_ENV === 'test' ? env.JWT_SECRET : undefined);
+
+if (!cookieSecret) {
+  throw new Error('COOKIE_SECRET não configurado');
+}
+
+app.use(cookieParser(cookieSecret));
 app.use(csrfMiddleware);
 
 // Logging

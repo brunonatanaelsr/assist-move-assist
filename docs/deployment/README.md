@@ -16,7 +16,7 @@ Este guia resume o processo de implantação em produção do Assist Move Assist
 ## Passo a Passo Resumido
 
 1. Clone o repositório no servidor destino e execute `scripts/pre-deploy-check.sh` para validar pacotes base.
-2. Copie `apps/backend/.env.example` para `apps/backend/.env` e `.env.example` para `.env.production`, preenchendo credenciais reais (URLs do domínio, `NODE_ENV=production`, `JWT_SECRET`, SMTP, chaves de monitoramento etc.).
+2. Copie `apps/backend/.env.example` para `apps/backend/.env` e `.env.example` para `.env.production`, preenchendo credenciais reais (URLs do domínio, `NODE_ENV=production`, `JWT_SECRET`, `COOKIE_SECRET`, SMTP, chaves de monitoramento etc.).
 3. Ajuste o arquivo `docker-compose.prod.yml` para apontar para os serviços gerenciados de banco/Redis via variáveis de ambiente.
 4. Rode `npm install` na raiz e em `apps/backend/`, depois `npm run build` (frontend) e `npm --prefix apps/backend run build`.
 5. Execute `npm --prefix apps/backend run migrate` para aplicar as migrações SQL e `npm --prefix apps/backend run seed` para criar dados iniciais.

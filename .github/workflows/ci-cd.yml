@@ -150,6 +150,7 @@ jobs:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
           JWT_SECRET: test_secret
+          COOKIE_SECRET: test_cookie_secret
           ENABLE_WS: false
           CORS_ORIGIN: http://127.0.0.1:4173
           SUPERADMIN_EMAIL: bruno@move.com
@@ -293,6 +294,7 @@ jobs:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
           JWT_SECRET: test_secret
+          COOKIE_SECRET: test_cookie_secret
           ENABLE_WS: true
           # ATENÇÃO: CORS pro front do E2E (4173)
           CORS_ORIGIN: http://127.0.0.1:4173
