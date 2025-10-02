@@ -1,12 +1,16 @@
+const path = require('path');
+const dotenv = require('dotenv');
 const { Client } = require('pg');
+
+dotenv.config({ path: path.resolve(__dirname, '..', '.env') });
 
 async function main() {
   const client = new Client({
     host: process.env.POSTGRES_HOST || 'localhost',
     port: parseInt(process.env.POSTGRES_PORT || '5432', 10),
-    database: process.env.POSTGRES_DB || 'movemarias',
-    user: process.env.POSTGRES_USER || 'postgres',
-    password: process.env.POSTGRES_PASSWORD || 'postgres',
+    database: process.env.POSTGRES_DB || 'assist_move_assist',
+    user: process.env.POSTGRES_USER || 'assistmove',
+    password: process.env.POSTGRES_PASSWORD || 'assistmove123',
     ssl: false,
   });
   await client.connect();
