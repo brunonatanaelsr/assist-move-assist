@@ -1,6 +1,7 @@
 import winston from 'winston';
 import DailyRotateFile from 'winston-daily-rotate-file';
 import path from 'path';
+import { AsyncLocalStorage } from 'async_hooks';
 
 // Configuração de formato personalizado
 const customFormat = winston.format.combine(
@@ -52,8 +53,13 @@ const transports: winston.transport[] = [
   })
 ];
 
-// Estado de contexto atual
-let currentContext: string | undefined;
+type LoggerContextStore = {
+  context?: string;
+};
+
+export const loggerContextStorage = new AsyncLocalStorage<LoggerContextStore>();
+
+const getCurrentContext = () => loggerContextStorage.getStore()?.context;
 
 // Criar logger
 const logger = winston.createLogger({
@@ -64,6 +70,7 @@ const logger = winston.createLogger({
 });
 
 const mergeContext = (meta?: any) => {
+  const currentContext = getCurrentContext();
   const contextMeta = currentContext ? { context: currentContext } : undefined;
 
   if (!contextMeta) {
@@ -99,11 +106,31 @@ const logWithContext = (level: keyof winston.Logger, message: string, meta?: any
 };
 
 export const setContext = (context?: string) => {
-  currentContext = context;
+  const store = loggerContextStorage.getStore();
+
+  if (!store) {
+    throw new Error('Logger context storage was not initialized for this execution context.');
+  }
+
+  if (context === undefined) {
+    delete store.context;
+    return;
+  }
+
+  store.context = context;
 };
+
+export const getContext = () => getCurrentContext();
+
+export const runWithLoggerContext = <T>(
+  callback: () => T,
+  initialStore: LoggerContextStore = {}
+) => loggerContextStorage.run(initialStore, callback);
 
 // Helper functions para diferentes níveis de log
 export const loggerService = {
+  setContext,
+  getContext,
   error: (message: string, meta?: any) => {
     logWithContext('error', message, meta);
   },
@@ -149,6 +176,12 @@ export const loggerService = {
       userId
     });
   }
+};
+
+export const loggerContextMiddleware = (_req: any, _res: any, next: any) => {
+  runWithLoggerContext(() => {
+    next();
+  });
 };
 
 // Middleware para logs de requisições
