@@ -1,15 +1,20 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { ProtectedRoute } from '../ProtectedRoute';
 
 const mockNavigate = vi.fn();
+const mockNavigateComponent = vi.fn();
 
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
   return {
     ...actual,
-    useNavigate: () => mockNavigate
+    useNavigate: () => mockNavigate,
+    Navigate: (props: React.ComponentProps<typeof actual.Navigate>) => {
+      mockNavigateComponent(props);
+      return null;
+    }
   };
 });
 
@@ -22,6 +27,7 @@ vi.mock('@/hooks/useAuth', () => ({
 describe('ProtectedRoute', () => {
   beforeEach(() => {
     mockNavigate.mockClear();
+    mockNavigateComponent.mockClear();
     mockUseAuth.mockReset();
   });
 
@@ -50,9 +56,10 @@ describe('ProtectedRoute', () => {
 
     expect(screen.getByText('Área Administrativa')).toBeInTheDocument();
     expect(mockNavigate).not.toHaveBeenCalled();
+    expect(mockNavigateComponent).not.toHaveBeenCalled();
   });
 
-  it('não renderiza conteúdo protegido para usuários sem permissão de admin', async () => {
+  it('não renderiza conteúdo protegido para usuários sem permissão de admin', () => {
     mockUseAuth.mockReturnValue({
       user: { id: 2, nome: 'Usuário Comum', papel: 'voluntaria' },
       profile: null,
@@ -64,7 +71,7 @@ describe('ProtectedRoute', () => {
     });
 
     render(
-      <MemoryRouter>
+      <MemoryRouter initialEntries={['/admin']}>
         <ProtectedRoute adminOnly>
           <div>Área Administrativa</div>
         </ProtectedRoute>
@@ -72,9 +79,13 @@ describe('ProtectedRoute', () => {
     );
 
     expect(screen.queryByText('Área Administrativa')).not.toBeInTheDocument();
-
-    await waitFor(() => {
-      expect(mockNavigate).toHaveBeenCalledWith('/', { replace: true });
-    });
+    expect(mockNavigate).not.toHaveBeenCalled();
+    expect(mockNavigateComponent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: '/',
+        replace: true,
+        state: { from: '/admin' }
+      })
+    );
   });
 });
