@@ -75,6 +75,8 @@ npm install
 npm --prefix apps/backend install
 ```
 
+> As ferramentas `tsx`, `vite` e `concurrently` já são instaladas automaticamente com `npm install` na raiz. Evite instalar versões globais para prevenir conflitos de versão.
+
 ## 6. Aplicar Migrações e Seeds
 
 Execute as migrações do banco e aplique os dados iniciais necessários para autenticação e testes:
