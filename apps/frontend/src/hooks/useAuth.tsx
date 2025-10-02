@@ -8,7 +8,6 @@ import {
   type ReactNode,
 } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { AUTH_TOKEN_KEY, USER_KEY } from "@/config";
 import { AuthService } from "@/services/auth.service";
 
 interface User {
@@ -51,7 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
   const [authenticating, setAuthenticating] = useState(false);
 
-  const initialUser = useMemo<User | null>(() => authService.getUser?.() ?? null, [authService]);
+  const initialUser = useMemo<User | null>(() => authService.getUser(), [authService]);
 
   const {
     data: sessionUser,
@@ -79,32 +78,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       queryClient.setQueryData(authKeys.session(), null);
     };
 
-    const handleStorageEvent = (event: StorageEvent) => {
-      const relevantKeys = new Set([
-        "token",
-        "auth_token",
-        AUTH_TOKEN_KEY,
-        "user",
-        USER_KEY
-      ]);
-      if (event.key === null || relevantKeys.has(event.key)) {
-        queryClient.invalidateQueries({ queryKey: authKeys.session() }).catch((error) => {
-          console.error('Erro ao sincronizar sessão de autenticação:', error);
-        });
-      }
-    };
-
     window.addEventListener("auth:logout", handleLogoutEvent);
-    window.addEventListener("storage", handleStorageEvent);
 
     return () => {
       window.removeEventListener("auth:logout", handleLogoutEvent);
-      window.removeEventListener("storage", handleStorageEvent);
     };
   }, [authService, queryClient]);
-
-  const legacyTokenKeys = useMemo(() => ['auth_token', 'token'], []);
-  const legacyUserKeys = useMemo(() => ['user'], []);
 
   const signIn = async (email: string, password: string): Promise<{ error?: Error }> => {
     try {
@@ -115,21 +94,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       type LoginResponse = { token: string; refreshToken: string; user?: User };
       const resp = response as LoginResponse;
 
-      // Armazenar token de acesso
-      if (resp.token) {
-        localStorage.setItem(AUTH_TOKEN_KEY, resp.token);
-        legacyTokenKeys
-          .filter((key) => key !== AUTH_TOKEN_KEY)
-          .forEach((key) => localStorage.removeItem(key));
-      }
       if (resp.user) {
-        localStorage.setItem(USER_KEY, JSON.stringify(resp.user));
-        legacyUserKeys
-          .filter((key) => key !== USER_KEY)
-          .forEach((key) => localStorage.removeItem(key));
         queryClient.setQueryData(authKeys.session(), resp.user);
+      } else {
+        await queryClient.invalidateQueries({ queryKey: authKeys.session() });
       }
-      await queryClient.invalidateQueries({ queryKey: authKeys.session() });
       return {};
     } catch (error) {
       return { error: error as Error };

@@ -7,7 +7,6 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, FileText, Download, Calendar, User, Award, Receipt, CheckCircle } from 'lucide-react';
-import { AUTH_TOKEN_KEY } from '@/config';
 import { apiService } from '@/services/apiService';
 import { downloadDeclaracao, downloadRecibo } from '@/utils/pdfDownload';
 
@@ -96,11 +95,7 @@ export default function DeclaracoesRecibos() {
         // Fazer download do PDF usando utilitário
         const declaracaoId = (response.data as any)?.declaracao?.id;
         if (declaracaoId) {
-          const token =
-            localStorage.getItem(AUTH_TOKEN_KEY) ||
-            localStorage.getItem('token') ||
-            '';
-          const downloadOk = await downloadDeclaracao(declaracaoId, token);
+          const downloadOk = await downloadDeclaracao(declaracaoId);
           
           if (!downloadOk) {
             alert('PDF gerado, mas houve problema no download. Verifique se permite downloads neste site.');
@@ -137,11 +132,7 @@ export default function DeclaracoesRecibos() {
         // Fazer download do PDF usando utilitário
         const reciboId = (response.data as any)?.recibo?.id;
         if (reciboId) {
-          const token =
-            localStorage.getItem(AUTH_TOKEN_KEY) ||
-            localStorage.getItem('token') ||
-            '';
-          const downloadOk = await downloadRecibo(reciboId, token);
+          const downloadOk = await downloadRecibo(reciboId);
           
           if (!downloadOk) {
             alert('PDF gerado, mas houve problema no download. Verifique se permite downloads neste site.');

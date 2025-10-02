@@ -8,7 +8,6 @@ import { API_URL } from '@/config';
 export interface DownloadPdfOptions {
   endpoint: string;
   filename: string;
-  token?: string;
 }
 
 function resolveApiUrl(endpoint: string): string {
@@ -28,26 +27,22 @@ function resolveApiUrl(endpoint: string): string {
  * @returns Promise<boolean> - true se download foi bem sucedido
  */
 export async function downloadPdf(options: DownloadPdfOptions): Promise<boolean> {
-  const { endpoint, filename, token } = options;
+  const { endpoint, filename } = options;
   const requestUrl = resolveApiUrl(endpoint);
 
   try {
     console.log(`Iniciando download de PDF: ${requestUrl}`);
-    
+
     // Headers da requisição
     const headers: HeadersInit = {
       'Accept': 'application/pdf, text/plain, */*'
     };
-    
-    // Adicionar token se fornecido
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
-    
+
     // Fazer requisição para o PDF
     const response = await fetch(requestUrl, {
       method: 'GET',
-      headers
+      headers,
+      credentials: 'include'
     });
     
     if (!response.ok) {
@@ -107,22 +102,20 @@ export default downloadPdf;
 /**
  * Download de declaração por ID
  */
-export async function downloadDeclaracao(id: number, token?: string): Promise<boolean> {
+export async function downloadDeclaracao(id: number): Promise<boolean> {
   return downloadPdf({
     endpoint: `/api/declaracoes/${id}/pdf`,
-    filename: `declaracao_${id}.pdf`,
-    token
+    filename: `declaracao_${id}.pdf`
   });
 }
 
 /**
  * Download de recibo por ID
  */
-export async function downloadRecibo(id: number, token?: string): Promise<boolean> {
+export async function downloadRecibo(id: number): Promise<boolean> {
   return downloadPdf({
     endpoint: `/api/recibos/${id}/pdf`,
-    filename: `recibo_${id}.pdf`,
-    token
+    filename: `recibo_${id}.pdf`
   });
 }
 
@@ -137,7 +130,7 @@ export function supportsDownload(): boolean {
 /**
  * Imprimir PDF diretamente (abre em nova aba com foco na impressão)
  */
-export async function printPdf(endpoint: string, token?: string): Promise<boolean> {
+export async function printPdf(endpoint: string): Promise<boolean> {
   const requestUrl = resolveApiUrl(endpoint);
 
   try {
@@ -146,11 +139,10 @@ export async function printPdf(endpoint: string, token?: string): Promise<boolea
       'Accept': 'application/pdf, text/plain, */*'
     };
 
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
-
-    const response = await fetch(requestUrl, { headers });
+    const response = await fetch(requestUrl, {
+      headers,
+      credentials: 'include'
+    });
     
     if (!response.ok) {
       throw new Error(`Erro HTTP: ${response.status}`);

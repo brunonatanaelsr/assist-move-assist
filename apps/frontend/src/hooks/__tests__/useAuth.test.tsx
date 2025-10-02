@@ -27,6 +27,7 @@ beforeEach(() => {
   );
 
   localStorage.clear();
+  AuthService.getInstance().clearStoredSession();
 });
 
 afterEach(() => {
@@ -43,8 +44,8 @@ describe('useAuth - logout events', () => {
   };
 
   it('should reset user and loading state when auth:logout event is dispatched', async () => {
-    localStorage.setItem('user', JSON.stringify(mockUser));
     const authService = AuthService.getInstance();
+    const clearSessionSpy = vi.spyOn(authService, 'clearStoredSession');
     vi
       .spyOn(authService, 'fetchCurrentUser')
       .mockResolvedValueOnce(mockUser as any)
@@ -66,6 +67,7 @@ describe('useAuth - logout events', () => {
       expect(result.current.user).toBeNull();
     });
     expect(result.current.loading).toBe(false);
+    expect(clearSessionSpy).toHaveBeenCalled();
 
     unmount();
   });
@@ -84,10 +86,6 @@ describe('useAuth - signOut cleanup', () => {
     const logoutMock = vi.spyOn(authService, 'logout').mockResolvedValue(undefined);
     vi.spyOn(authService, 'fetchCurrentUser').mockResolvedValue(mockUser as any);
 
-    localStorage.setItem('auth_token', 'token123');
-    localStorage.setItem('token', 'token123');
-    localStorage.setItem('user', JSON.stringify(mockUser));
-
     const { result } = renderHook(() => useAuth(), { wrapper });
 
     await waitFor(() => {
@@ -101,9 +99,6 @@ describe('useAuth - signOut cleanup', () => {
     });
 
     expect(logoutMock).toHaveBeenCalledTimes(1);
-    expect(localStorage.getItem('auth_token')).toBeNull();
-    expect(localStorage.getItem('token')).toBeNull();
-    expect(localStorage.getItem('user')).toBeNull();
     expect(result.current.user).toBeNull();
   });
 });
