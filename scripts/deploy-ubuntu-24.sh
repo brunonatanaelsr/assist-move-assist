@@ -37,6 +37,7 @@ LOG_DIR="/var/log/assist-move-assist"
 # Backend/API
 : "${API_PORT:=3000}"
 : "${JWT_SECRET:=}"
+: "${COOKIE_SECRET:=}"
 
 # Frontend
 : "${VITE_API_URL:=https://$DOMAIN/api}"
@@ -119,12 +120,18 @@ sudo -u www-data HOME="$WWW_DATA_HOME" npm run build
 
 msg "Escrevendo arquivo de ambiente do backend..."
 EXISTING_JWT_SECRET=""
+EXISTING_COOKIE_SECRET=""
 if [ -f "$BACKEND_DIR/.env" ]; then
   EXISTING_JWT_SECRET=$(grep -E "^JWT_SECRET=" "$BACKEND_DIR/.env" | tail -n1 | cut -d"=" -f2- || true)
+  EXISTING_COOKIE_SECRET=$(grep -E "^COOKIE_SECRET=" "$BACKEND_DIR/.env" | tail -n1 | cut -d"=" -f2- || true)
 fi
 JWT_SECRET_VAL="${JWT_SECRET:-${EXISTING_JWT_SECRET}}"
 if [ -z "$JWT_SECRET_VAL" ]; then
   JWT_SECRET_VAL=$(gen_secret)
+fi
+COOKIE_SECRET_VAL="${COOKIE_SECRET:-${EXISTING_COOKIE_SECRET}}"
+if [ -z "$COOKIE_SECRET_VAL" ]; then
+  COOKIE_SECRET_VAL=$(gen_secret)
 fi
 cat > "$BACKEND_DIR/.env" <<ENV
 NODE_ENV=production
@@ -142,6 +149,7 @@ DATABASE_URL=postgresql://${DB_USER}:${DB_PASS}@${DB_HOST}:${DB_PORT}/${DB_NAME}
 
 # JWT
 JWT_SECRET=${JWT_SECRET_VAL}
+COOKIE_SECRET=${COOKIE_SECRET_VAL}
 JWT_EXPIRES_IN=24h
 
 # Redis

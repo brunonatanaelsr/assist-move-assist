@@ -26,6 +26,7 @@ dotenvConfig({ path: path.resolve(__dirname, '../../', envFile) });
 
 const defaultsForTests = {
   JWT_SECRET: 'test-secret',
+  COOKIE_SECRET: 'test-cookie-secret',
   POSTGRES_HOST: 'localhost',
   POSTGRES_PORT: '5432',
   POSTGRES_DB: 'postgres',
@@ -68,6 +69,7 @@ const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().default(3000),
   JWT_SECRET: z.string().min(1, 'JWT_SECRET é obrigatório'),
+  COOKIE_SECRET: z.string().min(1, 'COOKIE_SECRET é obrigatório'),
   JWT_EXPIRY: jwtExpirySchema,
   JWT_REFRESH_SECRET: z.string().optional(),
   JWT_REFRESH_EXPIRY: jwtRefreshExpirySchema,

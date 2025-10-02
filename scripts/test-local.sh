@@ -78,9 +78,15 @@ fi
 
   if grep -q "JWT_SECRET" apps/backend/.env.production; then
     log_success "Configuração JWT encontrada"
-else
+  else
     log_error "Configuração JWT não encontrada"
-fi
+  fi
+
+  if grep -q "COOKIE_SECRET" apps/backend/.env.production; then
+    log_success "Configuração COOKIE_SECRET encontrada"
+  else
+    log_error "Configuração COOKIE_SECRET não encontrada"
+  fi
 
 # 5. Verificar dependências do package.json
 log_info "Verificando dependências..."

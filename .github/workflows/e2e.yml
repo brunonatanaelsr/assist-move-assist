@@ -75,6 +75,7 @@ jobs:
           NODE_ENV: test
           PORT: 3000
           JWT_SECRET: test_secret
+          COOKIE_SECRET: test_cookie_secret
           ENABLE_WS: true
           REDIS_URL: redis://localhost:6379
           CORS_ORIGIN: http://127.0.0.1:4173
