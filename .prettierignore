@@ -1,9 +1,0 @@
-node_modules
-apps/backend/
-src/
-dist
-coverage
-tests/
-scripts/
-README.md
-docs/

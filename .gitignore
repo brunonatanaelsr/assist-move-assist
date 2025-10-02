@@ -46,3 +46,4 @@ cookies.txt
 
 # Backend generated artifacts
 apps/backend/var/
+.env
