@@ -100,7 +100,15 @@ npm run dev                          # frontend Vite
 
 A aplicação ficará disponível em `http://localhost:5173` e a API em `http://localhost:3000/api`.
 
-As credenciais iniciais para login encontram-se em [`docs/TEST_CREDENTIALS.md`](TEST_CREDENTIALS.md).
+As credenciais padrão geradas pelo seed são:
+
+- Superadmin: `superadmin@example.com` / `ChangeMe!123`
+- Admin: `admin@example.com` / `ChangeMe!123`
+- Usuário E2E: `e2e@assist.local` / `e2e_password`
+
+Esses valores podem ser ajustados por meio das variáveis de ambiente `SUPERADMIN_*`, `ADMIN_*` e `E2E_TEST_*` antes de executar o seed. Quando o backend é iniciado via `docker-compose`, os valores definidos em [`docker/docker-compose.yml`](../docker/docker-compose.yml) atuam como overrides automáticos, substituindo os padrões acima.
+
+Consulte também [`docs/TEST_CREDENTIALS.md`](TEST_CREDENTIALS.md) para obter um resumo centralizado.
 
 ## 8. Fluxo Alternativo: Stack Completa via Docker Compose
 
