@@ -3,7 +3,7 @@ import { pool } from '../config/database';
 import { authenticateToken, authorize, AuthenticatedRequest } from '../middleware/auth';
 import { successResponse, errorResponse } from '../utils/responseFormatter';
 import { validateRequest } from '../middleware/validationMiddleware';
-import { z } from 'zod';
+import { z } from '../openapi/init';
 
 const router = Router();
 

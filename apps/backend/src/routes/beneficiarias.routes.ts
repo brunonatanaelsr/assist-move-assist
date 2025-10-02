@@ -17,7 +17,7 @@ import {
   validateBeneficiaria
 } from '../validators/beneficiaria.validator';
 import { pool } from '../config/database';
-import { ZodError } from 'zod';
+import { ZodError } from '../openapi/init';
 import { redis } from '../lib/redis';
 import { uploadSingle, UPLOAD_DIR } from '../middleware/upload';
 import type { BeneficiariaDetalhada } from '../types/beneficiarias';

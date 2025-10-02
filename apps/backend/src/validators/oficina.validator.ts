@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from '../openapi/init';
 
 // Schema para horários (formato HH:mm)
 const horarioSchema = z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Formato inválido. Use HH:mm');

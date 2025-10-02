@@ -1,5 +1,5 @@
 import { Request as ExpressRequest, Response, NextFunction } from 'express';
-import { z } from 'zod';
+import { z } from '../openapi/init';
 
 interface CustomRequest extends ExpressRequest {
   body: any;

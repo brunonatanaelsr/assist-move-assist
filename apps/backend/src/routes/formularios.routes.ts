@@ -3,7 +3,7 @@ import { authenticateToken, AuthenticatedRequest } from '../middleware/auth';
 import { pool } from '../config/database';
 import { successResponse, errorResponse } from '../utils/responseFormatter';
 import { validateRequest } from '../middleware/validationMiddleware';
-import { z } from 'zod';
+import { z } from '../openapi/init';
 import { renderFormPdf, renderAnamnesePdf, renderFichaEvolucaoPdf, renderTermosPdf, renderVisaoHolisticaPdf } from '../services/formsExport.service';
 
 type TermoConsentimentoRow = {

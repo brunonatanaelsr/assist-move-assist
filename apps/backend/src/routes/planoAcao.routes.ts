@@ -3,7 +3,7 @@ import { authenticateToken, authorize } from '../middleware/auth';
 import { validateRequest } from '../middleware/validationMiddleware';
 import { planoAcaoController } from '../controllers/planoAcaoController';
 import { planoAcaoSchema } from '../validators/planoAcao.validator';
-import { z } from 'zod';
+import { z } from '../openapi/init';
 
 const router = Router();
 

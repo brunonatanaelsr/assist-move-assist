@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction, RequestHandler } from 'express';
-import { z, type ZodIssue } from 'zod';
+import { z, type ZodIssue } from '../openapi/init';
 import { logger } from '../services/logger';
 
 type RequestShape = {

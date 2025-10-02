@@ -8,7 +8,7 @@ import { pool } from '../config/database';
 import { loggerService } from '../services/logger';
 import { catchAsync } from '../middleware/errorHandler';
 import { validateRequest } from '../middleware/validationMiddleware';
-import { z } from 'zod';
+import { z } from '../openapi/init';
 
 const router = Router();
 
