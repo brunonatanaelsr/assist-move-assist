@@ -4,7 +4,7 @@ import { logger } from '../services/logger';
 import { PlanoAcao, PlanoAcaoResponse } from '../models/PlanoAcao';
 import { formatDateToISO } from '../utils/dateFormatter';
 import { validatePlanoAcao } from '../validators/planoAcao.validator';
-import { ZodError } from 'zod';
+import { ZodError } from '../openapi/init';
 
 const hydratePlano = (row: any): PlanoAcao => {
   const itens = Array.isArray(row.itens) ? row.itens : [];

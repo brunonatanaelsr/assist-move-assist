@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { config as dotenvConfig } from 'dotenv';
-import { z } from 'zod';
+import { z } from '../openapi/init';
 import type { SignOptions } from 'jsonwebtoken';
 
 type MsStringValue = import('ms').StringValue;

@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from '../openapi/init';
 
 // Schema para posts do feed
 export const feedPostSchema = z.object({

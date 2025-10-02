@@ -1,7 +1,7 @@
 import { Pool } from 'pg';
 import type { RedisClient } from '../lib/redis';
 import { loggerService } from '../services/logger';
-import { z } from 'zod';
+import { z } from '../openapi/init';
 import { feedPostSchema, feedCommentSchema } from '../validators/feed.validator';
 import { formatArrayDates, formatObjectDates } from '../utils/dateFormatter';
 import { cacheService } from './cache.service';

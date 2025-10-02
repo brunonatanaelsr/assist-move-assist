@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from '../openapi/init';
 import { isCPF } from 'brazilian-values';
 
 const dateRegex = /^\d{4}-\d{2}-\d{2}$/;

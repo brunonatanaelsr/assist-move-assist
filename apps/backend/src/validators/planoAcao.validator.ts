@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from '../openapi/init';
 
 const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
 

@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { z } from 'zod';
+import { z } from '../openapi/init';
 import { logger } from '../services/logger';
 
 if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {

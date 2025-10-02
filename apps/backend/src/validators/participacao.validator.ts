@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from '../openapi/init';
 
 // Schema para participação
 export const participacaoSchema = z.object({

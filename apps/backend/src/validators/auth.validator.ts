@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from '../openapi/init';
 
 const emptyObject = z.object({}).optional();
 

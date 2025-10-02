@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from '../openapi/init';
 
 // Schema base para projeto
 export const projetoSchema = z.object({

@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { z } from 'zod';
+import { z } from '../openapi/init';
 import { ValidationError } from '../utils';
 
 export const validateSchema = (schema: z.ZodTypeAny) => {
