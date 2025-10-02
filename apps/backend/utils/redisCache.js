@@ -1,25 +1,47 @@
-const Redis = require('redis');
-const { promisify } = require('util');
+const { createClient } = require('redis');
+
+// Tempo máximo de tentativa de reconexão: 1 hora
+const MAX_RETRY_TIME = 1000 * 60 * 60;
 
 // Criar cliente Redis
-const client = Redis.createClient({
-  host: process.env.REDIS_HOST || 'localhost',
-  port: process.env.REDIS_PORT || 6379,
-  password: process.env.REDIS_PASSWORD,
-  // Opções para melhor performance
-  enable_offline_queue: false,
-  retry_strategy: (options) => {
-    if (options.total_retry_time > 1000 * 60 * 60) {
-      return new Error('Retry time exhausted');
+const client = createClient({
+  socket: {
+    host: process.env.REDIS_HOST || 'localhost',
+    port: Number(process.env.REDIS_PORT || 6379),
+    reconnectStrategy: (retries) => {
+      const delay = Math.min(retries * 100, 3000);
+      if (retries * delay > MAX_RETRY_TIME) {
+        return new Error('Retry time exhausted');
+      }
+      return delay;
     }
-    return Math.min(options.attempt * 100, 3000);
-  }
+  },
+  password: process.env.REDIS_PASSWORD,
+  disableOfflineQueue: true
 });
 
-// Promisificar métodos do Redis
-const getAsync = promisify(client.get).bind(client);
-const setAsync = promisify(client.set).bind(client);
-const delAsync = promisify(client.del).bind(client);
+let connectPromise;
+
+client.on('error', (error) => {
+  console.error('[Redis Client Error]', error);
+  // Permitir novas tentativas de conexão após um erro
+  connectPromise = null;
+});
+
+async function ensureConnected() {
+  if (client.isOpen) {
+    return;
+  }
+
+  if (!connectPromise) {
+    connectPromise = client.connect().catch((error) => {
+      connectPromise = null;
+      throw error;
+    });
+  }
+
+  await connectPromise;
+}
 
 // Duração padrão do cache em segundos
 const DEFAULT_TTL = 60 * 5; // 5 minutos
@@ -32,18 +54,22 @@ const DEFAULT_TTL = 60 * 5; // 5 minutos
  */
 async function withCache(key, fn, ttl = DEFAULT_TTL) {
   try {
+    await ensureConnected();
+
     // Tentar obter do cache
-    const cached = await getAsync(key);
+    const cached = await client.get(key);
     if (cached) {
       return JSON.parse(cached);
     }
 
     // Se não estiver em cache, executar função
     const result = await fn();
-    
+
     // Salvar no cache
-    await setAsync(key, JSON.stringify(result), 'EX', ttl);
-    
+    await client.set(key, JSON.stringify(result), {
+      EX: ttl
+    });
+
     return result;
   } catch (error) {
     console.error('[Redis Cache Error]', error);
@@ -58,7 +84,8 @@ async function withCache(key, fn, ttl = DEFAULT_TTL) {
  */
 async function invalidateCache(key) {
   try {
-    await delAsync(key);
+    await ensureConnected();
+    await client.del(key);
   } catch (error) {
     console.error('[Redis Cache Invalidation Error]', error);
   }
