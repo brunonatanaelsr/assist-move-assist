@@ -1,5 +1,4 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { AUTH_TOKEN_KEY } from '@/config';
 import apiService from './apiService';
 import { clearCsrfToken, getCsrfToken, setCsrfToken } from './csrfTokenStore';
 
@@ -31,20 +30,20 @@ describe('apiService', () => {
     expect(res.data).toEqual({ ok: true });
   });
 
-  it('não envia Authorization após limpar tokens', async () => {
+  it('não adiciona Authorization automaticamente', async () => {
     const handlers = getAxiosInstance().interceptors.request.handlers;
     const requestHandler = handlers.find((handler: any) => handler && typeof handler.fulfilled === 'function');
     expect(requestHandler).toBeDefined();
 
     const handlerFn = requestHandler!.fulfilled;
 
-    localStorage.setItem(AUTH_TOKEN_KEY, 'meu-token');
+    localStorage.setItem('auth_token', 'meu-token');
     const withToken = await handlerFn({ headers: {} });
-    expect(withToken.headers.Authorization).toBe('Bearer meu-token');
+    expect(withToken.headers.Authorization).toBeUndefined();
 
     localStorage.clear();
     const withoutToken = await handlerFn({ headers: { Authorization: 'Bearer antigo' } });
-    expect(withoutToken.headers.Authorization).toBeUndefined();
+    expect(withoutToken.headers.Authorization).toBe('Bearer antigo');
   });
 });
 

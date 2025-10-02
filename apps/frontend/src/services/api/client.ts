@@ -11,13 +11,14 @@ import type {
   BeneficiariaFiltros,
 } from '@assist/types';
 import { translateErrorMessage } from '@/lib/apiError';
-import { API_URL, AUTH_TOKEN_KEY, USER_KEY, REQUIRE_CSRF_HEADER } from '@/config';
+import { API_URL, REQUIRE_CSRF_HEADER } from '@/config';
 import type { DashboardStatsResponse } from '@/types/dashboard';
 import type { ApiResponse, Pagination } from '@/types/api';
 import type { Oficina } from '@/types/oficinas';
 import { applyCsrfTokenToAxios, applyCsrfTokenToConfig, getCsrfToken } from '../csrfTokenStore';
 import { ensureCsrfTokenFetched } from '../csrf.service';
 import { logger } from '@/lib/logger';
+import { AuthService } from '../auth.service';
 
 type ImportMetaEnv = { [key: string]: unknown; DEV?: boolean; MODE?: string };
 
@@ -77,19 +78,9 @@ class ApiService {
 
     applyCsrfTokenToAxios(this.api);
 
-    // Interceptor para adicionar token em todas as requisições
+    // Interceptor para preparar requisições
     this.api.interceptors.request.use(
       async (config: ApiRequestConfig) => {
-        const token =
-          localStorage.getItem(AUTH_TOKEN_KEY) ||
-          localStorage.getItem('auth_token') ||
-          localStorage.getItem('token');
-        if (token && token !== 'undefined') {
-          config.headers.Authorization = `Bearer ${token}`;
-        } else if (config.headers && 'Authorization' in config.headers) {
-          delete (config.headers as any).Authorization;
-        }
-
         // CSRF header opcional (se o backend validar)
         if (REQUIRE_CSRF_HEADER) {
           const method = config.method?.toLowerCase();
@@ -152,14 +143,7 @@ class ApiService {
 
         // Tratar erro de autenticação
         if (error.response && error.response.status === 401) {
-          const tokenKeys = new Set([
-            'token',
-            'auth_token',
-            AUTH_TOKEN_KEY
-          ]);
-          tokenKeys.forEach((key) => localStorage.removeItem(key));
-          localStorage.removeItem('user');
-          localStorage.removeItem(USER_KEY);
+          AuthService.getInstance().clearStoredSession();
           // HashRouter-safe redirect
           if (typeof window !== 'undefined') {
             window.dispatchEvent(new Event('auth:logout'));

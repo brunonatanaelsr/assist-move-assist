@@ -7,6 +7,7 @@ Este guia descreve como operar a autenticação com cookies HttpOnly e proteçã
 - Login já define cookie HttpOnly `auth_token` (ver `apps/backend/src/routes/auth.routes.ts`).
 - O cliente (`src/services/apiService.ts`) envia `withCredentials: true` e, se existir cookie `csrf_token`, envia `X-CSRF-Token` automaticamente. Defina `VITE_REQUIRE_CSRF_HEADER=false` para desativar esse cabeçalho enquanto o backend não exigir validação.
 - Autorização no backend funciona com cookie `auth_token` ou `Authorization: Bearer` como fallback.
+- O frontend consome `/auth/me` com `withCredentials` e mantém a sessão exclusivamente via cookie HttpOnly, sem gravar tokens em `localStorage`.
 
 ## Passos Recomendados
 
@@ -51,7 +52,7 @@ Este guia descreve como operar a autenticação com cookies HttpOnly e proteçã
 
 1. Ativar cookie HttpOnly (já ativo) mantendo também o token no corpo por compatibilidade.
 2. Introduzir CSRF middleware em staging com whitelist de rotas críticas.
-3. Remover gradualmente o uso do token em `localStorage` no frontend, migrando para autenticação totalmente baseada em cookie.
+3. Remover gradualmente o uso do token em `localStorage` no frontend, migrando para autenticação totalmente baseada em cookie. ✅ Concluído: a camada web usa apenas cookies HttpOnly.
 4. Forçar HTTPS e `secure: true` em produção.
 
 ## Troubleshooting

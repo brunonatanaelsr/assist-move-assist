@@ -1,4 +1,3 @@
-import { AUTH_TOKEN_KEY, USER_KEY } from '@/config';
 import api from '@/config/api';
 import axios from 'axios';
 import { applyCsrfTokenToAxios, getCsrfToken } from './csrfTokenStore';
@@ -41,13 +40,29 @@ export class AuthService {
 
   private readonly deviceStorageKey = 'auth_device_id';
   private readonly csrfEndpoints = ['/csrf-token', '/auth/csrf'];
+  private currentUser: AuthResponse['user'] | null = null;
 
   public clearStoredSession(): void {
-    const tokenKeys = new Set([...LEGACY_TOKEN_KEYS, AUTH_TOKEN_KEY]);
-    const userKeys = new Set([...LEGACY_USER_KEYS, USER_KEY]);
+    this.currentUser = null;
 
-    tokenKeys.forEach((key) => localStorage.removeItem(key));
-    userKeys.forEach((key) => localStorage.removeItem(key));
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    try {
+      const tokenKeys = new Set([...LEGACY_TOKEN_KEYS]);
+      const userKeys = new Set([...LEGACY_USER_KEYS]);
+
+      tokenKeys.forEach((key) => window.localStorage.removeItem(key));
+      userKeys.forEach((key) => window.localStorage.removeItem(key));
+      window.localStorage.removeItem('auth_token');
+      window.localStorage.removeItem('token');
+      window.localStorage.removeItem('user');
+      window.localStorage.removeItem('test_auth_token');
+      window.localStorage.removeItem('test_user');
+    } catch (error) {
+      console.warn('Não foi possível limpar os dados legados de autenticação:', error);
+    }
   }
 
   private constructor() {}
@@ -116,6 +131,7 @@ export class AuthService {
         { ...credentials, deviceId },
         { withCredentials: true }
       );
+      this.currentUser = response.data.user ?? null;
       return response.data;
     } catch (error) {
       if (axios.isAxiosError(error)) {
@@ -150,34 +166,19 @@ export class AuthService {
         { deviceId },
         { withCredentials: true }
       );
+      if (response.data?.user) {
+        this.currentUser = this.currentUser
+          ? { ...this.currentUser, ...response.data.user }
+          : (response.data.user as AuthResponse['user']);
+      }
       return response.data;
     } catch (error) {
       throw new Error('Erro ao renovar token');
     }
   }
 
-  isAuthenticated(): boolean {
-    const token =
-      localStorage.getItem(AUTH_TOKEN_KEY) ||
-      LEGACY_TOKEN_KEYS.map((key) => localStorage.getItem(key)).find((value) => !!value) ||
-      null;
-    return !!token;
-  }
-
-  getToken(): string | null {
-    return (
-      localStorage.getItem(AUTH_TOKEN_KEY) ||
-      LEGACY_TOKEN_KEYS.map((key) => localStorage.getItem(key)).find((value) => !!value) ||
-      null
-    );
-  }
-
   getUser(): AuthResponse['user'] | null {
-    const userStr =
-      localStorage.getItem(USER_KEY) ||
-      LEGACY_USER_KEYS.map((key) => localStorage.getItem(key)).find((value) => !!value) ||
-      null;
-    return userStr ? JSON.parse(userStr) : null;
+    return this.currentUser;
   }
 
   async fetchCurrentUser(): Promise<AuthResponse['user'] | null> {
@@ -191,10 +192,7 @@ export class AuthService {
         ? (payload as { user?: AuthResponse['user'] }).user
         : (payload as AuthResponse['user'] | undefined)) ?? null;
 
-      if (user) {
-        localStorage.setItem(USER_KEY, JSON.stringify(user));
-      }
-
+      this.currentUser = user ?? null;
       return user ?? null;
     } catch (error) {
       if (axios.isAxiosError(error) && error.response?.status === 401) {

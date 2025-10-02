@@ -23,7 +23,7 @@ Sistema completo de gestão para institutos sociais com acompanhamento de benefi
 - **Beneficiárias**: cadastro, histórico, exportação de relatórios.
 - **Projetos e Oficinas**: planejamento, presença e dashboards.
 - **Comunicação**: feed colaborativo, chat e notificações (WebSocket).
-- **Segurança**: RBAC granular, auditoria, rotinas de smoke tests.
+- **Segurança**: RBAC granular, auditoria, rotinas de smoke tests e autenticação baseada exclusivamente em cookies HttpOnly.
 
 ## Estrutura de Pastas
 

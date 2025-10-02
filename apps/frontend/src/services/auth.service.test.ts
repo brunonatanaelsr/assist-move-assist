@@ -1,7 +1,6 @@
 import type { AxiosRequestConfig } from 'axios';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import api from '@/config/api';
-import { AUTH_TOKEN_KEY, USER_KEY } from '@/config';
 import { AuthService } from './auth.service';
 import { clearCsrfToken, getCsrfToken } from './csrfTokenStore';
 
@@ -29,6 +28,7 @@ describe('AuthService', () => {
     clearCsrfToken();
     delete (api.defaults.headers.common as any)['X-CSRF-Token'];
     api.defaults.adapter = originalAdapter;
+    authService.clearStoredSession();
   });
 
   afterEach(() => {
@@ -106,6 +106,8 @@ describe('AuthService', () => {
     localStorage.setItem('test_user', JSON.stringify({ id: 1 }));
     localStorage.setItem('user', JSON.stringify({ id: 1 }));
 
+    (authService as unknown as { currentUser: any }).currentUser = { id: 99, email: 'legacy', nome: 'Legacy', papel: 'admin' };
+
     const getDeviceIdSpy = vi
       .spyOn(authService as unknown as { getDeviceId: () => string }, 'getDeviceId')
       .mockReturnValue('test-device-id');
@@ -126,6 +128,7 @@ describe('AuthService', () => {
     expect(localStorage.getItem('token')).toBeNull();
     expect(localStorage.getItem('test_user')).toBeNull();
     expect(localStorage.getItem('user')).toBeNull();
+    expect(authService.getUser()).toBeNull();
     expect(api.defaults.headers.common['X-CSRF-Token']).toBe('logout-token');
   });
 
@@ -303,12 +306,14 @@ describe('AuthService', () => {
     const user = await authService.fetchCurrentUser();
 
     expect(user).toEqual(userPayload);
-    expect(localStorage.getItem(USER_KEY)).toBe(JSON.stringify(userPayload));
+    expect(authService.getUser()).toEqual(userPayload);
+    expect(localStorage.getItem('test_user')).toBeNull();
   });
 
   it('should clear stored session when fetchCurrentUser receives 401', async () => {
-    localStorage.setItem(AUTH_TOKEN_KEY, 'token');
-    localStorage.setItem(USER_KEY, JSON.stringify({ id: 1 }));
+    localStorage.setItem('auth_token', 'token');
+    localStorage.setItem('user', JSON.stringify({ id: 1 }));
+    (authService as unknown as { currentUser: any }).currentUser = { id: 1, email: 'user@test.com', nome: 'User', papel: 'admin' };
 
     vi.spyOn(api, 'get').mockRejectedValueOnce({
       isAxiosError: true,
@@ -317,7 +322,8 @@ describe('AuthService', () => {
 
     await expect(authService.fetchCurrentUser()).resolves.toBeNull();
 
-    expect(localStorage.getItem(AUTH_TOKEN_KEY)).toBeNull();
-    expect(localStorage.getItem(USER_KEY)).toBeNull();
+    expect(localStorage.getItem('auth_token')).toBeNull();
+    expect(localStorage.getItem('user')).toBeNull();
+    expect(authService.getUser()).toBeNull();
   });
 });
