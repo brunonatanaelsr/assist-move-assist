@@ -131,11 +131,11 @@ describe('MatriculasService', () => {
       statusMatricula: undefined
     };
 
-    it('utiliza a contagem total retornada pelo banco', async () => {
+    it('utiliza a contagem total retornada pelo banco mesmo quando enviada como string', async () => {
       pool.query.mockResolvedValueOnce({
         rows: [
-          { id: 1, total_count: 12 },
-          { id: 2, total_count: 12 }
+          { id: 1, total_count: '12' },
+          { id: 2, total_count: '12' }
         ]
       });
 
@@ -149,6 +149,7 @@ describe('MatriculasService', () => {
         total: 12,
         totalPages: 3
       });
+      expect(typeof result.pagination.total).toBe('number');
       expect(result.data).toEqual([
         expect.objectContaining({ id: 1 }),
         expect.objectContaining({ id: 2 })
