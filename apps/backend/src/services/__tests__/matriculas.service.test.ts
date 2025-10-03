@@ -132,16 +132,18 @@ describe('MatriculasService', () => {
     };
 
     it('utiliza a contagem total retornada pelo banco', async () => {
-      pool.query.mockResolvedValueOnce({
-        rows: [
-          { id: 1, total_count: 12 },
-          { id: 2, total_count: 12 }
-        ]
-      });
+      pool.query
+        .mockResolvedValueOnce({ rows: [{ total: 12 }] })
+        .mockResolvedValueOnce({
+          rows: [
+            { id: 1 },
+            { id: 2 }
+          ]
+        });
 
       const result = await service.listarMatriculas(paginationParams);
 
-      expect(pool.query).toHaveBeenCalled();
+      expect(pool.query).toHaveBeenCalledTimes(2);
       expect(cache.deletePattern).toHaveBeenCalledWith('cache:matriculas:*');
       expect(result.pagination).toEqual({
         page: paginationParams.page,
@@ -153,11 +155,12 @@ describe('MatriculasService', () => {
         expect.objectContaining({ id: 1 }),
         expect.objectContaining({ id: 2 })
       ]);
-      expect(result.data[0]).not.toHaveProperty('total_count');
     });
 
     it('retorna total e totalPages zerados quando não há registros', async () => {
-      pool.query.mockResolvedValueOnce({ rows: [] });
+      pool.query
+        .mockResolvedValueOnce({ rows: [{ total: 0 }] })
+        .mockResolvedValueOnce({ rows: [] });
 
       const result = await service.listarMatriculas(paginationParams);
 
@@ -166,6 +169,22 @@ describe('MatriculasService', () => {
         limit: paginationParams.limit,
         total: 0,
         totalPages: 0
+      });
+      expect(result.data).toEqual([]);
+    });
+
+    it('mantém o total verdadeiro ao solicitar página além do fim', async () => {
+      pool.query
+        .mockResolvedValueOnce({ rows: [{ total: 12 }] })
+        .mockResolvedValueOnce({ rows: [] });
+
+      const result = await service.listarMatriculas({ ...paginationParams, page: 5 });
+
+      expect(result.pagination).toEqual({
+        page: 5,
+        limit: paginationParams.limit,
+        total: 12,
+        totalPages: 3
       });
       expect(result.data).toEqual([]);
     });

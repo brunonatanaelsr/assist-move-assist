@@ -98,7 +98,37 @@ export class MatriculasService {
     page,
     limit
   }: ListarMatriculasParams): Promise<ListarMatriculasResult> {
-    let query = `
+    let baseQuery = `
+      FROM matriculas_projetos mp
+      JOIN beneficiarias b ON mp.beneficiaria_id = b.id
+      JOIN projetos p ON mp.projeto_id = p.id
+      WHERE 1=1
+    `;
+
+    const filterParams: any[] = [];
+    let paramCount = 0;
+
+    if (beneficiariaId) {
+      baseQuery += ` AND mp.beneficiaria_id = $${++paramCount}`;
+      filterParams.push(beneficiariaId);
+    }
+
+    if (projetoId) {
+      baseQuery += ` AND mp.projeto_id = $${++paramCount}`;
+      filterParams.push(projetoId);
+    }
+
+    if (statusMatricula) {
+      baseQuery += ` AND mp.status_matricula = $${++paramCount}`;
+      filterParams.push(statusMatricula);
+    }
+
+    const countQuery = `SELECT COUNT(*) as total ${baseQuery}`;
+    const countResult = await this.pool.query(countQuery, filterParams);
+    const total = Number(countResult.rows[0]?.total ?? 0);
+
+    const dataParams = [...filterParams];
+    const dataQuery = `
       SELECT
         mp.*,
         b.nome_completo as beneficiaria_nome,
@@ -106,43 +136,19 @@ export class MatriculasService {
         p.nome as projeto_nome,
         p.descricao as projeto_descricao,
         p.data_inicio as projeto_data_inicio,
-        p.data_fim as projeto_data_fim,
-        COUNT(*) OVER() as total_count
-      FROM matriculas_projetos mp
-      JOIN beneficiarias b ON mp.beneficiaria_id = b.id
-      JOIN projetos p ON mp.projeto_id = p.id
-      WHERE 1=1
+        p.data_fim as projeto_data_fim
+      ${baseQuery}
+      ORDER BY mp.data_matricula DESC
+      LIMIT $${dataParams.length + 1} OFFSET $${dataParams.length + 2}
     `;
 
-    const params: any[] = [];
-    let paramCount = 0;
-
-    if (beneficiariaId) {
-      query += ` AND mp.beneficiaria_id = $${++paramCount}`;
-      params.push(beneficiariaId);
-    }
-
-    if (projetoId) {
-      query += ` AND mp.projeto_id = $${++paramCount}`;
-      params.push(projetoId);
-    }
-
-    if (statusMatricula) {
-      query += ` AND mp.status_matricula = $${++paramCount}`;
-      params.push(statusMatricula);
-    }
-
-    query += ' ORDER BY mp.data_matricula DESC';
-
     const offset = (page - 1) * limit;
-    query += ` LIMIT $${++paramCount} OFFSET $${++paramCount}`;
-    params.push(limit, offset);
+    dataParams.push(limit, offset);
 
-    const result = await this.pool.query(query, params);
+    const result = await this.pool.query(dataQuery, dataParams);
     await this.cacheService.deletePattern('cache:matriculas:*');
 
-    const total = result.rows[0]?.total_count ?? 0;
-    const data = result.rows.map(({ total_count, ...row }) => row);
+    const data = result.rows;
     const totalPages = total > 0 ? Math.ceil(total / limit) : 0;
 
     return {
