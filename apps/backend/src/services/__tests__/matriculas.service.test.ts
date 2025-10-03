@@ -121,4 +121,53 @@ describe('MatriculasService', () => {
       }
     );
   });
+
+  describe('listarMatriculas', () => {
+    const paginationParams = {
+      page: 2,
+      limit: 5,
+      beneficiariaId: undefined,
+      projetoId: undefined,
+      statusMatricula: undefined
+    };
+
+    it('utiliza a contagem total retornada pelo banco', async () => {
+      pool.query.mockResolvedValueOnce({
+        rows: [
+          { id: 1, total_count: 12 },
+          { id: 2, total_count: 12 }
+        ]
+      });
+
+      const result = await service.listarMatriculas(paginationParams);
+
+      expect(pool.query).toHaveBeenCalled();
+      expect(cache.deletePattern).toHaveBeenCalledWith('cache:matriculas:*');
+      expect(result.pagination).toEqual({
+        page: paginationParams.page,
+        limit: paginationParams.limit,
+        total: 12,
+        totalPages: 3
+      });
+      expect(result.data).toEqual([
+        expect.objectContaining({ id: 1 }),
+        expect.objectContaining({ id: 2 })
+      ]);
+      expect(result.data[0]).not.toHaveProperty('total_count');
+    });
+
+    it('retorna total e totalPages zerados quando não há registros', async () => {
+      pool.query.mockResolvedValueOnce({ rows: [] });
+
+      const result = await service.listarMatriculas(paginationParams);
+
+      expect(result.pagination).toEqual({
+        page: paginationParams.page,
+        limit: paginationParams.limit,
+        total: 0,
+        totalPages: 0
+      });
+      expect(result.data).toEqual([]);
+    });
+  });
 });
