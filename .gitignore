@@ -46,4 +46,4 @@ cookies.txt
 
 # Backend generated artifacts
 apps/backend/var/
-.env
+apps/backend/src/database/migrations/consolidated-schema.sql
