@@ -69,6 +69,7 @@ export interface ListarMatriculasResult {
     page: number;
     limit: number;
     total: number;
+    totalPages: number;
   };
 }
 
@@ -105,7 +106,8 @@ export class MatriculasService {
         p.nome as projeto_nome,
         p.descricao as projeto_descricao,
         p.data_inicio as projeto_data_inicio,
-        p.data_fim as projeto_data_fim
+        p.data_fim as projeto_data_fim,
+        COUNT(*) OVER() as total_count
       FROM matriculas_projetos mp
       JOIN beneficiarias b ON mp.beneficiaria_id = b.id
       JOIN projetos p ON mp.projeto_id = p.id
@@ -139,12 +141,17 @@ export class MatriculasService {
     const result = await this.pool.query(query, params);
     await this.cacheService.deletePattern('cache:matriculas:*');
 
+    const total = result.rows[0]?.total_count ?? 0;
+    const data = result.rows.map(({ total_count, ...row }) => row);
+    const totalPages = total > 0 ? Math.ceil(total / limit) : 0;
+
     return {
-      data: result.rows,
+      data,
       pagination: {
         page,
         limit,
-        total: result.rows.length
+        total,
+        totalPages
       }
     };
   }
