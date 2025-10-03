@@ -9,7 +9,7 @@ import { Heart, Eye, EyeOff, Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
+import { z } from "src/openapi/init";
 
 const loginSchema = z.object({
   email: z.string().email("Email inválido"),

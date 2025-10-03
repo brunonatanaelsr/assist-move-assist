@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from 'src/openapi/init';
 import type {
   CreateOficinaDTO,
   Oficina,

@@ -17,7 +17,7 @@ import {
   validateBeneficiaria
 } from '../validators/beneficiaria.validator';
 import { pool } from '../config/database';
-import { ZodError } from '../openapi/init';
+import { z, ZodError } from '../openapi/init';
 import { redis } from '../lib/redis';
 import { uploadSingle, UPLOAD_DIR } from '../middleware/upload';
 import type { BeneficiariaDetalhada } from '../types/beneficiarias';
@@ -253,10 +253,10 @@ router.post(
   requireProfissional,
   authorize('beneficiarias.criar'),
   validateRequest(
-    require('zod').z.object({
+    z.object({
       body: beneficiariaSchema,
-      query: require('zod').z.any().optional(),
-      params: require('zod').z.any().optional(),
+      query: z.any().optional(),
+      params: z.any().optional(),
     })
   ),
   async (req: ExtendedRequest, res: Response): Promise<void> => {
@@ -302,10 +302,10 @@ router.put(
   requireProfissional,
   authorize('beneficiarias.editar'),
   validateRequest(
-    require('zod').z.object({
+    z.object({
       body: beneficiariaSchema.partial(),
-      query: require('zod').z.any().optional(),
-      params: require('zod').z.any().optional(),
+      query: z.any().optional(),
+      params: z.any().optional(),
     })
   ),
   async (req: ExtendedRequest, res: Response): Promise<void> => {
@@ -384,10 +384,10 @@ router.put(
   requireProfissional,
   authorize('beneficiarias.editar'),
   validateRequest(
-    require('zod').z.object({
+    z.object({
       body: infoSocioeconomicaSchema,
-      query: require('zod').z.any().optional(),
-      params: require('zod').z.object({ id: require('zod').z.string().regex(/^\d+$/) })
+      query: z.any().optional(),
+      params: z.object({ id: z.string().regex(/^\d+$/) })
     })
   ),
   async (req: ExtendedRequest, res: Response): Promise<void> => {
@@ -432,10 +432,10 @@ router.post(
   requireProfissional,
   authorize('beneficiarias.editar'),
   validateRequest(
-    require('zod').z.object({
+    z.object({
       body: dependenteSchema,
-      query: require('zod').z.any().optional(),
-      params: require('zod').z.object({ id: require('zod').z.string().regex(/^\d+$/) })
+      query: z.any().optional(),
+      params: z.object({ id: z.string().regex(/^\d+$/) })
     })
   ),
   async (req: ExtendedRequest, res: Response): Promise<void> => {
@@ -506,10 +506,10 @@ router.post(
   requireProfissional,
   authorize('beneficiarias.editar'),
   validateRequest(
-    require('zod').z.object({
+    z.object({
       body: atendimentoSchema,
-      query: require('zod').z.any().optional(),
-      params: require('zod').z.object({ id: require('zod').z.string().regex(/^\d+$/) })
+      query: z.any().optional(),
+      params: z.object({ id: z.string().regex(/^\d+$/) })
     })
   ),
   async (req: ExtendedRequest, res: Response): Promise<void> => {
