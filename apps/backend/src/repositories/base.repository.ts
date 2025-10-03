@@ -1,5 +1,6 @@
-import { pool, query, transaction } from '../config/database';
+import { pool, query, transaction, executeQuery } from '../config/database';
 import { logger } from '../services/logger';
+import { NotFoundError } from '../utils/errors';
 
 export interface BaseEntity {
   id: number;
@@ -167,8 +168,14 @@ export class BaseRepository<T extends BaseEntity> {
     }
 
     try {
-      const result = await query(sql, [id]);
-      return result.length > 0;
+      const result = await executeQuery(sql, [id]);
+      const affectedRows = result.rowCount ?? 0;
+
+      if (affectedRows === 0) {
+        throw new NotFoundError(`Registro com ID ${id} não encontrado em ${this.tableName}`);
+      }
+
+      return affectedRows > 0;
     } catch (error) {
       logger.error(`Erro ao deletar registro em ${this.tableName}:`, error);
       throw error;

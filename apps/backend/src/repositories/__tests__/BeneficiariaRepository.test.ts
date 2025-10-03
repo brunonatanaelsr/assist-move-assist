@@ -120,7 +120,9 @@ describe('BeneficiariaRepository', () => {
   describe('delete', () => {
     it('deve deletar beneficiária existente', async () => {
       const created = await factory.create('beneficiaria');
-      await repository.delete(created.id);
+      const result = await repository.delete(created.id);
+
+      expect(result).toBe(true);
 
       const exists = await dbAssertions.recordExists('beneficiarias', {
         id: created.id
