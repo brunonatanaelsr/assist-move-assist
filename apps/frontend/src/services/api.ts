@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from 'src/openapi/init';
 import { beneficiariaSchema } from '../validation/zodSchemas';
 import { apiService, formulariosApi } from '@/services/apiService';
 import type {

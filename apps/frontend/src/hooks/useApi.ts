@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiService } from '@/services/apiService';
 import type { Pagination } from '@/types/api';
 import { toast } from 'sonner';
-import { z } from 'zod';
+import { z } from 'src/openapi/init';
 import { beneficiariaSchema } from '../validation/zodSchemas';
 
 type Beneficiaria = z.infer<typeof beneficiariaSchema>;

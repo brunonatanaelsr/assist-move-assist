@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from 'src/openapi/init';
 
 export const beneficiariaSchema = z.object({
   nome_completo: z.string()
