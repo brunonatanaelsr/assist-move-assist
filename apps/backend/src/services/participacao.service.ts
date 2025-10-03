@@ -2,6 +2,9 @@ import { Pool } from 'pg';
 import type { RedisClient } from '../lib/redis';
 import { loggerService } from '../services/logger';
 import { AppError, ValidationError } from '../utils';
+import { hasDefinedProperty, isKeyOf } from '../utils/typeGuards';
+
+type UpdateParticipacaoField = Extract<keyof UpdateParticipacaoDTO, string>;
 import {
   Participacao,
   CreateParticipacaoDTO,
@@ -255,21 +258,39 @@ export class ParticipacaoService {
         throw new AppError('Participação não encontrada', 404);
       }
 
-      const fieldsToUpdate = Object.entries(validatedData)
-        .filter(([key, value]) => value !== undefined && data[key as keyof UpdateParticipacaoDTO] !== undefined)
-        .map(([key, _]) => key);
+      const updates: Array<{ field: UpdateParticipacaoField; value: Exclude<UpdateParticipacaoDTO[UpdateParticipacaoField], undefined> }> = [];
+      const normalizedData = validatedData as Record<UpdateParticipacaoField, UpdateParticipacaoDTO[UpdateParticipacaoField] | undefined>;
 
-      if (fieldsToUpdate.length === 0) {
+      for (const [rawField, rawValue] of Object.entries(data)) {
+        if (rawValue === undefined) {
+          continue;
+        }
+
+        if (!isKeyOf(normalizedData, rawField)) {
+          continue;
+        }
+
+        const field = rawField as UpdateParticipacaoField;
+
+        if (!hasDefinedProperty(normalizedData, field)) {
+          continue;
+        }
+
+        const value = normalizedData[field];
+        updates.push({ field, value });
+      }
+
+      if (updates.length === 0) {
         throw new AppError('Nenhum campo fornecido para atualização', 400);
       }
 
-      const setClauses = fieldsToUpdate.map((field, index) => `${field} = $${index + 1}`);
-      const queryParams = fieldsToUpdate.map(field => validatedData[field as keyof UpdateParticipacaoDTO]);
+      const setClauses = updates.map(({ field }, index) => `${String(field)} = $${index + 1}`);
+      const queryParams = updates.map(({ value }) => value);
 
       const query = `
         UPDATE participacoes
         SET ${setClauses.join(', ')}, data_atualizacao = NOW()
-        WHERE id = $${fieldsToUpdate.length + 1} AND ativo = true
+        WHERE id = $${updates.length + 1} AND ativo = true
         RETURNING *
       `;
 
