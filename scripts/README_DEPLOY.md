@@ -6,6 +6,23 @@
 
 Este repositório inclui utilitários para suporte ao deploy, não um instalador automatizado completo. Use os scripts abaixo junto com o guia `docs/deployment/README.md`.
 
+### Validação local antes do deploy
+
+Antes de iniciar o processo de deploy, valide se os artefatos principais foram gerados corretamente:
+
+```bash
+# 1. Instalar dependências do backend (caso ainda não tenha feito)
+npm --prefix apps/backend install
+
+# 2. Compilar o backend para gerar dist/app.js e demais artefatos
+npm --prefix apps/backend run build
+
+# 3. Executar a checagem local consolidada
+./scripts/test-local.sh
+```
+
+O script `test-local.sh` usa o build recém-gerado (`apps/backend/dist/app.js`), valida o template de variáveis (`apps/backend/.env.example`) e cria automaticamente um schema consolidado das migrations em `apps/backend/src/database/migrations/consolidated-schema.sql` para as verificações SQL. Execute o teste sempre após atualizar o código para garantir que o pacote de deploy está íntegro.
+
 ### 1. Pré-checagens e preparação
 ```bash
 ./scripts/pre-deploy-check.sh

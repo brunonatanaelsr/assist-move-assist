@@ -7,8 +7,6 @@
 
 set -e
 
-echo "🧪 Testando sistema localmente antes do deploy..."
-
 # Cores
 GREEN='\033[0;32m'
 RED='\033[0;31m'
@@ -21,16 +19,84 @@ log_success() { echo -e "${GREEN}✅ $1${NC}"; }
 log_error() { echo -e "${RED}❌ $1${NC}"; }
 log_warning() { echo -e "${YELLOW}⚠️  $1${NC}"; }
 
+BACKEND_DIR="apps/backend"
+DIST_FILE="$BACKEND_DIR/dist/app.js"
+ENV_TEMPLATE="$BACKEND_DIR/.env.example"
+SCHEMA_DIR="$BACKEND_DIR/src/database/migrations"
+SCHEMA_OUTPUT="$SCHEMA_DIR/consolidated-schema.sql"
+DEPLOY_SCRIPT="scripts/deploy-production.sh"
+SEED_SCRIPT="$BACKEND_DIR/scripts/create-initial-data.js"
+ROUTES_FILE="$BACKEND_DIR/src/routes/api.ts"
+APP_SOURCE="$BACKEND_DIR/src/app.ts"
+AUTH_SERVICE_FILE="$BACKEND_DIR/src/services/auth.service.ts"
+SECURITY_MIDDLEWARE_FILE="$BACKEND_DIR/src/middleware/security.middleware.ts"
+AUTH_MIDDLEWARE_FILE="$BACKEND_DIR/src/middleware/auth.ts"
+
+declare -A MIDDLEWARE_SOURCES=(
+    ["helmet"]="$SECURITY_MIDDLEWARE_FILE"
+    ["cors"]="$SECURITY_MIDDLEWARE_FILE"
+    ["rateLimit"]="$SECURITY_MIDDLEWARE_FILE"
+    ["authenticateToken"]="$AUTH_MIDDLEWARE_FILE"
+)
+
+ensure_backend_build() {
+    if [[ -f "$DIST_FILE" ]]; then
+        log_info "Artefato já encontrado em $DIST_FILE"
+        return
+    fi
+
+    if command -v npm &> /dev/null; then
+        log_info "Compilando backend (npm run build)..."
+        if npm --prefix "$BACKEND_DIR" run build; then
+            log_success "Build do backend concluída"
+        else
+            log_warning "Falha ao compilar o backend. Verifique dependências antes do deploy."
+        fi
+    else
+        log_warning "npm não encontrado - não foi possível compilar o backend automaticamente"
+    fi
+}
+
+generate_consolidated_schema() {
+    if [[ ! -d "$SCHEMA_DIR" ]]; then
+        log_error "Diretório de migrations não encontrado: $SCHEMA_DIR"
+        exit 1
+    fi
+
+    log_info "Gerando schema consolidado a partir das migrations..."
+    local tmp_schema
+    tmp_schema=$(mktemp)
+
+    for migration in $(ls "$SCHEMA_DIR"/*.sql | sort); do
+        echo "-- Migration: $(basename "$migration")" >> "$tmp_schema"
+        cat "$migration" >> "$tmp_schema"
+        echo -e "\n" >> "$tmp_schema"
+    done
+
+    mv "$tmp_schema" "$SCHEMA_OUTPUT"
+    log_success "Schema consolidado gerado em $SCHEMA_OUTPUT"
+}
+
+ensure_backend_build
+generate_consolidated_schema
+
+echo "🧪 Testando sistema localmente antes do deploy..."
+
 # 1. Verificar arquivos essenciais
 log_info "Verificando arquivos essenciais..."
 
 FILES=(
-    "apps/backend/app-production-complete.js"
-    "apps/backend/.env.production"
-    "apps/backend/package.json"
-    "migrations/postgresql_complete_schema.sql"
-    "scripts/deploy-complete.sh"
-    "apps/backend/scripts/create-initial-data.js"
+    "$DIST_FILE"
+    "$ENV_TEMPLATE"
+    "$BACKEND_DIR/package.json"
+    "$SCHEMA_OUTPUT"
+    "$DEPLOY_SCRIPT"
+    "$SEED_SCRIPT"
+    "$ROUTES_FILE"
+    "$APP_SOURCE"
+    "$AUTH_SERVICE_FILE"
+    "$SECURITY_MIDDLEWARE_FILE"
+    "$AUTH_MIDDLEWARE_FILE"
 )
 
 for file in "${FILES[@]}"; do
@@ -46,7 +112,7 @@ done
 log_info "Verificando sintaxe JavaScript..."
 
 if command -v node &> /dev/null; then
-    node -c apps/backend/app-production-complete.js
+    node -c "$DIST_FILE"
     log_success "Sintaxe JavaScript válida"
 else
     log_warning "Node.js não encontrado - pulando verificação de sintaxe"
@@ -55,13 +121,13 @@ fi
 # 3. Verificar SQL
 log_info "Verificando SQL schema..."
 
-if grep -q "CREATE TABLE.*usuarios" migrations/postgresql_complete_schema.sql; then
+if grep -q "CREATE TABLE.*usuarios" "$SCHEMA_OUTPUT"; then
     log_success "Tabela usuarios encontrada no schema"
 else
     log_error "Tabela usuarios não encontrada no schema"
 fi
 
-if grep -q "CREATE TABLE.*beneficiarias" migrations/postgresql_complete_schema.sql; then
+if grep -q "CREATE TABLE.*beneficiarias" "$SCHEMA_OUTPUT"; then
     log_success "Tabela beneficiarias encontrada no schema"
 else
     log_error "Tabela beneficiarias não encontrada no schema"
@@ -70,23 +136,23 @@ fi
 # 4. Verificar configurações
 log_info "Verificando configurações..."
 
-  if grep -q "POSTGRES_HOST" apps/backend/.env.production; then
+if grep -q "POSTGRES_HOST" "$ENV_TEMPLATE"; then
     log_success "Configurações PostgreSQL encontradas"
 else
     log_error "Configurações PostgreSQL não encontradas"
 fi
 
-  if grep -q "JWT_SECRET" apps/backend/.env.production; then
+if grep -q "JWT_SECRET" "$ENV_TEMPLATE"; then
     log_success "Configuração JWT encontrada"
-  else
+else
     log_error "Configuração JWT não encontrada"
-  fi
+fi
 
-  if grep -q "COOKIE_SECRET" apps/backend/.env.production; then
+if grep -q "COOKIE_SECRET" "$ENV_TEMPLATE"; then
     log_success "Configuração COOKIE_SECRET encontrada"
-  else
+else
     log_error "Configuração COOKIE_SECRET não encontrada"
-  fi
+fi
 
 # 5. Verificar dependências do package.json
 log_info "Verificando dependências..."
@@ -104,11 +170,11 @@ done
 # 6. Verificar script de deploy
 log_info "Verificando script de deploy..."
 
-if [[ -x "scripts/deploy-complete.sh" ]]; then
+if [[ -x "$DEPLOY_SCRIPT" ]]; then
     log_success "Script de deploy é executável"
 else
     log_warning "Script de deploy não é executável - corrigindo..."
-    chmod +x scripts/deploy-complete.sh
+    chmod +x "$DEPLOY_SCRIPT"
     log_success "Permissão corrigida"
 fi
 
@@ -118,7 +184,7 @@ log_info "Verificando endpoints no código..."
 ENDPOINTS=("/api/auth/login" "/api/beneficiarias" "/health")
 
 for endpoint in "${ENDPOINTS[@]}"; do
-    if grep -q "$endpoint" apps/backend/app-production-complete.js; then
+    if grep -q "$endpoint" "$ROUTES_FILE"; then
         log_success "Endpoint encontrado: $endpoint"
     else
         log_error "Endpoint não encontrado: $endpoint"
@@ -131,7 +197,12 @@ log_info "Verificando middleware de segurança..."
 MIDDLEWARE=("helmet" "cors" "rateLimit" "authenticateToken")
 
 for mw in "${MIDDLEWARE[@]}"; do
-    if grep -q "$mw" apps/backend/app-production-complete.js; then
+    target_file="${MIDDLEWARE_SOURCES[$mw]}"
+    if [[ -z "$target_file" ]]; then
+        target_file="$APP_SOURCE"
+    fi
+
+    if grep -q "$mw" "$target_file"; then
         log_success "Middleware encontrado: $mw"
     else
         log_error "Middleware não encontrado: $mw"
@@ -141,13 +212,13 @@ done
 # 9. Verificar funções de hash
 log_info "Verificando funções de hash..."
 
-  if grep -q "bcrypt.compare" apps/backend/app-production-complete.js; then
+if grep -q "bcrypt.compare" "$AUTH_SERVICE_FILE"; then
     log_success "Verificação de senha encontrada"
 else
     log_error "Verificação de senha não encontrada"
 fi
 
-  if grep -q "bcrypt.hash" apps/backend/scripts/create-initial-data.js; then
+if grep -q "bcrypt.hash" "$SEED_SCRIPT"; then
     log_success "Hash de senha encontrado no script"
 else
     log_error "Hash de senha não encontrado no script"
@@ -163,14 +234,14 @@ total_files=${#FILES[@]}
 log_success "Arquivos verificados: $total_files/$total_files"
 
 # Verificar se há algum TODO ou FIXME
-  if grep -r "TODO\|FIXME" apps/backend/ --include="*.js" &> /dev/null; then
+if grep -r "TODO\|FIXME" "$BACKEND_DIR"/ --include="*.{js,ts}" &> /dev/null; then
     log_warning "TODOs encontrados no código - revisar antes do deploy"
 else
     log_success "Nenhum TODO pendente encontrado"
 fi
 
 # Verificar tamanho dos arquivos principais
-  main_file_size=$(stat -c%s "apps/backend/app-production-complete.js" 2>/dev/null || echo "0")
+main_file_size=$(stat -c%s "$DIST_FILE" 2>/dev/null || echo "0")
 if [[ $main_file_size -gt 10000 ]]; then
     log_success "Arquivo principal tem tamanho adequado ($main_file_size bytes)"
 else
@@ -184,7 +255,7 @@ echo "🚀 Sistema pronto para deploy!"
 echo ""
 echo "📋 Para fazer o deploy:"
 echo "   1. Copie o projeto para o servidor"
-echo "   2. Execute: sudo ./scripts/deploy-complete.sh"
+echo "   2. Execute: sudo ./scripts/deploy-production.sh"
 echo "   3. Aguarde a configuração automática"
 echo ""
 echo "🔗 URLs após o deploy:"
