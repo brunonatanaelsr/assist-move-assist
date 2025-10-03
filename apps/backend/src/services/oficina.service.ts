@@ -12,6 +12,9 @@ import {
   updateOficinaSchema
 } from '../validators/oficina.validator';
 import { formatArrayDates, formatObjectDates } from '../utils/dateFormatter';
+import { hasDefinedProperty, isKeyOf } from '../utils/typeGuards';
+
+type UpdateOficinaField = Extract<keyof UpdateOficinaDTO, string>;
 
 type OficinaColumnMap = {
   nome: string | null;
@@ -473,8 +476,9 @@ export class OficinaService {
       }
 
       const providedFields = Object.entries(data).filter(([_, value]) => value !== undefined);
+      const normalizedData = validatedData as Record<UpdateOficinaField, UpdateOficinaDTO[UpdateOficinaField] | undefined>;
 
-      const columnMapping: Partial<Record<keyof UpdateOficinaDTO, string | null>> = {
+      const columnMapping: Partial<Record<UpdateOficinaField, string | null>> = {
         nome: columnMap.nome,
         descricao: columnMap.descricao,
         instrutor: columnMap.instrutor,
@@ -492,20 +496,38 @@ export class OficinaService {
         data_atualizacao: columnMap.data_atualizacao
       };
 
-      const updates = providedFields
-        .map(([key, value]) => {
-          const column = columnMapping[key as keyof UpdateOficinaDTO];
-          if (!column) return null;
-          return { column, value, field: key as keyof UpdateOficinaDTO };
-        })
-        .filter((entry): entry is { column: string; value: any; field: keyof UpdateOficinaDTO } => entry !== null && validatedData[entry.field] !== undefined);
+      const updates: Array<{ column: string; field: UpdateOficinaField; value: Exclude<UpdateOficinaDTO[UpdateOficinaField], undefined> }> = [];
+
+      for (const [rawField] of providedFields) {
+        if (!isKeyOf(columnMapping, rawField)) {
+          continue;
+        }
+
+        const column = columnMapping[rawField];
+        if (!column) {
+          continue;
+        }
+
+        if (!isKeyOf(normalizedData, rawField)) {
+          continue;
+        }
+
+        const field = rawField as UpdateOficinaField;
+
+        if (!hasDefinedProperty(normalizedData, field)) {
+          continue;
+        }
+
+        const value = normalizedData[field];
+        updates.push({ column, field, value });
+      }
 
       if (updates.length === 0) {
         throw new Error('Nenhum campo para atualizar');
       }
 
       const setClauses = updates.map((entry, index) => `${entry.column} = $${index + 1}`);
-      const values = updates.map((entry) => validatedData[entry.field]);
+      const values = updates.map((entry) => entry.value);
 
       const timestampClause = columnMap.data_atualizacao ? `, ${columnMap.data_atualizacao} = NOW()` : '';
       const whereClause = [

@@ -2,6 +2,9 @@ import { Pool } from 'pg';
 import type { RedisClient } from '../lib/redis';
 import { loggerService } from '../services/logger';
 import { cacheService } from './cache.service';
+import { hasDefinedProperty, isKeyOf } from '../utils/typeGuards';
+
+type UpdateProjetoField = Extract<keyof UpdateProjetoDTO, string>;
 import {
   Projeto,
   CreateProjetoDTO,
@@ -219,21 +222,39 @@ export class ProjetoService {
         throw new Error('Projeto não encontrado');
       }
 
-      const fieldsToUpdate = Object.entries(validatedData)
-        .filter(([key, value]) => value !== undefined && Object.prototype.hasOwnProperty.call(originalData, key) && originalData[key] !== undefined)
-        .map(([key, _]) => key);
+      const updates: Array<{ field: UpdateProjetoField; value: Exclude<UpdateProjetoDTO[UpdateProjetoField], undefined> }> = [];
+      const normalizedData = validatedData as Record<UpdateProjetoField, UpdateProjetoDTO[UpdateProjetoField] | undefined>;
 
-      if (fieldsToUpdate.length === 0) {
+      for (const [rawField, rawValue] of Object.entries(originalData)) {
+        if (rawValue === undefined) {
+          continue;
+        }
+
+        if (!isKeyOf(normalizedData, rawField)) {
+          continue;
+        }
+
+        const field = rawField as UpdateProjetoField;
+
+        if (!hasDefinedProperty(normalizedData, field)) {
+          continue;
+        }
+
+        const value = normalizedData[field];
+        updates.push({ field, value });
+      }
+
+      if (updates.length === 0) {
         throw new Error('Nenhum campo para atualizar');
       }
 
-      const setClauses = fieldsToUpdate.map((field, index) => `${field} = $${index + 1}`);
-      const queryParams = fieldsToUpdate.map(field => validatedData[field as keyof UpdateProjetoDTO]);
+      const setClauses = updates.map(({ field }, index) => `${String(field)} = $${index + 1}`);
+      const queryParams = updates.map(({ value }) => value);
 
       const query = `
-        UPDATE projetos 
+        UPDATE projetos
         SET ${setClauses.join(', ')}, data_atualizacao = NOW()
-        WHERE id = $${fieldsToUpdate.length + 1} AND ativo = true
+        WHERE id = $${updates.length + 1} AND ativo = true
         RETURNING *
       `;
 
