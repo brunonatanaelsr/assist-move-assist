@@ -141,7 +141,12 @@ export class MatriculasService {
     const result = await this.pool.query(query, params);
     await this.cacheService.deletePattern('cache:matriculas:*');
 
-    const total = result.rows[0]?.total_count ?? 0;
+    const totalCountValue = result.rows[0]?.total_count;
+    const parsedTotal =
+      totalCountValue !== undefined && totalCountValue !== null
+        ? Number(totalCountValue)
+        : 0;
+    const total = Number.isNaN(parsedTotal) ? 0 : parsedTotal;
     const data = result.rows.map(({ total_count, ...row }) => row);
     const totalPages = total > 0 ? Math.ceil(total / limit) : 0;
 
