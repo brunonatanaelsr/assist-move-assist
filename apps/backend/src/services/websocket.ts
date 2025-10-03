@@ -1,11 +1,11 @@
 import WebSocket, { WebSocketServer } from 'ws';
 import { IncomingMessage } from 'http';
 import { authService } from '../services';
-import type { TokenPayload } from './auth.service';
+import type { JWTPayload } from '../types/auth';
 import { loggerService } from '../services/logger';
 
 export interface AuthenticatedWebSocket extends WebSocket {
-  user?: TokenPayload;
+  user?: JWTPayload;
   isAlive?: boolean;
 }
 
@@ -38,13 +38,14 @@ export class WebSocketService {
 
       // Verificar token
       const user = await authService.validateToken(token);
-      ws.user = user as any;
+      ws.user = user;
       ws.isAlive = true;
 
       // Adicionar cliente ao mapa
-      this.clients.set(String((user as any).id), ws);
+      const userId = String(user.id);
+      this.clients.set(userId, ws);
 
-      loggerService.info('WebSocket conectado', { userId: (user as any).id, email: (user as any).email });
+      loggerService.info('WebSocket conectado', { userId: user.id, email: user.email });
 
       // Configurar handlers
       ws.on('message', (data: WebSocket.Data) => {
@@ -64,7 +65,7 @@ export class WebSocketService {
       });
 
       // Enviar mensagem de boas-vindas
-      this.sendToClient(String((user as any).id), {
+      this.sendToClient(userId, {
         type: 'connected',
         message: 'Conectado ao sistema em tempo real',
         timestamp: new Date().toISOString()
@@ -126,8 +127,9 @@ export class WebSocketService {
 
   private handleDisconnection(ws: AuthenticatedWebSocket): void {
     if (ws.user) {
-      this.clients.delete(ws.user.id);
-      loggerService.info('WebSocket desconectado', { userId: ws.user.id });
+      const userId = String(ws.user.id);
+      this.clients.delete(userId);
+      loggerService.info('WebSocket desconectado', { userId });
     }
   }
 
@@ -137,7 +139,7 @@ export class WebSocketService {
         if (ws.isAlive === false) {
           ws.terminate();
           if (ws.user) {
-            this.clients.delete(ws.user.id);
+            this.clients.delete(String(ws.user.id));
           }
           return;
         }
